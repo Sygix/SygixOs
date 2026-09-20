@@ -26,3 +26,14 @@ jobs:
         with:
           name: screenshots
           path: app/build/outputs/screenshots/
+      - name: Comment PR with artifacts
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.issue.number,
+              body: `📦 **Artifacts de test** : [app-debug.apk](${runUrl}#artifacts) + screenshots — [page du run](${runUrl})`,
+            });

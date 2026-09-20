@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.composed
+import androidx.compose.ui.focus.focusable
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableStateOf
@@ -25,8 +26,8 @@ fun Modifier.tvFocus(onFocused: (Boolean) -> Unit = {}): Modifier = composed {
         label = "focusScale",
     )
     this
+        .focusable()
         .onFocusChanged { focused = it.isFocused; onFocused(it.isFocused) }
         .scale(scale)
-        .padding(if (focused) 0.dp else 6.dp)
         .shadow(if (focused) 16.dp else 0.dp, ambientColor = androidx.compose.ui.graphics.Color.Black)
 }
