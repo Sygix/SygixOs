@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="fr.sygix.sygixos.ui.HomeScreenScreenshotTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-09-20T21:23:29" hostname="tartare" time="4.492">
+  <properties/>
+  <testcase name="homeGrid" classname="fr.sygix.sygixos.ui.HomeScreenScreenshotTest" time="4.492"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

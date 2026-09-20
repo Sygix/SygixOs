@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "fr.sygix.sygixos.app-release-49:/drawable_app_banner.xml.flat",
+        "source": "fr.sygix.sygixos.app-main-50:/drawable/app_banner.xml"
+    },
+    {
+        "merged": "fr.sygix.sygixos.app-release-49:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "fr.sygix.sygixos.app-main-50:/mipmap-anydpi-v26/ic_launcher.xml"
+    }
+]
