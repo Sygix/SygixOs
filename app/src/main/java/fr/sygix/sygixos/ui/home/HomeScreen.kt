@@ -46,13 +46,13 @@ fun HomeScreen(viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Fact
         is HomeState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Chargement…", style = MaterialTheme.typography.titleMedium)
         }
-        is HomeState.Ready -> AppGrid(s.apps, viewModel)
+        is HomeState.Ready -> AppGrid(s.apps, viewModel::togglePin)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AppGrid(apps: List<TvApp>, viewModel: HomeViewModel) {
+internal fun AppGrid(apps: List<TvApp>, onTogglePin: (TvApp) -> Unit = {}) {
     val context = LocalContext.current
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
 
@@ -84,7 +84,7 @@ private fun AppGrid(apps: List<TvApp>, viewModel: HomeViewModel) {
             title = { Text(app.label) },
             text = { Text(app.packageName, style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
-                TextButton(onClick = { viewModel.togglePin(app); menuApp = null }) {
+                TextButton(onClick = { onTogglePin(app); menuApp = null }) {
                     Text("Épingler / Désépingler")
                 }
             },
