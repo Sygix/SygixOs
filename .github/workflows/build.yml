@@ -15,9 +15,9 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v6
-      - run: gradle assembleDebug test --no-daemon
+      - run: ./gradlew assembleDebug test --no-daemon
       - name: UI screenshots (Roborazzi)
-        run: gradle testDebugUnitTest -Proborazzi.test.record=true --no-daemon || true
+        run: ./gradlew testDebugUnitTest -Proborazzi.test.record=true --no-daemon || true
       - uses: actions/upload-artifact@v7
         with:
           name: app-debug
