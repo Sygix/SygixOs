@@ -32,6 +32,8 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose for TV) au design t
 - Dépendances externes : uniquement des libs éprouvées/maintenues (Room, Retrofit, Coil...)
 
 ## Environnement
+- Messages de commit en anglais, impératif court
+- Jamais de contenu spécifique à l'environnement dans le repo : secrets, clés, chemins locaux, config machine — tout va dans .gitignore / local.properties
 - Repo : github.com/Sygix/SygixOs
 - Cible : TCL Google TV, Android 14 (min SDK 30+)
 - ADB : `adb connect <IP-TV>` pour installer et tester ; commandes P5 dans le README
