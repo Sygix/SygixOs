@@ -52,3 +52,7 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.compose.ui.test.junit4)
 }
+
+tasks.withType<Test>().matching { it.name.contains("Release") }.configureEach {
+    filter { excludeTestsMatching("*HomeScreenScreenshotTest*") }
+}
