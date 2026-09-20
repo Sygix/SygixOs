@@ -1,0 +1,25 @@
+# SygixOs — Contexte projet
+
+Launcher Apple TV-style pour Google TV (TCL, Android 14 / Google TV). Remplace le launcher Google (avec pubs).
+
+## Priorités
+1. Design fidèle à tvOS (Liquid Glass, focus, animations)
+2. Zéro bug : états loading/empty/error partout, pas de crash silencieux
+
+## Stack
+- Kotlin, Jetpack Compose for TV, min SDK 30+
+- Retrofit/OkHttp, kotlinx.serialization, Coil, DataStore
+- Aucun backend ; tout en local
+
+## Conventions de code
+- SOLID, KISS, DRY ; interfaces aux frontières (repos, sources de données), logique hors UI
+- Uniflow : ViewModel -> StateFlow -> Compose
+- Commentaires : uniquement quand le code ne s'auto-décrit pas, jamais de bloat
+- Tests sur la logique métier (fusions, tri, mapping)
+- Langue UI : français uniquement (architecture i18n prête)
+
+## Workflow des specs
+- `openspec/project.md` : contexte, stack, conventions (ce fichier)
+- `openspec/specs/<capability>/spec.md` : exigences courantes, format Requirement/Scenario
+- `openspec/changes/<change-id>/` : propositions de changement (proposal.md, tasks.md, specs/) avant toute feature non triviale ; archivées une fois implémentées
+- Toute évolution de spec passe par une change proposal, jamais d'édition directe de specs/
