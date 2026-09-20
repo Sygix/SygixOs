@@ -24,6 +24,13 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose for TV) au design t
 - Liquid Glass : surfaces translucides floutées
 - Grille d'apps auto-détectée (LEANBACK_LAUNCHER), rangée Up Next en haut
 
+## Git & packaging
+- Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`...) ; branches `feat/`, `fix/`, `chore/` — pas de commit direct sur main après l'init du projet
+- Commits signés GPG (config global en place) ; author Sygix + noreply GitHub
+- Namespace Android : `fr.sygix.<appname>` — launcher : `fr.sygix.sygixos`
+- Cible : Android 14+ (minSdk 34)
+- Dépendances externes : uniquement des libs éprouvées/maintenues (Room, Retrofit, Coil...)
+
 ## Environnement
 - Repo : github.com/Sygix/SygixOs (SSH). Commits en anglais, messages impératifs courts
 - Cible : TCL Google TV, Android 14 (min SDK 30+)

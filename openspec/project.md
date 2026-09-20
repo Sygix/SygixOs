@@ -18,6 +18,16 @@ Launcher Apple TV-style pour Google TV (TCL, Android 14 / Google TV). Remplace l
 - Tests sur la logique métier (fusions, tri, mapping)
 - Langue UI : français uniquement (architecture i18n prête)
 
+## Git
+- **Conventional Commits** : `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, etc. (impératif, court)
+- **Branches** : jamais de commit direct sur main après l'init du projet — branches `feat/<nom>`, `fix/<nom>`, `chore/<nom>` puis PR (ou merge direct validé par Sygix en attendant les CI checks)
+- Commits signés GPG, author Sygix + email noreply GitHub (config global déjà en place)
+
+## Packaging & cible
+- Namespace Android : `fr.sygix.<appname>` (ce launcher : `fr.sygix.sygixos`)
+- Cible : **Android 14 et plus** (TCL Google TV, minSdk 34, compileSdk 34+)
+- Dépendances externes autorisées si éprouvées et maintenues (stores, DB locale : Room, etc.) — éviter les libs exotiques
+
 ## Workflow des specs
 - `openspec/project.md` : contexte, stack, conventions (ce fichier)
 - `openspec/specs/<capability>/spec.md` : exigences courantes, format Requirement/Scenario
