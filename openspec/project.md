@@ -21,7 +21,7 @@ Launcher Apple TV-style pour Google TV (TCL, Android 14 / Google TV). Remplace l
 ## Git
 - **Conventional Commits** : `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, etc. (impératif, court)
 - **Branches** : jamais de commit direct sur main après l'init du projet — branches `feat/<nom>`, `fix/<nom>`, `chore/<nom>` puis PR (ou merge direct validé par Sygix en attendant les CI checks)
-- Commits signés GPG, author Sygix + email noreply GitHub (config global déjà en place)
+- Commits signés, author cohérent avec le compte GitHub
 
 ## Packaging & cible
 - Namespace Android : `fr.sygix.<appname>` (ce launcher : `fr.sygix.sygixos`)
