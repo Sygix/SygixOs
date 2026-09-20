@@ -28,3 +28,7 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose for TV) au design t
 - Repo : github.com/Sygix/SygixOs (SSH). Commits en anglais, messages impératifs courts
 - Cible : TCL Google TV, Android 14 (min SDK 30+)
 - ADB : `adb connect <IP-TV>` pour installer et tester ; commandes P5 dans le README
+
+## Outils
+- OpenSpec CLI (`openspec`, v1.13+, installé via `pnpm add -g @fission-ai/openspec`) : valider avec `openspec validate --all --strict`, archiver un change avec `openspec archive <id>` ; pnpm (v12) obligatoire à la place de npm pour tout paquet Node
+- Format strict des specs : `### Requirement:` (SHALL/MUST), `#### Scenario:` avec `- **WHEN** / **THEN**`
