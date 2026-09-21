@@ -11,10 +11,10 @@ Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher 
 Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / LAUNCHER).
 
 #### Scenario: affichage
-- **WHEN** le home s'ouvre THEN toutes les apps TV installées apparaissent en grille (icônes arrondies superellipse, 6-7 par ligne selon densité), ordre et épinglage persistés (DataStore)
+- **WHEN** le home s'ouvre THEN toutes les apps TV installées apparaissent en grille (tuiles wide 1.2:1 façon tvOS, 5 colonnes, icônes/remplissage pleine tuile), ordre et épinglage persistés (DataStore)
 
 #### Scenario: menu contextuel
-- **WHEN** long-press sur une app THEN menu : épingler, désépingler, ouvrir, infos
+- **WHEN** long-press sur une app THEN menu : épingler / désépingler (ouvrir + infos : v1.x)
 
 ### Requirement: Focus tvOS
 Le launcher SHALL animer le focus des tuiles à la tvOS (zoom, ombre, easing).
@@ -76,15 +76,15 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 - **THEN** la grille plein écran prend le focus et le dock se masque
 
 ### Requirement: Dock d'apps épinglées
-Le home SHALL s'ouvrir sur un dock Liquid Glass en bas de l'écran contenant les apps épinglées, celles-ci étant exclues de la grille.
+Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) contenant les apps épinglées, exclues de la grille. Le dock n'est plus l'écran initial : il overlay le héro (superseded par hero-home).
 
 #### Scenario: état initial
 - **WHEN** le home s'ouvre
-- **THEN** le focus est sur le dock et seules les apps épinglées y sont visibles
+- **THEN** le dock est visible en overlay bas sur le héro, le focus est sur le héro
 
-#### Scenario: révélation de la grille
-- **WHEN** l'utilisateur descend au-delà du dock
-- **THEN** la grille complète (sans les épinglées) se révèle plein écran avec une animation fluide, et remonter en haut ramène au dock
+#### Scenario: tuiles adaptatives
+- **WHEN** le nombre d'apps épinglées varie (4 à 8+)
+- **THEN** les tuiles du dock se répartissent uniformément et réduisent leur taille automatiquement
 
 ### Requirement: Persistance de la grille
 L'ordre des apps et les épinglages SHALL être persistés localement (DataStore) et restaurés au démarrage.
