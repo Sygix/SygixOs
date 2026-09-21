@@ -9,6 +9,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,8 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -38,7 +37,11 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
+import kotlin.math.abs
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
@@ -115,10 +118,17 @@ internal fun HomeGrid(
     val shelfUris = postersOf(openApp)
 
     val scrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+    val contentWidth = screenWidth - Dimens.ScreenMarginH * 2
+    val rowHeight = (contentWidth - Dimens.GridSpacing * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
+    val panelBlock = contentWidth / Dimens.ShelfAspectRatio + 8.dp + Dimens.GridRowSpacing
+    val panelBlockPx = with(density) { panelBlock.toPx() }
+    val rowHeightPx = with(density) { rowHeight.toPx() }
+    val bottomMarginPx = with(density) { Dimens.GridRowSpacing.toPx() }
+    val spacingPx = with(density) { Dimens.GridRowSpacing.toPx() }
     val tileRequesters = remember { mutableMapOf<String, FocusRequester>() }
-    val rowViewRequesters = remember { mutableMapOf<Int, BringIntoViewRequester>() }
     fun requesterFor(packageName: String) = tileRequesters.getOrPut(packageName) { FocusRequester() }
-    fun viewRequesterFor(row: Int) = rowViewRequesters.getOrPut(row) { BringIntoViewRequester() }
 
     fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focusedApp } }
 
@@ -127,13 +137,34 @@ internal fun HomeGrid(
         return app?.let { requesterFor(it.packageName) } ?: FocusRequester.Default
     }
 
-    // Le panneau pousse les rangées : on ramène la tuile focusée dans la vue une fois l'animation finie.
+    // Ouverture, fermeture et déplacement du panneau changent la hauteur au-dessus de la rangée
+    // focusée. Plutôt que d'enchaîner deux animations (expansion puis remise en vue), on calcule
+    // la position finale et on ne défile qu'une fois, au rythme exact de l'expansion.
     LaunchedEffect(openRow, focusedApp) {
         val row = focusedRow()
         if (row < 0) return@LaunchedEffect
+        // Une frame d'attente : le défilement automatique du focus démarre en premier, le nôtre
+        // le remplace aussitôt, sinon les deux se disputeraient l'état de défilement.
         withFrameNanos { }
-        delay(Motion.SHELF_EXPAND_MS.toLong())
-        runCatching { viewRequesterFor(row).bringIntoView() }
+        val viewport = scrollState.viewportSize.toFloat()
+        if (viewport <= 0f) return@LaunchedEffect
+        val rowTop = Dimens.GridTopMargin.value * density.density +
+            row * (rowHeightPx + spacingPx) +
+            if (openRow in 0..row) panelBlockPx else 0f
+        val blockTop = rowTop - if (openRow == row) panelBlockPx else 0f
+        val blockBottom = rowTop + rowHeightPx
+        val target = if (blockBottom - blockTop + 2 * bottomMarginPx > viewport) {
+            blockTop - bottomMarginPx
+        } else {
+            scrollState.value.toFloat().coerceIn(
+                blockBottom + bottomMarginPx - viewport,
+                blockTop - bottomMarginPx,
+            )
+        }.coerceAtLeast(0f)
+        val delta = target - scrollState.value
+        if (abs(delta) > 1f) {
+            scrollState.animateScrollBy(delta, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
+        }
     }
     // En déplacement, la tuile change de rangée : son nœud est recréé, on lui redonne le focus.
     LaunchedEffect(movingApp, rows) {
@@ -170,13 +201,13 @@ internal fun HomeGrid(
         rows.forEachIndexed { rowIndex, rowApps ->
             // Aperçu et rangée forment un bloc : c'est lui qu'on amène dans la vue,
             // sinon seule une bande du panneau resterait visible au-dessus de la rangée.
-            Column(Modifier.bringIntoViewRequester(viewRequesterFor(rowIndex))) {
+            Column {
             AnimatedVisibility(
                 visible = rowIndex == openRow && shelfUris.isNotEmpty(),
                 enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
                     fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
                 exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                    fadeOut(tween(Motion.SHELF_FADE_MS, easing = AppleEasing)),
+                    fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
             ) {
                 ShelfPanel(shelfUris, Modifier.padding(bottom = Dimens.GridRowSpacing))
             }
