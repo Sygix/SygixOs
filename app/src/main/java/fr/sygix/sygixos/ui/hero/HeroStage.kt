@@ -23,9 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,6 +45,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -361,7 +360,7 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
             Modifier.padding(start = 18.dp, end = 22.dp, top = 9.dp, bottom = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = content, modifier = Modifier.size(20.dp))
+                PlayGlyph(content)
             Spacer(Modifier.width(8.dp))
             Text(label, style = MaterialTheme.typography.titleMedium, color = content)
         }
@@ -370,5 +369,19 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
         Box(focusModifier.clip(pill).background(Color.White)) { labelRow() }
     } else {
         GlassSurface(modifier = focusModifier, shape = pill) { labelRow() }
+    }
+}
+
+/** Triangle de lecture dessiné à la main : les icônes Material ne sont plus fournies avec Material 3. */
+@Composable
+private fun PlayGlyph(color: Color) {
+    Canvas(Modifier.size(14.dp)) {
+        val path = Path().apply {
+            moveTo(0f, 0f)
+            lineTo(size.width, size.height / 2f)
+            lineTo(0f, size.height)
+            close()
+        }
+        drawPath(path, color)
     }
 }

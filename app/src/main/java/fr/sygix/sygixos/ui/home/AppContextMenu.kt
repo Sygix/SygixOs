@@ -57,7 +57,7 @@ internal fun AppContextMenu(
             .background(Color.Black.copy(alpha = 0.55f)),
         contentAlignment = Alignment.Center,
     ) {
-        GlassSurface(Modifier.width(420.dp)) {
+        GlassSurface(Modifier.width(520.dp)) {
             Column(Modifier.padding(horizontal = 28.dp, vertical = 24.dp)) {
                 Text(app.label, style = MaterialTheme.typography.titleLarge, color = Color.White)
                 Spacer(Modifier.height(4.dp))
@@ -89,6 +89,12 @@ private fun MenuButton(text: String, onClick: () -> Unit, focusRequester: FocusR
             .tvClickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     ) {
-        Text(text, style = MaterialTheme.typography.titleMedium, color = if (focused) Color(0xFF15151A) else Color.White)
+        Text(
+            text,
+            style = MaterialTheme.typography.titleMedium,
+            color = if (focused) Color(0xFF15151A) else Color.White,
+            maxLines = 1,
+            softWrap = false,
+        )
     }
 }

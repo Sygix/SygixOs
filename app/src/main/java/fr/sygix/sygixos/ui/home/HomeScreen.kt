@@ -32,7 +32,7 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -89,7 +89,7 @@ internal fun LauncherHome(
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var movingApp by remember { mutableStateOf<String?>(null) }
     var orderBeforeMove by remember { mutableStateOf<List<String>>(emptyList()) }
-    val haze = remember { HazeState() }
+    val haze = rememberHazeState()
     var gridRow by remember { mutableIntStateOf(0) }
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
     val heroFocus = remember { FocusRequester() }

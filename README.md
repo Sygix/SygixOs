@@ -50,6 +50,7 @@ docker exec sygixos-build ./gradlew assembleDebug test
 docker exec sygixos-build ./gradlew testDebugUnitTest -Proborazzi.test.record=true   # captures
 docker exec sygixos-build ./gradlew assembleRelease   # build à tester sur la TV
 ```
+Le conteneur doit disposer d'environ 4 Go : avant une session de build, `./gradlew --stop` évite que des démons Gradle résiduels fassent tuer le build par le noyau.
 La signature release vient de l'environnement (`SYGIXOS_STORE_FILE`, `SYGIXOS_STORE_PASSWORD`, `SYGIXOS_KEY_ALIAS`, `SYGIXOS_KEY_PASSWORD`) ; sans ces variables, la clé de debug est utilisée.
 
 ## Structure
@@ -60,4 +61,4 @@ docs/screenshots/   captures Roborazzi (canevas TV 960x540 dp)
 ```
 
 ## Stack
-Kotlin · Jetpack Compose · media3 (ExoPlayer) · Coil · DataStore · tests JUnit/Robolectric · screenshots Roborazzi
+Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (Liquid Glass) · media3 (ExoPlayer) · Coil · DataStore · tests JUnit/Robolectric · screenshots Roborazzi
