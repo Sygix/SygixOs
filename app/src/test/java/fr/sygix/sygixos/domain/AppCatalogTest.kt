@@ -7,24 +7,27 @@ import org.junit.Test
 class AppCatalogTest {
 
     private val apps = listOf(
-        TvApp("com.netflix.mediaclient", "Netflix"),
-        TvApp("com.example.zeta", "zeta"),
-        TvApp("com.example.alpha", "Alpha"),
+        TvApp("com.netflix", "Netflix"),
+        TvApp("com.zeta", "zeta"),
+        TvApp("com.alpha", "Alpha"),
     )
 
     @Test
-    fun `ordered alphabetically without pins`() {
-        val result = AppCatalog.order(apps, emptyList())
-        assertEquals(listOf("com.example.alpha", "com.netflix.mediaclient", "com.example.zeta"), result.map { it.packageName })
+    fun `grid is ordered alphabetically and excludes pinned apps`() {
+        val grid = AppCatalog.grid(apps, listOf("com.netflix"))
+        assertEquals(listOf("com.alpha", "com.zeta"), grid.map { it.packageName })
     }
 
     @Test
-    fun `pinned apps come first in pin order`() {
-        val result = AppCatalog.order(apps, listOf("com.example.zeta", "com.netflix.mediaclient"))
-        assertEquals(
-            listOf("com.example.zeta", "com.netflix.mediaclient", "com.example.alpha"),
-            result.map { it.packageName },
-        )
+    fun `dock keeps pin order`() {
+        val dock = AppCatalog.dock(apps, listOf("com.zeta", "com.netflix"))
+        assertEquals(listOf("com.zeta", "com.netflix"), dock.map { it.packageName })
+    }
+
+    @Test
+    fun `dock ignores unknown packages`() {
+        val dock = AppCatalog.dock(apps, listOf("com.ghost", "com.netflix"))
+        assertEquals(listOf("com.netflix"), dock.map { it.packageName })
     }
 
     @Test
