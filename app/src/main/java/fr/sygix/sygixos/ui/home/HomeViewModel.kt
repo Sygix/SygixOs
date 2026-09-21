@@ -13,6 +13,7 @@ import fr.sygix.sygixos.data.NatureFallbackProvider
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.TvProviderHeroSource
 import fr.sygix.sygixos.data.VisualValidator
+import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
@@ -54,7 +55,9 @@ class HomeViewModel(
 
     private val heroState = MutableStateFlow(HeroState.Initial)
     private val validated = MutableStateFlow<Set<String>>(emptySet())
-    private var validationJob: Job? = null
+    private var heroValidationJob: Job? = null
+    private var shelfValidationJob: Job? = null
+    private val shelfRequested = mutableSetOf<String>()
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog.onEach { preloadArtwork(it) },
@@ -83,18 +86,34 @@ class HomeViewModel(
             heroState.update { it.copy(loading = true) }
             val feed = hero.load()
             heroState.value = HeroState(feed.items, feed.fromApps, loading = false)
-            validateVisuals(feed.items.mapNotNull { it.imageUrl }.distinct())
+            shelfRequested.clear()
+            android.util.Log.w("HomeVM", "programmes par app: " + feed.items.groupingBy { it.sourcePackage ?: "?" }.eachCount().entries.sortedByDescending { it.value }.joinToString { "${it.key}=${it.value}" })
+            // Le TV Provider peut publier des centaines de programmes : seuls les premiers
+            // visuels du héro sont validés au chargement, le reste l'est à la demande.
+            val heroUris = feed.items.asSequence()
+                .mapNotNull { it.imageUrl }
+                .distinct()
+                .take(VisualQuality.HERO_VALIDATED)
+                .toList()
+            heroValidationJob?.cancel()
+            heroValidationJob = launchValidation(heroUris, VisualQuality.HERO_IN_MEMORY)
         }
     }
 
-    /** Héro d'abord (ordre d'affichage), seulement les URIs pas encore validées. */
-    private fun validateVisuals(uris: List<String>) {
-        validationJob?.cancel()
+    /** Focus posé sur une app de la grille : on valide quelques-unes de ses affiches. */
+    fun prepareShelf(packageName: String) {
+        if (!shelfRequested.add(packageName)) return
+        val uris = ShelfPosters.candidates(heroState.value.items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
+        android.util.Log.w("HomeVM", "prepareShelf $packageName candidats=${uris.size}")
+        shelfValidationJob?.cancel()
+        shelfValidationJob = launchValidation(uris, keepInMemory = 0)
+    }
+
+    private fun launchValidation(uris: List<String>, keepInMemory: Int): Job? {
         val pending = uris.filter { it !in validated.value }
-        if (pending.isEmpty()) return
-        validationJob = viewModelScope.launch {
-            validator.validate(pending, keepInMemory = VisualQuality.HERO_IN_MEMORY)
-                .collect { uri -> validated.update { it + uri } }
+        if (pending.isEmpty()) return null
+        return viewModelScope.launch {
+            validator.validate(pending, keepInMemory).collect { uri -> validated.update { it + uri } }
         }
     }
 

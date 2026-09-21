@@ -85,6 +85,7 @@ class HomeScreenScreenshotTest {
                     focusRequester = FocusRequester(),
                     shelfPrograms = programs,
                     validatedVisuals = setOf("https://example.com/z.jpg"),
+                    onAppFocused = {},
                     onTileFocus = {},
                     onTileClick = {},
                     onTileLongClick = {},

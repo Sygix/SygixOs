@@ -31,7 +31,7 @@ class VisualValidator(
                 .build()
             val width = (runCatching { imageLoader.execute(request) }.getOrNull() as? SuccessResult)
                 ?.drawable?.intrinsicWidth ?: 0
-            if (width >= VisualQuality.MIN_WIDTH_PX) emit(uri) else Log.w(TAG, "visuel écarté (${width}px): $uri")
+            if (width >= VisualQuality.MIN_WIDTH_PX) emit(uri) else Log.d(TAG, "visuel écarté (${width}px): $uri")
         }
     }.flowOn(Dispatchers.IO)
 

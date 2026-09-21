@@ -17,8 +17,9 @@ object Motion {
     const val HERO_VIDEO_START_TIMEOUT_MS = 12_000L
     const val LONG_PRESS_MS = 450L
     const val SHELF_SCROLL_MS = 400
-    /** Délai avant de changer l'app du panneau Top Shelf quand le focus traverse la grille. */
-    const val SHELF_SETTLE_MS = 220L
+    /** Pause du focus avant d'ouvrir le panneau Top Shelf (aucun délai s'il est déjà ouvert). */
+    const val SHELF_OPEN_DELAY_MS = 3_000L
+    const val SHELF_EXPAND_MS = 420
     const val SHELF_FADE_MS = 350
 }
 

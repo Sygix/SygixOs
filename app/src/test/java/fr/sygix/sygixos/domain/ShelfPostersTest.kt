@@ -28,6 +28,13 @@ class ShelfPostersTest {
     }
 
     @Test
+    fun `candidates are limited and independent of validation`() {
+        assertEquals(listOf("https://a/1.jpg", "https://a/3.jpg"), ShelfPosters.candidates(programs, "com.a", 8))
+        assertEquals(listOf("https://a/1.jpg"), ShelfPosters.candidates(programs, "com.a", 1))
+        assertEquals(emptyList<String>(), ShelfPosters.candidates(programs, "com.zzz", 8))
+    }
+
+    @Test
     fun `unknown package yields nothing`() {
         assertEquals(emptyList<String>(), ShelfPosters.forPackage(programs, validated, "com.zzz"))
     }

@@ -19,12 +19,12 @@ Le héro est un fond plein écran, muet, qui enchaîne tout seul (fondu croisé,
 
 La lecture des programmes des autres apps exige la permission runtime `android.permission.READ_TV_LISTINGS`, demandée au premier lancement ; sans elle le provider ne renvoie que nos propres lignes. Le héro se recharge à chaque retour au launcher ; le catalogue d'apps est mis en cache pour un affichage immédiat au démarrage.
 
-Les visuels sont validés et préchargés au démarrage (vidéo d'aperçu privilégiée, image ou vidéo d'au moins 1080 px de large) ; un programme sans visuel correct n'entre pas dans le diaporama.
+Les visuels sont validés avant affichage (vidéo d'aperçu privilégiée, image ou vidéo d'au moins 1080 px de large) ; un programme sans visuel correct n'entre pas dans le diaporama. Le TV Provider pouvant publier des centaines de programmes, seuls les premiers visuels du héro sont validés au démarrage, les affiches d'une app l'étant quand le focus s'y pose.
 
 Fallback quand rien n'est publié : clips nature libres de droits (Pexels, 2560x1440, streaming, un seul lecteur), puis dégradé sombre animé si aucune vidéo ne peut être lue. Jamais d'écran noir.
 
 ## Navigation
-DPAD uniquement, trois paliers : héro → dock (apps épinglées, overlay bas) → grille (masque le héro). Seule la zone active est focusable. Bas/haut changent de palier, gauche/droite restent dans la zone. Retour : revient au héro. Appui long sur OK sur une tuile : épingler/retirer du dock, ou « Déplacer » pour réorganiser la grille aux flèches (OK valide, Retour annule), ordre persisté. Au focus d'une tuile de la grille, le panneau Top Shelf au-dessus de la rangée montre les posters de cette app, ou sa bannière floutée si elle ne publie rien. Les tuiles sont 16:9 et affichent la bannière Android TV de l'app (sinon son icône). 
+DPAD uniquement, trois paliers : héro → dock (apps épinglées, overlay bas) → grille (masque le héro). Seule la zone active est focusable. Bas/haut changent de palier, gauche/droite restent dans la zone. Retour : revient au héro. Appui long sur OK sur une tuile : épingler/retirer du dock, ou « Déplacer » pour réorganiser la grille aux flèches (OK valide, Retour annule), ordre persisté. Dans la grille, l'aperçu ne s'ouvre qu'après environ 3 s de focus immobile sur une app qui publie des visuels : il s'insère au-dessus de la rangée et pousse la grille vers le bas. Tant qu'il est ouvert, passer sur une autre app avec du contenu bascule sans délai ; passer sur une app sans contenu le referme. Les tuiles sont 16:9 et affichent la bannière Android TV de l'app (sinon son icône). 
 ## Installation (test sur TV)
 1. Sur la TV : Paramètres → À propos → 7× sur « Build » (mode développeur), puis activer le débogage ADB
 2. `adb connect <IP-TV>:<port>` puis `adb install -r app/build/outputs/apk/debug/app-debug.apk` ; accorder la permission « programmes TV » au premier lancement
