@@ -38,6 +38,24 @@ Le fallback du héro SHALL être une liste de clips nature libres de droits (Pex
 - **WHEN** aucun clip ne peut être lu (réseau absent, URL morte)
 - **THEN** le dégradé sombre animé reste affiché, sans écran noir ni crash
 
+### Requirement: Qualité des visuels
+Le héro et le panneau Top Shelf SHALL n'afficher que des visuels de bonne qualité : vidéo d'aperçu privilégiée quand l'app en fournit une, image ou vidéo d'au moins 960 px de large, sinon le programme est écarté.
+
+#### Scenario: image trop petite
+- **WHEN** l'image décodée d'un programme fait moins de 960 px de large, ou ne peut pas être chargée
+- **THEN** le héro passe au programme suivant sans afficher l'image, et le panneau Top Shelf ne l'inclut pas
+
+#### Scenario: vidéo trop petite
+- **WHEN** la vidéo d'aperçu d'un programme fait moins de 960 px de large
+- **THEN** le héro replie sur le poster du programme, puis l'écarte si le poster est aussi insuffisant
+
+### Requirement: Sélection des apps sources
+Le launcher SHALL permettre, dans ses réglages (v1.x), de cocher les apps dont les programmes alimentent le héro et le Top Shelf ; par défaut toutes les apps installées sont retenues.
+
+#### Scenario: app décochée
+- **WHEN** l'utilisateur décoche une app dans les réglages du launcher (v1.x)
+- **THEN** ses programmes n'apparaissent plus dans le héro ni dans le Top Shelf, sans redémarrage
+
 ## MODIFIED Requirements
 
 ### Requirement: Écran initial du home
@@ -85,6 +103,47 @@ Le héro SHALL afficher les programmes publiés dans le TV Provider système par
 - **WHEN** aucune app ne publie de programme dans le TV Provider
 - **THEN** le héro utilise le fond vidéo de secours, sans crash ni écran vide
 
+### Requirement: Panneau Top Shelf au focus
+Quand une tuile de la grille prend le focus, un panneau de posters de l'app SHALL s'insérer dans le layout juste au-dessus de la rangée active, la rangée active restant à hauteur fixe, sans bloquer la navigation DPAD.
+
+#### Scenario: insertion
+- **WHEN** une tuile d'une rangée prend le focus
+- **THEN** un panneau pleine largeur au format Apple Top Shelf (2,67:1, coins arrondis, ombre douce) s'insère au-dessus de cette rangée ; la rangée précédente dépasse en haut de l'écran, la rangée active est juste sous le panneau, les rangées suivantes occupent l'espace restant ; la navigation DPAD reste rangée par rangée (le panneau n'est pas focusable)
+
+#### Scenario: déplacement du focus
+- **WHEN** le focus passe à une tuile d'une autre rangée
+- **THEN** le panneau et les rangées glissent avec une animation fluide vers la nouvelle position, la rangée active retrouvant la même hauteur d'écran
+
+### Requirement: Contenu du panneau
+Le panneau SHALL afficher les preview programs publiés par l'app focus (TV Provider système), et disparaître si aucun visuel n'est lisible.
+
+#### Scenario: contenu disponible
+- **WHEN** l'app focusée publie des posters (preview programs / watch next)
+- **THEN** le panneau affiche un poster dominant avec fondu croisé 300-400ms easing Apple et défilement lent (Ken Burns) entre les posters de l'app
+
+#### Scenario: pas de contenu
+- **WHEN** l'app focusée ne publie rien, ou aucun de ses posters ne peut être chargé
+- **THEN** aucun panneau n'est affiché, la grille reste classique
+
+### Requirement: Dock d'apps épinglées
+Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) contenant les apps épinglées, qui restent également présentes dans la grille. Le dock overlay le héro.
+
+#### Scenario: état initial
+- **WHEN** le home s'ouvre
+- **THEN** le dock est visible en overlay bas sur le héro, le focus est sur le héro
+
+#### Scenario: taille tvOS
+- **WHEN** le dock contient jusqu'à 5 apps
+- **THEN** ses tuiles ont la taille des tuiles de la grille et s'alignent sur ses colonnes, centrées s'il y en a moins de 5
+
+#### Scenario: tuiles adaptatives
+- **WHEN** le dock contient plus de 5 apps
+- **THEN** les tuiles se répartissent uniformément et réduisent leur taille automatiquement
+
+#### Scenario: épinglage
+- **WHEN** l'utilisateur épingle ou retire une app via le menu contextuel (Menu ou appui long, OK valide directement)
+- **THEN** le dock est mis à jour et l'app reste dans la grille
+
 ### Requirement: Grille d'apps
 Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher en grille.
 
@@ -96,4 +155,15 @@ Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / 
 
 #### Scenario: menu contextuel
 - **WHEN** long-press ou touche Menu sur une app
-- **THEN** menu : épingler / désépingler (ouvrir + infos : v1.x)
+- **THEN** menu en overlay : épingler / retirer du dock, déplacer (grille) ; OK valide l'action focusée, Retour ferme
+
+### Requirement: Persistance de la grille
+L'ordre des apps et les épinglages SHALL être persistés localement (DataStore) et restaurés au démarrage ; les apps nouvellement installées s'ajoutent à la fin par ordre alphabétique.
+
+#### Scenario: réorganisation
+- **WHEN** l'utilisateur choisit « Déplacer » sur une tuile de la grille puis presse les flèches (gauche/droite : une case, haut/bas : une rangée, par insertion), OK pour valider
+- **THEN** la tuile suit le focus avec un liseré de déplacement, un rappel des touches s'affiche, l'ordre est persisté et conservé après redémarrage
+
+#### Scenario: annulation
+- **WHEN** l'utilisateur presse Retour pendant un déplacement
+- **THEN** l'ordre d'avant le déplacement est restauré
