@@ -66,4 +66,17 @@ class HomeScreenScreenshotTest {
         }
         composeRule.onRoot().captureRoboImage("build/outputs/screenshots/hero-tv-provider.png")
     }
+
+    @Test
+    fun gridWithShelfPanel() {
+        val catalog = Catalog(dock = apps.take(4), grid = apps.drop(4))
+        composeRule.setContent {
+            SygixOsTheme {
+                androidx.compose.foundation.layout.Box {
+                    fr.sygix.sygixos.ui.home.GridWithShelfPreview(catalog)
+                }
+            }
+        }
+        composeRule.onRoot().captureRoboImage("build/outputs/screenshots/grid-shelf-panel.png")
+    }
 }

@@ -119,6 +119,53 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         )
     }
 
+    private val artCache = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
+
+    /**
+     * Posters publiés par une app donnée (preview programs + watch next),
+     * pour le panneau Top Shelf au focus d'une tuile. Cache mémoire.
+     */
+    suspend fun posterUrisFor(packageName: String): List<String> = withContext(Dispatchers.IO) {
+        artCache.getOrPut(packageName) {
+            runCatching { queryPosterUrisFor(packageName) }.getOrDefault(emptyList())
+        }
+    }
+
+    private fun queryPosterUrisFor(packageName: String): List<String> {
+        val resolver = context.contentResolver
+        val channelIds = queryPreviewChannelPackages(resolver)
+            .filterValues { it == packageName }.keys
+        val uris = mutableListOf<String>()
+        if (channelIds.isNotEmpty()) {
+            val idList = channelIds.joinToString(",") { it.toString() }
+            resolver.query(
+                TvContract.PreviewPrograms.CONTENT_URI,
+                arrayOf(TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI, TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI, TvContract.PreviewPrograms.COLUMN_CHANNEL_ID),
+                "${TvContract.PreviewPrograms.COLUMN_CHANNEL_ID} IN ($idList)",
+                null,
+                null,
+            )?.use { c ->
+                while (c.moveToNext()) {
+                    val poster = c.getString(0) ?: c.getString(1)
+                    if (poster != null) uris.add(poster)
+                }
+            }
+        }
+        resolver.query(
+            TvContract.WatchNextPrograms.CONTENT_URI,
+            arrayOf(TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI, TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI, TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME),
+            "${TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME} = ?",
+            arrayOf(packageName),
+            null,
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val poster = c.getString(0) ?: c.getString(1)
+                if (poster != null) uris.add(poster)
+            }
+        }
+        return uris.distinct()
+    }
+
     private companion object {
         val PREVIEW_PROJECTION = arrayOf(
             TvContract.PreviewPrograms._ID,

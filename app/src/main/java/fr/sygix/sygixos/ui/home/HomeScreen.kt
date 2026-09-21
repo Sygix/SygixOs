@@ -17,9 +17,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.core.graphics.drawable.toBitmap
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalConfiguration
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -51,6 +62,7 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.HeroCarousel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory(LocalContext.current))) {
@@ -84,28 +96,62 @@ internal fun LauncherHome(
     val heroAlpha by animateFloatAsState(if (zone == Zone.GRID) 0f else 1f, tween(300), label = "heroAlpha")
     val dockAlpha by animateFloatAsState(if (zone == Zone.GRID) 0f else 1f, tween(300), label = "dockAlpha")
 
+    var focusedShelfApp by remember { mutableStateOf<String?>(null) }
+    var shelfUris by remember { mutableStateOf<List<String>>(emptyList()) }
+    val shelfSource = remember { fr.sygix.sygixos.data.TvProviderHeroSource(context.applicationContext) }
+    androidx.compose.runtime.LaunchedEffect(focusedShelfApp) {
+        shelfUris = focusedShelfApp?.let { pkg ->
+            runCatching { shelfSource.posterUrisFor(pkg) }.getOrDefault(emptyList())
+        } ?: emptyList()
+    }
+
     Box(Modifier.fillMaxSize().background(Color.Black)) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
+        // Fond dégradé neutre type tvOS quand on est dans la grille
+        if (zone == Zone.GRID) {
+            fr.sygix.sygixos.ui.hero.GradientFallback(Modifier.fillMaxSize())
+        }
+        val gridRows = catalog.grid.chunked(5)
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(gridAlpha)
                 .padding(horizontal = 48.dp, vertical = 32.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            items(catalog.grid, key = { it.packageName }) { app ->
-                AppTile(
-                    app = app,
-                    onFocusChanged = { if (it) zone = Zone.GRID },
-                    onClick = {
-                        context.startActivity(
-                            context.packageManager.getLaunchIntentForPackage(app.packageName)
-                                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
-                    },
-                    onLongClick = { menuApp = app },
-                )
+            gridRows.forEachIndexed { rowIndex, rowApps ->
+                item(key = "row-$rowIndex") {
+                    Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
+                        rowApps.forEach { app ->
+                            Box(Modifier.weight(1f)) {
+                                AppTile(
+                                    app = app,
+                                    onFocusChanged = {
+                                        if (it) {
+                                            zone = Zone.GRID
+                                            focusedShelfApp = app.packageName
+                                        }
+                                    },
+                                    onClick = {
+                                        context.startActivity(
+                                            context.packageManager.getLaunchIntentForPackage(app.packageName)
+                                                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                                        )
+                                    },
+                                    onLongClick = { menuApp = app },
+                                )
+                            }
+                        }
+                    }
+                }
+                if (zone == Zone.GRID &&
+                    focusedShelfApp != null &&
+                    shelfUris.isNotEmpty() &&
+                    rowApps.any { it.packageName == focusedShelfApp }
+                ) {
+                    item(key = "shelf-$rowIndex") {
+                        ShelfPanel(shelfUris)
+                    }
+                }
             }
         }
 
@@ -217,6 +263,59 @@ private fun Dock(
     )
 }
 
+@Composable
+private fun ShelfPanel(uris: List<String>) {
+    if (uris.isEmpty()) return
+    var index by remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(uris) {
+        if (uris.size > 1) {
+            while (true) {
+                delay(6000)
+                index = (index + 1) % uris.size
+            }
+        }
+    }
+    val pan = rememberInfiniteTransition(label = "kenBurns")
+    val panX by pan.animateFloat(
+        initialValue = -24f,
+        targetValue = 24f,
+        animationSpec = infiniteRepeatable(tween(16000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "kenBurnsX",
+    )
+    val panelHeight = (LocalConfiguration.current.screenHeightDp * 0.45f).dp
+    Crossfade(
+        targetState = index,
+        animationSpec = tween(350, easing = FastOutSlowInEasing),
+        label = "shelfCrossfade",
+    ) { i ->
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(panelHeight)
+                .padding(vertical = 4.dp)
+                .shadow(18.dp, RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFF14141A)),
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(uris[i % uris.size])
+                    .crossfade(true)
+                    .build(),
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationX = panX
+                        scaleX = 1.08f
+                        scaleY = 1.08f
+                    },
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun AppTile(
@@ -279,6 +378,42 @@ private fun TileBox(icon: androidx.compose.ui.graphics.ImageBitmap?, label: Stri
             Image(icon, contentDescription = label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
             Text(label.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = Color.White.copy(alpha = 0.9f))
+        }
+    }
+}
+
+/** Preview pour le screenshot Roborazzi : grille avec panneau shelf affiché. */
+@Composable
+internal fun GridWithShelfPreview(catalog: fr.sygix.sygixos.data.Catalog) {
+    val apps = remember { catalog.grid }
+    val gridRows = apps.chunked(5)
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(1f)
+            .padding(horizontal = 48.dp, vertical = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+    ) {
+        gridRows.forEachIndexed { rowIndex, rowApps ->
+            item(key = "row-$rowIndex") {
+                Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
+                    rowApps.forEach { app ->
+                        Box(Modifier.weight(1f)) {
+                            AppTile(app, onFocusChanged = {}, onClick = {}, onLongClick = {})
+                        }
+                    }
+                }
+            }
+            if (rowIndex == 0) {
+                item(key = "shelf-$rowIndex") {
+                    ShelfPanel(
+                        listOf(
+                            "https://example.com/poster-a.jpg",
+                            "https://example.com/poster-b.jpg",
+                        ),
+                    )
+                }
+            }
         }
     }
 }
