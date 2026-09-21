@@ -7,6 +7,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -113,15 +115,38 @@ private fun HeroPage(
             item.imageUrl != null -> CoilPoster(item.imageUrl)
             else -> GradientFallback()
         }
-        if (item.title.isNotEmpty()) {
-            Text(
-                item.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = Color.White,
+        if (item.title.isNotEmpty() || item.progress != null) {
+            androidx.compose.foundation.layout.Column(
                 modifier = Modifier
                     .padding(40.dp)
                     .zIndex(1f),
-            )
+            ) {
+                if (item.title.isNotEmpty()) {
+                    Text(
+                        item.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = Color.White,
+                    )
+                }
+                item.progress?.let { progress ->
+                    Box(
+                        Modifier
+                            .padding(top = 10.dp)
+                            .width(width * 0.35f)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.25f)),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth(progress)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(Color.White),
+                        )
+                    }
+                }
+            }
         }
     }
 }

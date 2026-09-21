@@ -46,7 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.tvFocus
-import fr.sygix.sygixos.data.AerialHeroProvider
+import fr.sygix.sygixos.data.DefaultHeroProvider
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.HeroCarousel
@@ -56,9 +56,11 @@ import kotlinx.coroutines.launch
 fun HomeScreen(viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory(LocalContext.current))) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val context = LocalContext.current
     var heroItems by remember { mutableStateOf(emptyList<HeroItem>()) }
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        heroItems = runCatching { AerialHeroProvider().load() }.getOrDefault(emptyList())
+        heroItems = runCatching { DefaultHeroProvider(context.applicationContext).load() }
+            .getOrDefault(emptyList())
     }
     when (val s = state) {
         is HomeState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -114,11 +116,19 @@ internal fun LauncherHome(
             items = heroItems,
             onFocused = { if (it) zone = Zone.HERO },
             onItemClick = { item ->
-                item.sourcePackage?.let { pkg ->
-                    context.startActivity(
-                        context.packageManager.getLaunchIntentForPackage(pkg)
-                            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                    )
+                val launched = item.launchUri?.let { uri ->
+                    runCatching {
+                        val intent = Intent.parseUri(uri, Intent.URI_INTENT_SCHEME)
+                        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.isSuccess
+                } ?: false
+                if (!launched) {
+                    item.sourcePackage?.let { pkg ->
+                        context.startActivity(
+                            context.packageManager.getLaunchIntentForPackage(pkg)
+                                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
                 }
             },
             modifier = Modifier.alpha(heroAlpha),
