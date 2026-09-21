@@ -84,7 +84,7 @@ internal fun LauncherHome(
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(7),
+            columns = GridCells.Fixed(5),
             modifier = Modifier
                 .fillMaxSize()
                 .alpha(gridAlpha)
@@ -158,9 +158,9 @@ internal fun LauncherHome(
 
 private enum class Zone { HERO, DOCK, GRID }
 
-private val DockTileSize = 96.dp
 private val DockInnerPadding = 24.dp
 private val DockTileSpacing = 28.dp
+private const val DockTileAspect = 1.2f
 
 @Composable
 private fun Dock(
@@ -182,7 +182,7 @@ private fun Dock(
                     "Épinglez des apps depuis la grille (appui long)",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.6f),
-                    modifier = Modifier.padding(horizontal = DockInnerPadding + 12.dp, vertical = DockTileSize / 2),
+                    modifier = Modifier.padding(horizontal = DockInnerPadding + 12.dp, vertical = 48.dp),
                 )
             } else {
                 Row(
@@ -192,7 +192,7 @@ private fun Dock(
                     horizontalArrangement = Arrangement.spacedBy(DockTileSpacing, Alignment.CenterHorizontally),
                 ) {
                     apps.forEach { app ->
-                        Box(modifier = Modifier.width(DockTileSize)) {
+                        Box(modifier = Modifier.weight(1f)) {
                             DockTile(
                                 app = app,
                                 onFocusChanged = { if (it) onTileFocus() },
@@ -260,7 +260,7 @@ private fun TileBox(icon: androidx.compose.ui.graphics.ImageBitmap?, label: Stri
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f)
+            .aspectRatio(1.2f)
             .clip(RoundedCornerShape(22.dp))
             .background(Color(0xFF141418)),
         contentAlignment = Alignment.Center,
