@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
@@ -59,6 +61,10 @@ fun HeroCarousel(
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var focusedIndex by remember { mutableStateOf(0) }
+    val heroFocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(items) {
+        val r = runCatching { heroFocusRequester.requestFocus() }
+    }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val pageWidth = maxWidth * 0.82f
@@ -76,6 +82,7 @@ fun HeroCarousel(
                     item = item,
                     width = pageWidth,
                     isFocused = isFocused,
+                    focusRequester = if (items.indexOf(item) == 0) heroFocusRequester else null,
                     onFocus = {
                         focusedIndex = items.indexOf(item)
                         onFocused(true)
@@ -95,6 +102,7 @@ private fun HeroPage(
     isFocused: Boolean,
     onFocus: () -> Unit,
     onClick: () -> Unit,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
 ) {
     val scale by animateFloatAsState(if (isFocused) 1f else 0.96f, tween(300), label = "pageScale")
     Box(
@@ -105,13 +113,22 @@ private fun HeroPage(
             .clip(RoundedCornerShape(24.dp))
             .background(Color(0xFF0A0A0C))
             .scale(scale)
+            .then(
+                if (focusRequester != null) {
+                    Modifier.focusRequester(focusRequester)
+                } else {
+                    Modifier
+                },
+            )
             .onFocusChanged { if (it.isFocused) onFocus() }
             .focusable()
             .clickable(onClick = onClick),
         contentAlignment = Alignment.BottomStart,
     ) {
+        var videoFailed by remember(item.videoUrl) { mutableStateOf(false) }
         when {
-            item.videoUrl != null -> AerialVideo(item.videoUrl)
+            item.videoUrl != null && !videoFailed -> AerialVideo(item.videoUrl, onError = { videoFailed = true })
+            item.videoUrl != null -> GradientFallback()
             item.imageUrl != null -> CoilPoster(item.imageUrl)
             else -> GradientFallback()
         }
@@ -152,13 +169,18 @@ private fun HeroPage(
 }
 
 @Composable
-private fun AerialVideo(url: String) {
+private fun AerialVideo(url: String, onError: () -> Unit) {
     val context = LocalContext.current
     val player = remember(url) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(url))
             repeatMode = Player.REPEAT_MODE_ALL
             volume = 0f
+            addListener(object : Player.Listener {
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    onError()
+                }
+            })
             prepare()
             playWhenReady = true
         }

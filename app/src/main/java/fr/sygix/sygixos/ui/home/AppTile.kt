@@ -16,6 +16,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -35,11 +40,21 @@ internal fun AppTile(
     onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    onMenuKey: () -> Unit = {},
 ) {
     val icon = appIcon(app)
     Column(
         modifier = Modifier
-            .tvFocus(onFocused = onFocusChanged)
+            .onPreviewKeyEvent { e ->
+                if (e.key == Key.Menu && e.type == KeyEventType.KeyDown) {
+                    onMenuKey()
+                    true
+                } else {
+                    false
+                }
+            }
+            .tvFocus(onFocused = onFocusChanged, focusRequester = focusRequester)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -54,12 +69,22 @@ internal fun DockTile(
     onFocusChanged: (Boolean) -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    focusRequester: androidx.compose.ui.focus.FocusRequester? = null,
+    onMenuKey: () -> Unit = {},
 ) {
     val icon = appIcon(app)
     Box(
         modifier = Modifier
+            .onPreviewKeyEvent { e ->
+                if (e.key == Key.Menu && e.type == KeyEventType.KeyDown) {
+                    onMenuKey()
+                    true
+                } else {
+                    false
+                }
+            }
             .width(96.dp)
-            .tvFocus(onFocused = onFocusChanged)
+            .tvFocus(onFocused = onFocusChanged, focusRequester = focusRequester)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

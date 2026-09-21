@@ -9,6 +9,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.composed
 import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableStateOf
@@ -18,7 +20,10 @@ import androidx.compose.runtime.setValue
 private const val FOCUS_SCALE = 1.1f
 private const val FOCUS_ANIM_MS = 300
 
-fun Modifier.tvFocus(onFocused: (Boolean) -> Unit = {}): Modifier = composed {
+fun Modifier.tvFocus(
+    onFocused: (Boolean) -> Unit = {},
+    focusRequester: FocusRequester? = null,
+): Modifier = composed {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (focused) FOCUS_SCALE else 1f,
@@ -26,6 +31,7 @@ fun Modifier.tvFocus(onFocused: (Boolean) -> Unit = {}): Modifier = composed {
         label = "focusScale",
     )
     this
+        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
         .focusable()
         .onFocusChanged { focused = it.isFocused; onFocused(it.isFocused) }
         .scale(scale)

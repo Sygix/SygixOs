@@ -31,6 +31,7 @@ internal fun HomeGrid(
     onTileFocus: () -> Unit,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
+    firstTileFocusRequester: androidx.compose.ui.focus.FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -54,10 +55,11 @@ internal fun HomeGrid(
         gridRows.forEachIndexed { rowIndex, rowApps ->
             item(key = "row-$rowIndex") {
                 Row(horizontalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.fillMaxWidth()) {
-                    rowApps.forEach { app ->
+                    rowApps.forEachIndexed { colIndex, app ->
                         Box(Modifier.weight(1f)) {
                             AppTile(
                                 app = app,
+                                focusRequester = if (rowIndex == 0 && colIndex == 0) firstTileFocusRequester else null,
                                 onFocusChanged = {
                                     if (it) {
                                         onTileFocus()
@@ -66,8 +68,12 @@ internal fun HomeGrid(
                                 },
                                 onClick = { onTileClick(app) },
                                 onLongClick = { onTileLongClick(app) },
+                                onMenuKey = { onTileLongClick(app) },
                             )
                         }
+                    }
+                    repeat(GRID_COLUMNS - rowApps.size) {
+                        Box(Modifier.weight(1f))
                     }
                 }
             }

@@ -28,6 +28,7 @@ internal fun Dock(
     onTileFocus: () -> Unit,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
+    firstTileFocusRequester: androidx.compose.ui.focus.FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     GlassSurface(
@@ -50,11 +51,13 @@ internal fun Dock(
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(DockTileSpacing, Alignment.CenterHorizontally),
                 ) {
-                    apps.forEach { app ->
+                    apps.forEachIndexed { index, app ->
                         Box(modifier = Modifier.weight(1f)) {
                             DockTile(
                                 app = app,
+                                focusRequester = if (index == 0) firstTileFocusRequester else null,
                                 onFocusChanged = { if (it) onTileFocus() },
+                                onMenuKey = { onTileLongClick(app) },
                                 onClick = { onTileClick(app) },
                                 onLongClick = { onTileLongClick(app) },
                             )

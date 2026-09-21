@@ -19,6 +19,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
@@ -59,11 +64,54 @@ internal fun LauncherHome(
     val context = LocalContext.current
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
     var zone by remember { mutableStateOf(Zone.HERO) }
+    val dockFocus = remember { FocusRequester() }
+    val gridFocus = remember { FocusRequester() }
+
+    // Demande de focus différée en post-composition (requestFocus immédiat = course)
+    var pendingFocus by remember { mutableStateOf<FocusRequester?>(null) }
+    LaunchedEffect(pendingFocus) {
+        pendingFocus?.let { runCatching { it.requestFocus() } }
+        pendingFocus = null
+    }
     val gridAlpha by animateFloatAsState(if (zone == Zone.GRID) 1f else 0f, tween(300), label = "gridAlpha")
     val heroAlpha by animateFloatAsState(if (zone == Zone.GRID) 0f else 1f, tween(300), label = "heroAlpha")
     val dockAlpha by animateFloatAsState(if (zone == Zone.GRID) 0f else 1f, tween(300), label = "dockAlpha")
 
-    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .onPreviewKeyEvent { e ->
+                if (e.type != androidx.compose.ui.input.key.KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when (e.key) {
+                    Key.DirectionDown -> when (zone) {
+                        Zone.HERO -> {
+                            if (catalog.dock.isNotEmpty()) {
+                                zone = Zone.DOCK
+                                pendingFocus = dockFocus
+                            } else {
+                                zone = Zone.GRID
+                                pendingFocus = gridFocus
+                            }
+                            true
+                        }
+                        Zone.DOCK -> {
+                            zone = Zone.GRID
+                            pendingFocus = gridFocus
+                            true
+                        }
+                        else -> false
+                    }
+                    Key.DirectionUp -> if (zone == Zone.DOCK) {
+                        zone = Zone.HERO
+                        true
+                    } else {
+                        false
+                    }
+                    else -> false
+                }
+            },
+    ) {
         // Fond dégradé neutre type tvOS quand on est dans la grille
         if (zone == Zone.GRID) {
             GradientFallback(Modifier.fillMaxSize())
@@ -73,6 +121,7 @@ internal fun LauncherHome(
             catalog = catalog,
             alpha = gridAlpha,
             onTileFocus = { zone = Zone.GRID },
+            firstTileFocusRequester = gridFocus,
             onTileClick = { app ->
                 context.startActivity(
                     context.packageManager.getLaunchIntentForPackage(app.packageName)
@@ -111,6 +160,7 @@ internal fun LauncherHome(
             apps = catalog.dock,
             alpha = dockAlpha,
             onTileFocus = { zone = Zone.DOCK },
+            firstTileFocusRequester = dockFocus,
             onTileClick = { app ->
                 context.startActivity(
                     context.packageManager.getLaunchIntentForPackage(app.packageName)
@@ -126,7 +176,15 @@ internal fun LauncherHome(
 
     menuApp?.let { app ->
         AlertDialog(
-            onDismissRequest = { menuApp = null },
+            onDismissRequest = {
+                menuApp = null
+                // Le focus a pu être perdu (app épinglée retirée de la grille) : on le restaure
+                pendingFocus = when (zone) {
+                    Zone.DOCK -> dockFocus
+                    Zone.GRID -> gridFocus
+                    else -> null
+                }
+            },
             title = { Text(app.label) },
             text = { Text(app.packageName, style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
