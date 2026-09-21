@@ -5,8 +5,9 @@ import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import fr.sygix.sygixos.core.designsystem.SygixOsTheme
+import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.TvApp
-import fr.sygix.sygixos.ui.home.AppGrid
+import fr.sygix.sygixos.ui.home.LauncherHome
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,12 +28,13 @@ class HomeScreenScreenshotTest {
     ).map { TvApp(packageName = "test.$it", label = it) }
 
     @Test
-    fun homeGrid() {
+    fun dockAndGrid() {
+        val catalog = Catalog(dock = apps.take(4), grid = apps.drop(4))
         composeRule.setContent {
             SygixOsTheme {
-                AppGrid(apps)
+                LauncherHome(catalog, onTogglePin = {})
             }
         }
-        composeRule.onRoot().captureRoboImage("build/outputs/screenshots/home-grid.png")
+        composeRule.onRoot().captureRoboImage("build/outputs/screenshots/home-dock-grid.png")
     }
 }

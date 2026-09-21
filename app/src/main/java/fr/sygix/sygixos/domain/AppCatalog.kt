@@ -4,15 +4,11 @@ import fr.sygix.sygixos.model.TvApp
 
 object AppCatalog {
 
-    fun order(apps: List<TvApp>, pinned: List<String>): List<TvApp> {
-        val rank = pinned.withIndex().associate { (i, pkg) -> pkg to i }
-        return apps.sortedWith(
-            compareBy(
-                { app -> rank[app.packageName] ?: Int.MAX_VALUE },
-                { app -> app.label.lowercase() },
-            ),
-        )
-    }
+    fun dock(apps: List<TvApp>, pinned: List<String>): List<TvApp> =
+        pinned.mapNotNull { pkg -> apps.find { it.packageName == pkg } }
+
+    fun grid(apps: List<TvApp>, pinned: List<String>): List<TvApp> =
+        apps.filter { it.packageName !in pinned }.sortedBy { it.label.lowercase() }
 
     fun togglePinned(current: List<String>, packageName: String): List<String> =
         if (packageName in current) current - packageName else current + packageName

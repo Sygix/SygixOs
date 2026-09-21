@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="fr.sygix.sygixos.domain.AppCatalogTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-20T21:23:29" hostname="tartare" time="0.025">
+<testsuite name="fr.sygix.sygixos.domain.AppCatalogTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-21T07:59:14" hostname="tartare" time="0.021">
   <properties/>
-  <testcase name="togglePin adds and removes" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.017"/>
-  <testcase name="ordered alphabetically without pins" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.006"/>
-  <testcase name="pinned apps come first in pin order" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.001"/>
+  <testcase name="dock keeps pin order" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.016"/>
+  <testcase name="grid is ordered alphabetically and excludes pinned apps" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.003"/>
+  <testcase name="togglePin adds and removes" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.001"/>
+  <testcase name="dock ignores unknown packages" classname="fr.sygix.sygixos.domain.AppCatalogTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>
