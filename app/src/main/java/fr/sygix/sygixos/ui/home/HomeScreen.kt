@@ -124,40 +124,20 @@ internal fun LauncherHome(
             modifier = Modifier.alpha(heroAlpha),
         )
 
-        GlassSurface(
+        Dock(
+            apps = catalog.dock,
+            alpha = dockAlpha,
+            onTileFocus = { zone = Zone.DOCK },
+            onTileClick = { app ->
+                context.startActivity(
+                    context.packageManager.getLaunchIntentForPackage(app.packageName)
+                        ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            },
+            onTileLongClick = { menuApp = it },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 32.dp)
-                .alpha(dockAlpha)
                 .zIndex(2f),
-            content = {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    if (catalog.dock.isEmpty()) {
-                        Text(
-                            "Épinglez des apps depuis la grille (appui long)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 24.dp),
-                        )
-                    }
-                    catalog.dock.forEach { app ->
-                        DockTile(
-                            app = app,
-                            onFocusChanged = { if (it) zone = Zone.DOCK },
-                            onClick = {
-                                context.startActivity(
-                                    context.packageManager.getLaunchIntentForPackage(app.packageName)
-                                        ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
-                            },
-                            onLongClick = { menuApp = app },
-                        )
-                    }
-                }
-            },
         )
     }
 
@@ -177,6 +157,55 @@ internal fun LauncherHome(
 }
 
 private enum class Zone { HERO, DOCK, GRID }
+
+private val DockTileSize = 96.dp
+private val DockInnerPadding = 24.dp
+private val DockTileSpacing = 28.dp
+
+@Composable
+private fun Dock(
+    apps: List<TvApp>,
+    alpha: Float,
+    onTileFocus: () -> Unit,
+    onTileClick: (TvApp) -> Unit,
+    onTileLongClick: (TvApp) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    GlassSurface(
+        modifier = modifier
+            .padding(bottom = 28.dp)
+            .fillMaxWidth(0.82f)
+            .alpha(alpha),
+        content = {
+            if (apps.isEmpty()) {
+                Text(
+                    "Épinglez des apps depuis la grille (appui long)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = DockInnerPadding + 12.dp, vertical = DockTileSize / 2),
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = DockInnerPadding, vertical = DockInnerPadding)
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(DockTileSpacing, Alignment.CenterHorizontally),
+                ) {
+                    apps.forEach { app ->
+                        Box(modifier = Modifier.width(DockTileSize)) {
+                            DockTile(
+                                app = app,
+                                onFocusChanged = { if (it) onTileFocus() },
+                                onClick = { onTileClick(app) },
+                                onLongClick = { onTileLongClick(app) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+    )
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
