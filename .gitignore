@@ -20,6 +20,13 @@ captures/
 # Kotlin
 .kotlin/
 
+# Secrets / env
+.env
+.env.*
+*.keystore
+!debug.keystore
+secrets.xml
+
 # OS / logs
 .DS_Store
 *.log
