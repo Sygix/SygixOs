@@ -8,14 +8,15 @@ class InstalledAppsSource(private val context: Context) {
 
     fun load(): List<TvApp> {
         val pm = context.packageManager
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
-        return pm.queryIntentActivities(intent, 0)
+        val leanback = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
+        return pm.queryIntentActivities(leanback, 0)
             .mapNotNull { info ->
                 val pkg = info.activityInfo.packageName
                 if (pkg == context.packageName) return@mapNotNull null
                 TvApp(
                     packageName = pkg,
                     label = info.loadLabel(pm)?.toString().orEmpty().ifEmpty { pkg },
+                    activityName = info.activityInfo.name,
                 )
             }
             .distinctBy { it.packageName }

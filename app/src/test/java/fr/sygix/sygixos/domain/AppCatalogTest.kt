@@ -13,9 +13,9 @@ class AppCatalogTest {
     )
 
     @Test
-    fun `grid is ordered alphabetically and excludes pinned apps`() {
-        val grid = AppCatalog.grid(apps, listOf("com.netflix"))
-        assertEquals(listOf("com.alpha", "com.zeta"), grid.map { it.packageName })
+    fun `grid is ordered alphabetically and keeps pinned apps`() {
+        val grid = AppCatalog.grid(apps)
+        assertEquals(listOf("com.alpha", "com.netflix", "com.zeta"), grid.map { it.packageName })
     }
 
     @Test
@@ -28,6 +28,23 @@ class AppCatalogTest {
     fun `dock ignores unknown packages`() {
         val dock = AppCatalog.dock(apps, listOf("com.ghost", "com.netflix"))
         assertEquals(listOf("com.netflix"), dock.map { it.packageName })
+    }
+
+    @Test
+    fun `grid follows persisted order then appends new apps alphabetically`() {
+        val grid = AppCatalog.grid(apps, listOf("com.zeta", "com.ghost", "com.netflix"))
+        assertEquals(listOf("com.zeta", "com.netflix", "com.alpha"), grid.map { it.packageName })
+    }
+
+    @Test
+    fun `move inserts at target and clamps at edges`() {
+        val order = listOf("a", "b", "c", "d", "e", "f")
+        assertEquals(listOf("b", "a", "c", "d", "e", "f"), AppCatalog.move(order, "a", 1))
+        assertEquals(listOf("b", "c", "d", "e", "f", "a"), AppCatalog.move(order, "a", 5))
+        assertEquals(listOf("b", "c", "d", "e", "f", "a"), AppCatalog.move(order, "a", 99))
+        assertEquals(listOf("a", "f", "b", "c", "d", "e"), AppCatalog.move(order, "f", -4))
+        assertEquals(order, AppCatalog.move(order, "a", -1))
+        assertEquals(order, AppCatalog.move(order, "zz", 1))
     }
 
     @Test

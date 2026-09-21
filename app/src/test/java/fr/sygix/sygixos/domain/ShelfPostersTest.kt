@@ -1,0 +1,26 @@
+package fr.sygix.sygixos.domain
+
+import fr.sygix.sygixos.model.HeroItem
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+class ShelfPostersTest {
+
+    private val programs = listOf(
+        HeroItem("1", "A", imageUrl = "https://a/1.jpg", sourcePackage = "com.a"),
+        HeroItem("2", "A2", imageUrl = "https://a/1.jpg", sourcePackage = "com.a"),
+        HeroItem("3", "A3", imageUrl = "https://a/3.jpg", sourcePackage = "com.a"),
+        HeroItem("4", "A4", videoUrl = "https://a/v.mp4", sourcePackage = "com.a"),
+        HeroItem("5", "B", imageUrl = "https://b/1.jpg", sourcePackage = "com.b"),
+    )
+
+    @Test
+    fun `filters by package and deduplicates posters`() {
+        assertEquals(listOf("https://a/1.jpg", "https://a/3.jpg"), ShelfPosters.forPackage(programs, "com.a"))
+    }
+
+    @Test
+    fun `unknown package yields nothing`() {
+        assertEquals(emptyList<String>(), ShelfPosters.forPackage(programs, "com.zzz"))
+    }
+}

@@ -2,20 +2,25 @@ package fr.sygix.sygixos.data
 
 import android.content.ContentResolver
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.tv.TvContract
+import android.net.Uri
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Remonte les programmes que les apps installées publient dans le TV Provider
- * système (watch next + preview programs) : reprises de lecture, récemment
- * ajoutés, recommandations. Aucune liste d'apps codée en dur : dès qu'une app
- * publie (Jellyfin, Netflix, Prime…), son contenu apparaît.
+ * Programmes publiés par les apps installées dans le TV Provider système
+ * (watch next + preview programs). Nécessite `android.permission.READ_TV_LISTINGS` :
+ * sans elle, le provider ne renvoie que nos propres lignes. Aucune clause de
+ * sélection ni tri n'est envoyée (refusés par le provider pour une app non
+ * privilégiée) : tout filtrage se fait côté launcher.
  */
 class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
+
+    private val labels = mutableMapOf<String, String?>()
 
     override suspend fun load(): List<HeroItem> = withContext(Dispatchers.IO) {
         runCatching { queryAll() }.getOrDefault(emptyList())
@@ -23,168 +28,133 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     private fun queryAll(): List<HeroItem> {
         val resolver = context.contentResolver
-        val packagesByChannel = queryPreviewChannelPackages(resolver)
-        val preview = queryPreviewPrograms(resolver, packagesByChannel)
-        val watchNext = queryWatchNext(resolver)
-        return HeroOrdering.sort(preview + watchNext)
+        val items = query(resolver, TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
+            query(resolver, TvContract.WatchNextPrograms.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
+        return HeroOrdering.sort(items.map { it.copy(sourceLabel = labelOf(it.sourcePackage)) })
     }
 
-    private fun queryPreviewChannelPackages(resolver: ContentResolver): Map<Long, String> {
-        resolver.query(
-            TvContract.Channels.CONTENT_URI,
-            arrayOf(TvContract.Channels._ID, TvContract.Channels.COLUMN_PACKAGE_NAME),
-            null,
-            null,
-            null,
-        )?.use { c ->
-            val map = mutableMapOf<Long, String>()
-            while (c.moveToNext()) {
-                val id = c.getLong(c.getColumnIndexOrThrow(TvContract.Channels._ID))
-                val pkg = c.getString(c.getColumnIndexOrThrow(TvContract.Channels.COLUMN_PACKAGE_NAME))
-                if (pkg != null) map[id] = pkg
-            }
-            return map
-        }
-        return emptyMap()
-    }
-
-    private fun queryPreviewPrograms(
+    private fun query(
         resolver: ContentResolver,
-        packagesByChannel: Map<Long, String>,
+        uri: android.net.Uri,
+        projection: Array<String>,
+        map: (Cursor) -> HeroItem?,
     ): List<HeroItem> {
         val items = mutableListOf<HeroItem>()
-        resolver.query(
-            TvContract.PreviewPrograms.CONTENT_URI,
-            PREVIEW_PROJECTION,
-            null,
-            null,
-            null,
-        )?.use { c ->
-            while (c.moveToNext()) {
-                val channelId = c.getLong(c.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_CHANNEL_ID))
-                mapPreviewRow(c, packagesByChannel[channelId])?.let(items::add)
+        runCatching {
+            resolver.query(uri, projection, null, null, null)?.use { c ->
+                while (c.moveToNext()) map(c)?.let(items::add)
             }
         }
         return items
     }
 
-    private fun queryWatchNext(resolver: ContentResolver): List<HeroItem> {
-        val items = mutableListOf<HeroItem>()
-        resolver.query(
-            TvContract.WatchNextPrograms.CONTENT_URI,
-            WATCH_NEXT_PROJECTION,
-            null,
-            null,
-            null,
-        )?.use { c ->
-            while (c.moveToNext()) {
-                mapWatchNextRow(c)?.let(items::add)
-            }
-        }
-        return items
-    }
-
-    internal fun mapPreviewRow(cursor: Cursor, packageName: String?): HeroItem? {
-        val title = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_TITLE))
-        val poster = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI))
-            ?: cursor.getString(cursor.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI))
-        val intentUri = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.PreviewPrograms.COLUMN_INTENT_URI))
-        if (packageName == null && poster == null && intentUri == null) return null
+    internal fun mapPreviewRow(c: Cursor): HeroItem? {
+        if (c.optInt(TvContract.PreviewPrograms.COLUMN_BROWSABLE, 1) == 0) return null
+        val image = landscapeImage(c, TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI, TvContract.PreviewPrograms.COLUMN_POSTER_ART_ASPECT_RATIO, TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI)
+        val video = playableVideo(c.optString(TvContract.PreviewPrograms.COLUMN_PREVIEW_VIDEO_URI))
+        val intentUri = c.optString(TvContract.PreviewPrograms.COLUMN_INTENT_URI)
+        if (image == null && video == null) return null
         return HeroItem(
-            id = "preview-${cursor.getString(cursor.getColumnIndexOrThrow(TvContract.PreviewPrograms._ID))}",
-            title = title ?: "",
-            imageUrl = poster,
-            sourcePackage = packageName,
+            id = "preview-${c.getLong(c.getColumnIndexOrThrow(TvContract.PreviewPrograms._ID))}",
+            title = c.optString(TvContract.PreviewPrograms.COLUMN_TITLE).orEmpty(),
+            videoUrl = video,
+            imageUrl = image,
+            sourcePackage = c.optString(TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME),
+            progress = HeroOrdering.progressRatio(
+                c.optLong(TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS),
+                c.optLong(TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS),
+            ),
             launchUri = intentUri,
         )
     }
 
-    internal fun mapWatchNextRow(cursor: Cursor): HeroItem? {
-        val title = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_TITLE))
-        val poster = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI))
-            ?: cursor.getString(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI))
-        val intentUri = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_INTENT_URI))
-        val position = cursor.getLong(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS))
-        val duration = cursor.getLong(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS))
-        val engagement = cursor.getLong(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS))
-        if (poster == null && intentUri == null) return null
+    internal fun mapWatchNextRow(c: Cursor): HeroItem? {
+        if (c.optInt(TvContract.WatchNextPrograms.COLUMN_BROWSABLE, 1) == 0) return null
+        val image = landscapeImage(c, TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI, TvContract.WatchNextPrograms.COLUMN_POSTER_ART_ASPECT_RATIO, TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI)
+        val video = playableVideo(c.optString(TvContract.WatchNextPrograms.COLUMN_PREVIEW_VIDEO_URI))
+        val intentUri = c.optString(TvContract.WatchNextPrograms.COLUMN_INTENT_URI)
+        if (image == null && video == null) return null
         return HeroItem(
-            id = "watchnext-${cursor.getString(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms._ID))}",
-            title = title ?: "",
-            imageUrl = poster,
-            sourcePackage = cursor.getString(cursor.getColumnIndexOrThrow(TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME)),
-            progress = HeroOrdering.progressRatio(position, duration),
+            id = "watchnext-${c.getLong(c.getColumnIndexOrThrow(TvContract.WatchNextPrograms._ID))}",
+            title = c.optString(TvContract.WatchNextPrograms.COLUMN_TITLE).orEmpty(),
+            videoUrl = video,
+            imageUrl = image,
+            sourcePackage = c.optString(TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME),
+            progress = HeroOrdering.progressRatio(
+                c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS),
+                c.optLong(TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS),
+            ),
             launchUri = intentUri,
-            engagement = engagement,
+            engagement = c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
         )
     }
-
-    private val artCache = java.util.concurrent.ConcurrentHashMap<String, List<String>>()
 
     /**
-     * Posters publiés par une app donnée (preview programs + watch next),
-     * pour le panneau Top Shelf au focus d'une tuile. Cache mémoire.
+     * Certaines apps (VLC…) publient comme aperçu une URI de TV input système
+     * (`content://android.media.tv/...`), lisible uniquement par le launcher Google : on l'ignore.
      */
-    suspend fun posterUrisFor(packageName: String): List<String> = withContext(Dispatchers.IO) {
-        artCache.getOrPut(packageName) {
-            runCatching { queryPosterUrisFor(packageName) }.getOrDefault(emptyList())
-        }
+    private fun playableVideo(uri: String?): String? = uri?.takeIf { raw ->
+        val parsed = Uri.parse(raw)
+        parsed.scheme == "http" || parsed.scheme == "https" ||
+            (parsed.scheme == "content" && parsed.authority != TvContract.AUTHORITY)
     }
 
-    private fun queryPosterUrisFor(packageName: String): List<String> {
-        val resolver = context.contentResolver
-        val channelIds = queryPreviewChannelPackages(resolver)
-            .filterValues { it == packageName }.keys
-        val uris = mutableListOf<String>()
-        if (channelIds.isNotEmpty()) {
-            val idList = channelIds.joinToString(",") { it.toString() }
-            resolver.query(
-                TvContract.PreviewPrograms.CONTENT_URI,
-                arrayOf(TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI, TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI, TvContract.PreviewPrograms.COLUMN_CHANNEL_ID),
-                "${TvContract.PreviewPrograms.COLUMN_CHANNEL_ID} IN ($idList)",
-                null,
-                null,
-            )?.use { c ->
-                while (c.moveToNext()) {
-                    val poster = c.getString(0) ?: c.getString(1)
-                    if (poster != null) uris.add(poster)
-                }
-            }
+    /** Le héro est plein écran : on préfère la vignette 16:9 à un poster portrait. */
+    private fun landscapeImage(c: Cursor, posterColumn: String, aspectColumn: String, thumbnailColumn: String): String? {
+        val poster = c.optString(posterColumn)
+        val thumbnail = c.optString(thumbnailColumn)
+        val portrait = c.optInt(aspectColumn, -1) in PORTRAIT_RATIOS
+        return if (portrait && thumbnail != null) thumbnail else poster ?: thumbnail
+    }
+
+    private fun labelOf(packageName: String?): String? = packageName?.let { pkg ->
+        labels.getOrPut(pkg) {
+            runCatching {
+                val pm = context.packageManager
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            }.getOrNull()
         }
-        resolver.query(
-            TvContract.WatchNextPrograms.CONTENT_URI,
-            arrayOf(TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI, TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI, TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME),
-            "${TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME} = ?",
-            arrayOf(packageName),
-            null,
-        )?.use { c ->
-            while (c.moveToNext()) {
-                val poster = c.getString(0) ?: c.getString(1)
-                if (poster != null) uris.add(poster)
-            }
-        }
-        return uris.distinct()
     }
 
     private companion object {
+        /** TvContract.PreviewPrograms.ASPECT_RATIO_MOVIE_POSTER (1:1.441), absent du SDK public. */
+        const val ASPECT_RATIO_MOVIE_POSTER = 5
+        val PORTRAIT_RATIOS = setOf(TvContract.PreviewPrograms.ASPECT_RATIO_2_3, ASPECT_RATIO_MOVIE_POSTER)
         val PREVIEW_PROJECTION = arrayOf(
             TvContract.PreviewPrograms._ID,
-            TvContract.PreviewPrograms.COLUMN_CHANNEL_ID,
+            TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME,
             TvContract.PreviewPrograms.COLUMN_TITLE,
             TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI,
+            TvContract.PreviewPrograms.COLUMN_POSTER_ART_ASPECT_RATIO,
             TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI,
+            TvContract.PreviewPrograms.COLUMN_PREVIEW_VIDEO_URI,
             TvContract.PreviewPrograms.COLUMN_INTENT_URI,
+            TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
+            TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS,
+            TvContract.PreviewPrograms.COLUMN_BROWSABLE,
         )
         val WATCH_NEXT_PROJECTION = arrayOf(
             TvContract.WatchNextPrograms._ID,
             TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME,
             TvContract.WatchNextPrograms.COLUMN_TITLE,
             TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI,
+            TvContract.WatchNextPrograms.COLUMN_POSTER_ART_ASPECT_RATIO,
             TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI,
+            TvContract.WatchNextPrograms.COLUMN_PREVIEW_VIDEO_URI,
             TvContract.WatchNextPrograms.COLUMN_INTENT_URI,
             TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
             TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS,
             TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS,
+            TvContract.WatchNextPrograms.COLUMN_BROWSABLE,
         )
     }
 }
+
+private fun Cursor.optString(column: String): String? =
+    getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getString)?.takeIf { it.isNotBlank() }
+
+private fun Cursor.optLong(column: String): Long =
+    getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getLong) ?: 0L
+
+private fun Cursor.optInt(column: String, default: Int): Int =
+    getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getInt) ?: default
