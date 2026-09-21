@@ -45,6 +45,7 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.ShelfPosters
+import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.delay
@@ -65,6 +66,7 @@ internal fun HomeGrid(
     focusRequester: FocusRequester,
     shelfPrograms: List<HeroItem>,
     validatedVisuals: Set<String>,
+    checkedVisuals: Set<String>,
     onAppFocused: (String) -> Unit,
     onTileFocus: (rowIndex: Int) -> Unit,
     onTileClick: (TvApp) -> Unit,
@@ -79,9 +81,14 @@ internal fun HomeGrid(
 
     // Les visuels sont validés en flux : on les lit comme un état pour ne pas relancer le minuteur à chaque arrivée.
     val visuals by rememberUpdatedState(validatedVisuals)
+    val settled by rememberUpdatedState(checkedVisuals)
     val programs by rememberUpdatedState(shelfPrograms)
     fun postersOf(packageName: String?): List<String> =
         packageName?.let { ShelfPosters.forPackage(programs, visuals, it) }.orEmpty()
+
+    fun pendingFor(packageName: String?): Boolean = packageName
+        ?.let { ShelfPosters.candidates(programs, it, VisualQuality.SHELF_VALIDATED_PER_APP) }
+        ?.any { it !in settled } ?: false
 
     // Pause avant la première ouverture ; bascule immédiate tant qu'un panneau est ouvert ;
     // fermeture dès que l'app focusée n'a aucun visuel.
@@ -91,10 +98,16 @@ internal fun HomeGrid(
             openApp = null
             return@LaunchedEffect
         }
-        if (postersOf(target).isEmpty()) openApp = null
+        if (postersOf(target).isEmpty() && !pendingFor(target)) openApp = null
         if (openApp == null) delay(Motion.SHELF_OPEN_DELAY_MS)
-        snapshotFlow { postersOf(target) }.collect { posters ->
-            openApp = target.takeIf { posters.isNotEmpty() }
+        // Tant que les affiches de l'app focusée sont en cours de vérification, on garde
+        // le panneau tel quel : le fermer pour le rouvrir juste après donnerait un clignotement.
+        snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
+            when {
+                posters.isNotEmpty() -> openApp = target
+                !pending -> openApp = null
+                else -> Unit
+            }
         }
     }
 

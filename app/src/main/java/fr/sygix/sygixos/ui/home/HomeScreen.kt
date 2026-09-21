@@ -176,6 +176,7 @@ internal fun LauncherHome(
             focusRequester = gridFocus,
             shelfPrograms = if (hero.fromApps) hero.items else emptyList(),
             validatedVisuals = hero.validated,
+            checkedVisuals = hero.checked,
             onAppFocused = onAppFocused,
             onTileFocus = { gridRow = it },
             onTileClick = onOpenApp,

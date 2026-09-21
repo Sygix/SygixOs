@@ -35,6 +35,8 @@ data class HeroState(
     val loading: Boolean,
     /** URIs d'images validées (chargées, assez grandes) : seules celles-ci sont affichées. */
     val validated: Set<String> = emptySet(),
+    /** URIs déjà vérifiées, validées ou non : ailleurs, la vérification est encore en cours. */
+    val checked: Set<String> = emptySet(),
 ) {
     companion object {
         val Initial = HeroState(emptyList(), fromApps = false, loading = true)
@@ -55,6 +57,7 @@ class HomeViewModel(
 
     private val heroState = MutableStateFlow(HeroState.Initial)
     private val validated = MutableStateFlow<Set<String>>(emptySet())
+    private val checked = MutableStateFlow<Set<String>>(emptySet())
     private var heroValidationJob: Job? = null
     private var shelfValidationJob: Job? = null
     private val shelfRequested = mutableSetOf<String>()
@@ -63,8 +66,9 @@ class HomeViewModel(
         apps.catalog.onEach { preloadArtwork(it) },
         heroState,
         validated,
-    ) { catalog, h, v ->
-        HomeState.Ready(catalog, h.copy(validated = v)) as HomeState
+        checked,
+    ) { catalog, h, v, c ->
+        HomeState.Ready(catalog, h.copy(validated = v, checked = c)) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
 
     private fun preloadArtwork(catalog: Catalog) {
@@ -113,7 +117,10 @@ class HomeViewModel(
         val pending = uris.filter { it !in validated.value }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
-            validator.validate(pending, keepInMemory).collect { uri -> validated.update { it + uri } }
+            validator.validate(pending, keepInMemory).collect { check ->
+                checked.update { it + check.uri }
+                if (check.usable) validated.update { it + check.uri }
+            }
         }
     }
 
