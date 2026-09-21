@@ -77,6 +77,10 @@ fun Modifier.tvFocus(
 /**
  * Clic télécommande géré par le launcher : appui court sur OK = clic, appui
  * maintenu = clic long. Sans ripple, une seule cible de focus, pas de touche Menu.
+ *
+ * Un relâchement sans appui correspondant est ignoré : après un appui long, l'ouverture
+ * du menu déplace le focus, et le relâchement de la même touche arriverait sur le bouton
+ * fraîchement focusé, qui le prendrait pour un clic et refermerait le menu aussitôt.
  */
 fun Modifier.tvClickable(
     onClick: () -> Unit,
@@ -87,6 +91,7 @@ fun Modifier.tvClickable(
     val longClick by rememberUpdatedState(onLongClick)
     var pressJob by remember { mutableStateOf<Job?>(null) }
     var longFired by remember { mutableStateOf(false) }
+    var pressed by remember { mutableStateOf(false) }
     this
         .onKeyEvent { e ->
             val select = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
@@ -95,6 +100,7 @@ fun Modifier.tvClickable(
                 KeyEventType.KeyDown -> {
                     val native = e.nativeKeyEvent
                     if (native.repeatCount == 0) {
+                        pressed = true
                         longFired = false
                         pressJob?.cancel()
                         pressJob = longClick?.let { long ->
@@ -113,6 +119,8 @@ fun Modifier.tvClickable(
                     true
                 }
                 KeyEventType.KeyUp -> {
+                    if (!pressed) return@onKeyEvent false
+                    pressed = false
                     pressJob?.cancel()
                     if (!longFired) click()
                     longFired = false
@@ -121,7 +129,7 @@ fun Modifier.tvClickable(
                 else -> false
             }
         }
-        .onFocusChanged { if (!it.isFocused) { pressJob?.cancel(); longFired = false } }
+        .onFocusChanged { if (!it.isFocused) { pressJob?.cancel(); longFired = false; pressed = false } }
         .focusable()
 }
 
