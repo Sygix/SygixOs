@@ -32,7 +32,7 @@ class HomeScreenScreenshotTest {
         val catalog = Catalog(dock = apps.take(4), grid = apps.drop(4))
         composeRule.setContent {
             SygixOsTheme {
-                LauncherHome(catalog, onTogglePin = {})
+                LauncherHome(catalog, heroItems = emptyList(), onTogglePin = {})
             }
         }
         composeRule.onRoot().captureRoboImage("build/outputs/screenshots/home-dock-grid.png")

@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -45,40 +46,48 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.tvFocus
+import fr.sygix.sygixos.data.AerialHeroProvider
+import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.ui.hero.HeroCarousel
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory(LocalContext.current))) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var heroItems by remember { mutableStateOf(emptyList<HeroItem>()) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        heroItems = runCatching { AerialHeroProvider().load() }.getOrDefault(emptyList())
+    }
     when (val s = state) {
         is HomeState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Chargement…", style = MaterialTheme.typography.titleMedium)
         }
-        is HomeState.Ready -> LauncherHome(s.catalog, viewModel::togglePin)
+        is HomeState.Ready -> LauncherHome(s.catalog, heroItems, viewModel::togglePin)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun LauncherHome(catalog: fr.sygix.sygixos.data.Catalog, onTogglePin: (TvApp) -> Unit) {
+internal fun LauncherHome(
+    catalog: fr.sygix.sygixos.data.Catalog,
+    heroItems: List<HeroItem>,
+    onTogglePin: (TvApp) -> Unit,
+) {
     val context = LocalContext.current
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
-    var dockFocused by remember { mutableStateOf(true) }
-    val dockAlpha by animateFloatAsState(
-        targetValue = if (dockFocused) 1f else 0.9f,
-        animationSpec = tween(300),
-        label = "dockAlpha",
-    )
-    val gridRevealed by remember {
-        derivedStateOf { !dockFocused }
-    }
+    var zone by remember { mutableStateOf(Zone.HERO) }
+    val gridAlpha by animateFloatAsState(if (zone == Zone.GRID) 1f else 0f, tween(300), label = "gridAlpha")
+    val heroAlpha by animateFloatAsState(if (zone == Zone.GRID) 0f else 1f, tween(300), label = "heroAlpha")
+    val dockAlpha by animateFloatAsState(if (zone == Zone.GRID) 0f else 1f, tween(300), label = "dockAlpha")
 
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(if (gridRevealed) 1f else 0.35f)
+                .alpha(gridAlpha)
                 .padding(horizontal = 48.dp, vertical = 32.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
@@ -86,7 +95,7 @@ internal fun LauncherHome(catalog: fr.sygix.sygixos.data.Catalog, onTogglePin: (
             items(catalog.grid, key = { it.packageName }) { app ->
                 AppTile(
                     app = app,
-                    onFocusChanged = { if (it) dockFocused = false },
+                    onFocusChanged = { if (it) zone = Zone.GRID },
                     onClick = {
                         context.startActivity(
                             context.packageManager.getLaunchIntentForPackage(app.packageName)
@@ -98,11 +107,29 @@ internal fun LauncherHome(catalog: fr.sygix.sygixos.data.Catalog, onTogglePin: (
             }
         }
 
+        if (heroItems.isEmpty()) {
+            fr.sygix.sygixos.ui.hero.GradientFallback(Modifier.alpha(heroAlpha).fillMaxSize())
+        }
+        HeroCarousel(
+            items = heroItems,
+            onFocused = { if (it) zone = Zone.HERO },
+            onItemClick = { item ->
+                item.sourcePackage?.let { pkg ->
+                    context.startActivity(
+                        context.packageManager.getLaunchIntentForPackage(pkg)
+                            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                    )
+                }
+            },
+            modifier = Modifier.alpha(heroAlpha),
+        )
+
         GlassSurface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 32.dp)
-                .alpha(dockAlpha),
+                .alpha(dockAlpha)
+                .zIndex(2f),
             content = {
                 Row(
                     modifier = Modifier.padding(16.dp),
@@ -119,7 +146,7 @@ internal fun LauncherHome(catalog: fr.sygix.sygixos.data.Catalog, onTogglePin: (
                     catalog.dock.forEach { app ->
                         DockTile(
                             app = app,
-                            onFocusChanged = { if (it) dockFocused = true },
+                            onFocusChanged = { if (it) zone = Zone.DOCK },
                             onClick = {
                                 context.startActivity(
                                     context.packageManager.getLaunchIntentForPackage(app.packageName)
@@ -148,6 +175,8 @@ internal fun LauncherHome(catalog: fr.sygix.sygixos.data.Catalog, onTogglePin: (
         )
     }
 }
+
+private enum class Zone { HERO, DOCK, GRID }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
