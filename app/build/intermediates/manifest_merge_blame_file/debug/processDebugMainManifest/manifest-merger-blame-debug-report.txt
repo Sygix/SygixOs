@@ -21,125 +21,129 @@
 16        android:required="false" />
 16-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:5:63-87
 17
-18    <permission
-18-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
-19        android:name="fr.sygix.sygixos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-19-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
-20        android:protectionLevel="signature" />
-20-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
-21
-22    <uses-permission android:name="fr.sygix.sygixos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-22-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
-22-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+18    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+18-->[androidx.media3:media3-common:1.4.1] /home/metis/.gradle/caches/8.9/transforms/e533276ca0f405461c0421f14a97a946/transformed/media3-common-1.4.1/AndroidManifest.xml:22:5-79
+18-->[androidx.media3:media3-common:1.4.1] /home/metis/.gradle/caches/8.9/transforms/e533276ca0f405461c0421f14a97a946/transformed/media3-common-1.4.1/AndroidManifest.xml:22:22-76
+19
+20    <permission
+20-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/AndroidManifest.xml:22:5-24:47
+21        android:name="fr.sygix.sygixos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+21-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/AndroidManifest.xml:23:9-81
+22        android:protectionLevel="signature" />
+22-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/AndroidManifest.xml:24:9-44
 23
-24    <application
-24-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:7:5-23:19
-25        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-25-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
-26        android:banner="@drawable/app_banner"
-26-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:11:9-46
-27        android:debuggable="true"
-28        android:extractNativeLibs="false"
-29        android:icon="@mipmap/ic_launcher"
-29-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:9:9-43
-30        android:label="SygixOs"
-30-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:8:9-32
-31        android:theme="@style/Theme.SygixOs" >
-31-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:10:9-45
-32        <activity
-32-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:13:9-22:20
-33            android:name="fr.sygix.sygixos.ui.MainActivity"
-33-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:14:13-44
-34            android:exported="true"
-34-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:15:13-36
-35            android:screenOrientation="landscape" >
-35-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:16:13-50
-36            <intent-filter>
-36-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:17:13-21:29
-37                <action android:name="android.intent.action.MAIN" />
-37-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:18:17-69
-37-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:18:25-66
-38
-39                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-39-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:19:17-86
-39-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:19:27-83
-40                <category android:name="android.intent.category.LAUNCHER" />
-40-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:20:17-77
-40-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:20:27-74
-41            </intent-filter>
-42        </activity>
-43        <activity
-43-->[androidx.compose.ui:ui-test-manifest:1.7.2] /home/metis/.gradle/caches/8.9/transforms/ee2a7b94596a26962e05304b302e3996/transformed/ui-test-manifest-1.7.2/AndroidManifest.xml:23:9-25:39
-44            android:name="androidx.activity.ComponentActivity"
-44-->[androidx.compose.ui:ui-test-manifest:1.7.2] /home/metis/.gradle/caches/8.9/transforms/ee2a7b94596a26962e05304b302e3996/transformed/ui-test-manifest-1.7.2/AndroidManifest.xml:24:13-63
-45            android:exported="true" />
-45-->[androidx.compose.ui:ui-test-manifest:1.7.2] /home/metis/.gradle/caches/8.9/transforms/ee2a7b94596a26962e05304b302e3996/transformed/ui-test-manifest-1.7.2/AndroidManifest.xml:25:13-36
-46
-47        <provider
-47-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
-48            android:name="androidx.startup.InitializationProvider"
-48-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
-49            android:authorities="fr.sygix.sygixos.androidx-startup"
-49-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
-50            android:exported="false" >
-50-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
-51            <meta-data
-51-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
-52                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-52-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
-53                android:value="androidx.startup" />
-53-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/79cee557c27874342e6a1e57100ec0dc/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
-54            <meta-data
-54-->[androidx.lifecycle:lifecycle-process:2.8.6] /home/metis/.gradle/caches/8.9/transforms/32fb66c55b0a22b5a986b307bc3fee90/transformed/lifecycle-process-2.8.6/AndroidManifest.xml:29:13-31:52
-55                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-55-->[androidx.lifecycle:lifecycle-process:2.8.6] /home/metis/.gradle/caches/8.9/transforms/32fb66c55b0a22b5a986b307bc3fee90/transformed/lifecycle-process-2.8.6/AndroidManifest.xml:30:17-78
-56                android:value="androidx.startup" />
-56-->[androidx.lifecycle:lifecycle-process:2.8.6] /home/metis/.gradle/caches/8.9/transforms/32fb66c55b0a22b5a986b307bc3fee90/transformed/lifecycle-process-2.8.6/AndroidManifest.xml:31:17-49
-57            <meta-data
-57-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
-58                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-58-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
-59                android:value="androidx.startup" />
-59-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
-60        </provider>
-61
-62        <receiver
-62-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
-63            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-63-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
-64            android:directBootAware="false"
-64-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
-65            android:enabled="true"
-65-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
-66            android:exported="true"
-66-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
-67            android:permission="android.permission.DUMP" >
-67-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
-68            <intent-filter>
-68-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
-69                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-69-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
-69-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
-70            </intent-filter>
-71            <intent-filter>
-71-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
-72                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-72-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
-72-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
-73            </intent-filter>
-74            <intent-filter>
-74-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
-75                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-75-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
-75-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
-76            </intent-filter>
-77            <intent-filter>
-77-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
-78                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-78-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
-78-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/9094d6cb4585e18c8d4e04fc3968dc6f/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
-79            </intent-filter>
-80        </receiver>
-81    </application>
-82
-83</manifest>
+24    <uses-permission android:name="fr.sygix.sygixos.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+24-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/AndroidManifest.xml:26:5-97
+24-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/AndroidManifest.xml:26:22-94
+25
+26    <application
+26-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:7:5-23:19
+27        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+27-->[androidx.core:core:1.13.1] /home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/AndroidManifest.xml:28:18-86
+28        android:banner="@drawable/app_banner"
+28-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:11:9-46
+29        android:debuggable="true"
+30        android:extractNativeLibs="false"
+31        android:icon="@mipmap/ic_launcher"
+31-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:9:9-43
+32        android:label="SygixOs"
+32-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:8:9-32
+33        android:theme="@style/Theme.SygixOs" >
+33-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:10:9-45
+34        <activity
+34-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:13:9-22:20
+35            android:name="fr.sygix.sygixos.ui.MainActivity"
+35-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:14:13-44
+36            android:exported="true"
+36-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:15:13-36
+37            android:screenOrientation="landscape" >
+37-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:16:13-50
+38            <intent-filter>
+38-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:17:13-21:29
+39                <action android:name="android.intent.action.MAIN" />
+39-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:18:17-69
+39-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:18:25-66
+40
+41                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+41-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:19:17-86
+41-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:19:27-83
+42                <category android:name="android.intent.category.LAUNCHER" />
+42-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:20:17-77
+42-->/home/metis/sygixos/app/src/main/AndroidManifest.xml:20:27-74
+43            </intent-filter>
+44        </activity>
+45        <activity
+45-->[androidx.compose.ui:ui-test-manifest:1.7.2] /home/metis/.gradle/caches/8.9/transforms/886775b069b5955584079040c2ea6473/transformed/ui-test-manifest-1.7.2/AndroidManifest.xml:23:9-25:39
+46            android:name="androidx.activity.ComponentActivity"
+46-->[androidx.compose.ui:ui-test-manifest:1.7.2] /home/metis/.gradle/caches/8.9/transforms/886775b069b5955584079040c2ea6473/transformed/ui-test-manifest-1.7.2/AndroidManifest.xml:24:13-63
+47            android:exported="true" />
+47-->[androidx.compose.ui:ui-test-manifest:1.7.2] /home/metis/.gradle/caches/8.9/transforms/886775b069b5955584079040c2ea6473/transformed/ui-test-manifest-1.7.2/AndroidManifest.xml:25:13-36
+48
+49        <provider
+49-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+50            android:name="androidx.startup.InitializationProvider"
+50-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+51            android:authorities="fr.sygix.sygixos.androidx-startup"
+51-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+52            android:exported="false" >
+52-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+53            <meta-data
+53-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+54                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+54-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+55                android:value="androidx.startup" />
+55-->[androidx.emoji2:emoji2:1.3.0] /home/metis/.gradle/caches/8.9/transforms/cc1cc5ca671cde2a0176fc4b5381e469/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+56            <meta-data
+56-->[androidx.lifecycle:lifecycle-process:2.8.6] /home/metis/.gradle/caches/8.9/transforms/6d9c2040f5a48dff8363c1f9696d07c6/transformed/lifecycle-process-2.8.6/AndroidManifest.xml:29:13-31:52
+57                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+57-->[androidx.lifecycle:lifecycle-process:2.8.6] /home/metis/.gradle/caches/8.9/transforms/6d9c2040f5a48dff8363c1f9696d07c6/transformed/lifecycle-process-2.8.6/AndroidManifest.xml:30:17-78
+58                android:value="androidx.startup" />
+58-->[androidx.lifecycle:lifecycle-process:2.8.6] /home/metis/.gradle/caches/8.9/transforms/6d9c2040f5a48dff8363c1f9696d07c6/transformed/lifecycle-process-2.8.6/AndroidManifest.xml:31:17-49
+59            <meta-data
+59-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+60                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+60-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+61                android:value="androidx.startup" />
+61-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+62        </provider>
+63
+64        <receiver
+64-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+65            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+65-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+66            android:directBootAware="false"
+66-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+67            android:enabled="true"
+67-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+68            android:exported="true"
+68-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+69            android:permission="android.permission.DUMP" >
+69-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+70            <intent-filter>
+70-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+71                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+71-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+71-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+72            </intent-filter>
+73            <intent-filter>
+73-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+74                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+74-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+74-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+75            </intent-filter>
+76            <intent-filter>
+76-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+77                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+77-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+77-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+78            </intent-filter>
+79            <intent-filter>
+79-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+80                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+80-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+80-->[androidx.profileinstaller:profileinstaller:1.3.1] /home/metis/.gradle/caches/8.9/transforms/94a273a843097be080dede48359855cd/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+81            </intent-filter>
+82        </receiver>
+83    </application>
+84
+85</manifest>

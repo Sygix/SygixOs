@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.compose.tv.material)
     implementation(libs.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.ui)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.robolectric)

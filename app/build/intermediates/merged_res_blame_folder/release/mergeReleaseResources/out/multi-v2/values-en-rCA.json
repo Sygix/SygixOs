@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "fr.sygix.sygixos.app-mergeReleaseResources-47:/values-en-rCA/values-en-rCA.xml",
+            "outputFile": "fr.sygix.sygixos.app-mergeReleaseResources-51:/values-en-rCA/values-en-rCA.xml",
             "map": [
                 {
-                    "source": "/home/metis/.gradle/caches/8.9/transforms/cd898ae9093db776e9b9d93e8838b063/transformed/material3-release/res/values-en-rCA/values-en-rCA.xml",
+                    "source": "/home/metis/.gradle/caches/8.9/transforms/51a7507bc8f5180b439bfa93d0d21eaf/transformed/material3-release/res/values-en-rCA/values-en-rCA.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,24 +21,24 @@
                     }
                 },
                 {
-                    "source": "/home/metis/.gradle/caches/8.9/transforms/1f051f2c08d3451973df39bb5221e20a/transformed/core-1.13.1/res/values-en-rCA/values-en-rCA.xml",
+                    "source": "/home/metis/.gradle/caches/8.9/transforms/781e95017897c79ee264ae1e20b69242/transformed/foundation-release/res/values-en-rCA/values-en-rCA.xml",
                     "from": {
-                        "startLines": "2,3,4,5,6,7,8,9",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,151,253,352,451,555,657,773",
-                        "endColumns": "95,101,98,98,103,101,115,100",
-                        "endOffsets": "146,248,347,446,550,652,768,869"
+                        "startLines": "2,3",
+                        "startColumns": "4,4",
+                        "startOffsets": "55,141",
+                        "endColumns": "85,84",
+                        "endOffsets": "136,221"
                     },
                     "to": {
-                        "startLines": "2,3,4,5,6,7,8,81",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "105,201,303,402,501,605,707,8176",
-                        "endColumns": "95,101,98,98,103,101,115,100",
-                        "endOffsets": "196,298,397,496,600,702,818,8272"
+                        "startLines": "85,86",
+                        "startColumns": "4,4",
+                        "startOffsets": "8540,8626",
+                        "endColumns": "85,84",
+                        "endOffsets": "8621,8706"
                     }
                 },
                 {
-                    "source": "/home/metis/.gradle/caches/8.9/transforms/4a14f47902a6717e944508e4e729a379/transformed/ui-release/res/values-en-rCA/values-en-rCA.xml",
+                    "source": "/home/metis/.gradle/caches/8.9/transforms/0b26fa36923b5420ee9f5822cdb5da2b/transformed/ui-release/res/values-en-rCA/values-en-rCA.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -55,20 +55,20 @@
                     }
                 },
                 {
-                    "source": "/home/metis/.gradle/caches/8.9/transforms/482c011bbae135b7fd821db09380c0a6/transformed/foundation-release/res/values-en-rCA/values-en-rCA.xml",
+                    "source": "/home/metis/.gradle/caches/8.9/transforms/e436bfac681ae95a7e616b899d0f4a50/transformed/core-1.13.1/res/values-en-rCA/values-en-rCA.xml",
                     "from": {
-                        "startLines": "2,3",
-                        "startColumns": "4,4",
-                        "startOffsets": "55,141",
-                        "endColumns": "85,84",
-                        "endOffsets": "136,221"
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,151,253,352,451,555,657,773",
+                        "endColumns": "95,101,98,98,103,101,115,100",
+                        "endOffsets": "146,248,347,446,550,652,768,869"
                     },
                     "to": {
-                        "startLines": "85,86",
-                        "startColumns": "4,4",
-                        "startOffsets": "8540,8626",
-                        "endColumns": "85,84",
-                        "endOffsets": "8621,8706"
+                        "startLines": "2,3,4,5,6,7,8,81",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "105,201,303,402,501,605,707,8176",
+                        "endColumns": "95,101,98,98,103,101,115,100",
+                        "endOffsets": "196,298,397,496,600,702,818,8272"
                     }
                 }
             ]

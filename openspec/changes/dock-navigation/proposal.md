@@ -1,5 +1,7 @@
 # Change : dock-navigation
 
+> **NB** : le scénario « dock comme écran initial » est superseded par le change `hero-home` ; le dock reste, en rail overlay.
+
 ## Why
 Le home doit s'ouvrir comme tvOS sur un écran focalisé : un dock d'apps épinglées en bas (Liquid Glass), et la grille complète se révèle quand on descend — première impression épurée, navigation directe vers les apps favorites.
 

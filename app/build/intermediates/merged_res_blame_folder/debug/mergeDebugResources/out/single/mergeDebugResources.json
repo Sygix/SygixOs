@@ -1,10 +1,10 @@
 [
     {
-        "merged": "fr.sygix.sygixos.app-debug-50:/drawable_app_banner.xml.flat",
-        "source": "fr.sygix.sygixos.app-main-52:/drawable/app_banner.xml"
+        "merged": "fr.sygix.sygixos.app-debug-54:/drawable_app_banner.xml.flat",
+        "source": "fr.sygix.sygixos.app-main-56:/drawable/app_banner.xml"
     },
     {
-        "merged": "fr.sygix.sygixos.app-debug-50:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "fr.sygix.sygixos.app-main-52:/mipmap-anydpi-v26/ic_launcher.xml"
+        "merged": "fr.sygix.sygixos.app-debug-54:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "fr.sygix.sygixos.app-main-56:/mipmap-anydpi-v26/ic_launcher.xml"
     }
 ]
