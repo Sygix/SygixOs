@@ -87,7 +87,6 @@ class HomeViewModel(
             val feed = hero.load()
             heroState.value = HeroState(feed.items, feed.fromApps, loading = false)
             shelfRequested.clear()
-            android.util.Log.w("HomeVM", "programmes par app: " + feed.items.groupingBy { it.sourcePackage ?: "?" }.eachCount().entries.sortedByDescending { it.value }.joinToString { "${it.key}=${it.value}" })
             val heroUris = feed.items.asSequence()
                 .mapNotNull { it.imageUrl }
                 .distinct()
@@ -101,7 +100,6 @@ class HomeViewModel(
     fun prepareShelf(packageName: String) {
         if (!shelfRequested.add(packageName)) return
         val uris = ShelfPosters.candidates(heroState.value.items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
-        android.util.Log.w("HomeVM", "prepareShelf $packageName candidats=${uris.size}")
         shelfValidationJob?.cancel()
         shelfValidationJob = launchValidation(uris, keepInMemory = 0)
     }
