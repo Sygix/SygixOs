@@ -15,14 +15,15 @@ Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / 
 - **THEN** toutes les apps TV installées apparaissent en grille 5 colonnes, tuiles 16:9 remplies par la bannière Android TV de l'app (`android:banner`), repli sur l'icône entière centrée sur fond sombre ; ordre et épinglage persistés (DataStore)
 
 #### Scenario: menu contextuel
-- **WHEN** long-press ou touche Menu sur une app
-- **THEN** menu en overlay : épingler / retirer du dock, déplacer (grille) ; OK valide l'action focusée, Retour ferme
+- **WHEN** appui long sur OK sur une tuile
+- **THEN** menu en overlay : épingler / retirer du dock, déplacer (grille) ; OK valide l'action focusée, Retour ferme ; un appui court ouvre l'app
 
 ### Requirement: Focus tvOS
-Le launcher SHALL animer le focus des tuiles à la tvOS (zoom, ombre, easing).
+Le launcher SHALL animer le focus des tuiles à la tvOS (zoom, liseré, ombre, easing), de façon à ce que la tuile active soit identifiable d'un coup d'œil.
 
 #### Scenario: focus
-- **WHEN** une tuile prend le focus THEN zoom ~1.1x + ombre douce + transition 250-400ms, courbes d'easing Apple ; le fond de page passe aux recommandations de l'app focus (effet Top Shelf), sinon fond neutre
+- **WHEN** une tuile prend le focus
+- **THEN** zoom léger (~1.07x) et halo radial diffus, compact (ne déborde pas sur les tuiles voisines), de la couleur dominante du visuel de la tuile (style Google Play, lisible sur fond sombre), sans liseré, transition 250-400ms courbe Apple ; en zone grille le panneau Top Shelf reflète l'app focusée
 
 ### Requirement: Rangée Up Next
 Le home SHALL afficher une rangée Up Next fusionnant Jellyfin puis BetaSeries.
@@ -87,14 +88,14 @@ Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) 
 
 #### Scenario: taille tvOS
 - **WHEN** le dock contient jusqu'à 5 apps
-- **THEN** ses tuiles ont la taille des tuiles de la grille et s'alignent sur ses colonnes, centrées s'il y en a moins de 5
+- **THEN** ses tuiles ont la taille des tuiles de la grille et le dock, centré, s'ajuste à leur nombre
 
 #### Scenario: tuiles adaptatives
 - **WHEN** le dock contient plus de 5 apps
-- **THEN** les tuiles se répartissent uniformément et réduisent leur taille automatiquement
+- **THEN** les tuiles se répartissent uniformément dans la largeur de la grille et réduisent leur taille automatiquement
 
 #### Scenario: épinglage
-- **WHEN** l'utilisateur épingle ou retire une app via le menu contextuel (Menu ou appui long, OK valide directement)
+- **WHEN** l'utilisateur épingle ou retire une app via le menu contextuel (appui long, OK valide directement)
 - **THEN** le dock est mis à jour et l'app reste dans la grille
 
 ### Requirement: Persistance de la grille
@@ -135,26 +136,26 @@ Le clic sur un poster du TV Provider SHALL ouvrir le contenu via l'intent publi�
 - **THEN** une barre de progression est visible sur le poster héro
 
 ### Requirement: Panneau Top Shelf au focus
-Quand une tuile de la grille prend le focus, un panneau de posters de l'app SHALL s'insérer dans le layout juste au-dessus de la rangée active, la rangée active restant à hauteur fixe, sans bloquer la navigation DPAD.
+En zone grille, un emplacement de panneau SHALL être réservé au-dessus de la rangée active, la rangée active restant à hauteur fixe, sans bloquer la navigation DPAD.
 
 #### Scenario: insertion
 - **WHEN** une tuile d'une rangée prend le focus
-- **THEN** un panneau pleine largeur au format Apple Top Shelf (2,67:1, coins arrondis, ombre douce) s'insère au-dessus de cette rangée ; la rangée précédente dépasse en haut de l'écran, la rangée active est juste sous le panneau, les rangées suivantes occupent l'espace restant ; la navigation DPAD reste rangée par rangée (le panneau n'est pas focusable)
+- **THEN** le panneau pleine largeur au format Apple Top Shelf (2,67:1, coins arrondis, ombre douce) occupe l'emplacement au-dessus de cette rangée ; la rangée précédente dépasse en haut, la rangée active est juste sous le panneau, les rangées suivantes occupent l'espace restant ; le panneau n'est pas focusable
 
 #### Scenario: déplacement du focus
 - **WHEN** le focus passe à une tuile d'une autre rangée
-- **THEN** le panneau et les rangées glissent avec une animation fluide vers la nouvelle position, la rangée active retrouvant la même hauteur d'écran
+- **THEN** le panneau reste en place (surface fixe par-dessus la liste) et les rangées glissent derrière lui en 400 ms (easing Apple), sans saut ni apparition brusque ; à l'entrée dans la grille la position est recalée avant l'apparition
 
 ### Requirement: Contenu du panneau
-Le panneau SHALL afficher les preview programs publiés par l'app focus (TV Provider système), et disparaître si aucun visuel n'est lisible.
+Le panneau SHALL n'afficher que des visuels validés et chargés de l'app focus, et rien sinon.
 
 #### Scenario: contenu disponible
-- **WHEN** l'app focusée publie des posters (preview programs / watch next)
-- **THEN** le panneau affiche un poster dominant avec fondu croisé 300-400ms easing Apple et défilement lent (Ken Burns) entre les posters de l'app
+- **WHEN** l'app focusée a des visuels validés (preview programs / watch next)
+- **THEN** chaque affiche apparaît en fondu (300-400ms easing Apple) une fois chargée, puis défile lentement (Ken Burns) ; l'app du panneau ne change qu'après une courte pause du focus (~200 ms) pour ne pas clignoter en traversant la grille
 
 #### Scenario: pas de contenu
-- **WHEN** l'app focusée ne publie rien, ou aucun de ses posters ne peut être chargé
-- **THEN** aucun panneau n'est affiché, la grille reste classique
+- **WHEN** l'app focusée n'a aucun visuel validé, ou l'affiche n'est pas encore chargée
+- **THEN** l'emplacement reste vide (ni cadre, ni logo de repli) ; la position des rangées ne change pas
 
 ### Requirement: Fond de la zone grille
 Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro étant complètement masqué.
@@ -164,11 +165,11 @@ Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro 
 - **THEN** le héro disparaît (alpha 0), le fond est le dégradé neutre (pas d'aerial, pas de posters en fond de grille)
 
 ### Requirement: Diaporama héro
-Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS.
+Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable.
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
-- **THEN** le héro passe au programme suivant toutes les 8 s environ par fondu croisé (700-1000 ms, easing Apple), le visuel courant zoome lentement (Ken Burns), sans son, sans aperçu de l'élément suivant
+- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple), le visuel courant zoome lentement (Ken Burns), sans son, sans aperçu de l'élément suivant
 
 #### Scenario: navigation manuelle
 - **WHEN** l'utilisateur presse gauche/droite sur le héro
@@ -179,8 +180,8 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 - **THEN** elle est lue plein écran en muet à la place du poster, repli sur le poster si la lecture échoue
 
 #### Scenario: métadonnées
-- **WHEN** un programme est affiché
-- **THEN** titre, app source et barre de progression (si connue) apparaissent en bas à gauche sur un dégradé de lisibilité, en fondu synchronisé avec le visuel
+- **WHEN** un programme ouvrable est affiché
+- **THEN** titre, app source et barre de progression (si connue) apparaissent en bas à gauche, suivis d'un bouton « Ouvrir » (« Reprendre » si progression) qui porte le focus du héro avec un état focus net ; OK sur ce bouton ouvre le contenu
 
 ### Requirement: Fond vidéo de secours
 Le fallback du héro SHALL être une liste de clips nature libres de droits (Pexels, 2K sinon 1080p, mp4 H.264 en https) lus en boucle par un unique lecteur, muet.
@@ -210,3 +211,14 @@ Le launcher SHALL permettre, dans ses réglages (v1.x), de cocher les apps dont 
 #### Scenario: app décochée
 - **WHEN** l'utilisateur décoche une app dans les réglages du launcher (v1.x)
 - **THEN** ses programmes n'apparaissent plus dans le héro ni dans le Top Shelf, sans redémarrage
+
+### Requirement: Préchargement et mémoire
+Le launcher SHALL valider et précharger les visuels du héro et du Top Shelf au chargement, et limiter sa consommation mémoire et GPU.
+
+#### Scenario: validation au chargement
+- **WHEN** les programmes sont chargés
+- **THEN** chaque visuel est vérifié une fois en arrière-plan (chargement, largeur ≥ 1080 px) ; seuls les visuels validés sont proposés au héro et au Top Shelf ; les premiers visuels du héro sont gardés en mémoire, les autres en cache disque
+
+#### Scenario: économie de ressources
+- **WHEN** le héro est masqué (zone grille) ou une surface verre est invisible
+- **THEN** le lecteur vidéo est libéré, les animations de fond et le flou d'arrière-plan sont arrêtés ; les images sont décodées en RGB565 avec au plus deux décodeurs simultanés
