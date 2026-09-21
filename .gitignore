@@ -1,11 +1,25 @@
-*.iml
+# Gradle
 .gradle/
-local.properties
-.idea/
-.DS_Store
 build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android
+local.properties
+*.apk
+*.aab
+*.ap_
+*.dex
 captures/
-.externalNativeBuild/
 .cxx/
-*.apk.idsig
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Kotlin
 .kotlin/
+
+# OS / logs
+.DS_Store
+*.log
