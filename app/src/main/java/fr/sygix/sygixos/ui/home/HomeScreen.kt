@@ -266,16 +266,9 @@ private fun TileBox(icon: androidx.compose.ui.graphics.ImageBitmap?, label: Stri
         contentAlignment = Alignment.Center,
     ) {
         if (icon != null) {
-            Image(icon, contentDescription = label, contentScale = ContentScale.Crop)
+            Image(icon, contentDescription = label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Text(label.take(1).uppercase())
+            Text(label.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = Color.White.copy(alpha = 0.9f))
         }
     }
-    Text(
-        label,
-        style = MaterialTheme.typography.bodyMedium,
-        color = Color.White.copy(alpha = 0.85f),
-        maxLines = 1,
-        modifier = Modifier.padding(top = 8.dp),
-    )
 }
