@@ -70,11 +70,6 @@ import kotlinx.coroutines.delay
 
 private const val TAG = "HeroStage"
 
-/**
- * Héro plein écran : un seul visuel à la fois (vidéo d'aperçu, sinon poster validé),
- * muet, avance automatique, fondu croisé et zoom lent façon Apple TV.
- * Gauche/droite : précédent/suivant. Le bouton « Ouvrir » porte le focus et ouvre le contenu.
- */
 @Composable
 fun HeroStage(
     items: List<HeroItem>,
@@ -119,7 +114,6 @@ fun HeroStage(
         if (current?.id == item.id && !viable(item)) stepState.value(1)
     }
 
-    // Le programme courant n'est pas (encore) viable : on prend le premier qui l'est.
     LaunchedEffect(current?.id, validatedVisuals, failedImages, failedVideos, items) {
         if (current != null && !viable(current)) {
             items.firstOrNull(::viable)?.let { currentId = it.id }
@@ -158,7 +152,6 @@ fun HeroStage(
 
     val launchable = current != null && current.title.isNotEmpty() && (current.launchUri != null || current.sourcePackage != null)
     val hasVisual = current != null && (showVideo || (current.imageUrl != null && current.imageUrl in validatedVisuals))
-    // La cible de focus change (bouton ou fond) : on la redemande quand le héro est actif.
     LaunchedEffect(launchable, active) {
         if (!active) return@LaunchedEffect
         withFrameNanos { }
@@ -231,7 +224,6 @@ private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
     }
 }
 
-/** Poster déjà validé (cache) : affiché en fondu dès qu'il est prêt, zoom lent. */
 @Composable
 private fun KenBurnsPoster(url: String, onError: () -> Unit) {
     var ready by remember(url) { mutableStateOf(false) }
@@ -257,7 +249,6 @@ private fun KenBurnsPoster(url: String, onError: () -> Unit) {
     )
 }
 
-/** Dégradé de lisibilité, métadonnées en fondu croisé et bouton d'ouverture stable (hors du fondu : il garde le focus). */
 @Composable
 private fun HeroOverlay(
     current: HeroItem?,
@@ -300,7 +291,6 @@ private fun HeroOverlay(
     }
 }
 
-/** Hauteur constante (label, deux lignes de titre, emplacement de progression) : rien ne saute d'un programme à l'autre. */
 @Composable
 private fun HeroMetadata(item: HeroItem) {
     Column {
@@ -338,7 +328,6 @@ private fun HeroMetadata(item: HeroItem) {
     }
 }
 
-/** Pilule Liquid Glass comme le dock au repos ; blanche et légèrement agrandie au focus. */
 @Composable
 private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enabled: Boolean, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
@@ -372,7 +361,6 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
     }
 }
 
-/** Triangle de lecture dessiné à la main : les icônes Material ne sont plus fournies avec Material 3. */
 @Composable
 private fun PlayGlyph(color: Color) {
     Canvas(Modifier.size(14.dp)) {

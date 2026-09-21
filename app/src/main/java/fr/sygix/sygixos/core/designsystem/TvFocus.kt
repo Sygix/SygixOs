@@ -32,15 +32,8 @@ import kotlinx.coroutines.launch
 
 private const val FOCUS_SCALE = 1.07f
 private const val GLOW_ALPHA = 0.5f
-/** Débord du halo autour de l'élément : reste sous l'espacement de la grille. */
 private const val GLOW_SPREAD = 0.14f
 
-/**
- * Focus tvOS : léger zoom et halo radial diffus derrière l'élément, de la couleur
- * dominante de son visuel (style Google Play) : pas d'ombre noire invisible sur fond sombre.
- * À placer AVANT la cible de focus (tvClickable/focusable). `enabled` retire
- * l'élément de la recherche de focus quand sa couche n'est pas active.
- */
 fun Modifier.tvFocus(
     onFocused: (Boolean) -> Unit = {},
     focusRequester: FocusRequester? = null,
@@ -74,14 +67,6 @@ fun Modifier.tvFocus(
         }
 }
 
-/**
- * Clic télécommande géré par le launcher : appui court sur OK = clic, appui
- * maintenu = clic long. Sans ripple, une seule cible de focus, pas de touche Menu.
- *
- * Un relâchement sans appui correspondant est ignoré : après un appui long, l'ouverture
- * du menu déplace le focus, et le relâchement de la même touche arriverait sur le bouton
- * fraîchement focusé, qui le prendrait pour un clic et refermerait le menu aussitôt.
- */
 fun Modifier.tvClickable(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
@@ -111,7 +96,6 @@ fun Modifier.tvClickable(
                             }
                         }
                     } else if (native.isLongPress && !longFired && longClick != null) {
-                        // Android signale lui-même l'appui long sur la première répétition
                         pressJob?.cancel()
                         longFired = true
                         longClick?.invoke()
@@ -133,5 +117,4 @@ fun Modifier.tvClickable(
         .focusable()
 }
 
-/** requestFocus() lève si le nœud n'est pas encore attaché : on renvoie false plutôt que de planter. */
 fun FocusRequester.tryRequestFocus(): Boolean = runCatching { requestFocus(); true }.getOrDefault(false)

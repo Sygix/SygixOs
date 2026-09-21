@@ -18,23 +18,16 @@ import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.hazeGlass
 
-/** État Haze partagé : les couches de fond s'y enregistrent, les surfaces verre les réfractent. Null = repli translucide. */
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
 private val FallbackGlass = Color(0xCC17171E)
 private val GlassBackdrop = Color(0xFF0B0B10)
 
-/**
- * Liquid Glass : matériau verre de Haze 2 (réfraction des bords, reflet spéculaire,
- * légère aberration chromatique) au-dessus des couches enregistrées comme sources.
- * Sans état Haze ou quand la surface est invisible, repli translucide sans flou.
- */
 @OptIn(ExperimentalHazeApi::class)
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = RoundedCornerShape(20.dp),
-    /** false quand la surface est invisible : ni verre ni animation (économie GPU). */
     active: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {

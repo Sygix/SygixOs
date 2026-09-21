@@ -10,7 +10,7 @@ Launcher Apple TV-style pour Google TV — design tvOS (Liquid Glass), sans pubs
 | P2a | Héro plein écran : programmes du TV Provider système, diaporama auto, fallback clips nature | ✅ fait |
 | P2b | Réglages du launcher : choix des apps sources du héro / Top Shelf | à venir |
 | P2c | Rangée Up Next dédiée + recherche | à venir |
-| P3 | Screensaver système aerial + fond contextuel par app (effet Top Shelf) | à venir |
+| P3 | Screensaver système (clips nature en boucle, cache local) | à venir |
 | P4 | BetaSeries (OAuth) + fusion Up Next | à venir |
 | P5 | Remplacement du launcher système (ADB) | à venir |
 
@@ -24,7 +24,8 @@ Les visuels sont validés avant affichage (vidéo d'aperçu privilégiée, image
 Fallback quand rien n'est publié : clips nature libres de droits (Pexels, 2560x1440, streaming, un seul lecteur), puis dégradé sombre animé si aucune vidéo ne peut être lue. Jamais d'écran noir.
 
 ## Navigation
-DPAD uniquement, trois paliers : héro → dock (apps épinglées, overlay bas) → grille (masque le héro). Seule la zone active est focusable. Bas/haut changent de palier, gauche/droite restent dans la zone. Retour : revient au héro. Appui long sur OK sur une tuile : épingler/retirer du dock, ou « Déplacer » pour réorganiser la grille aux flèches (OK valide, Retour annule), ordre persisté. Dans la grille, l'aperçu ne s'ouvre qu'après environ 3 s de focus immobile sur une app qui publie des visuels : il s'insère au-dessus de la rangée et pousse la grille vers le bas. Tant qu'il est ouvert, passer sur une autre app avec du contenu bascule sans délai ni fermeture intermédiaire ; passer sur une app sans contenu le referme. Ouverture, déplacement et fermeture partagent un seul défilement calculé, synchronisé avec l'animation, pour qu'il n'y ait jamais deux mouvements à la suite. Les tuiles sont 16:9 et affichent la bannière Android TV de l'app (sinon son icône). 
+DPAD uniquement, trois paliers : héro → dock (apps épinglées, overlay bas) → grille (masque le héro). Seule la zone active est focusable. Bas/haut changent de palier, gauche/droite restent dans la zone. Retour : revient au héro. Appui long sur OK sur une tuile : épingler/retirer du dock, ou « Déplacer » pour réorganiser la grille aux flèches (OK valide, Retour annule), ordre persisté. Dans la grille, l'aperçu ne s'ouvre qu'après environ 3 s de focus immobile sur une app qui publie des visuels : il s'insère au-dessus de la rangée et pousse la grille vers le bas. Tant qu'il est ouvert, passer sur une autre app avec du contenu bascule sans délai ni fermeture intermédiaire ; passer sur une app sans contenu le referme. Ouverture, déplacement et fermeture partagent un seul défilement calculé, synchronisé avec l'animation, pour qu'il n'y ait jamais deux mouvements à la suite. Les tuiles sont 16:9 et affichent la bannière Android TV de l'app (sinon son icône).
+
 ## Installation (test sur TV)
 1. Sur la TV : Paramètres → À propos → 7× sur « Build » (mode développeur), puis activer le débogage ADB
 2. `adb connect <IP-TV>:<port>` puis `adb install -r app/build/outputs/apk/debug/app-debug.apk` ; accorder la permission « programmes TV » au premier lancement
@@ -39,18 +40,21 @@ DPAD uniquement, trois paliers : héro → dock (apps épinglées, overlay bas) 
 Le build `debug` interprète le bytecode (ART sans AOT) : la navigation y est saccadée sur la TV. Le build `release` (R8) tourne sans image sautée. Toujours juger la fluidité sur `assembleRelease`.
 
 ## Build
+JDK 17+, SDK Android avec la plateforme et les build-tools 37 :
 ```
-JAVA_HOME=$(dirname $(dirname $(readlink -f $(which javac)))) ANDROID_HOME=~/android-sdk ./gradlew assembleDebug test
+ANDROID_HOME=~/android-sdk ./gradlew assembleDebug testDebugUnitTest
 ```
-Sans SDK local, dans un conteneur jetable (amd64, adb inclus, connexion TV possible depuis le conteneur) :
+Sans SDK local, dans un conteneur jetable (amd64 obligatoire : adb et aapt2 sont x86_64, adb y joint la TV) :
 ```
 docker run -d --name sygixos-build --platform linux/amd64 -v "$PWD":/work -w /work \
   -v sygixos-gradle:/root/.gradle -v sygixos-m2:/root/.m2 ghcr.io/cirruslabs/android-sdk:34 sleep infinity
-docker exec sygixos-build ./gradlew assembleDebug test
+docker exec sygixos-build sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
+docker exec sygixos-build ./gradlew assembleDebug testDebugUnitTest
 docker exec sygixos-build ./gradlew testDebugUnitTest -Proborazzi.test.record=true   # captures
-docker exec sygixos-build ./gradlew assembleRelease   # build à tester sur la TV
+docker exec sygixos-build ./gradlew assembleRelease                                  # build à tester sur la TV
 ```
 Le conteneur doit disposer d'environ 4 Go : avant une session de build, `./gradlew --stop` évite que des démons Gradle résiduels fassent tuer le build par le noyau.
+Les tests Robolectric tournent sur l'API 34 (`app/src/test/resources/robolectric.properties`) et ont besoin des ouvertures JDK déclarées dans `app/build.gradle.kts`.
 La signature release vient de l'environnement (`SYGIXOS_STORE_FILE`, `SYGIXOS_STORE_PASSWORD`, `SYGIXOS_KEY_ALIAS`, `SYGIXOS_KEY_PASSWORD`) ; sans ces variables, la clé de debug est utilisée.
 
 ## Structure

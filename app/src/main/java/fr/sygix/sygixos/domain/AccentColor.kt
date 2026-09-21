@@ -1,6 +1,5 @@
 package fr.sygix.sygixos.domain
 
-/** Couleur dominante d'une bannière pour le halo de focus, façon Google Play : les pixels saturés pèsent plus. */
 object AccentColor {
 
     private const val NEUTRAL = 0xFFB4B4BE.toInt()
@@ -28,7 +27,6 @@ object AccentColor {
         return argb((r / total).toInt(), (g / total).toInt(), (b / total).toInt())
     }
 
-    /** Halo lisible sur fond noir : saturation et luminosité relevées, teinte conservée. */
     fun vivid(color: Int, minSaturation: Float = 0.55f, minValue: Float = 0.8f): Int {
         val r = ((color shr 16) and 0xFF) / 255f
         val g = ((color shr 8) and 0xFF) / 255f

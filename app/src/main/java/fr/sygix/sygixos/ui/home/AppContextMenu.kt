@@ -33,10 +33,6 @@ import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.model.TvApp
 
-/**
- * Menu contextuel d'une tuile, en overlay dans la même fenêtre (pas de Dialog) :
- * le focus revient exactement sur la tuile à la fermeture.
- */
 @Composable
 internal fun AppContextMenu(
     app: TvApp,

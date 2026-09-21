@@ -29,7 +29,6 @@ import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.domain.DockLayout
 import fr.sygix.sygixos.model.TvApp
 
-/** Rail Liquid Glass des apps épinglées, centré et ajusté à leur nombre ; tuiles de la taille de la grille jusqu'à 5. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun Dock(

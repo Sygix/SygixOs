@@ -25,7 +25,6 @@ class AppCatalogRepository(
         )
     }
 
-    /** Catalogue en cache affiché tout de suite, puis relecture du PackageManager (démarrage, retour au launcher). */
     suspend fun refreshApps() {
         if (installed.value == null) {
             prefs.cachedApps.first().takeIf { it.isNotEmpty() }?.let { installed.value = it }
@@ -42,7 +41,6 @@ class AppCatalogRepository(
         prefs.setPinned(next.toSet())
     }
 
-    /** L'ordre persisté est toujours la grille complète telle qu'affichée. */
     suspend fun moveInGrid(packageName: String, delta: Int) {
         val apps = installed.value ?: return
         val current = AppCatalog.grid(apps, prefs.gridOrder.first()).map { it.packageName }

@@ -3,7 +3,6 @@ package fr.sygix.sygixos.data
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.HeroFeed
 
-/** Chaîne du héro : programmes des apps installées, sinon fond vidéo de secours. */
 class HeroRepository(
     private val programs: HeroContentProvider,
     private val fallback: HeroContentProvider,

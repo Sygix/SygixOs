@@ -14,9 +14,7 @@ import fr.sygix.sygixos.ui.home.HomeViewModel
 class MainActivity : ComponentActivity() {
 
     private companion object {
-        /** Permission runtime du framework, absente de android.Manifest.permission dans le SDK public. */
         const val READ_TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
-        /** Diagnostic : `am start --ez noglass true` désactive le flou d'arrière-plan. */
         const val EXTRA_NO_GLASS = "noglass"
     }
 
@@ -42,7 +40,6 @@ class MainActivity : ComponentActivity() {
         viewModel.refresh()
     }
 
-    /** Lecture des programmes publiés par les autres apps : permission runtime, demandée une fois. */
     private fun requestTvListingsPermissionIfNeeded() {
         val permission = READ_TV_LISTINGS
         if (ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {

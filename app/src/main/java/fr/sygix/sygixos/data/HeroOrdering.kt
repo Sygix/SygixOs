@@ -11,7 +11,6 @@ internal object HeroOrdering {
             null
         }
 
-    /** Reprises en cours d'abord (progression connue), puis le plus récent engagement. */
     fun sort(items: List<HeroItem>): List<HeroItem> =
         items.sortedWith(
             compareByDescending<HeroItem> { it.progress != null }

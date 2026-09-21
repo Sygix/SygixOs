@@ -7,7 +7,6 @@ object AppCatalog {
     fun dock(apps: List<TvApp>, pinned: List<String>): List<TvApp> =
         pinned.mapNotNull { pkg -> apps.find { it.packageName == pkg } }
 
-    /** Ordre choisi par l'utilisateur d'abord, puis les apps nouvelles par ordre alphabétique. Épinglées comprises. */
     fun grid(apps: List<TvApp>, order: List<String> = emptyList()): List<TvApp> {
         val byPackage = apps.associateBy { it.packageName }
         val ordered = order.mapNotNull(byPackage::get)
@@ -15,7 +14,6 @@ object AppCatalog {
         return ordered + rest
     }
 
-    /** Déplace `packageName` de `delta` positions (insertion), borné aux extrémités. */
     fun move(order: List<String>, packageName: String, delta: Int): List<String> {
         val from = order.indexOf(packageName)
         if (from < 0 || order.size < 2) return order

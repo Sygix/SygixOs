@@ -1,7 +1,7 @@
 # AGENTS.md — instructions pour agents IA
 
 ## Vue d'ensemble
-SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose for TV) au design tvOS pour remplacer le launcher Google TV. Propriétaire : Sygix. Langue UI : français.
+SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pour remplacer le launcher Google TV. Propriétaire : Sygix. Langue UI : français.
 
 ## Workflow de spécification (OpenSpec)
 - Contexte et conventions : `openspec/project.md` — à lire AVANT tout travail
@@ -16,26 +16,26 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose for TV) au design t
 - Commentaires : uniquement quand le code ne s'auto-décrit pas. Pas de commentaires narratifs ni de docstrings décoratives
 - Tous les appels réseau : états loading/empty/error en UI, timeout borné, jamais de crash silencieux
 - Tests JUnit sur la logique métier (fusions Up Next, tri, mapping) ; UI validée sur la TV réelle
-- Pas de backend : tout en local (Retrofit/OkHttp, Coil, DataStore)
+- Pas de backend : tout en local (Coil, DataStore, media3)
 
 ## Design (référence : tvOS)
 - Thème sombre uniquement en v1, noir pur, posters plein cadre
 - Focus : zoom ~1.1x, ombre douce, animations 250-400ms courbes Apple, jamais de saut sec
-- Liquid Glass : surfaces translucides floutées
-- Grille d'apps auto-détectée (LEANBACK_LAUNCHER), rangée Up Next en haut
+- Liquid Glass : matériau verre réfractant (Haze 2), aucune ombre noire — le relief vient de halos clairs ou colorés
+- Grille d'apps auto-détectée (LEANBACK_LAUNCHER), tuiles 16:9 (bannière Android TV)
 
 ## Git & packaging
 - Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`...) ; branches `feat/`, `fix/`, `chore/` — pas de commit direct sur main après l'init du projet
 - Commits signés et author cohérent avec le compte GitHub
 - Namespace Android : `fr.sygix.<appname>` — launcher : `fr.sygix.sygixos`
-- Cible : Android 14+ (minSdk 34)
+- Cible : Android 14+ (minSdk 34, compileSdk 37)
 - Dépendances externes : uniquement des libs éprouvées/maintenues (Room, Retrofit, Coil...)
 
 ## Environnement
 - Messages de commit en anglais, impératif court
 - Jamais de contenu spécifique à l'environnement dans le repo : secrets, clés, chemins locaux, config machine — tout va dans .gitignore / local.properties
 - Repo : github.com/Sygix/SygixOs
-- Cible : TCL Google TV, Android 14 (min SDK 30+)
+- Cible : TCL Google TV, Android 14 ; juger la fluidité sur `assembleRelease` (le build debug est interprété et saccade)
 - ADB : `adb connect <IP-TV>` pour installer et tester ; commandes P5 dans le README
 
 ## Outils

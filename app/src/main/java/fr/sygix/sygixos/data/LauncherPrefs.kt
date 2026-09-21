@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "launcher")
 
-/** Préférences locales du launcher : apps épinglées, ordre de la grille, cache du catalogue pour un démarrage instantané. */
 class LauncherPrefs(private val context: Context) {
 
     private val pinnedKey = stringSetPreferencesKey("pinned_apps")

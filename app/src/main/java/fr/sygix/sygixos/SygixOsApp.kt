@@ -7,7 +7,6 @@ import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import kotlinx.coroutines.Dispatchers
 
-/** Coil sobre pour une TV : RGB565, peu de décodeurs simultanés, cache disque généreux. */
 class SygixOsApp : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)

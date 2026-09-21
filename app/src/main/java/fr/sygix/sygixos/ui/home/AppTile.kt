@@ -41,7 +41,6 @@ internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource?> { nul
 
 private val TileBackground = Color(0xFF141418)
 
-/** Tuile d'app 16:9 (grille et dock) : bannière Android TV, sinon icône entière. Appui court : ouvrir, appui long : menu. */
 @Composable
 internal fun AppTile(
     app: TvApp,

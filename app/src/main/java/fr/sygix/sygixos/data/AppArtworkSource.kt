@@ -7,10 +7,6 @@ import androidx.core.graphics.drawable.toBitmap
 import fr.sygix.sygixos.domain.AccentColor
 import fr.sygix.sygixos.model.TvApp
 
-/**
- * Visuel d'une tuile : bannière Android TV 16:9 de préférence, sinon icône ; couleur
- * dominante pour le halo de focus ; miniature très réduite qui, agrandie, sert de flou gratuit.
- */
 data class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean, val accent: Int, val blurred: Bitmap)
 
 class AppArtworkSource(private val pm: PackageManager) {
@@ -20,10 +16,8 @@ class AppArtworkSource(private val pm: PackageManager) {
     fun load(app: TvApp): AppArtwork? =
         cache.getOrPut(app.packageName) { java.util.Optional.ofNullable(resolve(app)) }.orElse(null)
 
-    /** Déjà en cache ? Lecture immédiate sur le thread UI, sans aller-retour asynchrone. */
     fun cached(app: TvApp): AppArtwork? = cache[app.packageName]?.orElse(null)
 
-    /** Chargement séquentiel (le PackageManager n'aime pas 40 appels parallèles), dock d'abord. */
     fun preload(apps: List<TvApp>) = apps.forEach { load(it) }
 
     private fun resolve(app: TvApp): AppArtwork? {

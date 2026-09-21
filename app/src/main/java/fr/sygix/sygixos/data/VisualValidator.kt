@@ -13,15 +13,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
-/** Résultat de vérification d'un visuel : `usable` false = chargement impossible ou trop petit. */
 data class VisualCheck(val uri: String, val usable: Boolean)
 
-/**
- * Valide et précharge les visuels une fois pour toutes : chargement réel via Coil,
- * largeur minimale vérifiée, les premiers gardés en mémoire, les autres sur disque.
- * Émet le verdict de chaque URI dès qu'il est connu, dans l'ordre demandé : l'appelant
- * sait ainsi distinguer « pas de visuel » de « vérification en cours ».
- */
 class VisualValidator(
     private val context: Context,
     private val imageLoader: ImageLoader = context.imageLoader,

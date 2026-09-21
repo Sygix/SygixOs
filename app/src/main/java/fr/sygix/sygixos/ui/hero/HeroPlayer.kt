@@ -13,10 +13,6 @@ import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import fr.sygix.sygixos.domain.VisualQuality
 
-/**
- * Unique lecteur vidéo du héro, muet, créé à la première vidéo et libéré avec
- * le composable. Expose l'état utile au rendu (première image, format).
- */
 internal class HeroPlayer(
     private val context: Context,
     private val onEnded: () -> Unit,

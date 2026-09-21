@@ -36,11 +36,6 @@ import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import kotlinx.coroutines.delay
 
-/**
- * Panneau Top Shelf à emplacement fixe au-dessus de la rangée active : affiches validées
- * de l'app focus, chacune n'apparaissant (fondu) qu'une fois chargée. Rien n'est dessiné
- * quand l'app n'a pas d'affiche : ni cadre, ni repli.
- */
 @Composable
 internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
     var failed by remember(uris) { mutableStateOf(emptySet<String>()) }

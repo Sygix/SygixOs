@@ -11,13 +11,6 @@ import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/**
- * Programmes publiés par les apps installées dans le TV Provider système
- * (watch next + preview programs). Nécessite `android.permission.READ_TV_LISTINGS` :
- * sans elle, le provider ne renvoie que nos propres lignes. Aucune clause de
- * sélection ni tri n'est envoyée (refusés par le provider pour une app non
- * privilégiée) : tout filtrage se fait côté launcher.
- */
 class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     private val labels = mutableMapOf<String, String?>()
@@ -89,17 +82,12 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         )
     }
 
-    /**
-     * Certaines apps (VLC…) publient comme aperçu une URI de TV input système
-     * (`content://android.media.tv/...`), lisible uniquement par le launcher Google : on l'ignore.
-     */
     private fun playableVideo(uri: String?): String? = uri?.takeIf { raw ->
         val parsed = Uri.parse(raw)
         parsed.scheme == "http" || parsed.scheme == "https" ||
             (parsed.scheme == "content" && parsed.authority != TvContract.AUTHORITY)
     }
 
-    /** Le héro est plein écran : on préfère la vignette 16:9 à un poster portrait. */
     private fun landscapeImage(c: Cursor, posterColumn: String, aspectColumn: String, thumbnailColumn: String): String? {
         val poster = c.optString(posterColumn)
         val thumbnail = c.optString(thumbnailColumn)
@@ -117,7 +105,6 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     }
 
     private companion object {
-        /** TvContract.PreviewPrograms.ASPECT_RATIO_MOVIE_POSTER (1:1.441), absent du SDK public. */
         const val ASPECT_RATIO_MOVIE_POSTER = 5
         val PORTRAIT_RATIOS = setOf(TvContract.PreviewPrograms.ASPECT_RATIO_2_3, ASPECT_RATIO_MOVIE_POSTER)
         val PREVIEW_PROJECTION = arrayOf(

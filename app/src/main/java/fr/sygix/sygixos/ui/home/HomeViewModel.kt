@@ -30,12 +30,9 @@ import kotlinx.coroutines.launch
 
 data class HeroState(
     val items: List<HeroItem>,
-    /** true : programmes des apps installées ; false : fond vidéo de secours. */
     val fromApps: Boolean,
     val loading: Boolean,
-    /** URIs d'images validées (chargées, assez grandes) : seules celles-ci sont affichées. */
     val validated: Set<String> = emptySet(),
-    /** URIs déjà vérifiées, validées ou non : ailleurs, la vérification est encore en cours. */
     val checked: Set<String> = emptySet(),
 ) {
     companion object {
@@ -75,7 +72,6 @@ class HomeViewModel(
         viewModelScope.launch(Dispatchers.IO) { artwork.preload(catalog.dock + catalog.grid) }
     }
 
-    /** Au retour au launcher : apps installées et progression des programmes ont pu changer. */
     fun refresh() {
         refreshApps()
         refreshHero()
@@ -92,8 +88,6 @@ class HomeViewModel(
             heroState.value = HeroState(feed.items, feed.fromApps, loading = false)
             shelfRequested.clear()
             android.util.Log.w("HomeVM", "programmes par app: " + feed.items.groupingBy { it.sourcePackage ?: "?" }.eachCount().entries.sortedByDescending { it.value }.joinToString { "${it.key}=${it.value}" })
-            // Le TV Provider peut publier des centaines de programmes : seuls les premiers
-            // visuels du héro sont validés au chargement, le reste l'est à la demande.
             val heroUris = feed.items.asSequence()
                 .mapNotNull { it.imageUrl }
                 .distinct()
@@ -104,7 +98,6 @@ class HomeViewModel(
         }
     }
 
-    /** Focus posé sur une app de la grille : on valide quelques-unes de ses affiches. */
     fun prepareShelf(packageName: String) {
         if (!shelfRequested.add(packageName)) return
         val uris = ShelfPosters.candidates(heroState.value.items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)

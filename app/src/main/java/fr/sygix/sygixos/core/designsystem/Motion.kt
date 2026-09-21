@@ -4,7 +4,6 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.ui.unit.dp
 
-/** Courbe standard d'Apple (ease-in-out). */
 val AppleEasing: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
 
 object Motion {
@@ -17,13 +16,11 @@ object Motion {
     const val HERO_VIDEO_START_TIMEOUT_MS = 12_000L
     const val LONG_PRESS_MS = 450L
     const val SHELF_SCROLL_MS = 400
-    /** Pause du focus avant d'ouvrir le panneau Top Shelf (aucun délai s'il est déjà ouvert). */
     const val SHELF_OPEN_DELAY_MS = 3_000L
     const val SHELF_EXPAND_MS = 420
     const val SHELF_FADE_MS = 350
 }
 
-/** Canevas TV : 960 x 540 dp (1080p en xhdpi). */
 object Dimens {
     val ScreenMarginH = 48.dp
     val GridTopMargin = 40.dp
@@ -33,10 +30,7 @@ object Dimens {
     const val GridColumns = 5
     val DockBottomMargin = 24.dp
     val DockPadding = 14.dp
-    /** Marge externe du dock : ses tuiles s'alignent sur les colonnes de la grille. */
     val DockOuterMargin = ScreenMarginH - DockPadding
-    /** Format Apple Top Shelf (1920x720). */
     const val ShelfAspectRatio = 1920f / 720f
-    /** Hauteur visible de la rangée qui dépasse au-dessus du panneau. */
     val ShelfPeek = 40.dp
 }

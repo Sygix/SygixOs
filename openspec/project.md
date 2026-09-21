@@ -7,8 +7,8 @@ Launcher Apple TV-style pour Google TV (TCL, Android 14 / Google TV). Remplace l
 2. Zéro bug : états loading/empty/error partout, pas de crash silencieux
 
 ## Stack
-- Kotlin, Jetpack Compose for TV, min SDK 30+
-- Retrofit/OkHttp, kotlinx.serialization, Coil, DataStore
+- Kotlin 2.4, Jetpack Compose (BOM 2026.09), Haze 2 pour le Liquid Glass
+- Coil, DataStore, media3 (ExoPlayer)
 - Aucun backend ; tout en local
 
 ## Conventions de code
@@ -25,7 +25,7 @@ Launcher Apple TV-style pour Google TV (TCL, Android 14 / Google TV). Remplace l
 
 ## Packaging & cible
 - Namespace Android : `fr.sygix.<appname>` (ce launcher : `fr.sygix.sygixos`)
-- Cible : **Android 14 et plus** (TCL Google TV, minSdk 34, compileSdk 34+)
+- Cible : **Android 14 et plus** (TCL Google TV, minSdk 34, compileSdk 37)
 - Dépendances externes autorisées si éprouvées et maintenues (stores, DB locale : Room, etc.) — éviter les libs exotiques
 
 ## Workflow des specs

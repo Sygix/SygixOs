@@ -70,11 +70,6 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
 
 internal enum class Zone { HERO, DOCK, GRID }
 
-/**
- * Trois paliers : héro (plein écran) → dock (overlay) → grille (masque le héro).
- * `zone` est l'unique source de vérité : seule la couche active est focusable,
- * les transitions haut/bas sont explicites, le focus est demandé après composition.
- */
 @Composable
 internal fun LauncherHome(
     catalog: Catalog,

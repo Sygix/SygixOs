@@ -5,7 +5,6 @@ import org.junit.Test
 
 class DockLayoutTest {
 
-    // grille : 864 dp de large, 5 colonnes, 16 dp d'espacement => tuile 160 dp
     private val available = 864f
     private val spacing = 16f
 

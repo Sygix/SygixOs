@@ -53,13 +53,6 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.delay
 
-/**
- * Grille d'apps en rangées 16:9, entièrement visible à l'arrivée. Le panneau d'aperçu
- * ne s'ouvre qu'après une pause du focus sur une app qui a des visuels : il s'insère
- * au-dessus de la rangée focusée et pousse la grille vers le bas. Colonne défilante
- * simple : toutes les tuiles sont composées, donc le défilement ne se ré-ancre jamais
- * (source des sauts) et la tuile focusée est ramenée dans la vue à chaque changement.
- */
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
 internal fun HomeGrid(
@@ -82,7 +75,6 @@ internal fun HomeGrid(
     var focusedApp by remember { mutableStateOf(initialShelfApp) }
     var openApp by remember { mutableStateOf<String?>(null) }
 
-    // Les visuels sont validés en flux : on les lit comme un état pour ne pas relancer le minuteur à chaque arrivée.
     val visuals by rememberUpdatedState(validatedVisuals)
     val settled by rememberUpdatedState(checkedVisuals)
     val programs by rememberUpdatedState(shelfPrograms)
@@ -93,8 +85,6 @@ internal fun HomeGrid(
         ?.let { ShelfPosters.candidates(programs, it, VisualQuality.SHELF_VALIDATED_PER_APP) }
         ?.any { it !in settled } ?: false
 
-    // Pause avant la première ouverture ; bascule immédiate tant qu'un panneau est ouvert ;
-    // fermeture dès que l'app focusée n'a aucun visuel.
     LaunchedEffect(focusedApp, movingApp) {
         val target = focusedApp
         if (movingApp != null) {
@@ -103,8 +93,6 @@ internal fun HomeGrid(
         }
         if (postersOf(target).isEmpty() && !pendingFor(target)) openApp = null
         if (openApp == null) delay(Motion.SHELF_OPEN_DELAY_MS)
-        // Tant que les affiches de l'app focusée sont en cours de vérification, on garde
-        // le panneau tel quel : le fermer pour le rouvrir juste après donnerait un clignotement.
         snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
             when {
                 posters.isNotEmpty() -> openApp = target
@@ -137,14 +125,9 @@ internal fun HomeGrid(
         return app?.let { requesterFor(it.packageName) } ?: FocusRequester.Default
     }
 
-    // Ouverture, fermeture et déplacement du panneau changent la hauteur au-dessus de la rangée
-    // focusée. Plutôt que d'enchaîner deux animations (expansion puis remise en vue), on calcule
-    // la position finale et on ne défile qu'une fois, au rythme exact de l'expansion.
     LaunchedEffect(openRow, focusedApp) {
         val row = focusedRow()
         if (row < 0) return@LaunchedEffect
-        // Une frame d'attente : le défilement automatique du focus démarre en premier, le nôtre
-        // le remplace aussitôt, sinon les deux se disputeraient l'état de défilement.
         withFrameNanos { }
         val viewport = scrollState.viewportSize.toFloat()
         if (viewport <= 0f) return@LaunchedEffect
@@ -166,13 +149,11 @@ internal fun HomeGrid(
             scrollState.animateScrollBy(delta, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
         }
     }
-    // En déplacement, la tuile change de rangée : son nœud est recréé, on lui redonne le focus.
     LaunchedEffect(movingApp, rows) {
         if (movingApp == null) return@LaunchedEffect
         withFrameNanos { }
         requesterFor(movingApp).tryRequestFocus()
     }
-    // À la sortie de la grille, l'aperçu se referme et la grille revient en haut.
     LaunchedEffect(focusEnabled) {
         if (!focusEnabled) {
             openApp = null
@@ -199,8 +180,6 @@ internal fun HomeGrid(
         verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
     ) {
         rows.forEachIndexed { rowIndex, rowApps ->
-            // Aperçu et rangée forment un bloc : c'est lui qu'on amène dans la vue,
-            // sinon seule une bande du panneau resterait visible au-dessus de la rangée.
             Column {
             AnimatedVisibility(
                 visible = rowIndex == openRow && shelfUris.isNotEmpty(),

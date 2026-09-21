@@ -6,7 +6,6 @@ import android.widget.Toast
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 
-/** Lancement des apps et des contenus publiés, sans jamais planter sur un intent absent. */
 object AppLauncher {
 
     fun open(context: Context, app: TvApp) {

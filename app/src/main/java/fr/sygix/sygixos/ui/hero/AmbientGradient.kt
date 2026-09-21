@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 
 private val Colors = listOf(Color(0xFF0E1A33), Color(0xFF101014), Color(0xFF1B1030))
 
-/** Dégradé sombre, animé seulement quand il est le visuel principal (chargement, fallback ultime) : fond statique sinon. */
 @Composable
 fun AmbientGradient(modifier: Modifier = Modifier, animated: Boolean = false) {
     val phase = if (animated) {

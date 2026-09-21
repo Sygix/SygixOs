@@ -1,6 +1,5 @@
 package fr.sygix.sygixos.domain
 
-/** Largeur des tuiles du dock : celle de la grille jusqu'à `columns` apps, réduite au-delà pour tenir dans `available`. */
 object DockLayout {
 
     fun tileWidth(available: Float, count: Int, spacing: Float, columns: Int): Float {

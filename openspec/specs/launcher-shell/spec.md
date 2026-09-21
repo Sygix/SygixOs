@@ -212,14 +212,14 @@ Le fallback du héro SHALL être une liste de clips nature libres de droits (Pex
 - **THEN** le dégradé sombre animé reste affiché, sans écran noir ni crash
 
 ### Requirement: Qualité des visuels
-Le héro et le panneau Top Shelf SHALL n'afficher que des visuels de bonne qualité : vidéo d'aperçu privilégiée quand l'app en fournit une, image ou vidéo d'au moins 960 px de large, sinon le programme est écarté.
+Le héro et le panneau Top Shelf SHALL n'afficher que des visuels de bonne qualité : vidéo d'aperçu privilégiée quand l'app en fournit une, image ou vidéo d'au moins 1080 px de large, sinon le programme est écarté.
 
 #### Scenario: image trop petite
-- **WHEN** l'image décodée d'un programme fait moins de 960 px de large, ou ne peut pas être chargée
+- **WHEN** l'image décodée d'un programme fait moins de 1080 px de large, ou ne peut pas être chargée
 - **THEN** le héro passe au programme suivant sans afficher l'image, et le panneau Top Shelf ne l'inclut pas
 
 #### Scenario: vidéo trop petite
-- **WHEN** la vidéo d'aperçu d'un programme fait moins de 960 px de large
+- **WHEN** la vidéo d'aperçu d'un programme fait moins de 1080 px de large
 - **THEN** le héro replie sur le poster du programme, puis l'écarte si le poster est aussi insuffisant
 
 ### Requirement: Sélection des apps sources
@@ -230,11 +230,15 @@ Le launcher SHALL permettre, dans ses réglages (v1.x), de cocher les apps dont 
 - **THEN** ses programmes n'apparaissent plus dans le héro ni dans le Top Shelf, sans redémarrage
 
 ### Requirement: Préchargement et mémoire
-Le launcher SHALL valider et précharger les visuels du héro et du Top Shelf au chargement, et limiter sa consommation mémoire et GPU.
+Le launcher SHALL valider les visuels avant de les afficher, en bornant ce travail : les premiers visuels du héro au chargement, les affiches d'une app quand le focus s'y pose. Il SHALL aussi limiter sa consommation mémoire et GPU.
 
 #### Scenario: validation au chargement
 - **WHEN** les programmes sont chargés
-- **THEN** chaque visuel est vérifié une fois en arrière-plan (chargement, largeur ≥ 1080 px) ; seuls les visuels validés sont proposés au héro et au Top Shelf ; les premiers visuels du héro sont gardés en mémoire, les autres en cache disque
+- **THEN** seuls les premiers visuels du héro sont vérifiés en arrière-plan (chargement, largeur ≥ 1080 px) ; ils sont gardés en mémoire, les suivants en cache disque ; le provider pouvant publier des centaines de programmes, aucun autre visuel n'est vérifié à ce moment
+
+#### Scenario: validation à la demande
+- **WHEN** le focus se pose sur une tuile de la grille
+- **THEN** quelques affiches de cette app sont vérifiées une seule fois ; seules les affiches validées alimentent son panneau
 
 #### Scenario: économie de ressources
 - **WHEN** le héro est masqué (zone grille) ou une surface verre est invisible
