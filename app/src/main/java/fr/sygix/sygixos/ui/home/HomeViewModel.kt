@@ -12,9 +12,12 @@ import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.NatureFallbackProvider
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.TvProviderHeroSource
+import fr.sygix.sygixos.data.VisualValidator
+import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.SharingStarted
@@ -29,6 +32,8 @@ data class HeroState(
     /** true : programmes des apps installées ; false : fond vidéo de secours. */
     val fromApps: Boolean,
     val loading: Boolean,
+    /** URIs d'images validées (chargées, assez grandes) : seules celles-ci sont affichées. */
+    val validated: Set<String> = emptySet(),
 ) {
     companion object {
         val Initial = HeroState(emptyList(), fromApps = false, loading = true)
@@ -44,15 +49,19 @@ class HomeViewModel(
     private val apps: AppCatalogRepository,
     private val hero: HeroRepository,
     val artwork: AppArtworkSource,
+    private val validator: VisualValidator,
 ) : ViewModel() {
 
     private val heroState = MutableStateFlow(HeroState.Initial)
+    private val validated = MutableStateFlow<Set<String>>(emptySet())
+    private var validationJob: Job? = null
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog.onEach { preloadArtwork(it) },
         heroState,
-    ) { catalog, h ->
-        HomeState.Ready(catalog, h) as HomeState
+        validated,
+    ) { catalog, h, v ->
+        HomeState.Ready(catalog, h.copy(validated = v)) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
 
     private fun preloadArtwork(catalog: Catalog) {
@@ -74,6 +83,18 @@ class HomeViewModel(
             heroState.update { it.copy(loading = true) }
             val feed = hero.load()
             heroState.value = HeroState(feed.items, feed.fromApps, loading = false)
+            validateVisuals(feed.items.mapNotNull { it.imageUrl }.distinct())
+        }
+    }
+
+    /** Héro d'abord (ordre d'affichage), seulement les URIs pas encore validées. */
+    private fun validateVisuals(uris: List<String>) {
+        validationJob?.cancel()
+        val pending = uris.filter { it !in validated.value }
+        if (pending.isEmpty()) return
+        validationJob = viewModelScope.launch {
+            validator.validate(pending, keepInMemory = VisualQuality.HERO_IN_MEMORY)
+                .collect { uri -> validated.update { it + uri } }
         }
     }
 
@@ -97,6 +118,7 @@ class HomeViewModel(
                 apps = AppCatalogRepository(InstalledAppsSource(app), LauncherPrefs(app)),
                 hero = HeroRepository(TvProviderHeroSource(app), NatureFallbackProvider()),
                 artwork = AppArtworkSource(app.packageManager),
+                validator = VisualValidator(app),
             ) as T
         }
     }

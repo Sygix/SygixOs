@@ -1,7 +1,6 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
+import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.model.TvApp
 
 /**
@@ -85,10 +85,10 @@ private fun MenuButton(text: String, onClick: () -> Unit, focusRequester: FocusR
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { focused = it.isFocused }
             .clip(RoundedCornerShape(12.dp))
-            .background(if (focused) Color.White.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.08f))
-            .clickable(onClick = onClick)
+            .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.10f))
+            .tvClickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     ) {
-        Text(text, style = MaterialTheme.typography.titleMedium, color = Color.White)
+        Text(text, style = MaterialTheme.typography.titleMedium, color = if (focused) Color(0xFF15151A) else Color.White)
     }
 }

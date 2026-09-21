@@ -2,11 +2,9 @@ package fr.sygix.sygixos.ui.home
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -27,15 +25,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onPreviewKeyEvent
-import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.data.AppArtwork
 import fr.sygix.sygixos.data.AppArtworkSource
@@ -47,8 +41,7 @@ internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource?> { nul
 
 private val TileBackground = Color(0xFF141418)
 
-/** Tuile d'app 16:9 (grille et dock) : bannière Android TV, sinon icône entière. */
-@OptIn(ExperimentalFoundationApi::class)
+/** Tuile d'app 16:9 (grille et dock) : bannière Android TV, sinon icône entière. Appui court : ouvrir, appui long : menu. */
 @Composable
 internal fun AppTile(
     app: TvApp,
@@ -63,23 +56,15 @@ internal fun AppTile(
     val artwork by rememberAppArtwork(app)
     Box(
         modifier
-            .onPreviewKeyEvent { e ->
-                if (e.key == Key.Menu && e.type == KeyEventType.KeyDown) {
-                    onLongClick()
-                    true
-                } else {
-                    false
-                }
-            }
-            .tvFocus(onFocused = onFocusChanged, focusRequester = focusRequester, enabled = focusEnabled)
-            .combinedClickable(
-                interactionSource = null,
-                indication = null,
-                onLongClick = onLongClick,
-                onClick = onClick,
-            ),
+            .tvFocus(
+                onFocused = onFocusChanged,
+                focusRequester = focusRequester,
+                enabled = focusEnabled,
+                glow = artwork?.let { Color(it.accent) } ?: Color.White,
+            )
+            .tvClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        TileBox(artwork, app.label, lifted)
+        TileBox(artwork, app.label, lifted = lifted)
     }
 }
 
@@ -88,21 +73,22 @@ private fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
     val context = LocalContext.current
     val provided = LocalAppArtwork.current
     val source = remember(provided) { provided ?: AppArtworkSource(context.packageManager) }
-    return produceState<AppArtwork?>(initialValue = null, app.packageName, source) {
-        value = withContext(Dispatchers.IO) { runCatching { source.load(app) }.getOrNull() }
+    return produceState<AppArtwork?>(initialValue = source.cached(app), app.packageName, source) {
+        if (value == null) value = withContext(Dispatchers.IO) { runCatching { source.load(app) }.getOrNull() }
     }
 }
 
 @Composable
 internal fun TileBox(artwork: AppArtwork?, label: String, lifted: Boolean = false) {
     val shape = RoundedCornerShape(Dimens.TileCorner)
+    val border = if (lifted) Modifier.border(2.dp, Color.White, shape) else Modifier
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
             .clip(shape)
             .background(TileBackground)
-            .then(if (lifted) Modifier.border(3.dp, Color.White, shape) else Modifier),
+            .then(border),
         contentAlignment = Alignment.Center,
     ) {
         Crossfade(targetState = artwork, animationSpec = tween(250), label = "tileArtwork") { art ->

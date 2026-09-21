@@ -17,10 +17,27 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        // Signature release fournie par l'environnement (CI ou local.properties), sinon clé de debug :
+        // indispensable pour tester les performances réelles (R8 + AOT) sur la TV sans secret dans le repo.
+        create("release") {
+            val storePath = System.getenv("SYGIXOS_STORE_FILE")
+            if (storePath != null) {
+                storeFile = file(storePath)
+                storePassword = System.getenv("SYGIXOS_STORE_PASSWORD")
+                keyAlias = System.getenv("SYGIXOS_KEY_ALIAS")
+                keyPassword = System.getenv("SYGIXOS_KEY_PASSWORD")
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

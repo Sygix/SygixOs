@@ -52,7 +52,7 @@ class HomeScreenScreenshotTest {
     fun heroWithPrograms() {
         composeRule.setContent {
             SygixOsTheme {
-                LauncherHome(catalog, hero = HeroState(programs, fromApps = true, loading = false), onTogglePin = {}, glassBlur = false)
+                LauncherHome(catalog, hero = HeroState(programs, fromApps = true, loading = false, validated = setOf("https://example.com/z.jpg")), onTogglePin = {}, glassBlur = false)
             }
         }
         composeRule.onRoot().captureRoboImage("build/outputs/screenshots/hero-programs.png")
@@ -84,6 +84,7 @@ class HomeScreenScreenshotTest {
                     focusEnabled = true,
                     focusRequester = FocusRequester(),
                     shelfPrograms = programs,
+                    validatedVisuals = setOf("https://example.com/z.jpg"),
                     onTileFocus = {},
                     onTileClick = {},
                     onTileLongClick = {},

@@ -11,7 +11,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
-import fr.sygix.sygixos.core.designsystem.Quality
+import fr.sygix.sygixos.domain.VisualQuality
 
 /**
  * Unique lecteur vidéo du héro, muet, créé à la première vidéo et libéré avec
@@ -38,7 +38,7 @@ internal class HeroPlayer(
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             if (videoSize.height <= 0 || videoSize.width <= 0) return
-            if (videoSize.width < Quality.MIN_VISUAL_WIDTH_PX) {
+            if (videoSize.width < VisualQuality.MIN_WIDTH_PX) {
                 itemId?.let(onError)
                 return
             }

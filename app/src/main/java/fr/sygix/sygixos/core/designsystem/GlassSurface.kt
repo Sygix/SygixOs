@@ -12,11 +12,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -41,20 +41,27 @@ private val GlassBackdrop = Color(0xFF0B0B10)
 fun GlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(20.dp),
+    /** false quand la surface est invisible : ni flou ni reflet animé (économie GPU). */
+    active: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
-    val sheen by rememberInfiniteTransition(label = "glassSheen").animateFloat(
-        initialValue = -0.6f,
-        targetValue = 1.6f,
-        animationSpec = infiniteRepeatable(tween(9_000, easing = LinearEasing), RepeatMode.Restart),
-        label = "glassSheenX",
-    )
+    val sheen = if (active) {
+        rememberInfiniteTransition(label = "glassSheen").animateFloat(
+            initialValue = -0.6f,
+            targetValue = 1.6f,
+            animationSpec = infiniteRepeatable(tween(9_000, easing = LinearEasing), RepeatMode.Restart),
+            label = "glassSheenX",
+        ).value
+    } else {
+        -1f
+    }
     Box(
         modifier = modifier
+            .shadow(10.dp, shape, clip = false, ambientColor = Color.White.copy(alpha = 0.10f), spotColor = Color.White.copy(alpha = 0.18f))
             .clip(shape)
             .then(
-                if (haze != null) {
+                if (haze != null && active) {
                     Modifier.hazeEffect(state = haze) {
                         backgroundColor = GlassBackdrop
                         blurRadius = 28.dp

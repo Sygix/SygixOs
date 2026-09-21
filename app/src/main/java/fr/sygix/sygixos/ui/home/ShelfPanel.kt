@@ -1,16 +1,18 @@
 package fr.sygix.sygixos.ui.home
 
+import android.util.Log
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -22,28 +24,27 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.Image
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
-import android.util.Log
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
-import fr.sygix.sygixos.core.designsystem.Quality
+import fr.sygix.sygixos.core.designsystem.Motion
 import kotlinx.coroutines.delay
 
-/** Panneau Top Shelf au-dessus de la rangée focusée (posters de l'app focus). Disparaît si aucun poster n'est lisible. */
+/**
+ * Panneau Top Shelf à emplacement fixe au-dessus de la rangée active : affiches validées
+ * de l'app focus, chacune n'apparaissant (fondu) qu'une fois chargée. Rien n'est dessiné
+ * quand l'app n'a pas d'affiche : ni cadre, ni repli.
+ */
 @Composable
 internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
     var failed by remember(uris) { mutableStateOf(emptySet<String>()) }
     val loadable = remember(uris, failed) { uris.filter { it !in failed } }
-    if (loadable.isEmpty()) return
     var index by remember { mutableIntStateOf(0) }
     LaunchedEffect(loadable) {
         index = 0
@@ -54,56 +55,56 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             }
         }
     }
-    val pan = rememberInfiniteTransition(label = "kenBurns")
-    val panX by pan.animateFloat(
+    val panX by rememberInfiniteTransition(label = "kenBurns").animateFloat(
         initialValue = -12f,
         targetValue = 12f,
         animationSpec = infiniteRepeatable(tween(16000, easing = AppleEasing), RepeatMode.Reverse),
         label = "kenBurnsX",
     )
     val shape = RoundedCornerShape(16.dp)
-    Crossfade(
-        targetState = index,
-        animationSpec = tween(350, easing = AppleEasing),
-        label = "shelfCrossfade",
-        modifier = modifier,
-    ) { i ->
-        val uri = loadable[i % loadable.size]
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(Dimens.ShelfAspectRatio)
-                .padding(vertical = 4.dp)
-                .shadow(14.dp, shape)
-                .clip(shape)
-                .background(Color(0xFF14141A)),
-        ) {
-            val painter = rememberAsyncImagePainter(
-                model = ImageRequest.Builder(LocalContext.current).data(uri).size(1920, 1080).build(),
-                onState = { state ->
-                    val tooSmall = state is AsyncImagePainter.State.Success &&
-                        state.result.drawable.intrinsicWidth < Quality.MIN_VISUAL_WIDTH_PX
-                    if (state is AsyncImagePainter.State.Error || tooSmall) {
-                        Log.w("ShelfPanel", "poster illisible ou trop petit: $uri")
-                        failed = failed + uri
-                    }
-                },
-            )
-            val state = painter.state
-            if (state is AsyncImagePainter.State.Success && state.result.drawable.intrinsicWidth >= Quality.MIN_VISUAL_WIDTH_PX) {
-                Image(
-                    painter = painter,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            translationX = panX
-                            scaleX = 1.06f
-                            scaleY = 1.06f
-                        },
-                )
+    Box(
+        modifier
+            .fillMaxWidth()
+            .aspectRatio(Dimens.ShelfAspectRatio)
+            .padding(vertical = 4.dp)
+            .clip(shape),
+    ) {
+        Crossfade(
+            targetState = loadable.getOrNull(index % maxOf(loadable.size, 1)),
+            animationSpec = tween(Motion.SHELF_FADE_MS, easing = AppleEasing),
+            label = "shelfCrossfade",
+        ) { uri ->
+            if (uri != null) {
+                LoadedPoster(uri, panX, onError = {
+                    Log.w("ShelfPanel", "poster illisible: $uri")
+                    failed = failed + uri
+                })
             }
         }
+    }
+}
+
+@Composable
+private fun LoadedPoster(uri: String, panX: Float, onError: () -> Unit) {
+    val painter = rememberAsyncImagePainter(
+        model = ImageRequest.Builder(LocalContext.current).data(uri).size(1920, 1080).build(),
+        onState = { if (it is AsyncImagePainter.State.Error) onError() },
+    )
+    val ready = painter.state is AsyncImagePainter.State.Success
+    val alpha by animateFloatAsState(if (ready) 1f else 0f, tween(Motion.SHELF_FADE_MS, easing = AppleEasing), label = "posterAlpha")
+    if (ready) {
+        Image(
+            painter = painter,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    this.alpha = alpha
+                    translationX = panX
+                    scaleX = 1.06f
+                    scaleY = 1.06f
+                },
+        )
     }
 }

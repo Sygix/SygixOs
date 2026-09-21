@@ -16,6 +16,8 @@ class MainActivity : ComponentActivity() {
     private companion object {
         /** Permission runtime du framework, absente de android.Manifest.permission dans le SDK public. */
         const val READ_TV_LISTINGS = "android.permission.READ_TV_LISTINGS"
+        /** Diagnostic : `am start --ez noglass true` désactive le flou d'arrière-plan. */
+        const val EXTRA_NO_GLASS = "noglass"
     }
 
     private lateinit var viewModel: HomeViewModel
@@ -26,9 +28,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewModel = ViewModelProvider(this, HomeViewModel.Factory(applicationContext))[HomeViewModel::class.java]
+        val glassBlur = !intent.getBooleanExtra(EXTRA_NO_GLASS, false)
         setContent {
             SygixOsTheme {
-                HomeScreen(viewModel)
+                HomeScreen(viewModel, glassBlur = glassBlur)
             }
         }
         requestTvListingsPermissionIfNeeded()

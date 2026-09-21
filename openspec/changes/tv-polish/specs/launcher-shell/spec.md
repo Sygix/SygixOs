@@ -1,0 +1,96 @@
+# Delta launcher-shell
+
+## ADDED Requirements
+
+### Requirement: Préchargement et mémoire
+Le launcher SHALL valider et précharger les visuels du héro et du Top Shelf au chargement, et limiter sa consommation mémoire et GPU.
+
+#### Scenario: validation au chargement
+- **WHEN** les programmes sont chargés
+- **THEN** chaque visuel est vérifié une fois en arrière-plan (chargement, largeur ≥ 1080 px) ; seuls les visuels validés sont proposés au héro et au Top Shelf ; les premiers visuels du héro sont gardés en mémoire, les autres en cache disque
+
+#### Scenario: économie de ressources
+- **WHEN** le héro est masqué (zone grille) ou une surface verre est invisible
+- **THEN** le lecteur vidéo est libéré, les animations de fond et le flou d'arrière-plan sont arrêtés ; les images sont décodées en RGB565 avec au plus deux décodeurs simultanés
+
+## MODIFIED Requirements
+
+### Requirement: Focus tvOS
+Le launcher SHALL animer le focus des tuiles à la tvOS (zoom, liseré, ombre, easing), de façon à ce que la tuile active soit identifiable d'un coup d'œil.
+
+#### Scenario: focus
+- **WHEN** une tuile prend le focus
+- **THEN** zoom léger (~1.07x) et halo radial diffus, compact (ne déborde pas sur les tuiles voisines), de la couleur dominante du visuel de la tuile (style Google Play, lisible sur fond sombre), sans liseré, transition 250-400ms courbe Apple ; en zone grille le panneau Top Shelf reflète l'app focusée
+
+### Requirement: Grille d'apps
+Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher en grille.
+
+Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / LAUNCHER).
+
+#### Scenario: affichage
+- **WHEN** le home s'ouvre
+- **THEN** toutes les apps TV installées apparaissent en grille 5 colonnes, tuiles 16:9 remplies par la bannière Android TV de l'app (`android:banner`), repli sur l'icône entière centrée sur fond sombre ; ordre et épinglage persistés (DataStore)
+
+#### Scenario: menu contextuel
+- **WHEN** appui long sur OK sur une tuile
+- **THEN** menu en overlay : épingler / retirer du dock, déplacer (grille) ; OK valide l'action focusée, Retour ferme ; un appui court ouvre l'app
+
+### Requirement: Panneau Top Shelf au focus
+En zone grille, un emplacement de panneau SHALL être réservé au-dessus de la rangée active, la rangée active restant à hauteur fixe, sans bloquer la navigation DPAD.
+
+#### Scenario: insertion
+- **WHEN** une tuile d'une rangée prend le focus
+- **THEN** le panneau pleine largeur au format Apple Top Shelf (2,67:1, coins arrondis, ombre douce) occupe l'emplacement au-dessus de cette rangée ; la rangée précédente dépasse en haut, la rangée active est juste sous le panneau, les rangées suivantes occupent l'espace restant ; le panneau n'est pas focusable
+
+#### Scenario: déplacement du focus
+- **WHEN** le focus passe à une tuile d'une autre rangée
+- **THEN** le panneau reste en place (surface fixe par-dessus la liste) et les rangées glissent derrière lui en 400 ms (easing Apple), sans saut ni apparition brusque ; à l'entrée dans la grille la position est recalée avant l'apparition
+
+### Requirement: Contenu du panneau
+Le panneau SHALL n'afficher que des visuels validés et chargés de l'app focus, et rien sinon.
+
+#### Scenario: contenu disponible
+- **WHEN** l'app focusée a des visuels validés (preview programs / watch next)
+- **THEN** chaque affiche apparaît en fondu (300-400ms easing Apple) une fois chargée, puis défile lentement (Ken Burns) ; l'app du panneau ne change qu'après une courte pause du focus (~200 ms) pour ne pas clignoter en traversant la grille
+
+#### Scenario: pas de contenu
+- **WHEN** l'app focusée n'a aucun visuel validé, ou l'affiche n'est pas encore chargée
+- **THEN** l'emplacement reste vide (ni cadre, ni logo de repli) ; la position des rangées ne change pas
+
+### Requirement: Diaporama héro
+Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable.
+
+#### Scenario: défilement automatique
+- **WHEN** plusieurs programmes sont disponibles
+- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple), le visuel courant zoome lentement (Ken Burns), sans son, sans aperçu de l'élément suivant
+
+#### Scenario: navigation manuelle
+- **WHEN** l'utilisateur presse gauche/droite sur le héro
+- **THEN** le héro passe au programme précédent/suivant avec le même fondu et le minuteur d'avance automatique repart
+
+#### Scenario: vidéo d'aperçu
+- **WHEN** le programme expose une vidéo d'aperçu (previewVideoUri)
+- **THEN** elle est lue plein écran en muet à la place du poster, repli sur le poster si la lecture échoue
+
+#### Scenario: métadonnées
+- **WHEN** un programme ouvrable est affiché
+- **THEN** titre, app source et barre de progression (si connue) apparaissent en bas à gauche, suivis d'un bouton « Ouvrir » (« Reprendre » si progression) qui porte le focus du héro avec un état focus net ; OK sur ce bouton ouvre le contenu
+
+### Requirement: Dock d'apps épinglées
+Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) contenant les apps épinglées, qui restent également présentes dans la grille. Le dock overlay le héro.
+
+#### Scenario: état initial
+- **WHEN** le home s'ouvre
+- **THEN** le dock est visible en overlay bas sur le héro, le focus est sur le héro
+
+#### Scenario: taille tvOS
+- **WHEN** le dock contient jusqu'à 5 apps
+- **THEN** ses tuiles ont la taille des tuiles de la grille et le dock, centré, s'ajuste à leur nombre
+
+#### Scenario: tuiles adaptatives
+- **WHEN** le dock contient plus de 5 apps
+- **THEN** les tuiles se répartissent uniformément dans la largeur de la grille et réduisent leur taille automatiquement
+
+#### Scenario: épinglage
+- **WHEN** l'utilisateur épingle ou retire une app via le menu contextuel (appui long, OK valide directement)
+- **THEN** le dock est mis à jour et l'app reste dans la grille

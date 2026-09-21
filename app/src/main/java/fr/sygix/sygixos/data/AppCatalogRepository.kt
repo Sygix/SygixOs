@@ -25,9 +25,16 @@ class AppCatalogRepository(
         )
     }
 
-    /** Relit les apps installées (démarrage, retour au launcher). */
+    /** Catalogue en cache affiché tout de suite, puis relecture du PackageManager (démarrage, retour au launcher). */
     suspend fun refreshApps() {
-        installed.value = withContext(Dispatchers.IO) { runCatching { appsSource.load() }.getOrDefault(emptyList()) }
+        if (installed.value == null) {
+            prefs.cachedApps.first().takeIf { it.isNotEmpty() }?.let { installed.value = it }
+        }
+        val fresh = withContext(Dispatchers.IO) { runCatching { appsSource.load() }.getOrDefault(emptyList()) }
+        if (fresh.isNotEmpty() || installed.value == null) {
+            installed.value = fresh
+            prefs.setCachedApps(fresh)
+        }
     }
 
     suspend fun togglePin(packageName: String) {

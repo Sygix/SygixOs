@@ -47,12 +47,12 @@ import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel) {
+fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     CompositionLocalProvider(LocalAppArtwork provides viewModel.artwork) {
         when (val s = state) {
-            HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize())
+            HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize(), animated = true)
             is HomeState.Ready -> LauncherHome(
                 catalog = s.catalog,
                 hero = s.hero,
@@ -61,6 +61,7 @@ fun HomeScreen(viewModel: HomeViewModel) {
                 onOpenHero = { AppLauncher.open(context, it) },
                 onMoveInGrid = viewModel::moveInGrid,
                 onRestoreOrder = viewModel::setGridOrder,
+                glassBlur = glassBlur,
             )
         }
     }
@@ -158,6 +159,7 @@ internal fun LauncherHome(
     ) {
         HeroStage(
             items = hero.items,
+            validatedVisuals = hero.validated,
             active = zone == Zone.HERO && !menuOpen,
             visible = heroVisible,
             focusRequester = heroFocus,
@@ -171,6 +173,7 @@ internal fun LauncherHome(
             focusEnabled = zone == Zone.GRID && !menuOpen,
             focusRequester = gridFocus,
             shelfPrograms = if (hero.fromApps) hero.items else emptyList(),
+            validatedVisuals = hero.validated,
             onTileFocus = { gridRow = it },
             onTileClick = onOpenApp,
             onTileLongClick = { menuApp = it },

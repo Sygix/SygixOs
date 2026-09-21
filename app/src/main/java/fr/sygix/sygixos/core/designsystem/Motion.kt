@@ -10,16 +10,16 @@ val AppleEasing: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
 object Motion {
     const val FOCUS_MS = 300
     const val LAYER_FADE_MS = 400
-    const val HERO_CROSSFADE_MS = 900
+    const val HERO_CROSSFADE_MS = 1_400
     const val HERO_VIDEO_FADE_MS = 700
-    const val HERO_DWELL_MS = 8_000L
-    const val HERO_KEN_BURNS_MS = 12_000
+    const val HERO_DWELL_MS = 12_000L
+    const val HERO_KEN_BURNS_MS = 16_000
     const val HERO_VIDEO_START_TIMEOUT_MS = 12_000L
-}
-
-/** Visuels du héro et du Top Shelf : en dessous, l'image ou la vidéo est écartée (upscale flou). */
-object Quality {
-    const val MIN_VISUAL_WIDTH_PX = 960
+    const val LONG_PRESS_MS = 450L
+    const val SHELF_SCROLL_MS = 400
+    /** Délai avant de changer l'app du panneau Top Shelf quand le focus traverse la grille. */
+    const val SHELF_SETTLE_MS = 220L
+    const val SHELF_FADE_MS = 350
 }
 
 /** Canevas TV : 960 x 540 dp (1080p en xhdpi). */
@@ -38,5 +38,4 @@ object Dimens {
     const val ShelfAspectRatio = 1920f / 720f
     /** Hauteur visible de la rangée qui dépasse au-dessus du panneau. */
     val ShelfPeek = 40.dp
-    const val SHELF_SCROLL_MS = 400
 }

@@ -3,6 +3,7 @@ package fr.sygix.sygixos.ui.hero
 import android.util.Log
 import android.view.TextureView
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -11,15 +12,20 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,12 +36,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -49,27 +58,28 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.foundation.Image
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.Motion
-import fr.sygix.sygixos.core.designsystem.Quality
+import fr.sygix.sygixos.core.designsystem.tryRequestFocus
+import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.delay
 
 private const val TAG = "HeroStage"
 
 /**
- * Héro plein écran : un seul visuel à la fois (vidéo d'aperçu, sinon poster),
+ * Héro plein écran : un seul visuel à la fois (vidéo d'aperçu, sinon poster validé),
  * muet, avance automatique, fondu croisé et zoom lent façon Apple TV.
- * Gauche/droite : précédent/suivant. OK : ouvre le contenu.
+ * Gauche/droite : précédent/suivant. Le bouton « Ouvrir » porte le focus et ouvre le contenu.
  */
 @Composable
 fun HeroStage(
     items: List<HeroItem>,
+    validatedVisuals: Set<String>,
     active: Boolean,
     visible: Boolean,
     focusRequester: FocusRequester,
@@ -84,7 +94,8 @@ fun HeroStage(
     val showVideo = current?.videoUrl != null && current.id !in failedVideos
 
     fun viable(item: HeroItem): Boolean =
-        (item.videoUrl != null && item.id !in failedVideos) || (item.imageUrl != null && item.id !in failedImages)
+        (item.videoUrl != null && item.id !in failedVideos) ||
+            (item.imageUrl != null && item.imageUrl in validatedVisuals && item.id !in failedImages)
 
     val step: (Int) -> Unit = { delta ->
         var i = index
@@ -104,9 +115,16 @@ fun HeroStage(
     }
     val onVideoErrorState = rememberUpdatedState(onVideoError)
     val onImageError: (HeroItem) -> Unit = { item ->
-        Log.w(TAG, "poster illisible ou trop petit: ${item.imageUrl}")
+        Log.w(TAG, "poster illisible: ${item.imageUrl}")
         failedImages = failedImages + item.id
         if (current?.id == item.id && !viable(item)) stepState.value(1)
+    }
+
+    // Le programme courant n'est pas (encore) viable : on prend le premier qui l'est.
+    LaunchedEffect(current?.id, validatedVisuals, failedImages, failedVideos, items) {
+        if (current != null && !viable(current)) {
+            items.firstOrNull(::viable)?.let { currentId = it.id }
+        }
     }
 
     val context = LocalContext.current
@@ -121,15 +139,15 @@ fun HeroStage(
 
     LaunchedEffect(current?.id, showVideo, visible, items.size) {
         val item = current
-        if (item?.videoUrl != null && showVideo) {
-            player.show(item.id, item.videoUrl, play = visible, loop = items.size == 1)
+        if (visible && item?.videoUrl != null && showVideo) {
+            player.show(item.id, item.videoUrl, play = true, loop = items.size == 1)
         } else {
             player.clear()
         }
     }
-    LaunchedEffect(current?.id, showVideo) {
+    LaunchedEffect(current?.id, showVideo, visible) {
         val item = current ?: return@LaunchedEffect
-        if (!showVideo) return@LaunchedEffect
+        if (!showVideo || !visible) return@LaunchedEffect
         delay(Motion.HERO_VIDEO_START_TIMEOUT_MS)
         if (!player.firstFrameRendered) onVideoErrorState.value(item.id)
     }
@@ -139,28 +157,37 @@ fun HeroStage(
         stepState.value(1)
     }
 
+    val launchable = current != null && current.title.isNotEmpty() && (current.launchUri != null || current.sourcePackage != null)
+    val hasVisual = current != null && (showVideo || (current.imageUrl != null && current.imageUrl in validatedVisuals))
+    // La cible de focus change (bouton ou fond) : on la redemande quand le héro est actif.
+    LaunchedEffect(launchable, active) {
+        if (!active) return@LaunchedEffect
+        withFrameNanos { }
+        focusRequester.tryRequestFocus()
+    }
+
     Box(
         modifier
             .fillMaxSize()
-            .focusRequester(focusRequester)
-            .focusProperties { canFocus = active }
+            .then(if (launchable) Modifier else Modifier.focusRequester(focusRequester))
+            .focusProperties { canFocus = active && !launchable }
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (e.key) {
                     Key.DirectionLeft -> { step(-1); true }
                     Key.DirectionRight -> { step(1); true }
-                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> { current?.let(onOpen); true }
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> if (!launchable) { current?.let(onOpen); true } else false
                     else -> false
                 }
             }
             .focusable(),
     ) {
-        AmbientGradient()
+        AmbientGradient(animated = visible && !hasVisual)
         if (showVideo) {
             HeroVideoLayer(player, visible = player.firstFrameRendered)
         }
         Crossfade(
-            targetState = current?.takeIf { !showVideo && it.imageUrl != null },
+            targetState = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals },
             animationSpec = tween(Motion.HERO_CROSSFADE_MS, easing = AppleEasing),
             label = "heroPoster",
         ) { item ->
@@ -168,13 +195,13 @@ fun HeroStage(
                 KenBurnsPoster(url, onError = { onImageError(item) })
             }
         }
-        Crossfade(
-            targetState = current?.takeIf { it.title.isNotEmpty() },
-            animationSpec = tween(Motion.HERO_CROSSFADE_MS, easing = AppleEasing),
-            label = "heroMetadata",
-        ) { item ->
-            if (item != null) HeroMetadata(item)
-        }
+        HeroOverlay(
+            current = current?.takeIf { it.title.isNotEmpty() },
+            launchable = launchable,
+            buttonFocusRequester = focusRequester,
+            focusEnabled = active && launchable,
+            onOpen = { current?.let(onOpen) },
+        )
     }
 }
 
@@ -205,49 +232,41 @@ private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
     }
 }
 
-/** Le poster n'est dessiné qu'une fois chargé ET assez grand : pas de flash d'image floue avant l'écartement. */
+/** Poster déjà validé (cache) : affiché en fondu dès qu'il est prêt, zoom lent. */
 @Composable
 private fun KenBurnsPoster(url: String, onError: () -> Unit) {
-    // Taille explicite : sans dessin préalable, le painter n'aurait jamais de taille et ne chargerait rien.
-    val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current).data(url).size(1920, 1080).crossfade(false).build(),
-        onState = { state ->
-            when {
-                state is AsyncImagePainter.State.Error -> onError()
-                state is AsyncImagePainter.State.Success &&
-                    state.result.drawable.intrinsicWidth < Quality.MIN_VISUAL_WIDTH_PX -> onError()
-            }
-        },
-    )
-    val state = painter.state
-    val ready = state is AsyncImagePainter.State.Success &&
-        state.result.drawable.intrinsicWidth >= Quality.MIN_VISUAL_WIDTH_PX
-    var zoomed by remember(url) { mutableStateOf(false) }
-    LaunchedEffect(ready) { if (ready) zoomed = true }
+    var ready by remember(url) { mutableStateOf(false) }
     val scale by animateFloatAsState(
-        targetValue = if (zoomed) 1.08f else 1f,
+        targetValue = if (ready) 1.08f else 1f,
         animationSpec = tween(Motion.HERO_KEN_BURNS_MS, easing = LinearEasing),
         label = "kenBurns",
     )
     val alpha by animateFloatAsState(if (ready) 1f else 0f, tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing), label = "posterAlpha")
-    if (ready) {
-        Image(
-            painter = painter,
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    this.alpha = alpha
-                    scaleX = scale
-                    scaleY = scale
-                },
-        )
-    }
+    AsyncImage(
+        model = ImageRequest.Builder(LocalContext.current).data(url).size(1920, 1080).crossfade(false).build(),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        onSuccess = { ready = true },
+        onError = { onError() },
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                this.alpha = alpha
+                scaleX = scale
+                scaleY = scale
+            },
+    )
 }
 
+/** Dégradé de lisibilité, métadonnées en fondu croisé et bouton d'ouverture stable (hors du fondu : il garde le focus). */
 @Composable
-private fun HeroMetadata(item: HeroItem) {
+private fun HeroOverlay(
+    current: HeroItem?,
+    launchable: Boolean,
+    buttonFocusRequester: FocusRequester,
+    focusEnabled: Boolean,
+    onOpen: () -> Unit,
+) {
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier
@@ -260,36 +279,96 @@ private fun HeroMetadata(item: HeroItem) {
             Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = Dimens.ScreenMarginH + 8.dp, bottom = 172.dp)
-                .widthIn(max = 520.dp),
+                .widthIn(max = 560.dp),
         ) {
-            item.sourceLabel?.let { label ->
-                Text(label.uppercase(), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.7f))
-                Spacer(Modifier.height(6.dp))
+            Crossfade(
+                targetState = current,
+                animationSpec = tween(Motion.HERO_CROSSFADE_MS, easing = AppleEasing),
+                label = "heroMetadata",
+            ) { item ->
+                if (item != null) HeroMetadata(item)
             }
-            Text(
-                item.title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (launchable && current != null) {
+                Spacer(Modifier.height(14.dp))
+                HeroOpenButton(
+                    label = if (current.progress != null) "Reprendre" else "Ouvrir",
+                    focusRequester = buttonFocusRequester,
+                    enabled = focusEnabled,
+                    onClick = onOpen,
+                )
+            }
+        }
+    }
+}
+
+/** Hauteur constante (label, deux lignes de titre, emplacement de progression) : rien ne saute d'un programme à l'autre. */
+@Composable
+private fun HeroMetadata(item: HeroItem) {
+    Column {
+        Text(
+            item.sourceLabel?.uppercase() ?: " ",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White.copy(alpha = 0.7f),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.headlineLarge,
+            color = Color.White,
+            minLines = 2,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Box(
+            Modifier
+                .padding(top = 12.dp)
+                .width(220.dp)
+                .height(3.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color.White.copy(alpha = if (item.progress != null) 0.3f else 0f)),
+        ) {
             item.progress?.let { progress ->
                 Box(
                     Modifier
-                        .padding(top = 12.dp)
-                        .width(220.dp)
-                        .height(3.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.3f)),
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth(progress)
-                            .fillMaxHeight()
-                            .background(Color.White),
-                    )
-                }
+                        .fillMaxWidth(progress)
+                        .fillMaxHeight()
+                        .background(Color.White),
+                )
             }
         }
+    }
+}
+
+/** Pilule Liquid Glass comme le dock au repos ; blanche et légèrement agrandie au focus. */
+@Composable
+private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enabled: Boolean, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val pill = RoundedCornerShape(50)
+    val content by animateColorAsState(
+        if (focused) Color(0xFF15151A) else Color.White,
+        tween(Motion.FOCUS_MS, easing = AppleEasing),
+        label = "heroButtonContent",
+    )
+    val scale by animateFloatAsState(if (focused) 1.06f else 1f, tween(Motion.FOCUS_MS, easing = AppleEasing), label = "heroButtonScale")
+    val focusModifier = Modifier
+        .scale(scale)
+        .focusRequester(focusRequester)
+        .focusProperties { canFocus = enabled }
+        .onFocusChanged { focused = it.isFocused }
+        .tvClickable(onClick = onClick)
+    val labelRow: @Composable () -> Unit = {
+        Row(
+            Modifier.padding(start = 18.dp, end = 22.dp, top = 9.dp, bottom = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = content, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.titleMedium, color = content)
+        }
+    }
+    if (focused) {
+        Box(focusModifier.clip(pill).background(Color.White)) { labelRow() }
+    } else {
+        GlassSurface(modifier = focusModifier, shape = pill) { labelRow() }
     }
 }

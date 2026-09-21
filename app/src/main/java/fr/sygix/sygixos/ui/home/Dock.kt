@@ -2,6 +2,7 @@ package fr.sygix.sygixos.ui.home
 
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,9 +26,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.GlassSurface
+import fr.sygix.sygixos.domain.DockLayout
 import fr.sygix.sygixos.model.TvApp
 
-/** Rail Liquid Glass des apps épinglées, en overlay bas du héro. Tuiles de la taille de la grille, alignées sur ses colonnes. */
+/** Rail Liquid Glass des apps épinglées, centré et ajusté à leur nombre ; tuiles de la taille de la grille jusqu'à 5. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun Dock(
@@ -46,29 +48,35 @@ internal fun Dock(
         val app = apps.firstOrNull { it.packageName == focusedApp } ?: apps.firstOrNull()
         return app?.let { requesterFor(it.packageName) } ?: FocusRequester.Default
     }
-    GlassSurface(
-        modifier = modifier
-            .padding(start = Dimens.DockOuterMargin, end = Dimens.DockOuterMargin, bottom = Dimens.DockBottomMargin)
+    val active = alpha > 0.01f
+    BoxWithConstraints(
+        modifier
+            .padding(start = Dimens.ScreenMarginH, end = Dimens.ScreenMarginH, bottom = Dimens.DockBottomMargin)
             .fillMaxWidth()
-            .alpha(alpha)
-            .focusRequester(focusRequester)
-            .focusRestorer { restoreTarget() }
-            .focusGroup(),
+            .alpha(alpha),
+        contentAlignment = Alignment.Center,
     ) {
-        if (apps.isEmpty()) {
-            Text(
-                "Épinglez des apps depuis la grille (appui long ou touche Menu)",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 36.dp),
-            )
-        } else {
-            BoxWithConstraints(Modifier.padding(Dimens.DockPadding).fillMaxWidth()) {
-                val columns = maxOf(apps.size, Dimens.GridColumns)
-                val tileWidth = (maxWidth - Dimens.GridSpacing * (columns - 1)) / columns
+        val tileWidth = DockLayout.tileWidth(maxWidth.value, apps.size, Dimens.GridSpacing.value, Dimens.GridColumns).dp
+        val dockWidth = DockLayout.dockWidth(tileWidth.value, apps.size, Dimens.GridSpacing.value, Dimens.DockPadding.value).dp
+        GlassSurface(
+            modifier = Modifier
+                .then(if (apps.isEmpty()) Modifier else Modifier.width(dockWidth))
+                .focusRequester(focusRequester)
+                .focusRestorer { restoreTarget() }
+                .focusGroup(),
+            active = active,
+        ) {
+            if (apps.isEmpty()) {
+                Text(
+                    "Épinglez des apps depuis la grille (appui long)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 36.dp),
+                )
+            } else {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing, Alignment.CenterHorizontally),
+                    modifier = Modifier.padding(Dimens.DockPadding),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
                 ) {
                     apps.forEach { app ->
                         AppTile(

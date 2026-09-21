@@ -9,7 +9,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -18,16 +17,19 @@ import androidx.compose.ui.graphics.Color
 
 private val Colors = listOf(Color(0xFF0E1A33), Color(0xFF101014), Color(0xFF1B1030))
 
-/** Dégradé sombre qui dérive lentement : fallback ultime du héro et fond de la grille. */
+/** Dégradé sombre, animé seulement quand il est le visuel principal (chargement, fallback ultime) : fond statique sinon. */
 @Composable
-fun AmbientGradient(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "ambient")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Reverse),
-        label = "ambientPhase",
-    )
+fun AmbientGradient(modifier: Modifier = Modifier, animated: Boolean = false) {
+    val phase = if (animated) {
+        rememberInfiniteTransition(label = "ambient").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(24_000, easing = LinearEasing), RepeatMode.Reverse),
+            label = "ambientPhase",
+        ).value
+    } else {
+        0.35f
+    }
     Box(
         modifier
             .fillMaxSize()
