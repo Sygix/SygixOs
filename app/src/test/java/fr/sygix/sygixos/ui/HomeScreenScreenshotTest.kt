@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.captureRoboImage
 import fr.sygix.sygixos.core.designsystem.SygixOsTheme
 import fr.sygix.sygixos.data.Catalog
+import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.home.LauncherHome
 import org.junit.Rule
@@ -36,5 +37,33 @@ class HomeScreenScreenshotTest {
             }
         }
         composeRule.onRoot().captureRoboImage("build/outputs/screenshots/home-dock-grid.png")
+    }
+
+    @Test
+    fun heroWithTvProviderPrograms() {
+        val catalog = Catalog(dock = apps.take(4), grid = apps.drop(4))
+        val heroItems = listOf(
+            HeroItem(
+                id = "watchnext-1",
+                title = "Film X — reprise 30%",
+                progress = 0.3f,
+                sourcePackage = "org.jellyfin.mobiletv",
+                engagement = 500L,
+            ),
+            HeroItem(
+                id = "watchnext-2",
+                title = "Série Y — épisode 4",
+                progress = 0.75f,
+                sourcePackage = "com.novi.stream",
+                engagement = 300L,
+            ),
+            HeroItem(id = "preview-3", title = "Nouveauté Z", sourcePackage = "app.pkg"),
+        )
+        composeRule.setContent {
+            SygixOsTheme {
+                LauncherHome(catalog, heroItems = heroItems, onTogglePin = {})
+            }
+        }
+        composeRule.onRoot().captureRoboImage("build/outputs/screenshots/hero-tv-provider.png")
     }
 }

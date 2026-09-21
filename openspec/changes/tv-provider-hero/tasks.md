@@ -7,4 +7,4 @@
 - [x] 5. Branchement injection : Jellyfin d'abord, aerial en fallback (chaîne de providers)
 - [x] 6. Coil : chargement posters dans `HeroCarousel`, placeholder dégradé si échec
 - [x] 7. Clic : intent du programme, fallback lancement app
-- [ ] 8. Screenshot Roborazzi héro avec programmes mockés + build/test verts
+- [x] 8. Screenshot Roborazzi héro avec programmes mockés + build/test verts
