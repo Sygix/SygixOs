@@ -50,7 +50,6 @@ docker run -d --name sygixos-build --platform linux/amd64 -v "$PWD":/work -w /wo
   -v sygixos-gradle:/root/.gradle -v sygixos-m2:/root/.m2 ghcr.io/cirruslabs/android-sdk:34 sleep infinity
 docker exec sygixos-build sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
 docker exec sygixos-build ./gradlew assembleDebug testDebugUnitTest
-docker exec sygixos-build ./gradlew testDebugUnitTest -Proborazzi.test.record=true   # captures
 docker exec sygixos-build ./gradlew assembleRelease                                  # build à tester sur la TV
 ```
 Le conteneur doit disposer d'environ 4 Go : avant une session de build, `./gradlew --stop` évite que des démons Gradle résiduels fassent tuer le build par le noyau.
@@ -61,8 +60,7 @@ La signature release vient de l'environnement (`SYGIXOS_STORE_FILE`, `SYGIXOS_ST
 ```
 openspec/           specs et workflow de spécification (project.md, specs/, changes/archive/)
 app/                application Android (core/, data/, domain/, ui/)
-docs/screenshots/   captures Roborazzi (canevas TV 960x540 dp)
 ```
 
 ## Stack
-Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (Liquid Glass) · media3 (ExoPlayer) · Coil · DataStore · tests JUnit/Robolectric · screenshots Roborazzi
+Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (Liquid Glass) · media3 (ExoPlayer) · Coil · DataStore · tests JUnit/Robolectric

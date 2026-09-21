@@ -9,4 +9,4 @@
 - [x] 7. Navigation : machine d'états zone, `focusProperties { canFocus }` par couche, transitions bas/haut explicites, focus initial déterministe, restauration dernière tuile, haut depuis la première rangée → dock/héro
 - [x] 8. Tuiles 16:9 : bannière `android:banner` via PackageManager, repli icône entière centrée ; grille 5 colonnes
 - [x] 9. Network security config (cleartext autorisé), retrait de `READ_EPG_DATA`
-- [x] 10. Screenshots Roborazzi (héro plein écran, grille bannières), `assembleDebug test` verts, test sur TV via adb (logcat sans erreur, navigation complète), README + spec synchronisés
+- [x] 10. `assembleDebug test` verts, test sur TV via adb (logcat sans erreur, navigation complète), README + spec synchronisés

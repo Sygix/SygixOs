@@ -1,7 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.roborazzi)
 }
 
 android {
@@ -65,8 +64,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.robolectric)
-    testImplementation(libs.roborazzi)
-    testImplementation(libs.roborazzi.compose)
     debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.compose.ui.test.junit4)
 }
@@ -81,6 +78,3 @@ tasks.withType<Test>().configureEach {
     )
 }
 
-tasks.withType<Test>().matching { it.name.contains("Release") }.configureEach {
-    filter { excludeTestsMatching("*HomeScreenScreenshotTest*") }
-}

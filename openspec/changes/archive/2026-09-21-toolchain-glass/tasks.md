@@ -5,4 +5,4 @@
 - [x] 3. Gradle wrapper + AGP + Kotlin + Compose BOM + compileSdk relevés, `compilerOptions`, dépendances de test alignées ; `assembleRelease` et tests verts
 - [x] 4. Haze 2 : `GlassSurface` sur `hazeGlass` + `GlassStyle` (réfraction, spéculaire), dock / bouton héro / menu vérifiés
 - [x] 5. Test TV : rendu du verre, fluidité (aucune image sautée en release), pas de régression de navigation
-- [x] 6. README + spec synchronisés, screenshots régénérés
+- [x] 6. README + spec synchronisés

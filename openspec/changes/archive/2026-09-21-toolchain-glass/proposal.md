@@ -7,7 +7,7 @@ Le Liquid Glass actuel (Haze 1.3.1) se limite à un flou d'arrière-plan teinté
 
 ## What Changes
 - Kotlin 2.4.20, Compose BOM 2026.09.00 (Compose 1.12.x, Material3 1.4), AGP et Gradle alignés, `compileSdk`/`targetSdk` relevés au niveau exigé par Compose 1.12 ; `minSdk` inchangé (34, Android 14+)
-- `kotlinOptions` remplacé par `compilerOptions` (DSL courant), dépendances de test (Robolectric, Roborazzi, androidx.test) alignées
+- `kotlinOptions` remplacé par `compilerOptions` (DSL courant), dépendances de test (Robolectric, androidx.test) alignées
 - `GlassSurface` passe à `Modifier.hazeGlass` + `GlassStyle` : réfraction des bords, reflet spéculaire, teinte et flou du style `regular` ajustés pour le dock, le bouton du héro et le menu contextuel ; repli translucide inchangé si l'effet est indisponible
 - Repli automatique : si l'appareil ne supporte pas l'effet, la surface reste translucide sans flou (comportement actuel)
 

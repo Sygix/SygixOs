@@ -22,16 +22,10 @@ jobs:
           packages: 'platforms;android-37.0 build-tools;37.0.0'
       - uses: gradle/actions/setup-gradle@v6
       - run: ./gradlew assembleDebug test --no-daemon
-      - name: UI screenshots (Roborazzi)
-        run: ./gradlew testDebugUnitTest -Proborazzi.test.record=true --no-daemon || true
       - uses: actions/upload-artifact@v7
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-      - uses: actions/upload-artifact@v7
-        with:
-          name: screenshots
-          path: app/build/outputs/screenshots/
       - name: Comment PR with artifacts
         if: github.event_name == 'pull_request'
         continue-on-error: true
@@ -42,5 +36,5 @@ jobs:
             await github.rest.issues.createComment({
               ...context.repo,
               issue_number: context.issue.number,
-              body: `📦 **Artifacts de test** : [app-debug.apk](${runUrl}#artifacts) + screenshots — [page du run](${runUrl})`,
+              body: `📦 **Artifacts de test** : [app-debug.apk](${runUrl}#artifacts) — [page du run](${runUrl})`,
             });
