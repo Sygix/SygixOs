@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
@@ -59,6 +60,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(16.dp)
     Box(
         modifier
+            .testTag("shelf-panel")
             .fillMaxWidth()
             .aspectRatio(Dimens.ShelfAspectRatio)
             .padding(vertical = 4.dp)

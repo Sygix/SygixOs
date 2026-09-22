@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
@@ -49,6 +50,7 @@ internal fun AppContextMenu(
     }
     Box(
         modifier
+            .testTag("app-menu")
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.55f)),
         contentAlignment = Alignment.Center,

@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.tvClickable
@@ -55,6 +56,7 @@ internal fun AppTile(
     val artwork by rememberAppArtwork(app)
     Box(
         modifier
+            .testTag("app-tile-" + app.packageName)
             .tvFocus(
                 onFocused = onFocusChanged,
                 focusRequester = focusRequester,

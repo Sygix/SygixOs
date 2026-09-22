@@ -30,6 +30,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
@@ -161,7 +162,7 @@ internal fun LauncherHome(
             visible = heroVisible,
             focusRequester = heroFocus,
             onOpen = onOpenHero,
-            modifier = Modifier.alpha(heroAlpha).hazeSource(haze, zIndex = 0f),
+            modifier = Modifier.testTag("zone-hero").alpha(heroAlpha).hazeSource(haze, zIndex = 0f),
         )
         AmbientGradient(Modifier.fillMaxSize().alpha(gridAlpha).hazeSource(haze, zIndex = 1f))
         HomeGrid(
@@ -177,7 +178,7 @@ internal fun LauncherHome(
             onTileClick = onOpenApp,
             onTileLongClick = { menuApp = it },
             movingApp = movingApp,
-            modifier = Modifier.hazeSource(haze, zIndex = 2f),
+            modifier = Modifier.testTag("zone-grid").hazeSource(haze, zIndex = 2f),
         )
         if (movingApp != null) {
             GlassSurface(
@@ -201,7 +202,7 @@ internal fun LauncherHome(
             focusRequester = dockFocus,
             onTileClick = onOpenApp,
             onTileLongClick = { menuApp = it },
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
         )
         menuApp?.let { app ->
             AppContextMenu(
