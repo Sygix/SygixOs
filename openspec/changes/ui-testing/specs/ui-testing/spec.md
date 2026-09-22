@@ -13,8 +13,8 @@ La suite UI SHALL tester l'écran home par assertions sémantiques (Robolectric 
 Les zones et tuiles de l'écran home SHALL exposer des testTags stables utilisés par les tests à la place de sélecteurs fragiles (texte, position).
 
 #### Scenario: sélection par tag
-- **WHEN** un test cible une zone (héro, dock, grille, panneau shelf) ou une tuile d'app
-- **THEN** il la sélectionne par testTag documenté (ex. « zone-dock », « app-tile-&lt;package&gt; »), sans dépendre du libellé affiché
+- **WHEN** un test cible une zone (héro, dock, grille, panneau shelf), le menu contextuel ou une tuile d'app
+- **THEN** il le sélectionne par testTag documenté (« zone-hero », « zone-dock », « zone-grid », « shelf-panel », « app-menu », préfixe « app-tile-<package> »), sans dépendre du libellé affiché
 
 ### Requirement: Couverture dock
 Le dock SHALL être couvert par des tests de rendu et de focus.
@@ -28,19 +28,19 @@ Le dock SHALL être couvert par des tests de rendu et de focus.
 - **THEN** le message d'invitation à épingler est affiché
 
 ### Requirement: Couverture grille et shelf
-La grille SHALL être couverte par des tests de rendu, d'insertion du panneau shelf et d'épinglage.
+La grille SHALL être couverte par des tests de rendu et d'insertion du panneau shelf.
 
 #### Scenario: grille rendue
 - **WHEN** le catalogue contient des apps non épinglées
 - **THEN** chaque app apparaît une fois en grille, sans doublon avec le dock
 
+#### Scenario: grille vide
+- **WHEN** le catalogue ne contient aucune app
+- **THEN** le message « Aucune app TV détectée » est affiché
+
 #### Scenario: panneau shelf au focus
 - **WHEN** une tuile d'app avec contenu publié prend le focus
 - **THEN** le panneau shelf est inséré dans la grille (présence vérifiée par testTag) ; **WHEN** l'app ne publie rien THEN aucun panneau n'est inséré
-
-#### Scenario: épinglage depuis la grille
-- **WHEN** un appui long est déclenché sur une tuile de la grille
-- **THEN** le callback d'épinglage est appelé avec le package de cette tuile
 
 ### Requirement: Couverture héro
 Le héro SHALL être couvert par des tests de rendu du carrousel et de l'état fallback.
@@ -60,13 +60,36 @@ La navigation D-pad entre héro, dock et grille SHALL être couverte par des tes
 - **WHEN** l'utilisateur presse bas depuis le héro (dock non vide)
 - **THEN** le focus passe au dock ; **WHEN** il presse bas depuis le dock THEN la grille prend le focus
 
+#### Scenario: descente sans dock
+- **WHEN** l'utilisateur presse bas depuis le héro alors que le dock est vide
+- **THEN** la grille prend le focus directement
+
 #### Scenario: remontée
-- **WHEN** l'utilisateur presse haut depuis la grille
+- **WHEN** l'utilisateur presse haut depuis la grille (première ligne)
 - **THEN** le focus revient au dock puis au héro
 
-### Requirement: Injection des dépendances UI
-Les composables consommant des sources de données système (TV Provider) SHALL recevoir leur fournisseur par paramètre avec valeur par défaut, pour rester testables sans environnement Android réel.
+#### Scenario: retour au héro
+- **WHEN** l'utilisateur presse Retour depuis la grille
+- **THEN** le héro reprend le focus
 
-#### Scenario: fournisseur de posters injecté
-- **WHEN** HomeGrid est composé dans un test
-- **THEN** le fournisseur de posters du shelf est injectable (contenu déterministe), sans modifier les appelants de production
+### Requirement: Épinglage depuis la grille
+L'épinglage depuis la grille SHALL être couvert par le flux complet : appui long, menu contextuel, action d'épinglage.
+
+#### Scenario: menu à l'appui long
+- **WHEN** la touche OK est maintenue sur une tuile de la grille (durée LONG_PRESS_MS)
+- **THEN** le menu contextuel s'ouvre (testTag « app-menu ») et affiche l'action d'épinglage
+
+#### Scenario: épinglage confirmé
+- **WHEN** l'action « Épingler au dock » est activée dans le menu
+- **THEN** le callback d'épinglage est appelé avec le package de la tuile et le menu se ferme
+
+#### Scenario: annulation
+- **WHEN** la touche Retour est pressée pendant que le menu est ouvert
+- **THEN** le menu se ferme sans appeler le callback d'épinglage
+
+### Requirement: Composables testables sans environnement Android
+Les composables de l'écran home SHALL pouvoir être composés dans un test avec un contenu déterministe, sans accès aux sources système (TV Provider, PackageManager).
+
+#### Scenario: contenu déterministe en test
+- **WHEN** LauncherHome est composé dans un test
+- **THEN** le catalogue et le HeroState (programmes, visuels validés/contrôlés) sont fournis par paramètres sans requête au TV Provider, et le rendu des tuiles ne dépend pas du PackageManager (artwork déterministe ou absent)

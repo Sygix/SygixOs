@@ -8,12 +8,12 @@ La suite actuelle couvre uniquement data/domain (9 tests : TvProviderHeroSource,
 ## What Changes
 - Nouvelle capability « ui-testing » : exigences de couverture UI de l'écran home
 - Tests UI Robolectric + compose-ui-test-junit4 (déjà dans le build) couvrant : dock, grille + épinglage, panneau shelf, héro, navigation D-pad des 3 zones
-- Refactor minimal : injection du fournisseur de posters du shelf dans HomeGrid (paramètre avec valeur par défaut = comportement de production, aucun appelant modifié)
-- testTags stables sur les zones (héro, dock, grille, panneau shelf) pour des sélecteurs de test robustes
+- Aucun refactor d'injection requis : LauncherHome/HomeGrid reçoivent déjà catalogue et HeroState en paramètres — les tests injectent des données déterministes
+- testTags stables en production sur les zones (héro, dock, grille, panneau shelf), le menu contextuel et les tuiles d'app pour des sélecteurs robustes
 - Pas de Roborazzi : assertions sémantiques uniquement ; visual regression et tests d'animation/alpha reportés à un change ultérieur
 
 ## Impact
 - specs affectées : aucune capability existante ; nouvelle capability « ui-testing » (delta ci-dessous)
-- code : HomeGrid.kt (injection + testTags), app/src/test/…/ui/ (nouvelles classes de test)
+- code : testTags additifs sur HomeScreen/HomeGrid/Dock/HeroStage/ShelfPanel/AppContextMenu, app/src/test/…/ui/ (nouvelles classes de test)
 - CI : rien à changer — ./gradlew test exécute déjà les tests unitaires Robolectric
 - dépendances : aucune ajoutée (robolectric, compose-ui-test-junit4, androidx-test déjà présents)

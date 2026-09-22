@@ -1,10 +1,10 @@
 # Tasks : ui-testing
 
-- [ ] 1. Refactor HomeGrid : injection du fournisseur de posters du shelf (paramètre avec valeur par défaut, aucun appelant modifié)
-- [ ] 2. testTags stables sur les zones : héro, dock, grille, panneau shelf, tuiles d'app
+- [ ] 1. testTags stables en code de production : zone-hero, zone-dock, zone-grid, shelf-panel, app-menu, app-tile-<package>
+- [ ] 2. Fixtures : factories déterministes (TvApp, HeroItem, Catalog, HeroState) + AppArtworkSource de test fourni via LocalAppArtwork
 - [ ] 3. DockTest : rendu des tuiles épinglées, focus initial, message d'état vide
-- [ ] 4. HomeGridTest : rendu de la grille (exclusion du dock, ordre alphabétique), insertion du panneau shelf au focus d'une tuile avec contenu, absence de panneau sans contenu
-- [ ] 5. HeroTest : rendu du carrousel (poster, titre, progression), état fallback sans contenu
-- [ ] 6. NavigationTest : D-pad héro → dock → grille (bas) et retour (haut), le dock/grille prennent le focus à chaque palier
-- [ ] 7. Épinglage : appui long sur une tuile de la grille → onTogglePin appelé avec le bon package
-- [ ] 8. Build + suite de tests verts (assembleDebug test), commits signés, PR vers main
+- [ ] 4. HomeGridTest : rendu de la grille (exclusion du dock, une fois par app), grille vide, insertion du panneau shelf au focus d'une tuile avec contenu validé, absence de panneau sans contenu
+- [ ] 5. HeroTest : rendu du carrousel (titre, progression), état fallback sans contenu
+- [ ] 6. NavigationTest : D-pad bas héro → dock → grille, haut grille → dock → héro, dock vide → héro ↔ grille direct, Retour → héro
+- [ ] 7. PinFlowTest : appui long (OK maintenu + LONG_PRESS_MS) → menu ouvert (app-menu) ; « Épingler au dock » → onTogglePin(package) + fermeture ; Retour → fermeture sans épinglage
+- [ ] 8. Build + suite de tests verts (assembleDebug test), commits signés, push feat/ui-testing ; PR vers main à la revue
