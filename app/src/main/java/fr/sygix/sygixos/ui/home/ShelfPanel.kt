@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2026 Sygix
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package fr.sygix.sygixos.ui.home
 
 import android.util.Log

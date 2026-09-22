@@ -1,3 +1,8 @@
+/*
+ * Copyright (C) 2026 Sygix
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 package fr.sygix.sygixos.core.designsystem
 
 import androidx.compose.material3.Typography
