@@ -8,12 +8,17 @@ package fr.sygix.sygixos.data
 import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.database.Cursor
 import android.media.tv.TvContract
 import android.net.Uri
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.withContext
 
 class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
@@ -22,6 +27,50 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     override suspend fun load(): List<HeroItem> = withContext(Dispatchers.IO) {
         runCatching { queryAll() }.getOrDefault(emptyList())
+    }
+
+    // Comptage léger (projection minimale, par app) pour la page réglages.
+    suspend fun programCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
+        val resolver = context.contentResolver
+        val counts = mutableMapOf<String, Int>()
+        runCatching {
+            listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI).forEach { uri ->
+                resolver.query(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        if (c.getInt(1) == 0) continue
+                        val pkg = c.getString(0) ?: continue
+                        counts[pkg] = (counts[pkg] ?: 0) + 1
+                    }
+                }
+            }
+        }
+        counts
+    }
+
+    // Flux réactif des comptages : l'observateur est armé AVANT la valeur initiale (envoyée
+    // immédiatement, hors antirebond), puis chaque changement du contenu TV déclenche une
+    // réinterrogation après un délai d'antirebond ; désinscription à l'annulation.
+    fun programCountsFlow(debounceMillis: Long = 500): Flow<Map<String, Int>> = channelFlow {
+        val resolver = context.contentResolver
+        val signals = Channel<Unit>(Channel.CONFLATED)
+        // Handler null : onChange arrive sur un thread arbitraire, trySend est thread-safe.
+        val observer = object : ContentObserver(null) {
+            override fun onChange(selfChange: Boolean) {
+                signals.trySend(Unit)
+            }
+        }
+        resolver.registerContentObserver(TvContract.PreviewPrograms.CONTENT_URI, true, observer)
+        resolver.registerContentObserver(TvContract.WatchNextPrograms.CONTENT_URI, true, observer)
+        try {
+            send(programCounts())
+            while (true) {
+                signals.receive()
+                delay(debounceMillis)
+                send(programCounts())
+            }
+        } finally {
+            resolver.unregisterContentObserver(observer)
+        }
     }
 
     private fun queryAll(): List<HeroItem> {
@@ -111,6 +160,8 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     private companion object {
         const val ASPECT_RATIO_MOVIE_POSTER = 5
+        const val COLUMN_PACKAGE = TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME
+        const val COLUMN_BROWSABLE = TvContract.PreviewPrograms.COLUMN_BROWSABLE
         val PORTRAIT_RATIOS = setOf(TvContract.PreviewPrograms.ASPECT_RATIO_2_3, ASPECT_RATIO_MOVIE_POSTER)
         val PREVIEW_PROJECTION = arrayOf(
             TvContract.PreviewPrograms._ID,

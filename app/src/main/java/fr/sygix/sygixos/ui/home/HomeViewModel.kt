@@ -9,15 +9,15 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.data.HeroRepository
-import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.NatureFallbackProvider
-import fr.sygix.sygixos.data.LauncherPrefs
-import fr.sygix.sygixos.data.TvProviderHeroSource
 import fr.sygix.sygixos.data.VisualValidator
+import fr.sygix.sygixos.domain.HeroFeed
+import fr.sygix.sygixos.domain.filterBySources
 import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
@@ -36,14 +36,9 @@ import kotlinx.coroutines.launch
 data class HeroState(
     val items: List<HeroItem>,
     val fromApps: Boolean,
-    val loading: Boolean,
     val validated: Set<String> = emptySet(),
     val checked: Set<String> = emptySet(),
-) {
-    companion object {
-        val Initial = HeroState(emptyList(), fromApps = false, loading = true)
-    }
-}
+)
 
 sealed interface HomeState {
     data object Loading : HomeState
@@ -57,7 +52,7 @@ class HomeViewModel(
     private val validator: VisualValidator,
 ) : ViewModel() {
 
-    private val heroState = MutableStateFlow(HeroState.Initial)
+    private val rawFeed = MutableStateFlow(HeroFeed.Empty)
     private val validated = MutableStateFlow<Set<String>>(emptySet())
     private val checked = MutableStateFlow<Set<String>>(emptySet())
     private var heroValidationJob: Job? = null
@@ -66,11 +61,14 @@ class HomeViewModel(
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog.onEach { preloadArtwork(it) },
-        heroState,
+        rawFeed,
+        apps.disabledSources,
         validated,
         checked,
-    ) { catalog, h, v, c ->
-        HomeState.Ready(catalog, h.copy(validated = v, checked = c)) as HomeState
+    ) { catalog, feed, disabled, v, c ->
+        // Bascule des apps sources : filtrage réactif du héro (et du Top Shelf) sans redémarrage.
+        val hero = HeroState(filterBySources(feed, disabled).items, feed.fromApps, validated = v, checked = c)
+        HomeState.Ready(catalog, hero) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
 
     private fun preloadArtwork(catalog: Catalog) {
@@ -88,9 +86,8 @@ class HomeViewModel(
 
     fun refreshHero() {
         viewModelScope.launch {
-            heroState.update { it.copy(loading = true) }
             val feed = hero.load()
-            heroState.value = HeroState(feed.items, feed.fromApps, loading = false)
+            rawFeed.value = feed
             shelfRequested.clear()
             val heroUris = feed.items.asSequence()
                 .mapNotNull { it.imageUrl }
@@ -104,7 +101,7 @@ class HomeViewModel(
 
     fun prepareShelf(packageName: String) {
         if (!shelfRequested.add(packageName)) return
-        val uris = ShelfPosters.candidates(heroState.value.items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
+        val uris = ShelfPosters.candidates(state.value.let { s -> (s as? HomeState.Ready)?.hero?.items ?: emptyList() }, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
         shelfValidationJob?.cancel()
         shelfValidationJob = launchValidation(uris, keepInMemory = 0)
     }
@@ -132,13 +129,17 @@ class HomeViewModel(
         viewModelScope.launch { apps.setGridOrder(order) }
     }
 
+    fun hideApp(app: TvApp) {
+        viewModelScope.launch { apps.hideApp(app.packageName) }
+    }
+
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            val app = context.applicationContext
+            val app = context.applicationContext as SygixOsApp
             return HomeViewModel(
-                apps = AppCatalogRepository(InstalledAppsSource(app), LauncherPrefs(app)),
-                hero = HeroRepository(TvProviderHeroSource(app), NatureFallbackProvider()),
+                apps = app.appCatalogRepository,
+                hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
                 artwork = AppArtworkSource(app.packageManager),
                 validator = VisualValidator(app),
             ) as T

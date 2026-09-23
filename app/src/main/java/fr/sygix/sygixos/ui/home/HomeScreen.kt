@@ -7,16 +7,20 @@ package fr.sygix.sygixos.ui.home
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -28,7 +32,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -46,16 +52,27 @@ import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.LocalHazeState
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
+import fr.sygix.sygixos.core.designsystem.tvClickable
+import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
+import fr.sygix.sygixos.ui.settings.SettingsScreen
+import fr.sygix.sygixos.ui.settings.SettingsState
+import fr.sygix.sygixos.ui.settings.SettingsViewModel
+import fr.sygix.sygixos.ui.settings.rememberSettingsViewModel
+import kotlin.math.cos
+import kotlin.math.sin
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val settingsViewModel = rememberSettingsViewModel()
+    val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
+    val settingsCounts = settingsViewModel.counts.collectAsStateWithLifecycle()
     CompositionLocalProvider(LocalAppArtwork provides viewModel.artwork) {
         when (val s = state) {
             HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize(), animated = true)
@@ -68,6 +85,12 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 onAppFocused = viewModel::prepareShelf,
                 onMoveInGrid = viewModel::moveInGrid,
                 onRestoreOrder = viewModel::setGridOrder,
+                onHideApp = viewModel::hideApp,
+                settings = settingsState,
+                counts = settingsCounts,
+                onToggleSource = settingsViewModel::toggleSource,
+                onUnhide = settingsViewModel::unhide,
+                onUnhideAll = settingsViewModel::unhideAll,
                 glassBlur = glassBlur,
             )
         }
@@ -75,6 +98,45 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
 }
 
 internal enum class Zone { HERO, DOCK, GRID }
+
+// Engrenage flottant en haut à droite du héro, en verre translucide discret.
+@Composable
+private fun SettingsGear(
+    focusEnabled: Boolean,
+    focusRequester: FocusRequester,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    GlassSurface(
+        modifier
+            .testTag("settings-gear")
+            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled)
+            .tvClickable(onClick = onOpen),
+        shape = RoundedCornerShape(50),
+    ) {
+        GearGlyph(Modifier.size(30.dp).padding(5.dp))
+    }
+}
+
+@Composable
+private fun GearGlyph(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val stroke = size.minDimension * 0.22f
+        val r = size.minDimension / 2f - stroke / 2f
+        val c = Offset(size.width / 2f, size.height / 2f)
+        for (i in 0 until 8) {
+            val angle = Math.toRadians((i * 45).toDouble())
+            drawLine(
+                Color.White.copy(alpha = 0.9f),
+                c + Offset((r * cos(angle)).toFloat(), (r * sin(angle)).toFloat()),
+                c + Offset((r * 1.35f * cos(angle)).toFloat(), (r * 1.35f * sin(angle)).toFloat()),
+                strokeWidth = stroke * 0.8f,
+            )
+        }
+        drawCircle(Color.White.copy(alpha = 0.9f), radius = r, center = c, style = Stroke(stroke))
+        drawCircle(Color.Black, radius = r * 0.4f, center = c)
+    }
+}
 
 @Composable
 internal fun LauncherHome(
@@ -86,10 +148,17 @@ internal fun LauncherHome(
     onAppFocused: (String) -> Unit = {},
     onMoveInGrid: (TvApp, Int) -> Unit = { _, _ -> },
     onRestoreOrder: (List<String>) -> Unit = {},
+    onHideApp: (TvApp) -> Unit = {},
+    settings: SettingsState? = null,
+    counts: State<Map<String, Int>> = remember { mutableStateOf(emptyMap<String, Int>()) },
+    onToggleSource: (String) -> Unit = {},
+    onUnhide: (String) -> Unit = {},
+    onUnhideAll: () -> Unit = {},
     initialZone: Zone = Zone.HERO,
     glassBlur: Boolean = true,
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var movingApp by remember { mutableStateOf<String?>(null) }
     var orderBeforeMove by remember { mutableStateOf<List<String>>(emptyList()) }
     val haze = rememberHazeState()
@@ -98,14 +167,16 @@ internal fun LauncherHome(
     val heroFocus = remember { FocusRequester() }
     val dockFocus = remember { FocusRequester() }
     val gridFocus = remember { FocusRequester() }
+    val gearFocus = remember { FocusRequester() }
+    var gearFocused by remember { mutableStateOf(false) }
     val dockAvailable = catalog.dock.isNotEmpty()
     val menuOpen = menuApp != null
 
     LaunchedEffect(dockAvailable) {
         if (zone == Zone.DOCK && !dockAvailable) zone = Zone.HERO
     }
-    LaunchedEffect(zone, menuOpen) {
-        if (menuOpen) return@LaunchedEffect
+    LaunchedEffect(zone, menuOpen, settingsOpen) {
+        if (menuOpen || settingsOpen) return@LaunchedEffect
         val target = when (zone) {
             Zone.HERO -> heroFocus
             Zone.DOCK -> dockFocus
@@ -129,6 +200,10 @@ internal fun LauncherHome(
             .background(Color.Black)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (settingsOpen) {
+                    // SettingsScreen gère ses touches (Retour inclus) : on laisse tout passer.
+                    return@onPreviewKeyEvent false
+                }
                 if (menuOpen) {
                     return@onPreviewKeyEvent if (e.key == Key.Back) { menuApp = null; true } else false
                 }
@@ -145,15 +220,18 @@ internal fun LauncherHome(
                     }
                 }
                 when (e.key) {
-                    Key.DirectionDown -> when (zone) {
-                        Zone.HERO -> { zone = if (dockAvailable) Zone.DOCK else Zone.GRID; true }
-                        Zone.DOCK -> { zone = Zone.GRID; true }
-                        Zone.GRID -> false
+                    Key.DirectionDown -> when {
+                        zone == Zone.HERO && gearFocused -> { gearFocused = false; heroFocus.tryRequestFocus(); true }
+                        zone == Zone.HERO -> { zone = if (dockAvailable) Zone.DOCK else Zone.GRID; true }
+                        zone == Zone.DOCK -> { zone = Zone.GRID; true }
+                        else -> false
                     }
-                    Key.DirectionUp -> when (zone) {
-                        Zone.HERO -> true
-                        Zone.DOCK -> { zone = Zone.HERO; true }
-                        Zone.GRID -> if (gridRow == 0) { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true } else false
+                    Key.DirectionUp -> when {
+                        zone == Zone.HERO && !gearFocused -> { gearFocused = true; gearFocus.tryRequestFocus(); true }
+                        zone == Zone.HERO -> true
+                        zone == Zone.DOCK -> { zone = Zone.HERO; true }
+                        gridRow == 0 -> { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true }
+                        else -> false
                     }
                     Key.Back -> { zone = Zone.HERO; true }
                     else -> false
@@ -163,8 +241,8 @@ internal fun LauncherHome(
         HeroStage(
             items = hero.items,
             validatedVisuals = hero.validated,
-            active = zone == Zone.HERO && !menuOpen,
-            visible = heroVisible,
+            active = zone == Zone.HERO && !menuOpen && !settingsOpen,
+            visible = heroVisible && !settingsOpen,
             focusRequester = heroFocus,
             onOpen = onOpenHero,
             modifier = Modifier.testTag("zone-hero").alpha(heroAlpha).hazeSource(haze, zIndex = 0f),
@@ -209,11 +287,33 @@ internal fun LauncherHome(
             onTileLongClick = { menuApp = it },
             modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
         )
+        if (!settingsOpen) {
+            SettingsGear(
+                focusEnabled = zone == Zone.HERO && !menuOpen,
+                focusRequester = gearFocus,
+                onOpen = { settingsOpen = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 24.dp, end = 48.dp)
+                    .zIndex(6f),
+            )
+        }
+        if (settingsOpen) {
+            SettingsScreen(
+                state = settings ?: SettingsState(),
+                counts = counts,
+                onToggleSource = onToggleSource,
+                onUnhide = onUnhide,
+                onUnhideAll = onUnhideAll,
+                onBack = { settingsOpen = false },
+            )
+        }
         menuApp?.let { app ->
             AppContextMenu(
                 app = app,
                 pinned = catalog.dock.any { it.packageName == app.packageName },
                 onTogglePin = { onTogglePin(app); menuApp = null },
+                onHide = { onHideApp(app); menuApp = null },
                 onDismiss = { menuApp = null },
                 onMove = if (zone == Zone.GRID) {
                     {

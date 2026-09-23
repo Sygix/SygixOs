@@ -11,8 +11,18 @@ import coil.ImageLoaderFactory
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import kotlinx.coroutines.Dispatchers
+import fr.sygix.sygixos.data.AppCatalogRepository
+import fr.sygix.sygixos.data.InstalledAppsSource
+import fr.sygix.sygixos.data.LauncherPrefs
+import fr.sygix.sygixos.data.TvProviderHeroSource
 
 class SygixOsApp : Application(), ImageLoaderFactory {
+
+    // Conteneur app-scope : une seule instance partagée par les deux ViewModel Factories.
+    val installedAppsSource: InstalledAppsSource by lazy { InstalledAppsSource(this) }
+    val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
+    val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
+    val tvProviderHeroSource: TvProviderHeroSource by lazy { TvProviderHeroSource(this) }
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .allowRgb565(true)

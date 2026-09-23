@@ -23,10 +23,17 @@ class AppCatalogRepository(
 ) {
     private val installed = MutableStateFlow<List<TvApp>?>(null)
 
-    val catalog: Flow<Catalog> = combine(prefs.pinned, prefs.gridOrder, installed.filterNotNull()) { pinned, order, apps ->
+    val hidden: Flow<Set<String>> = prefs.hidden
+
+    val disabledSources: Flow<Set<String>> = prefs.disabledSources
+
+    val allApps: Flow<List<TvApp>> = installed.filterNotNull()
+
+    val catalog: Flow<Catalog> = combine(prefs.pinned, prefs.gridOrder, prefs.hidden, installed.filterNotNull()) { pinned, order, hidden, apps ->
+        val visible = apps.filter { it.packageName !in hidden }
         Catalog(
-            dock = AppCatalog.dock(apps, pinned.toList()),
-            grid = AppCatalog.grid(apps, order),
+            dock = AppCatalog.dock(visible, pinned.toList()),
+            grid = AppCatalog.grid(visible, order),
         )
     }
 
@@ -42,15 +49,35 @@ class AppCatalogRepository(
     }
 
     suspend fun togglePin(packageName: String) {
-        val next = AppCatalog.togglePinned(prefs.pinned.first().toList(), packageName)
-        prefs.setPinned(next.toSet())
+        // Un seul edit : lecture et écriture dans la même transaction DataStore.
+        prefs.updatePinned { pinned -> AppCatalog.togglePinned(pinned.toList(), packageName).toSet() }
     }
 
     suspend fun moveInGrid(packageName: String, delta: Int) {
         val apps = installed.value ?: return
-        val current = AppCatalog.grid(apps, prefs.gridOrder.first()).map { it.packageName }
-        prefs.setGridOrder(AppCatalog.move(current, packageName, delta))
+        prefs.updateGridOrder { current ->
+            AppCatalog.move(AppCatalog.grid(apps, current).map { it.packageName }, packageName, delta)
+        }
     }
 
     suspend fun setGridOrder(order: List<String>) = prefs.setGridOrder(order)
+
+    suspend fun hideApp(packageName: String) {
+        prefs.hideApps(packageName)
+    }
+
+    suspend fun unhideApp(packageName: String) {
+        prefs.unhideApps(packageName)
+    }
+
+    suspend fun unhideAll() {
+        prefs.setHidden(emptySet())
+    }
+
+    suspend fun isSourceEnabled(packageName: String): Boolean =
+        packageName !in prefs.disabledSources.first()
+
+    suspend fun setSourceEnabled(packageName: String, enabled: Boolean) {
+        prefs.updateDisabledSources { disabled -> if (enabled) disabled - packageName else disabled + packageName }
+    }
 }

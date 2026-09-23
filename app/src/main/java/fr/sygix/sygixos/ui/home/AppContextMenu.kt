@@ -44,6 +44,7 @@ internal fun AppContextMenu(
     app: TvApp,
     pinned: Boolean,
     onTogglePin: () -> Unit,
+    onHide: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onMove: (() -> Unit)? = null,
@@ -74,6 +75,7 @@ internal fun AppContextMenu(
                         focusRequester = confirmFocus,
                     )
                     if (onMove != null) MenuButton(text = "Déplacer", onClick = onMove)
+                    MenuButton(text = "Cacher", onClick = onHide, testTag = "menu-hide")
                 }
             }
         }
@@ -81,10 +83,11 @@ internal fun AppContextMenu(
 }
 
 @Composable
-private fun MenuButton(text: String, onClick: () -> Unit, focusRequester: FocusRequester? = null) {
+private fun MenuButton(text: String, onClick: () -> Unit, focusRequester: FocusRequester? = null, testTag: String? = null) {
     var focused by remember { mutableStateOf(false) }
     Box(
         Modifier
+            .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged { focused = it.isFocused }
             .clip(RoundedCornerShape(12.dp))

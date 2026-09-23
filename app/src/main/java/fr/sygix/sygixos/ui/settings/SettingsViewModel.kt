@@ -1,0 +1,105 @@
+/*
+ * Copyright (C) 2026 Sygix
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+package fr.sygix.sygixos.ui.settings
+
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import fr.sygix.sygixos.SygixOsApp
+import fr.sygix.sygixos.data.AppCatalogRepository
+import fr.sygix.sygixos.data.TvProviderHeroSource
+import fr.sygix.sygixos.model.TvApp
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+data class SourceRow(val app: TvApp, val enabled: Boolean)
+
+data class SettingsState(
+    val sources: List<SourceRow> = emptyList(),
+    val hiddenApps: List<TvApp> = emptyList(),
+    val version: String = "",
+)
+
+class SettingsViewModel(
+    private val apps: AppCatalogRepository,
+    private val tvProvider: TvProviderHeroSource,
+    private val pm: PackageManager,
+    private val selfPackage: String,
+) : ViewModel() {
+
+    // Comptages exposés séparément : seules les lignes dont le compte change se recomposent.
+    val counts: StateFlow<Map<String, Int>> = tvProvider.programCountsFlow()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    val state: StateFlow<SettingsState> = combine(
+        apps.disabledSources,
+        apps.allApps,
+        apps.hidden,
+    ) { disabled, allApps, hidden ->
+        val sourceApps = allApps.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
+        SettingsState(
+            sources = sourceApps.map { app ->
+                SourceRow(
+                    app = app,
+                    enabled = app.packageName !in disabled,
+                )
+            },
+            hiddenApps = sourceApps.filter { it.packageName in hidden },
+            version = versionName(),
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
+
+    init {
+        viewModelScope.launch { apps.refreshApps() }
+    }
+
+    fun toggleSource(packageName: String) {
+        val row = state.value.sources.firstOrNull { it.app.packageName == packageName } ?: return
+        viewModelScope.launch {
+            apps.setSourceEnabled(row.app.packageName, !row.enabled)
+        }
+    }
+
+    fun unhide(packageName: String) {
+        viewModelScope.launch { apps.unhideApp(packageName) }
+    }
+
+    fun unhideAll() {
+        viewModelScope.launch { apps.unhideAll() }
+    }
+
+    private fun versionName(): String = runCatching {
+        pm.getPackageInfo(selfPackage, 0).versionName
+    }.getOrNull().orEmpty()
+
+    class Factory(private val context: Context) : ViewModelProvider.Factory {
+        @Suppress("UNCHECKED_CAST")
+        override fun <T : ViewModel> create(modelClass: Class<T>): T {
+            val app = context.applicationContext as SygixOsApp
+            return SettingsViewModel(
+                apps = app.appCatalogRepository,
+                tvProvider = app.tvProviderHeroSource,
+                pm = app.packageManager,
+                selfPackage = app.packageName,
+            ) as T
+        }
+    }
+}
+
+@Composable
+fun rememberSettingsViewModel(): SettingsViewModel {
+    val context = LocalContext.current
+    return viewModel(factory = SettingsViewModel.Factory(context))
+}

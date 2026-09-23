@@ -12,3 +12,7 @@ data class HeroFeed(val items: List<HeroItem>, val fromApps: Boolean) {
         val Empty = HeroFeed(emptyList(), fromApps = false)
     }
 }
+
+// Filtrage réactif par apps sources désactivées ; ensemble vide = toutes activées (défaut).
+fun filterBySources(feed: HeroFeed, disabled: Set<String>): HeroFeed =
+    feed.copy(items = feed.items.filter { it.sourcePackage == null || it.sourcePackage !in disabled })
