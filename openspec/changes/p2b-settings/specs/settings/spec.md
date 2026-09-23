@@ -71,7 +71,7 @@ La catégorie « Applications cachées » SHALL offrir un sous-écran plein écr
 
 #### Scenario: aucune app cachée
 - **WHEN** aucune app n'est cachée
-- **THEN** le sous-écran affiche un message d'état vide (aucune ligne, aucun crash)
+- **THEN** le sous-écran affiche uniquement un message d'état vide centré dans son panneau (aucune ligne, aucun bouton « Tout réactiver » rendu, aucun crash)
 
 ### Requirement: À propos
 La catégorie « À propos » SHALL afficher la version du launcher et les licences des bibliothèques open source utilisées.
