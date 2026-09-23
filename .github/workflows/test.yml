@@ -22,8 +22,6 @@ jobs:
         with:
           packages: 'platforms;android-37.0 build-tools;37.0.0'
       - uses: gradle/actions/setup-gradle@v6
-      # Pas d'assembleDebug ici : le build se fait en local avant chaque push,
-      # la CI ne build que pour la release (workflow release.yml sur tag).
       - run: ./gradlew test --no-daemon
       - name: Test results in PR
         if: github.event_name == 'pull_request'

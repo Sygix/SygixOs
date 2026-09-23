@@ -36,7 +36,6 @@ jobs:
           SYGIXOS_KEY_PASSWORD: ${{ secrets.SYGIXOS_KEY_PASSWORD }}
         run: ./gradlew assembleRelease test --no-daemon
 
-      # Vérifie que l'APK est bien signé avec la clé release (et non debug) avant publication.
       - name: Verify APK signature
         run: |
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -1)

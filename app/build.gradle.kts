@@ -12,7 +12,6 @@ android {
         applicationId = "fr.sygix.sygixos"
         minSdk = 34
         targetSdk = 37
-        // Version synchronisée avec le tag Git (ex: v0.0.1) en CI, sinon valeur par défaut.
         val ciVersion = System.getenv("SYGIXOS_VERSION")?.removePrefix("v")
         versionCode = ciVersion?.split(".")?.let { parts ->
             val (maj, min, pat) = parts.map { it.toInt() }
