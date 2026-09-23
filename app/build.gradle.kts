@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.aboutlibraries)
 }
 
 android {
@@ -11,8 +12,13 @@ android {
         applicationId = "fr.sygix.sygixos"
         minSdk = 34
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        // Version synchronisée avec le tag Git (ex: v0.0.1) en CI, sinon valeur par défaut.
+        val ciVersion = System.getenv("SYGIXOS_VERSION")?.removePrefix("v")
+        versionCode = ciVersion?.split(".")?.let { parts ->
+            val (maj, min, pat) = parts.map { it.toInt() }
+            maj * 10000 + min * 100 + pat
+        } ?: 1
+        versionName = ciVersion ?: "0.1.0"
     }
 
     signingConfigs {
@@ -61,6 +67,7 @@ dependencies {
     implementation(libs.media3.exoplayer)
     implementation(libs.haze)
     implementation(libs.haze.glass)
+    implementation(libs.aboutlibraries.compose.m3)
     testImplementation(libs.junit)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.robolectric)
