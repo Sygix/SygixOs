@@ -1,6 +1,6 @@
 # Delta launcher-shell
 
-Les trois exigences ci-dessous changent le rendu de la transition héro ↔ grille (défilement vertical continu à la place d'un fondu de couches). Les paliers, les règles de focus, le Top Shelf, la mise en pause et la libération du héro restent spécifiés par leurs exigences existantes (« Panneau Top Shelf au focus », « Fond vidéo de secours », « Préchargement et mémoire »), auxquelles ces scénarios renvoient. La courbe et les durées sont celles du design system, spécifiées par « Focus tvOS » (250-400 ms, courbe Apple) : elles ne sont pas recopiées ici. La PR #13 (`p2c-upnext`) modifie aussi « Navigation 3 paliers » : voir `proposal.md`, « Chevauchements ».
+Les trois exigences ci-dessous changent le rendu de la transition héro ↔ grille (défilement vertical continu à la place d'un fondu de couches). Les paliers, les règles de focus, le Top Shelf, la mise en pause et la libération du héro restent spécifiés par leurs exigences existantes (« Panneau Top Shelf au focus », « Fond vidéo de secours », « Préchargement et mémoire »), auxquelles ces scénarios renvoient. La courbe et les durées sont celles du design system, spécifiées par « Focus tvOS » (250-400 ms, courbe Apple) : elles ne sont pas recopiées ici. L'engrenage suit le héro comme le dock : son comportement est spécifié par « Icône réglages flottante » de `settings`, auquel ces scénarios renvoient. `p2c-upnext` (sur `main`, non archivé, implémenté après ce change) modifie aussi « Navigation 3 paliers » : voir `proposal.md`, « Dépendances et chevauchements ».
 
 ## MODIFIED Requirements
 
@@ -13,7 +13,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 
 #### Scenario: traversée du dock
 - **WHEN** l'utilisateur descend depuis le dock
-- **THEN** la page défile d'environ un écran en une seule animation continue : le héro et le dock sortent par le haut pendant que la grille remonte jusqu'à occuper tout l'écran ; la grille prend le focus (dernière tuile visitée, sinon la première) ; la lecture du héro est mise en pause
+- **THEN** la page défile d'environ un écran en une seule animation continue : le héro, le dock et l'engrenage (« Icône réglages flottante » de `settings`) sortent par le haut pendant que la grille remonte jusqu'à occuper tout l'écran ; la grille prend le focus (dernière tuile visitée, sinon la première) ; la lecture du héro est mise en pause
 
 #### Scenario: dock jamais visible en vue grille
 - **WHEN** la zone grille est active, pendant ou après le défilement
@@ -21,7 +21,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 
 #### Scenario: remontée
 - **WHEN** l'utilisateur presse haut depuis la première rangée de la grille
-- **THEN** la page défile en sens inverse avec la même animation continue : la grille redescend pendant que le héro et le dock reviennent par le haut ; le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
+- **THEN** la page défile en sens inverse avec la même animation continue : la grille redescend pendant que le héro, le dock et l'engrenage reviennent par le haut ; le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
 
 #### Scenario: retour depuis la grille
 - **WHEN** l'utilisateur presse Retour depuis la grille, quelle que soit la rangée focusée
@@ -63,7 +63,7 @@ Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro 
 
 #### Scenario: révélation de la grille
 - **WHEN** l'utilisateur passe en zone grille
-- **THEN** à la fin du défilement le héro est entièrement hors écran (aucun pixel du héro ni du dock n'est visible), le fond est le dégradé neutre (pas d'aerial, pas de posters en fond de grille), sans fondu de couches
+- **THEN** à la fin du défilement le héro est entièrement hors écran (aucun pixel du héro, du dock ni de l'engrenage n'est visible), le fond est le dégradé neutre (pas d'aerial, pas de posters en fond de grille), sans fondu de couches
 
 #### Scenario: pendant le défilement
 - **WHEN** la page est entre le héro et la grille

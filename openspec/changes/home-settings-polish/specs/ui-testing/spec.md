@@ -1,6 +1,6 @@
 # Delta ui-testing
 
-Sur `main`, `ui-testing` est encore un change ouvert (`openspec/changes/ui-testing`) : aucune spec courante n'existe pour y poser un MODIFIED. Les deux exigences ci-dessous sont donc ADDED ; elles complètent « Navigation D-pad des trois zones » et « Sélecteurs stables » sans les contredire, avant ou après leur archivage (la PR #13 archive `ui-testing`).
+`ui-testing` est archivé sur `main` (`openspec/specs/ui-testing/spec.md`). Aucune exigence existante n'est modifiée : « Navigation D-pad des trois zones » (assertions de focus) et « Sélecteurs stables » (testTags du home) restent valables telles quelles, et aucune exigence courante ne couvre les réglages. Les deux exigences ci-dessous sont donc réellement nouvelles (ADDED) et renvoient aux exigences existantes sans les recopier. `p2c-upnext` pose ensuite ses MODIFIED sur « Sélecteurs stables » et « Navigation D-pad des trois zones », sans recouvrement avec ces deux en-têtes.
 
 ## ADDED Requirements
 
@@ -14,6 +14,10 @@ La transition en défilement entre le héro et la grille SHALL être couverte pa
 #### Scenario: dock jamais visible en vue grille
 - **WHEN** le test avance l'horloge d'animation par étapes pendant la descente, puis pendant la remontée
 - **THEN** à chaque étape le rectangle du dock ne recouvre jamais le rectangle de la grille visible : ils sont soit disjoints, soit le dock est hors écran
+
+#### Scenario: engrenage solidaire du héro
+- **WHEN** le test presse bas depuis le dock et laisse l'animation se terminer, puis presse haut depuis la première rangée
+- **THEN** après la descente l'engrenage (« settings-gear ») est entièrement hors écran, au-dessus du viewport, avec le même décalage vertical que « zone-hero » ; après la remontée il est de nouveau à sa position initiale (« Icône réglages flottante » de `settings`)
 
 #### Scenario: remontée vers le dock
 - **WHEN** le test presse haut depuis la première rangée de la grille
@@ -38,6 +42,10 @@ Le volet « Applications cachées » des réglages SHALL être couvert par des t
 - **WHEN** la catégorie « Applications cachées » est sélectionnée avec des apps cachées
 - **THEN** aucun sous-écran n'est rendu (aucun nœud « hidden-apps-screen »), « unhide-all » précède les lignes dans l'ordre sémantique, et l'ordre des lignes suit le tri spécifié (datées de la plus récente à la plus ancienne, puis sans date par ordre alphabétique)
 
+#### Scenario: focus initial sur la première ligne
+- **WHEN** le test presse droite depuis la catégorie « Applications cachées » avec au moins une app cachée
+- **THEN** la première ligne « hidden-row-<package> » a le focus, pas « unhide-all » ; haut depuis cette ligne donne le focus à « unhide-all »
+
 #### Scenario: réactiver puis recacher
 - **WHEN** le test presse OK sur une ligne, puis OK à nouveau
 - **THEN** après le premier OK le callback de réactivation est appelé, la ligne est toujours présente, son switch est en position « visible » et elle garde le focus ; après le second OK le callback de masquage est appelé et le switch est en position « cachée »
@@ -46,10 +54,14 @@ Le volet « Applications cachées » des réglages SHALL être couvert par des t
 - **WHEN** le test presse OK sur « unhide-all »
 - **THEN** le callback global est appelé une fois, toutes les lignes restent rendues avec leur switch en position « visible » et le focus reste sur le bouton
 
+#### Scenario: recalcul à la sortie de la catégorie
+- **WHEN** le test réactive une ligne, presse gauche puis droite, puis presse gauche, bas vers une autre catégorie et haut pour revenir sur « Applications cachées »
+- **THEN** après l'aller-retour gauche/droite la ligne réactivée est toujours rendue ; après le changement de catégorie et le retour elle n'est plus rendue, et si c'était la seule, « hidden-empty » est rendu
+
 #### Scenario: état vide
 - **WHEN** la catégorie est sélectionnée sans app cachée
 - **THEN** seul « hidden-empty » est rendu (ni « unhide-all » ni ligne), droite laisse le focus sur la catégorie et Retour appelle la fermeture des réglages
 
 #### Scenario: bords et retour
-- **WHEN** le test presse haut depuis le premier élément, bas depuis la dernière ligne, gauche depuis une ligne, puis Retour
+- **WHEN** le test presse haut depuis « unhide-all », bas depuis la dernière ligne, gauche depuis une ligne, puis Retour
 - **THEN** haut et bas aux bords ne déplacent pas le focus, gauche rend le focus à la catégorie « Applications cachées », Retour appelle la fermeture des réglages

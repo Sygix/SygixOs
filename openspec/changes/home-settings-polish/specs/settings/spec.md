@@ -1,11 +1,45 @@
 # Delta settings
 
-Trois exigences modifiées : « Applications cachées » (liste dans le volet de droite, plus de sous-écran), « Apps sources » (tri) et « Cacher une application » (date de masquage). La PR #13 (`p2c-upnext`) modifie aussi « Apps sources » et « Cacher une application » (périmètre Up Next) : voir `proposal.md`, « Chevauchements ». Le moment où la liste des apps cachées est recalculée, le départage à égalité de compteur, le caractère figé ou vivant du tri des apps sources et le focus initial du volet sont des questions ouvertes de `proposal.md` : les scénarios ci-dessous ne les tranchent pas.
+Cinq exigences modifiées : « Icône réglages flottante » (l'engrenage part avec le héro), « Page de réglages » (exception de focus pour le volet « Applications cachées »), « Applications cachées » (liste dans le volet de droite, plus de sous-écran), « Apps sources » (tri figé à l'entrée) et « Cacher une application » (date de masquage). `p2c-upnext` (sur `main`, non archivé, implémenté après ce change) modifie aussi « Page de réglages », « Apps sources » et « Cacher une application » : voir `proposal.md`, « Dépendances et chevauchements ».
 
 ## MODIFIED Requirements
 
+### Requirement: Icône réglages flottante
+Le home SHALL afficher sur le héro une icône engrenage flottante en haut à droite, discrète (verre translucide, faible opacité), qui ouvre la page de réglages. L'engrenage SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : pendant le défilement vers la grille il sort par le haut avec le héro, et il n'est jamais visible en vue grille.
+
+#### Scenario: affichage
+- **WHEN** le héro est affiché
+- **THEN** l'icône engrenage est visible en haut à droite, en matériau verre translucide discret (lisible sur le héro vidéo sans le masquer), sans détourner le focus du héro à l'ouverture du home
+
+#### Scenario: accès DPAD
+- **WHEN** l'utilisateur presse haut depuis le héro
+- **THEN** l'icône réglages prend le focus avec l'état focus net (zoom + halo, cohérent avec le focus tvOS du launcher) ; bas depuis l'icône rend le focus au héro
+
+#### Scenario: ouverture
+- **WHEN** l'utilisateur presse OK sur l'icône réglages
+- **THEN** la page de réglages plein écran s'ouvre, la lecture du héro est mise en pause
+
+#### Scenario: défilement vers la grille
+- **WHEN** la page de l'accueil défile du héro vers la grille ou revient vers le héro (« Navigation 3 paliers » de `launcher-shell`)
+- **THEN** l'engrenage suit exactement le mouvement du héro, sans fondu propre ni décalage : il sort par le haut à la descente, revient avec le héro à la remontée, et il est entièrement hors écran en vue grille
+
+### Requirement: Page de réglages
+Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, fond sombre neutre, navigable au DPAD uniquement.
+
+#### Scenario: structure
+- **WHEN** la page de réglages s'ouvre
+- **THEN** le volet gauche liste les catégories « Apps sources », « Applications cachées », « À propos », le volet droit affiche le contenu de la catégorie active, la première catégorie porte le focus à l'ouverture
+
+#### Scenario: changement de catégorie
+- **WHEN** l'utilisateur presse haut/bas dans le volet gauche
+- **THEN** la catégorie active change et le volet droit affiche son contenu ; droite depuis le volet gauche porte le focus sur le premier élément du volet droit, sauf pour « Applications cachées » dont le focus initial est la première ligne de la liste (« Applications cachées », scénario « focus initial ») ; gauche depuis le volet droit le rend au volet gauche
+
+#### Scenario: retour
+- **WHEN** l'utilisateur presse Retour depuis la page de réglages
+- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend
+
 ### Requirement: Apps sources
-La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro et au Top Shelf ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant, puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse).
+La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro et au Top Shelf ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie), avec les compteurs connus à ce moment, puis rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent jamais de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
@@ -15,8 +49,20 @@ La catégorie « Apps sources » SHALL lister toutes les apps TV installées ave
 - **WHEN** la catégorie est affichée avec des apps publiant respectivement 12, 0, 3 et 0 programmes
 - **THEN** l'ordre est : l'app à 12, l'app à 3, puis les deux apps à 0 par ordre alphabétique
 
+#### Scenario: égalité de compteur
+- **WHEN** deux apps publient le même nombre de programmes, supérieur à 0
+- **THEN** elles sont départagées par ordre alphabétique de leur nom (insensible à la casse), à leur place dans la partie des apps à compteur non nul
+
+#### Scenario: compteurs mis à jour dans la catégorie
+- **WHEN** un compteur change (programme publié ou retiré dans le TV Provider) alors que la catégorie « Apps sources » est active
+- **THEN** le nombre affiché sur la ligne se met à jour sur place, aucune ligne ne change de position et le focus reste sur la même ligne
+
+#### Scenario: nouvel ordre à la prochaine entrée
+- **WHEN** l'utilisateur quitte la catégorie (autre catégorie ou fermeture des réglages) puis y revient après un changement de compteur
+- **THEN** l'ordre est recalculé avec les compteurs connus à cette nouvelle entrée
+
 #### Scenario: aucun compteur disponible
-- **WHEN** aucun compteur n'est disponible (TV Provider absent, permission refusée, ou comptage pas encore reçu)
+- **WHEN** aucun compteur n'est disponible à l'entrée dans la catégorie (TV Provider absent ou permission refusée)
 - **THEN** toutes les apps sont considérées à 0 et listées par ordre alphabétique, sans erreur visible ni crash ; le switch de chaque ligne reste utilisable
 
 #### Scenario: bascule
@@ -47,11 +93,15 @@ Le menu contextuel d'une tuile SHALL offrir une option « Cacher » en plus des 
 - **THEN** ces apps restent cachées (grille et dock), sont listées dans « Applications cachées » sans date, et aucune donnée n'est perdue ni réécrite au démarrage
 
 ### Requirement: Applications cachées
-La catégorie « Applications cachées » SHALL afficher directement dans le volet de droite la liste des apps cachées, chacune avec un toggle switch reflétant son état (cachée / visible), précédée d'un bouton « Tout réactiver » placé au-dessus de la liste ; aucun sous-écran n'est ouvert. La liste SHALL être triée par date de masquage décroissante (la plus récemment cachée en premier), les apps cachées sans date étant placées en fin de liste par ordre alphabétique de leur nom (insensible à la casse). Réactiver une app (par son switch ou par « Tout réactiver ») SHALL agir immédiatement sur la grille et le dock et être persisté, mais SHALL laisser sa ligne affichée dans le volet, switch en position « visible », jusqu'au prochain recalcul de la liste (moment non tranché : question ouverte de `proposal.md`).
+La catégorie « Applications cachées » SHALL afficher directement dans le volet de droite la liste des apps cachées, chacune avec un toggle switch reflétant son état (cachée / visible), précédée d'un bouton « Tout réactiver » placé au-dessus de la liste ; aucun sous-écran n'est ouvert. La liste SHALL être triée par date de masquage décroissante (la plus récemment cachée en premier), les apps cachées sans date étant placées en fin de liste par ordre alphabétique de leur nom (insensible à la casse). Réactiver une app (par son switch ou par « Tout réactiver ») SHALL agir immédiatement sur la grille et le dock et être persisté, mais SHALL laisser sa ligne affichée dans le volet, switch en position « visible », tant que la catégorie reste active. La liste SHALL être recalculée à partir de l'état persisté quand l'utilisateur quitte la catégorie (passage à une autre catégorie ou fermeture des réglages) ; passer du volet droit au volet gauche sans changer de catégorie ne la recalcule pas. Le focus initial du volet SHALL être la première ligne ; « Tout réactiver » est atteint par Haut depuis la première ligne (exception assumée à la règle de « Page de réglages » qui porte le focus sur le premier élément du volet droit).
 
 #### Scenario: sous-écran
 - **WHEN** l'utilisateur sélectionne ou valide « Applications cachées » dans le volet gauche
 - **THEN** aucun sous-écran ne s'ouvre : le volet droit affiche le bouton « Tout réactiver » puis, en dessous, une ligne par app cachée (icône, nom, switch en position « cachée ») ; aucun sous-écran ni palier supplémentaire n'est ouvert
+
+#### Scenario: focus initial
+- **WHEN** l'utilisateur presse droite depuis la catégorie « Applications cachées » alors que la liste contient au moins une app
+- **THEN** la première ligne de la liste prend le focus, pas le bouton « Tout réactiver » ; haut depuis cette ligne porte le focus sur le bouton
 
 #### Scenario: tri des apps cachées
 - **WHEN** des apps ont été cachées à des dates différentes et d'autres sans date (masquées avant ce change)
@@ -62,16 +112,20 @@ La catégorie « Applications cachées » SHALL afficher directement dans le vol
 - **THEN** le switch passe en position « visible » avec l'animation Apple, l'app réapparaît immédiatement dans la grille (ordre alphabétique par défaut si l'ordre précédent n'existe plus), l'état est persisté, la ligne reste affichée à sa place et garde le focus
 
 #### Scenario: recacher avant le recalcul
-- **WHEN** l'utilisateur presse à nouveau OK sur une ligne dont le switch est en position « visible » (app réactivée par erreur), avant le recalcul de la liste
+- **WHEN** l'utilisateur presse à nouveau OK sur une ligne dont le switch est en position « visible » (app réactivée par erreur), sans avoir quitté la catégorie
 - **THEN** l'app est cachée à nouveau (avec une nouvelle date de masquage), disparaît de la grille et du dock, le switch repasse en position « cachée », la ligne garde sa place et le focus
 
 #### Scenario: tout réactiver
 - **WHEN** l'utilisateur presse OK sur « Tout réactiver »
 - **THEN** sans confirmation, toutes les apps de la liste réapparaissent dans la grille, l'état est persisté, toutes les lignes restent affichées avec leur switch en position « visible », le focus reste sur le bouton ; chaque ligne peut ensuite être recachée individuellement comme au scénario « recacher avant le recalcul »
 
-#### Scenario: recalcul de la liste
-- **WHEN** la liste est recalculée (moment défini par la question ouverte)
-- **THEN** les lignes des apps devenues visibles disparaissent, les apps cachées entre-temps apparaissent, l'ordre suit « tri des apps cachées », et si la liste devient vide l'état vide s'affiche
+#### Scenario: recalcul à la sortie de la catégorie
+- **WHEN** l'utilisateur a réactivé une ou plusieurs apps, quitte la catégorie (haut ou bas vers une autre catégorie dans le volet gauche, ou Retour qui ferme les réglages), puis revient sur « Applications cachées »
+- **THEN** les apps réactivées n'y figurent plus, les apps cachées entre-temps y figurent, l'ordre suit « tri des apps cachées », et si la liste est vide l'état vide s'affiche
+
+#### Scenario: pas de recalcul sans changer de catégorie
+- **WHEN** l'utilisateur a réactivé une app puis presse gauche (focus sur la catégorie « Applications cachées » dans le volet gauche) et revient par droite
+- **THEN** la liste n'est pas recalculée : la ligne de l'app réactivée est toujours affichée, switch en position « visible »
 
 #### Scenario: aucune app cachée
 - **WHEN** aucune app n'est cachée au moment où la catégorie est affichée
@@ -79,8 +133,8 @@ La catégorie « Applications cachées » SHALL afficher directement dans le vol
 
 #### Scenario: navigation D-pad dans le volet
 - **WHEN** le focus est dans le volet « Applications cachées »
-- **THEN** haut et bas parcourent le bouton puis les lignes dans l'ordre affiché, sans boucle aux bords (haut depuis le bouton et bas depuis la dernière ligne ne font rien) ; la liste défile pour garder l'élément focusé entièrement visible ; gauche rend le focus au volet gauche sur la catégorie « Applications cachées » ; Retour ferme les réglages (« Page de réglages », scénario « retour ») ; OK bascule l'élément focusé ; le focus initial en entrant dans le volet est le premier élément focalisable (bouton ou première ligne : question ouverte de `proposal.md`)
+- **THEN** haut et bas parcourent le bouton puis les lignes dans l'ordre affiché, sans boucle aux bords (haut depuis le bouton et bas depuis la dernière ligne ne font rien) ; la liste défile pour garder l'élément focusé entièrement visible ; gauche rend le focus au volet gauche sur la catégorie « Applications cachées » ; Retour ferme les réglages (« Page de réglages », scénario « retour ») ; OK bascule l'élément focusé ; le focus initial en entrant dans le volet est la première ligne (scénario « focus initial »)
 
 #### Scenario: retour dans le volet
-- **WHEN** l'utilisateur revient dans le volet depuis le volet gauche sans que la liste ait été recalculée
-- **THEN** l'ordre et les états des switches sont ceux laissés à la sortie ; si l'élément précédemment focusé n'existe plus après un recalcul, le focus va au premier élément focalisable
+- **WHEN** l'utilisateur revient dans le volet depuis le volet gauche sans avoir changé de catégorie
+- **THEN** l'ordre et les états des switches sont ceux laissés à la sortie, et le focus va à la première ligne (scénario « focus initial »)
