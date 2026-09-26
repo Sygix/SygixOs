@@ -33,7 +33,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -81,8 +80,10 @@ internal fun HomeGrid(
     movingApp: String? = null,
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
-    var focusedApp by remember { mutableStateOf(initialShelfApp) }
-    var focusedIndex by remember { mutableIntStateOf(0) }
+    val packages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
+    val focus = rememberTileFocus(packages, focusEnabled, initialShelfApp)
+    val focusedApp = focus.focusedApp
+    val entryApp = focus.entry(packages)
     var openApp by remember { mutableStateOf<String?>(null) }
 
     val visuals by rememberUpdatedState(validatedVisuals)
@@ -96,7 +97,7 @@ internal fun HomeGrid(
         ?.any { it !in settled } ?: false
 
     LaunchedEffect(focusedApp, movingApp) {
-        val target = focusedApp
+        val target = focus.focusedApp
         if (movingApp != null) {
             openApp = null
             return@LaunchedEffect
@@ -133,14 +134,8 @@ internal fun HomeGrid(
         }
     }
     var anchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
-    val tileRequesters = remember { mutableMapOf<String, FocusRequester>() }
-    fun requesterFor(packageName: String) = tileRequesters.getOrPut(packageName) { FocusRequester() }
 
-    fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focusedApp } }
-
-    val focusedGone = focusedApp != null && catalog.grid.none { it.packageName == focusedApp }
-    val entryApp = (catalog.grid.firstOrNull { it.packageName == focusedApp }
-        ?: catalog.grid.getOrNull(focusedIndex.coerceAtMost(catalog.grid.lastIndex)))?.packageName
+    fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focus.focusedApp } }
 
     LaunchedEffect(openRow, focusedApp) {
         val row = focusedRow()
@@ -155,15 +150,10 @@ internal fun HomeGrid(
             scrollState.animateScrollBy(delta, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
         }
     }
-    LaunchedEffect(rows, focusEnabled) {
-        if (!focusEnabled || entryApp == null || !(focusedGone || focusedApp != null)) return@LaunchedEffect
-        withFrameNanos { }
-        requesterFor(entryApp).tryRequestFocus()
-    }
     LaunchedEffect(movingApp, rows) {
         if (movingApp == null) return@LaunchedEffect
         withFrameNanos { }
-        requesterFor(movingApp).tryRequestFocus()
+        focus.requesterFor(movingApp).tryRequestFocus()
     }
     LaunchedEffect(focusEnabled) {
         if (!focusEnabled) openApp = null
@@ -211,12 +201,11 @@ internal fun HomeGrid(
                             onFocusChanged = { focused ->
                                 if (focused) {
                                     onTileFocus(rowIndex)
-                                    focusedApp = app.packageName
-                                    focusedIndex = rowIndex * Dimens.GridColumns + column
+                                    focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
                                     onAppFocused(app.packageName)
                                 }
                             },
-                            focusRequester = requesterFor(app.packageName),
+                            focusRequester = focus.requesterFor(app.packageName),
                             lifted = app.packageName == movingApp,
                             modifier = Modifier
                                 .weight(1f)
