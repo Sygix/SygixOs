@@ -32,14 +32,14 @@ Long-press OK sur une carte (pattern existant du menu contextuel de la grille) o
 
 ### États de la rangée
 Sous le héro, au-dessus de la grille (position de launcher-shell). États :
-- **Serveur non configuré** : rangée absente (ce sera l'état jusqu'à `jellyfin-config`)
+- **TV Provider sans contenu** : rangée masquée (client Jellyfin absent, non authentifié ou rien en cours) — pas d'invitation à configurer quoi que ce soit, l'intégration n'a aucune config
 - **Loading** : squelette discret de N cartes (même matériau que les rangées de la grille), jamais de flash de contenu
 - **Erreur** : carte unique d'état (icône + message court + « Réessayer » focusable), pas d'erreur dans une snackbar volatile
 - **Vide** : rangée masquée (convention empty-state du repo : pas de bouton grisé, rien à afficher)
 Timeouts réseau bornés (10 s), retry manuel via la carte d'état ; pas d'auto-refresh silencieux en p2c.
 
-### Dépendance jellyfin-config
-Change séparé, spécifié et implémenté **avant** le code de p2c : URL serveur + authentification applicative Jellyfin (`/Users/AuthenticateByName`, compte unique, token persisté). p2c consomme la config et l'`userId` qu'il expose ; sans config → rangée absente, pas d'écran d'erreur inutile.
+### Source Jellyfin : TV Provider (décision)
+Décision prise en amont : **pas d'API directe au serveur Jellyfin** pour le moment. Le client Jellyfin officiel publie déjà les items en cours (épisodes + films, position incluse) et les épisodes Next Up dans `WatchNextPrograms` (synchro WorkManager périodique côté client) — poster, titre, progression et intent de reprise sont portés par le programme. p2c lit ça via la permission `READ_TV_LISTINGS` (déjà demandée au premier lancement) : zéro réseau, zéro credentials, zéro écran de config. Conséquences : pas d'écran « non configuré » (état vide standard à la place) et la **recherche** reste hors scope tant qu'aucune API directe n'est introduite.
 
 ## Notes de test
 - Fusion + dédup + tri : tests unitaires JVM purs (mappeurs JSON → items canoniques → fusion)

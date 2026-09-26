@@ -1,14 +1,14 @@
 # Tasks : p2c-upnext
 
 ## Prérequis
-- [ ] 1. Change `jellyfin-config` spécifié, implémenté et archivé (URL serveur + auth applicative, compte unique, userId exposé)
+- [ ] 1. Change `jellyfin-tvprovider-only` fusionné (jellyfin-integration réécrite en TV Provider uniquement — plus de serveur, ni credentials, ni écran de config)
 
 ## Spécification
 - [ ] 2. Relire le delta contre le code réel au moment de l'implémentation (nav home, menu contextuel, patterns DataStore) et corriger la spec avant de coder
 
 ## Implémentation
 - [ ] 3. Modèle canonique `UpNextItem` + interface `UpNextProvider` (IDs externes dès l'extraction)
-- [ ] 4. Provider Jellyfin : `Resume` (épisodes + films) + `Shows/NextUp`, mappeurs vers items canoniques, timeout 10 s
+- [ ] 4. Provider Jellyfin : extraction des `WatchNextPrograms` du TV Provider (épisodes + films en cours publiés par le client Jellyfin : titre, poster, position, intent de reprise), mappeurs vers items canoniques
 - [ ] 5. Fusion locale : dédoublonnage (en cours gagne), tri par date d'activité décroissante, limite 20
 - [ ] 6. Persistance DataStore : ordre de préférence des apps, overrides par série (map ID externe → app)
 - [ ] 7. `PlaybackTargetResolver` : score rang × dispo, override prioritaire, écart des apps non installées

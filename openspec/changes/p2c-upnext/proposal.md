@@ -18,7 +18,7 @@ P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une r
 ## Impact
 - specs affectées : nouvelle capability `up-next` (delta ci-dessous)
 - launcher-shell : l'exigence « Rangée Up Next » devient implémentée par cette capability (pas de modification de son texte)
-- jellyfin-integration : l'exigence « Continue watching / Up Next » (reprise via deep link vers le client) devient implémentée par cette capability ; l'écran Settings > Jellyfin est couvert par le change `jellyfin-config` séparé
-- **Dépendance** : le change `jellyfin-config` (URL serveur + auth applicative Jellyfin, compte unique) doit être spécifié et implémenté avant l'implémentation de p2c ; p2c consomme la config qu'il fournit
+- jellyfin-integration : l'exigence « Continue watching / Up Next » (reprise via l'intent du programme) devient implémentée par cette capability ; réécrite en TV Provider uniquement par le change `jellyfin-tvprovider-only` (aucun serveur, aucun credentials)
+- **Dépendance** : le change `jellyfin-tvprovider-only` (décision : pas d'API directe pour le moment) doit être fusionné avant l'implémentation de p2c ; la source Jellyfin de la rangée est le TV Provider Android, pas le serveur
 - persistance : nouveaux états DataStore (ordre de lecture, overrides par série)
 - hors scope : recherche (change séparé), BetaSeries (P4, adapter seulement), UI de réordre de l'ordre de lecture global (l'override par série couvre le besoin immédiat), multi-comptes Jellyfin

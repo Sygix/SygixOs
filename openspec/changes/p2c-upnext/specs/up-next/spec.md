@@ -7,7 +7,7 @@ La rangée Up Next SHALL être alimentée par des providers derrière une interf
 
 #### Scenario: constitution
 - **WHEN** la rangée Up Next est chargée
-- **THEN** chaque item expose série, saison, épisode, type (épisode ou film), titre d'affichage, poster, progression optionnelle, date d'activité, IDs externes (IMDb, TVDB) et app provider ; le provider Jellyfin remplit les IDs externes dès l'extraction
+- **THEN** chaque item expose série, saison, épisode, type (épisode ou film), titre d'affichage, poster, progression optionnelle, date d'activité, IDs externes quand le programme en expose et app provider ; les IDs externes manquants écartent les apps qui en dépendent (ex. Stremio sans IMDb)
 
 #### Scenario: extension P4
 - **WHEN** un nouveau provider (BetaSeries) est ajouté
@@ -17,7 +17,7 @@ La rangée Up Next SHALL être alimentée par des providers derrière une interf
 La rangée SHALL fusionner les épisodes et films en cours avec les épisodes à suivre, dédoublonnés et triés par date d'activité décroissante.
 
 #### Scenario: fusion
-- **WHEN** le serveur Jellyfin configuré répond
+- **WHEN** le TV Provider contient des programmes Jellyfin en cours ou à suivre
 - **THEN** la rangée affiche les items en cours (épisodes et films, avec barre de progression) et les épisodes à suivre, limités à 20 items
 
 #### Scenario: dédoublonnage
@@ -93,18 +93,18 @@ Chaque carte Up Next SHALL afficher le logo de l'app de lecture résolue, sans t
 - **THEN** le badge des cartes concernées reflète la nouvelle cible sans rechargement de la rangée
 
 ### Requirement: États de la rangée
-La rangée SHALL couvrir les états serveur non configuré, chargement, erreur et vide, sans jamais bloquer le reste du home.
+La rangée SHALL couvrir les états TV Provider sans contenu Jellyfin, chargement, erreur et vide, sans jamais bloquer le reste du home.
 
-#### Scenario: serveur non configuré
-- **WHEN** aucun serveur Jellyfin n'est configuré
-- **THEN** la rangée Up Next est absente du home
+#### Scenario: aucun contenu Jellyfin
+- **WHEN** aucun programme Jellyfin n'est présent dans le TV Provider (client absent, non authentifié ou rien en cours)
+- **THEN** la rangée Up Next est absente du home, sans invitation à configurer quoi que ce soit
 
 #### Scenario: chargement
 - **WHEN** les données sont en cours de récupération
 - **THEN** un squelette de cartes est affiché, sans flash de contenu
 
 #### Scenario: erreur
-- **WHEN** le serveur est injoignable ou répond en erreur (timeout borné)
+- **WHEN** la requête vers le TV Provider échoue
 - **THEN** une carte d'état focusable (message + « Réessayer ») remplace la rangée, sans crash
 
 #### Scenario: vide
