@@ -7,6 +7,7 @@ package fr.sygix.sygixos.data
 
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.HeroFeed
+import fr.sygix.sygixos.model.HeroItem
 
 class HeroRepository(
     private val programs: HeroContentProvider,
@@ -15,6 +16,8 @@ class HeroRepository(
     suspend fun load(): HeroFeed {
         val published = runCatching { programs.load() }.getOrDefault(emptyList())
         if (published.isNotEmpty()) return HeroFeed(published, fromApps = true)
-        return HeroFeed(runCatching { fallback.load() }.getOrDefault(emptyList()), fromApps = false)
+        return HeroFeed(fallbackItems(), fromApps = false)
     }
+
+    suspend fun fallbackItems(): List<HeroItem> = runCatching { fallback.load() }.getOrDefault(emptyList())
 }

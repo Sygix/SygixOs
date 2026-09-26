@@ -14,13 +14,12 @@ import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.data.HeroRepository
-import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.data.NatureFallbackProvider
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroFeed
-import fr.sygix.sygixos.domain.filterBySources
 import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
+import fr.sygix.sygixos.domain.withSources
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.Dispatchers
@@ -51,39 +50,36 @@ class HomeViewModel(
     private val hero: HeroRepository,
     val artwork: AppArtworkSource,
     private val validator: VisualValidator,
-    private val fallback: HeroContentProvider,
 ) : ViewModel() {
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
+    private var fallbackItems: List<HeroItem> = emptyList()
     private val validated = MutableStateFlow<Set<String>>(emptySet())
     private val checked = MutableStateFlow<Set<String>>(emptySet())
     private var heroValidationJob: Job? = null
     private var shelfValidationJob: Job? = null
     private val shelfRequested = mutableSetOf<String>()
     private var lastHeroUris: List<String> = emptyList()
+    private var lastDisabled: Set<String>? = null
+    private var lastShelfPackage: String? = null
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog.onEach { preloadArtwork(it) },
         rawFeed,
-        apps.disabledSources.onEach { onSourcesChanged() },
+        apps.disabledSources,
         validated,
         checked,
     ) { catalog, feed, disabled, v, c ->
         // Bascule des apps sources : filtrage réactif du héro (et du Top Shelf) sans redémarrage.
-        val filtered = filterBySources(feed, disabled)
-        // Toutes les sources désactivées : repli sur le héro nature plutôt qu'un héro vide.
-        val fromApps = filtered.items.isNotEmpty() && feed.fromApps
-        val items = if (fromApps) filtered.items
-        else if (feed.fromApps) runCatching { fallback.load() }.getOrDefault(emptyList())
-        else filtered.items
-        val hero = HeroState(items, fromApps, validated = v, checked = c)
-        // Validation du héro calculée sur le flux filtré (et non sur le flux brut).
-        val heroUris = items.asSequence()
+        val shown = feed.withSources(disabled, fallbackItems)
+        val hero = HeroState(shown.items, shown.fromApps, validated = v, checked = c)
+        val heroUris = shown.items.asSequence()
             .mapNotNull { it.imageUrl }
             .distinct()
             .take(VisualQuality.HERO_VALIDATED)
             .toList()
         launchHeroValidationIfNeeded(heroUris)
+        if (disabled != lastDisabled) onSourcesChanged(disabled, shown.items)
         HomeState.Ready(catalog, hero) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
 
@@ -94,19 +90,12 @@ class HomeViewModel(
         heroValidationJob = launchValidation(uris, VisualQuality.HERO_IN_MEMORY)
     }
 
-    // Changement des sources désactivées : la validation du shelf est relancée sur le
-    // nouveau héro filtré, les demandes déjà faites sont réévaluées.
-    private fun onSourcesChanged() {
-        val requested = shelfRequested.toList()
+    // Changement des sources désactivées : les shelfs déjà préparés sont oubliés et celui
+    // de l'app focalisée est relancé sur le héro recalculé.
+    private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
+        lastDisabled = disabled
         shelfRequested.clear()
-        viewModelScope.launch {
-            requested.forEach { pkg ->
-                val items = (state.value as? HomeState.Ready)?.hero?.items ?: emptyList()
-                val uris = ShelfPosters.candidates(items, pkg, VisualQuality.SHELF_VALIDATED_PER_APP)
-                shelfValidationJob?.cancel()
-                shelfValidationJob = launchValidation(uris, keepInMemory = 0)
-            }
-        }
+        lastShelfPackage?.let { requestShelf(it, items) }
     }
 
     private fun preloadArtwork(catalog: Catalog) {
@@ -124,15 +113,20 @@ class HomeViewModel(
 
     fun refreshHero() {
         viewModelScope.launch {
-            val feed = hero.load()
-            rawFeed.value = feed
+            fallbackItems = hero.fallbackItems()
+            rawFeed.value = hero.load()
             shelfRequested.clear()
         }
     }
 
     fun prepareShelf(packageName: String) {
+        lastShelfPackage = packageName
+        requestShelf(packageName, (state.value as? HomeState.Ready)?.hero?.items ?: emptyList())
+    }
+
+    private fun requestShelf(packageName: String, items: List<HeroItem>) {
         if (!shelfRequested.add(packageName)) return
-        val uris = ShelfPosters.candidates(state.value.let { s -> (s as? HomeState.Ready)?.hero?.items ?: emptyList() }, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
+        val uris = ShelfPosters.candidates(items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
         shelfValidationJob?.cancel()
         shelfValidationJob = launchValidation(uris, keepInMemory = 0)
     }
@@ -173,7 +167,6 @@ class HomeViewModel(
                 hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
                 artwork = AppArtworkSource(app.packageManager),
                 validator = VisualValidator(app),
-                fallback = NatureFallbackProvider(),
             ) as T
         }
     }

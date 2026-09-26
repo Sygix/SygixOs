@@ -40,6 +40,13 @@ class HeroRepositoryTest {
     }
 
     @Test
+    fun `fallbackItems exposes the fallback and degrades to empty on failure`() = runBlocking {
+        val clip = HeroItem("n", "", videoUrl = "https://x/clip.mp4")
+        assertEquals(listOf("n"), HeroRepository(provider(), provider(clip)).fallbackItems().map { it.id })
+        assertTrue(HeroRepository(provider(), failing).fallbackItems().isEmpty())
+    }
+
+    @Test
     fun `provider failures never crash and degrade to empty`() = runBlocking {
         val feed = HeroRepository(failing, failing).load()
         assertFalse(feed.fromApps)
