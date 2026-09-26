@@ -1,0 +1,43 @@
+# Tasks
+
+Préalable : les questions ouvertes de `proposal.md` (1 à 6) sont tranchées par Sygix et reportées dans les specs et `design.md` avant de commencer les groupes 3, 4 et 6 ; les tâches qui en dépendent le disent.
+
+## 1. Persistance des dates de masquage
+- [ ] 1.1 Ajouter la clé `hidden_apps_dates` et `hiddenWithDates` dans `data/LauncherPrefs.kt` (D8), `hideApps` datant chaque masquage avec une horloge injectée dans le même `edit` ; vérifier par un test `LauncherPrefsTest` qui masque une app et lit sa date exacte via l'horloge fixe
+- [ ] 1.2 Retirer la date dans `unhideApps` et `setHidden(emptySet())` ; vérifier par un test `LauncherPrefsTest` masquer → réactiver → masquer qui ne laisse qu'une entrée, à la seconde date
+- [ ] 1.3 Compatibilité de lecture : test `LauncherPrefsTest` avec un DataStore pré-rempli au format ancien (`hidden_apps` seul) qui vérifie que `hiddenWithDates` renvoie `null` pour ces apps, que `catalog` les exclut toujours de la grille et du dock, et qu'aucune écriture n'a lieu à la lecture (contenu du DataStore identique après collecte)
+- [ ] 1.4 Test `LauncherPrefsTest` d'une entrée de date orpheline (package absent de l'ensemble) ignorée à la lecture et absente après la prochaine écriture
+
+## 2. Tri (logique pure)
+- [ ] 2.1 Créer `domain/SettingsOrdering.kt` avec `sources(apps, counts, tieBreak)` (D7) ; tests JUnit `SettingsOrderingTest` : 12 / 0 / 3 / 0 donne l'ordre 12, 3, puis alphabétique ; compteurs absents (map vide) donne l'alphabétique complet ; la casse du nom n'influence pas l'ordre
+- [ ] 2.2 Ajouter `hidden(apps, dates)` ; tests JUnit : datées de la plus récente à la plus ancienne puis non datées alphabétiques ; toutes sans date → alphabétique ; toutes datées → aucune partie alphabétique
+- [ ] 2.3 Après réponse à la question ouverte 2 : fixer le départage à égalité (> 0) dans `sources` et ajouter le test JUnit de deux apps à compteur égal
+
+## 3. Réglages : volet « Applications cachées » et tri des listes
+- [ ] 3.1 `SettingsViewModel` : exposer `hiddenRows` (composition instantanée, état `hidden` vivant) et `refreshHiddenRows()` (D5) ; test `SettingsViewModelTest` : après `unhide`, la ligne est toujours présente avec `hidden = false` ; après `hide` de la même app, `hidden = true` sans changement d'ordre ; après `refreshHiddenRows()`, la ligne réactivée a disparu
+- [ ] 3.2 `SettingsViewModel` : `unhideAll()` laisse toutes les lignes présentes avec `hidden = false` jusqu'au recalcul ; test `SettingsViewModelTest` correspondant
+- [ ] 3.3 Après réponse à la question ouverte 1 : brancher `refreshHiddenRows()` sur l'événement retenu dans `SettingsScreen` ; test `SettingsNavigationTest` qui déclenche cet événement et vérifie que la ligne réactivée disparaît alors, et seulement alors
+- [ ] 3.4 Trier « Apps sources » avec `SettingsOrdering.sources` selon la réponse à la question ouverte 3 (tri vivant ou figé) ; test `SettingsViewModelTest` : ordre 12, 3, 0, 0 avec des compteurs injectés, et, si tri vivant, réordonnancement à la nouvelle émission avec focus restauré sur le même package (test Compose `SettingsNavigationTest`)
+- [ ] 3.5 Remplacer `HiddenAppsScreen` par `HiddenContent` dans `SettingsContent.kt` (D6) : bouton `unhide-all` en premier item, lignes `hidden-row-<pkg>` avec `AppleSwitch(checked = row.hidden)`, conteneur `hidden-pane`, état vide `hidden-empty` ; supprimer `HiddenAppsScreen.kt`, `hiddenSubScreen` et `open-hidden` ; vérifier que `./gradlew testDebugUnitTest` ne référence plus `hidden-apps-screen` (grep vide dans `app/src`)
+- [ ] 3.6 Chaînes FR touchées (« Tout réactiver », « Aucune application cachée », titre et description du volet) en ressources `strings.xml` ; vérifier par grep qu'aucune de ces chaînes n'est en dur dans `ui.settings`
+- [ ] 3.7 Tests Compose `HiddenPaneTest` (remplace `HiddenAppsScreenTest`, `@Config(qualifiers = "w960dp-h540dp-xhdpi")`) couvrant « Couverture du volet Applications cachées » de `ui-testing` : ordre trié, réactiver puis recacher (callbacks et switch), tout réactiver (focus sur le bouton, lignes présentes), état vide (aucun `unhide-all`), bords sans boucle, gauche vers la catégorie, Retour ferme
+- [ ] 3.8 `SettingsNavigationTest` : remplacer les trois tests du sous-écran (`right on hidden category focuses the entry and ok opens the sub screen`, `empty hidden list still focuses the entry…`, `emptying the hidden list while sub-screen is open…`) par : droite sur la catégorie porte le focus sur le premier élément du volet (selon question ouverte 4) ; droite sur la catégorie avec liste vide laisse le focus sur la catégorie et Retour ferme ; liste vidée par « Tout réactiver » puis recalcul affiche l'état vide et garde Retour fonctionnel
+- [ ] 3.9 README, section « Settings » : décrire la liste dans le volet, le bouton au-dessus, la non-disparition immédiate et les deux tris ; vérifier que le README ne mentionne plus de sous-écran
+
+## 4. Accueil : page d'un seul tenant
+- [ ] 4.1 `LauncherHome` : `Column` défilante avec bloc héro (dock inclus, hauteur du viewport) puis bloc grille sur le dégradé ; un seul `pageScroll` (D1) ; suppression de `heroAlpha` / `gridAlpha` et de l'alpha du dock ; `Dock.active` et `HeroStage.visible` dérivés de `zone` (D3) ; vérifier que `grep -n "gridAlpha\|heroAlpha" app/src/main` est vide
+- [ ] 4.2 Animation de zone : `animateScrollTo` vers 0 ou la hauteur du héro avec `tween(Motion.PAGE_SCROLL_MS, AppleEasing)` (valeur de `LAYER_FADE_MS`) sur chaque changement de `zone` (bas depuis le dock, haut depuis la rangée 0, Retour) ; vérifier par le test 4.5 « descente », « remontée », « retour depuis une rangée profonde »
+- [ ] 4.3 `HomeGrid` : retirer le `verticalScroll` propre et la remise à zéro à la perte du focus ; recibler le calcul « focus toujours visible » sur `pageScroll` avec le plancher de la hauteur du héro ; vérifier par un test `HomeGridTest` à la taille TV : rangée profonde focusée avec panneau ouvert → rangée et panneau entièrement dans le viewport, page jamais au-dessus de la hauteur du héro tant que la grille est active
+- [ ] 4.4 Après réponse à la question ouverte 5 : placer `SettingsGear` dans le bloc héro (solidaire) ou dans la racine (fixe) ; test `SettingsEntryTest` : position de l'engrenage après descente conforme au choix
+- [ ] 4.5 Tests Compose `HomeNavigationTest` (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) couvrant « Couverture de la transition héro ↔ grille » de `ui-testing` : descente (grille dans l'écran, héro et dock hors écran par position), dock jamais sur la grille à chaque étape d'horloge (`mainClock.advanceTimeBy` par pas), remontée (page à 0, focus dock), retour depuis une rangée profonde, interruption (haut pendant la descente → position dock, pas d'exception) ; les tests existants de focus passent inchangés
+- [ ] 4.6 README, section « Navigation » : remplacer « grid (covers the hero) » par la page qui défile et le dock qui part avec le héro ; vérifier par relecture que la section ne décrit plus de fondu
+
+## 5. Validation sur la TV de test
+- [ ] 5.1 `./gradlew assembleRelease`, installation sur la TV de test ; vérifier à l'œil, cinq allers-retours dock ↔ grille et cinq Retour depuis une rangée profonde : aucun saut, aucun fondu, dock jamais visible sur la grille, héro en pause en vue grille ; noter dans la PR les mesures faites (D3, « sources de saccades ») et la combinaison retenue
+- [ ] 5.2 Sur la TV de test : cacher deux apps, ouvrir les réglages, réactiver l'une, la recacher, « Tout réactiver », déclencher le recalcul ; vérifier que la grille et le dock reflètent chaque étape immédiatement et que l'ordre suit les dates ; vérifier après mise à jour depuis la version précédente (apps cachées sans date) qu'elles restent cachées et en fin de liste
+- [ ] 5.3 Sur la TV de test : « Apps sources » trié par compteur, apps à 0 en fin de liste alphabétique ; aucun crash quand la permission de lecture des programmes est refusée (liste alphabétique)
+
+## 6. Clôture
+- [ ] 6.1 `./gradlew testDebugUnitTest` vert ; `grep -rn "hidden-apps-screen\|open-hidden" app/src` vide ; en-têtes de licence présents (`git ls-files '*.kt' '*.kts' | xargs grep -L 'SPDX-License-Identifier: AGPL-3.0-or-later'` vide)
+- [ ] 6.2 Si `p2c-upnext` ou `fix/home-ui-bugs` a été mergé avant (question ouverte 6) : reprendre le texte de leurs exigences dans les MODIFIED de ce change (« Navigation 3 paliers », « Apps sources », « Cacher une application ») ; `mise exec -- openspec validate --all --strict` vert
+- [ ] 6.3 Après merge sur `main` et validation 5.1 à 5.3 : `openspec archive home-settings-polish`, puis `openspec validate --all --strict` vert
