@@ -22,14 +22,14 @@ La rangée Up Next SHALL agréger les programmes `WatchNextPrograms` de toutes l
 
 #### Scenario: types non pris en charge
 - **WHEN** un programme publie un `COLUMN_TYPE` qui n'est ni un épisode ni un film (clip, extrait, autre)
-- **THEN** il est exclu de la rangée
+- **THEN** il est exclu de la rangée ; un programme sans `COLUMN_TYPE` n'est pas concerné et suit l'exigence « Champs facultatifs »
 
 ### Requirement: Modèle canonique
 La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'app d'origine, avec un champ `externalIds` facultatif et la liste des sources du contenu.
 
 #### Scenario: constitution
 - **WHEN** un programme watch next est converti en item de la rangée
-- **THEN** l'item expose le package source, le type (épisode ou film), le titre de série, la saison, l'épisode, le titre d'affichage, le poster, la progression optionnelle, le type watch next, le timestamp d'activité, l'intent publié et le nom de l'app source ; le champ `externalIds` est présent mais vide en p2c
+- **THEN** l'item expose le package source, le type (épisode ou film, publié ou inféré selon « Champs facultatifs »), le titre de série, la saison, l'épisode, le titre d'affichage, le poster, la progression optionnelle, le type watch next, le timestamp d'activité, l'intent publié et le nom de l'app source ; le champ `externalIds` est présent mais vide en p2c
 
 #### Scenario: sources du contenu
 - **WHEN** des items sont fusionnés par le dédoublonnage
@@ -40,7 +40,7 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **THEN** le modèle canonique et la rangée absorbent ces IDs sans refonte, et le niveau 5 de dédoublonnage s'active quand il est connu ; BetaSeries reste une étape d'enrichissement et non la source unique de la rangée
 
 ### Requirement: Champs facultatifs
-Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli.
+Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
 
 #### Scenario: titre absent
 - **WHEN** un programme n'a ni titre ni titre de série
@@ -50,8 +50,20 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **WHEN** un épisode n'a pas de titre de série mais un titre
 - **THEN** le titre sert de titre d'affichage et de clé de titre normalisé, sans « SxxEyy » si les numéros manquent
 
+#### Scenario: type watch next absent
+- **WHEN** un programme n'a pas de `watch_next_type`
+- **THEN** il est rattaché au groupe « à suivre » (`NEXT`/`NEW`) : la rangée le place après les `CONTINUE` et avant les `WATCHLIST`, et dans un doublon il perd contre un `CONTINUE` et gagne contre un `WATCHLIST`
+
+#### Scenario: type absent avec saison et épisode
+- **WHEN** un programme n'a pas de `COLUMN_TYPE` mais publie un numéro de saison et un numéro d'épisode
+- **THEN** il est traité comme un épisode : niveaux 2 et 3 de dédoublonnage, carte épisode avec « SxxEyy »
+
+#### Scenario: type absent sans saison ou sans épisode
+- **WHEN** un programme n'a pas de `COLUMN_TYPE` et qu'il lui manque le numéro de saison, le numéro d'épisode ou les deux
+- **THEN** il est traité comme un film : niveau 4 de dédoublonnage, carte film (titre seul)
+
 #### Scenario: numéros de saison ou d'épisode absents
-- **WHEN** un épisode n'a pas de numéro de saison ou d'épisode
+- **WHEN** un programme publié comme épisode (`COLUMN_TYPE`) n'a pas de numéro de saison ou d'épisode
 - **THEN** la carte omet « SxxEyy » ; le niveau 3 de dédoublonnage ne s'applique pas à cet item (pas de fusion entre apps sans numéros), le niveau 2 reste appliqué
 
 #### Scenario: identifiants absents
@@ -83,7 +95,7 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **THEN** le programme est considéré comme browsable, comme dans le héro
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P4, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu.
+La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P4, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu. Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
@@ -94,11 +106,11 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** une seule carte est affichée pour la série et l'épisode en cours prime
 
 #### Scenario: épisode entre apps
-- **WHEN** deux apps publient le même épisode (titre de série normalisé + saison + épisode)
+- **WHEN** deux apps publient le même épisode (titre de série normalisé + saison + épisode), que le type soit publié ou inféré
 - **THEN** une seule carte est retenue
 
 #### Scenario: film entre apps
-- **WHEN** deux apps publient un film de même titre normalisé et de même année
+- **WHEN** deux apps publient un film de même titre normalisé et de même année, que le type soit publié ou inféré
 - **THEN** une seule carte est retenue
 
 #### Scenario: remake
@@ -106,7 +118,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** aucune fusion n'a lieu
 
 #### Scenario: types différents
-- **WHEN** deux apps publient un même titre normalisé, l'un comme film et l'autre comme épisode
+- **WHEN** deux apps publient un même titre normalisé, l'un comme film et l'autre comme épisode (type publié ou inféré)
 - **THEN** aucune fusion n'a lieu
 
 #### Scenario: année inconnue
@@ -122,7 +134,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** les items restent en double jusqu'à l'activation du niveau 5 en P4, et cette limite est documentée
 
 ### Requirement: Gagnant d'un doublon
-Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat `NEXT`/`NEW`, qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
+Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
 
 #### Scenario: reprise en cours
 - **WHEN** un même contenu existe à la fois comme en cours (`CONTINUE`) et comme à suivre (`NEXT`/`NEW`) ou mis de côté (`WATCHLIST`)
@@ -141,7 +153,7 @@ Quand plusieurs items partagent une même clé, la carte retenue SHALL être dé
 - **THEN** l'ordre de préférence des apps (constante en p2c, Jellyfin d'abord) tranche
 
 ### Requirement: Tri et limite
-La rangée SHALL être triée de façon déterministe en trois groupes : les items en cours (`CONTINUE`) d'abord, puis les items à suivre (`NEXT`/`NEW`), puis les items `WATCHLIST` ; dans chaque groupe, par timestamp d'activité décroissant et à égalité par `_ID` croissant ; le tri est stable et la rangée est limitée à 20 items. « En cours » désigne le type `CONTINUE` ; la progression ne sert qu'à la barre de la carte.
+La rangée SHALL être triée de façon déterministe en trois groupes : les items en cours (`CONTINUE`) d'abord, puis les items à suivre (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), puis les items `WATCHLIST` ; dans chaque groupe, par timestamp d'activité décroissant et à égalité par `_ID` croissant ; le tri est stable et la rangée est limitée à 20 items. « En cours » désigne le type `CONTINUE` ; la progression ne sert qu'à la barre de la carte.
 
 #### Scenario: ordre des groupes
 - **WHEN** la rangée est affichée
@@ -177,11 +189,11 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 Chaque carte Up Next SHALL être au format 16:9 uniforme affichant l'image du programme en 16:9 plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, avec le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder si l'image manque ou est trop petite, et un petit badge avec l'icône de l'app source prise dans le `PackageManager`. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas.
 
 #### Scenario: carte épisode
-- **WHEN** l'item est un épisode
+- **WHEN** l'item est un épisode (type publié ou inféré selon « Champs facultatifs »)
 - **THEN** la carte affiche l'image 16:9 plein cadre (sinon le poster portrait centré sur fond sombre), le titre de série, « SxxEyy », le titre d'épisode et, pour un item en cours, la barre de progression
 
 #### Scenario: carte film
-- **WHEN** l'item est un film
+- **WHEN** l'item est un film (type publié ou inféré selon « Champs facultatifs »)
 - **THEN** la carte affiche l'image et le titre du film
 
 #### Scenario: badge et image

@@ -31,7 +31,7 @@ La rangée lit uniquement `WatchNextPrograms` (les `PreviewPrograms` ne sont pas
 D'après `jellyfin-androidtv` (`LeanbackChannelWorker.getBaseItemAsWatchNextProgram`), les programmes Jellyfin portent `internal_provider_id`, le type, le titre de série, `episode_title`, les numéros de saison et d'épisode, `watch_next_type` et un intent qui ouvre la **fiche** de l'item (`StartupActivity` + `ItemId`), pas la lecture. Le verbe de la rangée est donc « ouvrir », pas « lire » : l'app affiche sa fiche ou reprend selon son propre comportement. `release_date` est absent des programmes Jellyfin : ni le tri ni le dédoublonnage ne s'y fient (voir niveau 4).
 
 ### Modèle canonique
-`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), vide en p2c, rempli en P4 par l'enrichissement BetaSeries.
+`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film : `COLUMN_TYPE` publié, sinon inféré, voir « Types absents »), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST` ; absent : rattaché au groupe « à suivre », voir « Types absents »), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), vide en p2c, rempli en P4 par l'enrichissement BetaSeries.
 
 `UpNextSource` est une interface aux frontières (SOLID) : retourne un `Result<List<UpNextItem>>` pour que l'UI distingue **erreur** et **vide** (jamais d'exception avalée, contrairement à `TvProviderHeroSource.load()` qui avale via `runCatching {...}.getOrDefault(emptyList())`).
 
@@ -42,8 +42,8 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 |---|---|---|
 | 1. Dans une app | `package_name` + `internal_provider_id`, sinon `content_id`, sinon `intent_uri` | Retirer les doublons exacts |
 | 2. Série dans une app | `package_name` + titre de série normalisé | Au plus une carte par série : l'épisode en cours prime sur l'épisode suivant |
-| 3. Épisode entre apps | titre de série normalisé + saison + épisode | Même épisode sur deux apps |
-| 4. Film entre apps | titre normalisé + année | Même titre et même année → fusion ; pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée) ; types différents (film contre épisode) → jamais de fusion |
+| 3. Épisode entre apps | titre de série normalisé + saison + épisode | Même épisode sur deux apps (type publié ou inféré) |
+| 4. Film entre apps | titre normalisé + année | Même titre et même année → fusion ; pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée) ; types différents (film contre épisode, type publié ou inféré) → jamais de fusion |
 | 5. P4 | ID IMDb/TVDB ajouté aux items par l'enrichissement BetaSeries | Prend le pas sur les niveaux 3 et 4 quand il est connu |
 
 **Normalisation** : minuscules, diacritiques retirés (NFKD), ponctuation et `(année)` supprimés, espaces compactés, puis **égalité stricte**. Aucune correspondance approximative : il ne faut jamais fusionner à tort.
@@ -52,15 +52,19 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 
 **Types exclus** : les programmes dont le `COLUMN_TYPE` n'est ni un épisode ni un film (clip, extrait, autre) ne sont pas convertis en items.
 
+**Types absents** (décisions Sygix, exigence « Champs facultatifs » de up-next) :
+- `COLUMN_TYPE` absent : le type est inféré, épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; le type inféré sert aux niveaux 2 à 4 et à la carte comme un type publié ;
+- `watch_next_type` absent : le programme est rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les `CONTINUE` et avant les `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon.
+
 **Gagnant d'un doublon** (décision produit) :
-1. `CONTINUE` bat `NEXT`/`NEW`, qui bat `WATCHLIST` ;
+1. `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, programmes sans `watch_next_type` inclus), qui bat `WATCHLIST` ;
 2. ensuite, l'engagement le plus récent (`last_engagement_time` décroissant) ;
 3. à égalité, l'ordre de préférence des apps (constante en p2c : Jellyfin d'abord) tranche.
 
 ### Tri
 `release_date` n'est pas fiable (absent côté Jellyfin) et trier globalement par `last_engagement_time` mettrait tous les `NEXT` avant les `CONTINUE` (Jellyfin publie pour `NEXT` un `last_engagement_time` égal à l'heure de synchro, qui tourne toutes les heures). Tri final :
 1. items `CONTINUE` d'abord ;
-2. puis `NEXT`/`NEW` ;
+2. puis le groupe « à suivre » : `NEXT`/`NEW` et programmes sans `watch_next_type` ;
 3. puis `WATCHLIST` (décision Sygix : incluse en dernier groupe) ;
 4. dans chaque groupe : `last_engagement_time` décroissant, à égalité `_ID` croissant ;
 5. tri **stable** (l'ordre d'entrée des niveaux de dédoublonnage est préservé à égalité).
@@ -108,12 +112,12 @@ Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « App
 
 ## Risks / Trade-offs
 - [Une app remplit moins de colonnes que prévu] → chaque champ est facultatif avec un comportement défini (« Champs facultatifs ») ; le seul rejet est l'absence de tout titre ou un `COLUMN_TYPE` hors épisode/film.
-- [Colonnes non mesurées sur l'appareil] → lecture en `opt*`, dégradation champ par champ (pas d'année, pas de progression, pas de `SxxEyy`) sans exclure l'item ; les cas non tranchés sont en Questions ouvertes du `proposal.md`.
+- [Colonnes non mesurées sur l'appareil] → lecture en `opt*`, dégradation champ par champ (pas d'année, pas de progression, pas de `SxxEyy`) sans exclure l'item ; type watch next absent → groupe « à suivre », `COLUMN_TYPE` absent → type inféré (épisode si saison et épisode, sinon film).
 - [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à P4.
 - [Repo public] → toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
 
 ## Notes de test
-- Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents, même titre et même année (fusion).
+- Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents, même titre et même année (fusion) ; types absents : inférence épisode/film, programme sans `watch_next_type` dans le groupe « à suivre » (tri et gagnant).
 - Filtre des apps sources : test JUnit (une source désactivée n'est ni gagnante ni dans les sources du menu) et test Compose (bascule du switch → la carte disparaît sans redémarrage).
 - UI : Robolectric + Compose **à la taille d'une TV** (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), jamais la taille Robolectric par défaut : séquence D-pad héro → dock → zone grille (rangée Up Next puis apps, et la montée), position « après la grille », rangée sautée, menu « Ouvrir avec… » (y compris à une entrée), états (squelette, erreur, masquée), réglage de position, testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`.
 - Validation finale sur la TV réelle en `assembleRelease` : rendu de la rangée avec les apps installées, navigation, réglage de position.
