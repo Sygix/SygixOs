@@ -5,8 +5,11 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -299,18 +302,22 @@ internal fun LauncherHome(
             modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
         )
         if (!settingsOpen) {
-            SettingsGear(
-                focusEnabled = zone == Zone.HERO && !menuOpen,
-                focusRequester = gearFocus,
-                // Drapeau dérivé du focus réel : reste cohérent après Retour depuis
-                // les réglages, reprise du focus par HeroStage, ou navigation Gauche/Droite.
-                onFocusedChange = { gearFocused = it },
-                onOpen = { settingsOpen = true },
+            AnimatedVisibility(
+                visible = heroVisible,
+                enter = fadeIn(tween(Motion.LAYER_FADE_MS, easing = AppleEasing)),
+                exit = fadeOut(tween(Motion.LAYER_FADE_MS, easing = AppleEasing)),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 24.dp, end = 48.dp)
                     .zIndex(6f),
-            )
+            ) {
+                SettingsGear(
+                    focusEnabled = zone == Zone.HERO && !menuOpen,
+                    focusRequester = gearFocus,
+                    onFocusedChange = { gearFocused = it },
+                    onOpen = { settingsOpen = true },
+                )
+            }
         }
         if (settingsOpen) {
             // Comptages collectés uniquement tant que les réglages sont affichés.

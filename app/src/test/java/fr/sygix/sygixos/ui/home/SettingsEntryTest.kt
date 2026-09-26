@@ -58,6 +58,18 @@ class SettingsEntryTest {
     }
 
     @Test
+    fun `gear disappears in the grid zone and comes back on the hero`() {
+        setupHome()
+        press(Key.DirectionDown)
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("app-tile-com.grid").assertIsFocused()
+        compose.onNodeWithTag("settings-gear").assertDoesNotExist()
+        press(Key.Back)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        compose.onNodeWithTag("settings-gear").assertExists()
+    }
+
+    @Test
     fun `up focuses the gear, down returns to hero`() {
         setupHome()
         press(Key.DirectionUp)
