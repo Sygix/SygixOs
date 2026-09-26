@@ -52,6 +52,7 @@ rules:
 operations:
   apply:
     guidance:
+      - "Aucun commentaire dans le code ni dans les tests, sauf l'en-tête de licence de chaque fichier ; vérifier le diff avant de committer."
       - "Ne cocher une tâche qu'après l'avoir vérifiée dans le code et par un test qui échouerait sans le changement."
       - "Tester le focus et le défilement à la taille d'une TV (w960dp-h540dp-xhdpi) ; un comportement observé seulement à la taille Robolectric par défaut n'est pas un bug avéré."
       - "Protéger tout accès au TV Provider (query, registerContentObserver) contre SecurityException et provider absent."
