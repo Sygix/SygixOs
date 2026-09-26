@@ -167,59 +167,59 @@ internal fun HomeGrid(
     }
 
     CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScroll) {
-    Column(
-        modifier
-            .fillMaxSize()
-            .alpha(alpha)
-            .verticalScroll(scrollState)
-            .padding(horizontal = Dimens.ScreenMarginH, vertical = Dimens.GridTopMargin)
-            .focusGroup(),
-        verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
-    ) {
-        rows.forEachIndexed { rowIndex, rowApps ->
-            Column {
-            AnimatedVisibility(
-                visible = rowIndex == openRow && shelfUris.isNotEmpty(),
-                enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                    fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
-                exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                    fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
-            ) {
-                ShelfPanel(shelfUris, Modifier.padding(bottom = Dimens.GridRowSpacing))
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                rowApps.forEachIndexed { column, app ->
-                    key(app.packageName) {
-                        AppTile(
-                            app = app,
-                            focusEnabled = focusEnabled,
-                            onClick = { onTileClick(app) },
-                            onLongClick = { onTileLongClick(app) },
-                            onFocusChanged = { focused ->
-                                if (focused) {
-                                    onTileFocus(rowIndex)
-                                    focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
-                                    onAppFocused(app.packageName)
-                                }
-                            },
-                            focusRequester = focus.requesterFor(app.packageName),
-                            lifted = app.packageName == movingApp,
-                            modifier = Modifier
-                                .weight(1f)
-                                .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
-                        )
+        Column(
+            modifier
+                .fillMaxSize()
+                .alpha(alpha)
+                .verticalScroll(scrollState)
+                .padding(horizontal = Dimens.ScreenMarginH, vertical = Dimens.GridTopMargin)
+                .focusGroup(),
+            verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
+        ) {
+            rows.forEachIndexed { rowIndex, rowApps ->
+                Column {
+                    AnimatedVisibility(
+                        visible = rowIndex == openRow && shelfUris.isNotEmpty(),
+                        enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
+                            fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
+                        exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
+                            fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
+                    ) {
+                        ShelfPanel(shelfUris, Modifier.padding(bottom = Dimens.GridRowSpacing))
+                    }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        rowApps.forEachIndexed { column, app ->
+                            key(app.packageName) {
+                                AppTile(
+                                    app = app,
+                                    focusEnabled = focusEnabled,
+                                    onClick = { onTileClick(app) },
+                                    onLongClick = { onTileLongClick(app) },
+                                    onFocusChanged = { focused ->
+                                        if (focused) {
+                                            onTileFocus(rowIndex)
+                                            focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
+                                            onAppFocused(app.packageName)
+                                        }
+                                    },
+                                    focusRequester = focus.requesterFor(app.packageName),
+                                    lifted = app.packageName == movingApp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
+                                )
+                            }
+                        }
+                        repeat(Dimens.GridColumns - rowApps.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
-                repeat(Dimens.GridColumns - rowApps.size) {
-                    Spacer(Modifier.weight(1f))
-                }
-            }
             }
         }
-    }
     }
 }
 
