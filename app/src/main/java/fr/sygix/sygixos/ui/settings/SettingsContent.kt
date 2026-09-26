@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,16 +44,32 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
-import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
+import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.core.designsystem.tvFocus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
+
+// Libellés au pluriel correct (chaînes en dur jusqu'à la migration vers strings.xml).
+internal fun programCountLabel(count: Int): String = when (count) {
+    0 -> "Aucun programme publié"
+    1 -> "1 programme publié"
+    else -> "$count programmes publiés"
+}
+
+internal fun hiddenCountLabel(count: Int): String = when (count) {
+    0 -> "Aucune application cachée"
+    1 -> "1 application cachée"
+    else -> "$count applications cachées"
+}
 
 // Catégorie « Apps sources » : une ligne par app TV installée, switch de contribution au héro / Top Shelf.
 @Composable
@@ -119,11 +136,12 @@ private fun SourceRowLine(
                 onFocused = { },
             )
             .tvClickable(onClick = onToggle)
-            // Accessibilité : la ligne porte le rôle Switch et son état ; le switch visuel
-            // est piloté par la ligne (non focalisable).
-            .semantics {
+            // Accessibilité : un seul nœud (libellé + état + action) ; le switch visuel est
+            // piloté par la ligne.
+            .semantics(mergeDescendants = true) {
                 role = Role.Switch
-                stateDescription = if (row.enabled) "Activé" else "Désactivé"
+                toggleableState = ToggleableState(row.enabled)
+                onClick { onToggle(); true }
             }
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -133,12 +151,12 @@ private fun SourceRowLine(
         Column(Modifier.weight(1f)) {
             Text(row.app.label, style = MaterialTheme.typography.titleMedium, color = Color.White)
             Text(
-                if (programCount > 0) "$programCount programme(s) publié(s)" else "Aucun programme publié",
+                programCountLabel(programCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.White.copy(alpha = 0.55f),
             )
         }
-        AppleSwitch(checked = row.enabled, onToggle = onToggle, tag = "source-switch-${row.app.packageName}")
+        AppleSwitch(checked = row.enabled, tag = "source-switch-${row.app.packageName}")
     }
 }
 
@@ -162,7 +180,7 @@ internal fun HiddenCategoryContent(
         Spacer(Modifier.height(20.dp))
         val count = hiddenApps.size
         SettingsEntryButton(
-            label = if (count == 0) "Aucune application cachée" else "$count application(s) cachée(s)",
+            label = hiddenCountLabel(count),
             focusEnabled = focusEnabled,
             focusRequester = contentFocus,
             onClick = onOpen,
@@ -195,13 +213,12 @@ internal fun SettingsEntryButton(
 @Composable
 internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    // Icône carrée depuis le PackageManager (et non la bannière 16:9 du héro, qui serait
-    // rognée), chargée sur IO via produceState — jamais d'appel binder pendant la
-    // composition, et une seule fois par ligne.
-    val icon by produceState<android.graphics.Bitmap?>(initialValue = null, packageName) {
-        value = withContext(Dispatchers.IO) {
-            runCatching { context.packageManager.getApplicationIcon(packageName).toBitmap() }.getOrNull()
-        }
+    val provided = LocalAppIcons.current
+    val icons = remember(provided) { provided ?: AppIconCache.forPackageManager(context.packageManager) }
+    // Icône carrée (et non la bannière 16:9 du héro, qui serait rognée) : lue dans le cache
+    // pendant la composition, chargée sur IO seulement la première fois.
+    val icon by produceState(initialValue = icons.cached(packageName), packageName, icons) {
+        if (value == null) value = withContext(Dispatchers.IO) { icons.get(packageName) }
     }
     val bitmap = icon
     Box(

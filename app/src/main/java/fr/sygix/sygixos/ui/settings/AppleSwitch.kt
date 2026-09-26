@@ -23,20 +23,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
 // Switch style Apple : track coloré, pouce glissant sur ressort.
-// Composant purement visuel : non focalisable, non cliquable ; la bascule est pilotée
-// par la ligne hôte (rôle Switch + état portés par la ligne, accessibilité conforme).
+// Composant purement visuel : non focalisable, non cliquable, sans sémantique propre ;
+// la ligne hôte porte le rôle Switch, l'état et l'action.
 @Composable
 fun AppleSwitch(
     checked: Boolean,
-    onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     tag: String? = null,
 ) {
@@ -53,8 +49,6 @@ fun AppleSwitch(
     Box(
         modifier
             .then(if (tag != null) Modifier.testTag(tag) else Modifier)
-            // Rôle Switch annoncé par le switch lui-même ; pas de focus ni de clic propre.
-            .semantics { role = Role.Switch }
             .width(trackWidth)
             .height(trackHeight)
             .clip(RoundedCornerShape(50))

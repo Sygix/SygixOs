@@ -6,11 +6,19 @@
 package fr.sygix.sygixos.ui.settings
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import android.graphics.Bitmap
+import fr.sygix.sygixos.data.AppIconCache
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -47,17 +55,22 @@ class SettingsNavigationTest {
     private fun setState(
         sources: List<SourceRow> = emptyList(),
         hidden: List<TvApp> = emptyList(),
+        counts: Map<String, Int> = emptyMap(),
+        icons: AppIconCache? = null,
         onBack: () -> Unit = {},
     ) {
         compose.setContent {
             MaterialTheme {
-                SettingsScreen(
-                    state = SettingsState(sources = sources, hiddenApps = hidden, version = "0.1.0"),
-                    onToggleSource = { toggled.add(it) },
-                    onUnhide = { unhid.add(it) },
-                    onUnhideAll = { unhideAll++ },
-                    onBack = onBack,
-                )
+                CompositionLocalProvider(LocalAppIcons provides icons) {
+                    SettingsScreen(
+                        state = SettingsState(sources = sources, hiddenApps = hidden, version = "0.1.0"),
+                        counts = mutableStateOf(counts),
+                        onToggleSource = { toggled.add(it) },
+                        onUnhide = { unhid.add(it) },
+                        onUnhideAll = { unhideAll++ },
+                        onBack = onBack,
+                    )
+                }
             }
         }
         compose.waitForIdle()
@@ -97,6 +110,62 @@ class SettingsNavigationTest {
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
+    }
+
+    @Test
+    fun `category list stops at its edges instead of looping`() {
+        setState()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
+        repeat(3) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+    }
+
+    @Test
+    fun `source row is one accessible switch carrying label, state and action`() {
+        setState(sources = sourceRows())
+        val row = compose.onNodeWithTag("source-row-com.a")
+        row.assertIsOn()
+        row.assert(hasClickAction())
+        row.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))
+        compose.onNodeWithTag("source-row-com.b").assertIsOff()
+        // Le switch visuel n'annonce rien de son côté (pas de rôle en double).
+        compose.onNodeWithTag("source-switch-com.a", useUnmergedTree = true)
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Role))
+    }
+
+    @Test
+    fun `program counts and hidden counts use correct plurals`() {
+        setState(
+            sources = sourceRows() + SourceRow(app = TvApp("com.c", "C"), enabled = true),
+            hidden = listOf(TvApp("com.h1", "H1"), TvApp("com.h2", "H2")),
+            counts = mapOf("com.a" to 1, "com.b" to 2),
+        )
+        compose.onNodeWithText("1 programme publié", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("2 programmes publiés", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Aucun programme publié", useUnmergedTree = true).assertExists()
+        press(Key.DirectionDown)
+        compose.onNodeWithText("2 applications cachées", useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `an app icon is loaded once even when its row leaves and re-enters the list`() {
+        val loads = mutableMapOf<String, Int>()
+        val icons = AppIconCache { pkg ->
+            loads[pkg] = (loads[pkg] ?: 0) + 1
+            Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
+        }
+        setState(sources = longSourceRows(), icons = icons)
+        compose.onNodeWithTag("app-icon-com.s1", useUnmergedTree = true).assertExists()
+        press(Key.DirectionRight)
+        repeat(12) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("app-icon-com.s1", useUnmergedTree = true).assertDoesNotExist()
+        press(Key.DirectionLeft)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("app-icon-com.s1", useUnmergedTree = true).assertExists()
+        assertEquals(1, loads["com.s1"])
     }
 
     @Test

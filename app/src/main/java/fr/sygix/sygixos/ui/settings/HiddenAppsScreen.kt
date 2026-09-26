@@ -24,9 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.background
@@ -34,9 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import fr.sygix.sygixos.core.designsystem.tvFocus
@@ -55,9 +60,19 @@ fun HiddenAppsScreen(
     onUnhideAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val firstRowFocus = remember { FocusRequester() }
-    LaunchedEffect(hiddenApps.size) {
-        if (hiddenApps.isNotEmpty()) firstRowFocus.tryRequestFocus()
+    val rowFocus = remember { mutableMapOf<String, FocusRequester>() }
+    // Rang à focaliser au prochain changement de liste : 0 à l'ouverture, puis le rang de
+    // la ligne réactivée (sa voisine prend sa place) ; l'état vide gère son propre focus.
+    var pendingFocusIndex by remember { mutableStateOf<Int?>(0) }
+    LaunchedEffect(hiddenApps) {
+        val index = pendingFocusIndex ?: return@LaunchedEffect
+        pendingFocusIndex = null
+        if (hiddenApps.isEmpty()) return@LaunchedEffect
+        val target = hiddenApps[index.coerceIn(0, hiddenApps.lastIndex)]
+        // Compose donne d'abord le focus à la première ligne quand la ligne focalisée
+        // disparaît : on demande le nôtre à la frame suivante.
+        withFrameNanos { }
+        rowFocus.getValue(target.packageName).tryRequestFocus()
     }
     Box(
         modifier
@@ -97,6 +112,7 @@ fun HiddenAppsScreen(
                 Text("Applications cachées", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                 Spacer(Modifier.height(24.dp))
                 hiddenApps.forEachIndexed { index, app ->
+                    key(app.packageName) {
                     var focused by remember { mutableStateOf(false) }
                     Row(
                         Modifier
@@ -105,14 +121,17 @@ fun HiddenAppsScreen(
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
                             .tvFocus(
-                                focusRequester = if (index == 0) firstRowFocus else null,
+                                focusRequester = rowFocus.getOrPut(app.packageName) { FocusRequester() },
                                 onFocused = { focused = it },
                             )
-                            .tvClickable(onClick = { onUnhide(app.packageName) })
-                            // Accessibilité : la ligne porte le rôle Switch et son état.
-                            .semantics {
+                            .tvClickable(onClick = { pendingFocusIndex = index; onUnhide(app.packageName) })
+                            // Accessibilité : un seul nœud, état « Cachée » (le switch dit
+                            // « activé » pour une app cachée, ce qui serait trompeur).
+                            .semantics(mergeDescendants = true) {
                                 role = Role.Switch
-                                stateDescription = "Activé"
+                                toggleableState = ToggleableState.On
+                                stateDescription = "Cachée"
+                                onClick { onUnhide(app.packageName); true }
                             }
                             .padding(horizontal = 20.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -125,13 +144,10 @@ fun HiddenAppsScreen(
                             color = Color.White,
                             modifier = Modifier.weight(1f),
                         )
-                        AppleSwitch(
-                            checked = true,
-                            onToggle = { onUnhide(app.packageName) },
-                            tag = "hidden-switch-${app.packageName}",
-                        )
+                        AppleSwitch(checked = true, tag = "hidden-switch-${app.packageName}")
                     }
                     Spacer(Modifier.height(10.dp))
+                    }
                 }
                 Spacer(Modifier.height(24.dp))
                 var unhideAllFocused by remember { mutableStateOf(false) }

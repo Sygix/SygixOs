@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.AppCatalogRepository
+import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.data.TvProviderHeroSource
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.flow.SharingStarted
@@ -38,6 +39,8 @@ class SettingsViewModel(
     private val pm: PackageManager,
     private val selfPackage: String,
 ) : ViewModel() {
+
+    val icons: AppIconCache = AppIconCache.forPackageManager(pm)
 
     // Calculé une seule fois, et déclaré avant `state` : la première émission du combine
     // peut arriver pendant l'initialisation (dispatcher non confiné).

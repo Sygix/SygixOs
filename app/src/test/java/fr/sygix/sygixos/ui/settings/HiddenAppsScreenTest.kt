@@ -9,8 +9,16 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -23,8 +31,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Shadows
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "w960dp-h540dp-xhdpi")
 class HiddenAppsScreenTest {
 
     @get:Rule
@@ -41,53 +51,84 @@ class HiddenAppsScreenTest {
         compose.waitForIdle()
     }
 
-    @Test
-    fun `empty state shows only a centered message with no unhide-all button`() {
+    private fun setScreen(apps: List<TvApp>) {
         compose.setContent {
             MaterialTheme {
                 HiddenAppsScreen(
-                    hiddenApps = emptyList(),
+                    hiddenApps = apps,
                     onUnhide = { unhid.add(it) },
                     onUnhideAll = { unhideAll++ },
                 )
             }
         }
         compose.waitForIdle()
+    }
+
+    // Écran branché sur une liste mutable : réactiver retire réellement la ligne.
+    private fun setLiveScreen(initial: List<TvApp>) {
+        val hidden = mutableStateOf(initial)
+        compose.setContent {
+            MaterialTheme {
+                HiddenAppsScreen(
+                    hiddenApps = hidden.value,
+                    onUnhide = { pkg -> hidden.value = hidden.value.filterNot { it.packageName == pkg } },
+                    onUnhideAll = { hidden.value = emptyList() },
+                )
+            }
+        }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun `empty state shows only a centered message with no unhide-all button`() {
+        setScreen(emptyList())
         compose.onNodeWithTag("hidden-empty").assertIsDisplayed()
         compose.onNodeWithTag("unhide-all").assertDoesNotExist()
     }
 
     @Test
     fun `rows with switches and unhide-all are rendered when apps are hidden`() {
-        compose.setContent {
-            MaterialTheme {
-                HiddenAppsScreen(
-                    hiddenApps = listOf(TvApp("com.a", "A"), TvApp("com.b", "B")),
-                    onUnhide = { unhid.add(it) },
-                    onUnhideAll = { unhideAll++ },
-                )
-            }
-        }
-        compose.waitForIdle()
+        setScreen(listOf(TvApp("com.a", "A"), TvApp("com.b", "B")))
         compose.onNodeWithTag("hidden-row-com.a").assertIsDisplayed()
-        compose.onNodeWithTag("hidden-switch-com.b").assertExists()
+        compose.onNodeWithTag("hidden-switch-com.b", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("unhide-all").assertExists()
     }
 
     @Test
     fun `ok on first row unhides that app`() {
-        compose.setContent {
-            MaterialTheme {
-                HiddenAppsScreen(
-                    hiddenApps = listOf(TvApp("com.a", "A"), TvApp("com.b", "B")),
-                    onUnhide = { unhid.add(it) },
-                    onUnhideAll = { unhideAll++ },
-                )
-            }
-        }
-        compose.waitForIdle()
+        setScreen(listOf(TvApp("com.a", "A"), TvApp("com.b", "B")))
         press(Key.Enter)
         assertEquals(listOf("com.a"), unhid)
+    }
+
+    @Test
+    fun `unhiding a row moves the focus to its neighbour, not back to the top`() {
+        setLiveScreen(listOf(TvApp("com.a", "A"), TvApp("com.b", "B"), TvApp("com.c", "C")))
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("hidden-row-com.b").assertIsFocused()
+        press(Key.Enter)
+        compose.onNodeWithTag("hidden-row-com.b").assertDoesNotExist()
+        compose.onNodeWithTag("hidden-row-com.c").assertIsFocused()
+        // Dernière ligne réactivée : le focus remonte sur la voisine du dessus.
+        press(Key.Enter)
+        compose.onNodeWithTag("hidden-row-com.a").assertIsFocused()
+        // Plus rien à réactiver : l'état vide garde le focus dans le sous-écran.
+        press(Key.Enter)
+        compose.onNodeWithTag("hidden-empty").assertIsDisplayed()
+        compose.onNodeWithTag("hidden-empty-focus").assertIsFocused()
+    }
+
+    @Test
+    fun `hidden row is one accessible switch announced as hidden`() {
+        setScreen(listOf(TvApp("com.a", "A")))
+        val row = compose.onNodeWithTag("hidden-row-com.a")
+        row.assertIsOn()
+        row.assert(hasClickAction())
+        row.assert(hasStateDescription("Cachée"))
+        // Le libellé est fusionné dans la ligne, le switch visuel n'a pas de rôle propre.
+        row.assert(SemanticsMatcher.expectValue(SemanticsProperties.Text, listOf(androidx.compose.ui.text.AnnotatedString("A"))))
+        compose.onNodeWithTag("hidden-switch-com.a", useUnmergedTree = true)
+            .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Role))
     }
 
     @Test
@@ -100,31 +141,13 @@ class HiddenAppsScreenTest {
                 Bitmap.createBitmap(24, 24, Bitmap.Config.ARGB_8888),
             ),
         )
-        compose.setContent {
-            MaterialTheme {
-                HiddenAppsScreen(
-                    hiddenApps = listOf(TvApp("com.iconed", "Iconed")),
-                    onUnhide = { unhid.add(it) },
-                    onUnhideAll = { unhideAll++ },
-                )
-            }
-        }
-        compose.waitForIdle()
-        compose.onNodeWithTag("app-icon-com.iconed").assertExists()
+        setScreen(listOf(TvApp("com.iconed", "Iconed")))
+        compose.onNodeWithTag("app-icon-com.iconed", useUnmergedTree = true).assertExists()
     }
 
     @Test
     fun `unknown package keeps the placeholder without icon`() {
-        compose.setContent {
-            MaterialTheme {
-                HiddenAppsScreen(
-                    hiddenApps = listOf(TvApp("com.missing", "Missing")),
-                    onUnhide = { unhid.add(it) },
-                    onUnhideAll = { unhideAll++ },
-                )
-            }
-        }
-        compose.waitForIdle()
-        compose.onNodeWithTag("app-icon-com.missing").assertDoesNotExist()
+        setScreen(listOf(TvApp("com.missing", "Missing")))
+        compose.onNodeWithTag("app-icon-com.missing", useUnmergedTree = true).assertDoesNotExist()
     }
 }

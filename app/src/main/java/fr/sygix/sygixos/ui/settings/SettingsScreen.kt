@@ -124,7 +124,8 @@ fun SettingsScreen(
                 when (e.key) {
                     Key.DirectionUp, Key.DirectionDown -> if (pane == SettingsPane.CATEGORIES) {
                         val delta = if (e.key == Key.DirectionUp) -1 else 1
-                        categoryIndex = (categoryIndex + delta).mod(SettingsCategory.entries.size)
+                        // Pas de boucle : on s'arrête aux bords, comme tvOS.
+                        categoryIndex = (categoryIndex + delta).coerceIn(0, SettingsCategory.entries.lastIndex)
                         true
                     } else {
                         false

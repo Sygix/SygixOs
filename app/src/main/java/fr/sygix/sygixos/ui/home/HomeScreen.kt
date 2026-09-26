@@ -63,6 +63,7 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
+import fr.sygix.sygixos.ui.settings.LocalAppIcons
 import fr.sygix.sygixos.ui.settings.SettingsScreen
 import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.SettingsViewModel
@@ -76,7 +77,10 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
-    CompositionLocalProvider(LocalAppArtwork provides viewModel.artwork) {
+    CompositionLocalProvider(
+        LocalAppArtwork provides viewModel.artwork,
+        LocalAppIcons provides settingsViewModel.icons,
+    ) {
         when (val s = state) {
             HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize(), animated = true)
             is HomeState.Ready -> LauncherHome(
