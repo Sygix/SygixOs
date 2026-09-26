@@ -250,6 +250,7 @@ internal fun LauncherHome(
             active = zone == Zone.HERO && !menuOpen && !settingsOpen,
             visible = heroVisible && !settingsOpen,
             focusRequester = heroFocus,
+            claimFocus = !gearFocused,
             onOpen = onOpenHero,
             modifier = Modifier.testTag("zone-hero").alpha(heroAlpha).hazeSource(haze, zIndex = 0f),
         )

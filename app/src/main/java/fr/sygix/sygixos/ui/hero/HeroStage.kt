@@ -85,6 +85,9 @@ fun HeroStage(
     focusRequester: FocusRequester,
     onOpen: (HeroItem) -> Unit,
     modifier: Modifier = Modifier,
+    // Faux quand un autre élément de la zone héro (l'engrenage) détient le focus : le
+    // changement de programme ne doit pas le lui reprendre.
+    claimFocus: Boolean = true,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -158,8 +161,8 @@ fun HeroStage(
 
     val launchable = current != null && current.title.isNotEmpty() && (current.launchUri != null || current.sourcePackage != null)
     val hasVisual = current != null && (showVideo || (current.imageUrl != null && current.imageUrl in validatedVisuals))
-    LaunchedEffect(launchable, active) {
-        if (!active) return@LaunchedEffect
+    LaunchedEffect(launchable, active, claimFocus) {
+        if (!active || !claimFocus) return@LaunchedEffect
         withFrameNanos { }
         focusRequester.tryRequestFocus()
     }
@@ -346,6 +349,7 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
     )
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, tween(Motion.FOCUS_MS, easing = AppleEasing), label = "heroButtonScale")
     val focusModifier = Modifier
+        .testTag("hero-open")
         .scale(scale)
         .focusRequester(focusRequester)
         .focusProperties { canFocus = enabled }
@@ -361,10 +365,14 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
             Text(label, style = MaterialTheme.typography.titleMedium, color = content)
         }
     }
-    if (focused) {
-        Box(focusModifier.clip(pill).background(Color.White)) { labelRow() }
-    } else {
-        GlassSurface(modifier = focusModifier, shape = pill) { labelRow() }
+    // Un seul nœud focalisable : changer d'habillage au focus ne doit pas recréer le nœud
+    // (sinon le focus est perdu, repris par l'engrenage, puis redemandé en boucle).
+    Box(focusModifier) {
+        if (focused) {
+            Box(Modifier.clip(pill).background(Color.White)) { labelRow() }
+        } else {
+            GlassSurface(shape = pill) { labelRow() }
+        }
     }
 }
 
