@@ -41,9 +41,16 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
   ```
   Avant de pousser, vérifier qu'aucun fichier n'en manque : `git ls-files '*.kt' '*.kts' | xargs grep -L 'SPDX-License-Identifier: AGPL-3.0-or-later'` doit être vide
 
+## Repo public
+Le repo est public : tout ce qui est poussé (code, specs, messages de commit, descriptions et commentaires de PR, issues, logs de CI) est lisible par tous et reste dans l'historique, même après suppression.
+- Jamais de secret : clés, tokens, mots de passe, keystore, URL avec identifiants. Les secrets passent par les secrets GitHub ou des variables d'environnement, jamais par un fichier suivi
+- Jamais de détail de l'environnement local : chemins absolus (`/home/…`), noms d'utilisateur, de machine ou de VM, adresses IP et ports, noms de réseau, numéro de série ou modèle exact d'un appareil, URL de serveurs personnels (Jellyfin…), comptes. Dans la doc, les specs et les PR, désigner l'appareil de test de façon générique (« TV Google TV sous Android 14 ») ; la marque TCL est déjà publique, rien de plus précis
+- Données issues d'un appareil (dumps du TV Provider, `adb logcat`, captures) : ne publier que la structure (colonnes, packages, compteurs, types), jamais les titres, l'historique de visionnage ni des données personnelles
+- Jamais de sortie de build ni de cache (`build/`, `.gradle/`, `.kotlin/`, APK) : vérifier `git status` et `git diff --cached` avant chaque commit ; ce qui est local va dans `.gitignore` ou `local.properties`
+- Avant de pousser : `git diff origin/main... | grep -nE '/home/|/Users/|([0-9]{1,3}\.){3}[0-9]{1,3}'` doit être vide (hors versions de dépendances)
+
 ## Environnement
 - Messages de commit en anglais, impératif court
-- Jamais de contenu spécifique à l'environnement dans le repo : secrets, clés, chemins locaux, config machine — tout va dans .gitignore / local.properties
 - Repo : github.com/Sygix/SygixOs
 - Cible : TCL Google TV, Android 14 ; juger la fluidité sur `assembleRelease` (le build debug est interprété et saccade)
 - ADB : `adb connect <IP-TV>` pour installer et tester ; commandes P5 dans le README
