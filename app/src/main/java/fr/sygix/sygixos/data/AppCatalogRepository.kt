@@ -55,12 +55,32 @@ class AppCatalogRepository(
 
     suspend fun moveInGrid(packageName: String, delta: Int) {
         val apps = installed.value ?: return
+        val hidden = prefs.hidden.first()
         prefs.updateGridOrder { current ->
-            AppCatalog.move(AppCatalog.grid(apps, current).map { it.packageName }, packageName, delta)
+            // Déplacement calculé sur la liste VISIBLE uniquement : l'ordre produit est la
+            // séquence des apps visibles déplacée, dans laquelle on réinsère les packages
+            // cachés à leur position d'origine (sinon le déplacement est invisible).
+            val visibleOrder = AppCatalog.grid(apps.filter { it.packageName !in hidden }, current).map { it.packageName }
+            val movedVisible = AppCatalog.move(visibleOrder, packageName, delta)
+            val oldFull = AppCatalog.grid(apps, current).map { it.packageName }
+            val remaining = movedVisible.toMutableList()
+            oldFull.map { pkg -> if (pkg in hidden) pkg else remaining.removeFirstOrNull() }
+                .filterNotNull() + remaining
         }
     }
 
-    suspend fun setGridOrder(order: List<String>) = prefs.setGridOrder(order)
+    suspend fun setGridOrder(order: List<String>) {
+        val apps = installed.value ?: return prefs.setGridOrder(order)
+        val hidden = prefs.hidden.first()
+        if (hidden.isEmpty()) return prefs.setGridOrder(order)
+        // Restauration depuis la liste visible : les packages cachés gardent leur position.
+        prefs.updateGridOrder { current ->
+            val oldFull = AppCatalog.grid(apps, current).map { it.packageName }
+            val remaining = order.toMutableList()
+            oldFull.map { pkg -> if (pkg in hidden) pkg else remaining.removeFirstOrNull() }
+                .filterNotNull() + remaining
+        }
+    }
 
     suspend fun hideApp(packageName: String) {
         prefs.hideApps(packageName)
@@ -79,5 +99,12 @@ class AppCatalogRepository(
 
     suspend fun setSourceEnabled(packageName: String, enabled: Boolean) {
         prefs.updateDisabledSources { disabled -> if (enabled) disabled - packageName else disabled + packageName }
+    }
+
+    // Bascule atomique : lecture et écriture dans la même transaction DataStore.
+    suspend fun toggleSource(packageName: String) {
+        prefs.updateDisabledSources { disabled ->
+            if (packageName in disabled) disabled - packageName else disabled + packageName
+        }
     }
 }

@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +33,10 @@ import androidx.compose.foundation.background
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import fr.sygix.sygixos.core.designsystem.tvFocus
@@ -38,6 +44,7 @@ import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.FocusRequester
 
 // Sous-écran plein écran des applications cachées : réactivation par ligne ou globale.
@@ -60,6 +67,10 @@ fun HiddenAppsScreen(
             .background(Color(0xFF101014)),
     ) {
         if (hiddenApps.isEmpty()) {
+            // État vide navigable : un nœud focalisable neutre garde le focus dans l'arbre,
+            // les touches (dont Retour) restent donc délivrées au sous-écran.
+            val emptyFocus = remember { FocusRequester() }
+            LaunchedEffect(Unit) { emptyFocus.tryRequestFocus() }
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     "Aucune application cachée",
@@ -68,6 +79,13 @@ fun HiddenAppsScreen(
                     modifier = Modifier.testTag("hidden-empty"),
                 )
             }
+            Box(
+                Modifier
+                    .size(1.dp)
+                    .focusRequester(emptyFocus)
+                    .focusable()
+                    .testTag("hidden-empty-focus"),
+            )
         } else {
             Column(
                 Modifier
@@ -91,6 +109,11 @@ fun HiddenAppsScreen(
                                 onFocused = { focused = it },
                             )
                             .tvClickable(onClick = { onUnhide(app.packageName) })
+                            // Accessibilité : la ligne porte le rôle Switch et son état.
+                            .semantics {
+                                role = Role.Switch
+                                stateDescription = "Activé"
+                            }
                             .padding(horizontal = 20.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -111,11 +134,13 @@ fun HiddenAppsScreen(
                     Spacer(Modifier.height(10.dp))
                 }
                 Spacer(Modifier.height(24.dp))
+                var unhideAllFocused by remember { mutableStateOf(false) }
                 Box(
                     Modifier
                         .testTag("unhide-all")
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.14f))
+                        .background(if (unhideAllFocused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.14f))
+                        .tvFocus(onFocused = { unhideAllFocused = it })
                         .tvClickable(onClick = onUnhideAll)
                         .padding(horizontal = 24.dp, vertical = 14.dp),
                 ) {

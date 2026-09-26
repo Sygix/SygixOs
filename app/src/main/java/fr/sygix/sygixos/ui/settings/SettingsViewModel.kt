@@ -40,8 +40,9 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     // Comptages exposés séparément : seules les lignes dont le compte change se recomposent.
+    // WhileSubscribed : aucun scan du TV Provider tant que les réglages ne sont pas affichés.
     val counts: StateFlow<Map<String, Int>> = tvProvider.programCountsFlow()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     val state: StateFlow<SettingsState> = combine(
         apps.disabledSources,
@@ -57,18 +58,14 @@ class SettingsViewModel(
                 )
             },
             hiddenApps = sourceApps.filter { it.packageName in hidden },
-            version = versionName(),
+            version = version,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
-    init {
-        viewModelScope.launch { apps.refreshApps() }
-    }
-
     fun toggleSource(packageName: String) {
-        val row = state.value.sources.firstOrNull { it.app.packageName == packageName } ?: return
+        // Bascule atomique : lecture et écriture dans la même transaction DataStore.
         viewModelScope.launch {
-            apps.setSourceEnabled(row.app.packageName, !row.enabled)
+            apps.toggleSource(packageName)
         }
     }
 
@@ -80,7 +77,8 @@ class SettingsViewModel(
         viewModelScope.launch { apps.unhideAll() }
     }
 
-    private fun versionName(): String = runCatching {
+    // Calculé une seule fois (et non à chaque émission du flux) : appel PackageManager sur le main thread évité.
+    private val version: String = runCatching {
         pm.getPackageInfo(selfPackage, 0).versionName
     }.getOrNull().orEmpty()
 

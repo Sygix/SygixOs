@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -18,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -63,9 +65,15 @@ internal fun AboutContent(
         Text("Licences open source", style = MaterialTheme.typography.titleMedium, color = Color.White)
         Spacer(Modifier.height(8.dp))
         val libraries by produceLibraries(R.raw.aboutlibraries)
+        // contentFocus attaché au premier élément focalisable (liste des licences) :
+        // le passage en volet CONTENT a toujours quelque chose à focaliser.
         LibrariesContainer(
             libraries = libraries,
-            modifier = Modifier.fillMaxWidth().testTag("about-licenses"),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("about-licenses")
+                .focusRequester(contentFocus)
+                .focusable(),
         )
     }
 }

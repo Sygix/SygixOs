@@ -35,11 +35,15 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         val counts = mutableMapOf<String, Int>()
         runCatching {
             listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI).forEach { uri ->
-                resolver.query(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
-                    while (c.moveToNext()) {
-                        if (c.getInt(1) == 0) continue
-                        val pkg = c.getString(0) ?: continue
-                        counts[pkg] = (counts[pkg] ?: 0) + 1
+                // runCatching par URI : un provider défaillant n'empêche pas le comptage de l'autre.
+                runCatching {
+                    resolver.query(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
+                        while (c.moveToNext()) {
+                            // NULL vaut « browsable » (même sémantique que le héro) : isNull || 0 = filtré.
+                            if (!c.isNull(1) && c.getInt(1) == 0) continue
+                            val pkg = c.getString(0) ?: continue
+                            counts[pkg] = (counts[pkg] ?: 0) + 1
+                        }
                     }
                 }
             }

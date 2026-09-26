@@ -14,6 +14,7 @@ import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.data.HeroRepository
+import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.data.NatureFallbackProvider
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroFeed
@@ -50,6 +51,7 @@ class HomeViewModel(
     private val hero: HeroRepository,
     val artwork: AppArtworkSource,
     private val validator: VisualValidator,
+    private val fallback: HeroContentProvider,
 ) : ViewModel() {
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
@@ -58,18 +60,54 @@ class HomeViewModel(
     private var heroValidationJob: Job? = null
     private var shelfValidationJob: Job? = null
     private val shelfRequested = mutableSetOf<String>()
+    private var lastHeroUris: List<String> = emptyList()
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog.onEach { preloadArtwork(it) },
         rawFeed,
-        apps.disabledSources,
+        apps.disabledSources.onEach { onSourcesChanged() },
         validated,
         checked,
     ) { catalog, feed, disabled, v, c ->
         // Bascule des apps sources : filtrage réactif du héro (et du Top Shelf) sans redémarrage.
-        val hero = HeroState(filterBySources(feed, disabled).items, feed.fromApps, validated = v, checked = c)
+        val filtered = filterBySources(feed, disabled)
+        // Toutes les sources désactivées : repli sur le héro nature plutôt qu'un héro vide.
+        val fromApps = filtered.items.isNotEmpty() && feed.fromApps
+        val items = if (fromApps) filtered.items
+        else if (feed.fromApps) runCatching { fallback.load() }.getOrDefault(emptyList())
+        else filtered.items
+        val hero = HeroState(items, fromApps, validated = v, checked = c)
+        // Validation du héro calculée sur le flux filtré (et non sur le flux brut).
+        val heroUris = items.asSequence()
+            .mapNotNull { it.imageUrl }
+            .distinct()
+            .take(VisualQuality.HERO_VALIDATED)
+            .toList()
+        launchHeroValidationIfNeeded(heroUris)
         HomeState.Ready(catalog, hero) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
+
+    private fun launchHeroValidationIfNeeded(uris: List<String>) {
+        if (uris == lastHeroUris) return
+        lastHeroUris = uris
+        heroValidationJob?.cancel()
+        heroValidationJob = launchValidation(uris, VisualQuality.HERO_IN_MEMORY)
+    }
+
+    // Changement des sources désactivées : la validation du shelf est relancée sur le
+    // nouveau héro filtré, les demandes déjà faites sont réévaluées.
+    private fun onSourcesChanged() {
+        val requested = shelfRequested.toList()
+        shelfRequested.clear()
+        viewModelScope.launch {
+            requested.forEach { pkg ->
+                val items = (state.value as? HomeState.Ready)?.hero?.items ?: emptyList()
+                val uris = ShelfPosters.candidates(items, pkg, VisualQuality.SHELF_VALIDATED_PER_APP)
+                shelfValidationJob?.cancel()
+                shelfValidationJob = launchValidation(uris, keepInMemory = 0)
+            }
+        }
+    }
 
     private fun preloadArtwork(catalog: Catalog) {
         viewModelScope.launch(Dispatchers.IO) { artwork.preload(catalog.dock + catalog.grid) }
@@ -89,13 +127,6 @@ class HomeViewModel(
             val feed = hero.load()
             rawFeed.value = feed
             shelfRequested.clear()
-            val heroUris = feed.items.asSequence()
-                .mapNotNull { it.imageUrl }
-                .distinct()
-                .take(VisualQuality.HERO_VALIDATED)
-                .toList()
-            heroValidationJob?.cancel()
-            heroValidationJob = launchValidation(heroUris, VisualQuality.HERO_IN_MEMORY)
         }
     }
 
@@ -142,6 +173,7 @@ class HomeViewModel(
                 hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
                 artwork = AppArtworkSource(app.packageManager),
                 validator = VisualValidator(app),
+                fallback = NatureFallbackProvider(),
             ) as T
         }
     }

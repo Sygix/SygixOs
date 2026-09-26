@@ -86,12 +86,7 @@ fun SettingsScreen(
     LaunchedEffect(pane) {
         if (pane == SettingsPane.CONTENT) contentFocus.tryRequestFocus()
     }
-    // Liste vidée pendant que le sous-écran est ouvert : auto-fermeture vers le volet
-    // de réglages (l'état vide n'a aucun nœud focalisable, Back y serait perdu).
-    LaunchedEffect(state.hiddenApps, hiddenSubScreen) {
-        if (hiddenSubScreen && state.hiddenApps.isEmpty()) hiddenSubScreen = false
-    }
-    // Retour du sous-écran (manuel ou auto-fermeture) : le focus repart sur la catégorie active.
+    // Retour du sous-écran : le focus repart sur la catégorie active.
     LaunchedEffect(hiddenSubScreen) {
         if (!hiddenSubScreen) categoryFocusers[categoryIndex].tryRequestFocus()
     }
@@ -106,7 +101,13 @@ fun SettingsScreen(
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (hiddenSubScreen) {
-                    return@onPreviewKeyEvent if (e.key == Key.Back) { hiddenSubScreen = false; true } else false
+                    return@onPreviewKeyEvent if (e.key == Key.Back) {
+                        // Retour du sous-écran : on repart du volet catégories (les lignes
+                        // redeviennent focalisables et reprennent le focus).
+                        hiddenSubScreen = false
+                        pane = SettingsPane.CATEGORIES
+                        true
+                    } else false
                 }
                 when (e.key) {
                     Key.DirectionUp, Key.DirectionDown -> if (pane == SettingsPane.CATEGORIES) {
@@ -117,7 +118,15 @@ fun SettingsScreen(
                         false
                     }
                     Key.DirectionRight -> if (pane == SettingsPane.CATEGORIES) {
-                        if (category == SettingsCategory.HIDDEN) { hiddenSubScreen = true; true } else { pane = SettingsPane.CONTENT; true }
+                        if (category == SettingsCategory.SOURCES && state.sources.isEmpty()) {
+                            // Rien à focaliser dans le volet droit : on ne bascule pas sur CONTENT.
+                            true
+                        } else {
+                            // Y compris « Applications cachées » vide : Droite focus le volet
+                            // droit, l'ouverture du sous-écran reste sur validation (OK).
+                            pane = SettingsPane.CONTENT
+                            true
+                        }
                     } else false
                     Key.DirectionLeft -> if (pane == SettingsPane.CONTENT) { pane = SettingsPane.CATEGORIES; true } else false
                     Key.Back -> { onBack(); true }
@@ -135,9 +144,10 @@ fun SettingsScreen(
                 Text("Réglages", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                 Spacer(Modifier.height(32.dp))
                 SettingsCategory.entries.forEachIndexed { index, entry ->
-                    val active = index == categoryIndex
                     SettingsCategoryRow(
                         label = entry.label,
+                        // État « sélectionné » visible même quand le focus est dans le volet droit.
+                        selected = index == categoryIndex,
                         focusEnabled = pane == SettingsPane.CATEGORIES && !hiddenSubScreen,
                         focusRequester = categoryFocusers[index],
                         onClick = {
@@ -146,7 +156,8 @@ fun SettingsScreen(
                         },
                         modifier = Modifier.testTag("settings-category-${entry.name}"),
                     )
-                    if (active && index < SettingsCategory.entries.lastIndex) Spacer(Modifier.height(8.dp))
+                    // Espacement constant : la sélection ne décale plus la mise en page.
+                    if (index < SettingsCategory.entries.lastIndex) Spacer(Modifier.height(8.dp))
                 }
             }
             Box(Modifier.weight(1f).fillMaxHeight().padding(end = 64.dp, top = 64.dp)) {
@@ -185,6 +196,7 @@ fun SettingsScreen(
 @Composable
 private fun SettingsCategoryRow(
     label: String,
+    selected: Boolean,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
     onClick: () -> Unit,
@@ -203,14 +215,24 @@ private fun SettingsCategoryRow(
             )
             .scale(scale)
             .clip(RoundedCornerShape(14.dp))
-            .background(if (focused) Color.White.copy(alpha = 0.14f) else Color.Transparent)
+            .background(
+                when {
+                    focused -> Color.White.copy(alpha = 0.14f)
+                    // Catégorie active : visible même quand le focus est à droite.
+                    selected -> Color.White.copy(alpha = 0.08f)
+                    else -> Color.Transparent
+                },
+            )
             .tvClickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {
         Text(
             label,
             style = MaterialTheme.typography.titleMedium,
-            color = if (focused) Color.White else Color.White.copy(alpha = 0.75f),
+            color = when {
+                focused || selected -> Color.White
+                else -> Color.White.copy(alpha = 0.75f)
+            },
         )
     }
 }

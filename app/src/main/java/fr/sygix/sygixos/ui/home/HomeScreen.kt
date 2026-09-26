@@ -41,8 +41,12 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
@@ -72,7 +76,6 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
-    val settingsCounts = settingsViewModel.counts.collectAsStateWithLifecycle()
     CompositionLocalProvider(LocalAppArtwork provides viewModel.artwork) {
         when (val s = state) {
             HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize(), animated = true)
@@ -87,7 +90,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 onRestoreOrder = viewModel::setGridOrder,
                 onHideApp = viewModel::hideApp,
                 settings = settingsState,
-                counts = settingsCounts,
+                counts = settingsViewModel.counts,
                 onToggleSource = settingsViewModel::toggleSource,
                 onUnhide = settingsViewModel::unhide,
                 onUnhideAll = settingsViewModel::unhideAll,
@@ -104,13 +107,16 @@ internal enum class Zone { HERO, DOCK, GRID }
 private fun SettingsGear(
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
+    onFocusedChange: (Boolean) -> Unit = {},
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     GlassSurface(
         modifier
             .testTag("settings-gear")
-            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled)
+            // Accessibilité : décrit l'action de l'engrenage pour les lecteurs d'écran.
+            .semantics { contentDescription = "Réglages" }
+            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = onFocusedChange)
             .tvClickable(onClick = onOpen),
         shape = RoundedCornerShape(50),
     ) {
@@ -150,7 +156,7 @@ internal fun LauncherHome(
     onRestoreOrder: (List<String>) -> Unit = {},
     onHideApp: (TvApp) -> Unit = {},
     settings: SettingsState? = null,
-    counts: State<Map<String, Int>> = remember { mutableStateOf(emptyMap<String, Int>()) },
+    counts: Flow<Map<String, Int>> = flowOf(emptyMap()),
     onToggleSource: (String) -> Unit = {},
     onUnhide: (String) -> Unit = {},
     onUnhideAll: () -> Unit = {},
@@ -221,13 +227,13 @@ internal fun LauncherHome(
                 }
                 when (e.key) {
                     Key.DirectionDown -> when {
-                        zone == Zone.HERO && gearFocused -> { gearFocused = false; heroFocus.tryRequestFocus(); true }
+                        zone == Zone.HERO && gearFocused -> { heroFocus.tryRequestFocus(); true }
                         zone == Zone.HERO -> { zone = if (dockAvailable) Zone.DOCK else Zone.GRID; true }
                         zone == Zone.DOCK -> { zone = Zone.GRID; true }
                         else -> false
                     }
                     Key.DirectionUp -> when {
-                        zone == Zone.HERO && !gearFocused -> { gearFocused = true; gearFocus.tryRequestFocus(); true }
+                        zone == Zone.HERO && !gearFocused -> { gearFocus.tryRequestFocus(); true }
                         zone == Zone.HERO -> true
                         zone == Zone.DOCK -> { zone = Zone.HERO; true }
                         gridRow == 0 -> { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true }
@@ -291,6 +297,9 @@ internal fun LauncherHome(
             SettingsGear(
                 focusEnabled = zone == Zone.HERO && !menuOpen,
                 focusRequester = gearFocus,
+                // Drapeau dérivé du focus réel : reste cohérent après Retour depuis
+                // les réglages, reprise du focus par HeroStage, ou navigation Gauche/Droite.
+                onFocusedChange = { gearFocused = it },
                 onOpen = { settingsOpen = true },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -299,9 +308,11 @@ internal fun LauncherHome(
             )
         }
         if (settingsOpen) {
+            // Comptages collectés uniquement tant que les réglages sont affichés.
+            val countsState = counts.collectAsStateWithLifecycle(initialValue = emptyMap())
             SettingsScreen(
                 state = settings ?: SettingsState(),
-                counts = counts,
+                counts = countsState,
                 onToggleSource = onToggleSource,
                 onUnhide = onUnhide,
                 onUnhideAll = onUnhideAll,
