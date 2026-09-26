@@ -1,0 +1,57 @@
+schema: spec-driven
+
+context: |
+  Language: fr
+  All artifacts must be written in fr.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  SygixOs : launcher Apple TV-style pour Google TV (TCL, Android 14), remplace le launcher Google (avec pubs).
+  Priorités : 1) design fidèle à tvOS (Liquid Glass, focus, animations) ; 2) zéro bug : états loading/empty/error partout, pas de crash silencieux.
+
+  Stack : Kotlin 2.4, Jetpack Compose (BOM 2026.09), Haze 2 (Liquid Glass), Coil, DataStore, media3 (ExoPlayer).
+  Aucun backend, tout en local. Namespace fr.sygix.sygixos, minSdk 34, compileSdk 37. Langue UI : français uniquement (architecture i18n prête).
+  Dépendances externes : uniquement des libs éprouvées et maintenues.
+
+  Architecture : SOLID/KISS/DRY, interfaces aux frontières (repos, sources de données), aucune logique dans les composables.
+  Uniflow : ViewModel -> StateFlow -> Compose, pas d'état dupliqué. Tests JUnit sur la logique métier (fusions, tri, mapping).
+
+  Accueil (capability launcher-shell) : paliers plein écran héro -> dock -> grille ; la grille masque le héro.
+  Design system dans core/designsystem : Modifier.tvFocus / tvClickable, Motion.* + AppleEasing, Dimens.*, GlassSurface (aucune ombre noire).
+  Sources de données TV : TV Provider (WatchNextPrograms / PreviewPrograms), lu sous READ_TV_LISTINGS ; les colonnes réellement remplies dépendent de l'app qui publie.
+
+  Fluidité jugée uniquement sur assembleRelease, sur la TV réelle (adb).
+
+rules:
+  proposal:
+    - "Lister explicitement les capabilities touchées (y compris launcher-shell, ui-testing, settings) et les changes dont celui-ci dépend."
+    - "Si une hypothèse change en cours de route (source de données, périmètre), reprendre tous les documents du change et la description de la PR : aucune trace de l'ancienne hypothèse ne doit rester."
+    - "Section Non-goals obligatoire : ce qui est reporté et à quelle phase."
+  specs:
+    - "Chaque exigence qui charge des données couvre les scénarios : chargement, vide, erreur, permission refusée ou source absente, rafraîchissement (retour au premier plan)."
+    - "Toute UI focalisable spécifie la navigation D-pad : focus initial, déplacements aux bords (pas de boucle sauf mention), touche Retour, restauration du focus au retour d'un sous-écran ou d'une autre app, et le cas où l'élément focalisé a disparu."
+    - "Toute nouvelle zone ou tout nouveau palier sur l'accueil exige un delta MODIFIED sur launcher-shell (Navigation 3 paliers) et sur ui-testing."
+    - "Ne jamais s'appuyer sur un champ de données sans avoir vérifié que la source le fournit réellement ; sinon, le marquer comme hypothèse et prévoir une tâche de vérification sur l'appareil."
+    - "Pas de contradiction avec une autre spec ou un autre change ouvert : une seule capability décrit un comportement, les autres y renvoient."
+    - "Format strict : '### Requirement:' avec SHALL/MUST, '#### Scenario:' avec des puces '- **WHEN**' / '- **THEN**' séparées, jamais sur une seule ligne."
+  design:
+    - "Pour chaque source de données : champs réellement disponibles (colonnes, types), ce qui manque, et comment on s'en passe."
+    - "Préférer la solution la plus simple qui couvre la spec ; pas de score, de préférence persistée ou d'option sans UI ni besoin exprimé."
+    - "Erreurs : jamais avalées ; une source renvoie un Result (ou équivalent) pour que l'UI distingue erreur et vide. Timeout borné sur tout appel réseau ou ContentResolver."
+    - "UI : réutiliser le design system (tvFocus/tvClickable, Motion, Dimens, GlassSurface) et nommer les testTags."
+  tasks:
+    - "Si une donnée n'est pas vérifiée, la 1re tâche est un test sur l'appareil (dump des colonnes, test d'intent) avant tout code."
+    - "Inclure les tests : JUnit pour la logique pure, tests Compose de navigation D-pad avec @Config(qualifiers = \"w960dp-h540dp-xhdpi\") (taille TV), jamais la taille Robolectric par défaut."
+    - "Inclure : chaînes FR en ressources, testTags, mise à jour du README si le comportement visible change, validation sur la TV réelle en assembleRelease, openspec archive."
+    - "Aucun chemin, variable ou configuration propre à une machine (JAVA_HOME, ~/android-sdk…) : uniquement ./gradlew <tâche>."
+
+operations:
+  apply:
+    guidance:
+      - "Ne cocher une tâche qu'après l'avoir vérifiée dans le code et par un test qui échouerait sans le changement."
+      - "Tester le focus et le défilement à la taille d'une TV (w960dp-h540dp-xhdpi) ; un comportement observé seulement à la taille Robolectric par défaut n'est pas un bug avéré."
+      - "Protéger tout accès au TV Provider (query, registerContentObserver) contre SecurityException et provider absent."
+      - "Avant d'ouvrir ou de mettre à jour la PR : lancer openspec-verify-change sur le change et ./gradlew test ; dans la réponse à une review, ne déclarer traité que ce qui a été vérifié."
+  archive:
+    guidance:
+      - "Archiver seulement après le merge sur main et la validation sur la TV réelle."
+      - "Vérifier que openspec validate --all --strict passe après la fusion des deltas."

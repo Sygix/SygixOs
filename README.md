@@ -58,7 +58,7 @@ La signature release vient de l'environnement (`SYGIXOS_STORE_FILE`, `SYGIXOS_ST
 
 ## Structure
 ```
-openspec/           specs et workflow de spécification (project.md, specs/, changes/archive/)
+openspec/           specs et workflow de spécification (config.yaml, specs/, changes/)
 app/                application Android (core/, data/, domain/, ui/)
 ```
 
