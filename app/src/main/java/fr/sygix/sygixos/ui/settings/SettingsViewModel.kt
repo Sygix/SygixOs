@@ -39,6 +39,12 @@ class SettingsViewModel(
     private val selfPackage: String,
 ) : ViewModel() {
 
+    // Calculé une seule fois, et déclaré avant `state` : la première émission du combine
+    // peut arriver pendant l'initialisation (dispatcher non confiné).
+    private val version: String = runCatching {
+        pm.getPackageInfo(selfPackage, 0).versionName
+    }.getOrNull().orEmpty()
+
     // Comptages exposés séparément : seules les lignes dont le compte change se recomposent.
     // WhileSubscribed : aucun scan du TV Provider tant que les réglages ne sont pas affichés.
     val counts: StateFlow<Map<String, Int>> = tvProvider.programCountsFlow()
@@ -76,11 +82,6 @@ class SettingsViewModel(
     fun unhideAll() {
         viewModelScope.launch { apps.unhideAll() }
     }
-
-    // Calculé une seule fois (et non à chaque émission du flux) : appel PackageManager sur le main thread évité.
-    private val version: String = runCatching {
-        pm.getPackageInfo(selfPackage, 0).versionName
-    }.getOrNull().orEmpty()
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

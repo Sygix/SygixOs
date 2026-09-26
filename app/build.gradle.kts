@@ -81,7 +81,7 @@ dependencies {
     implementation(libs.haze.glass)
     implementation(libs.aboutlibraries.compose.m3)
     testImplementation(libs.junit)
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.0")
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.junit)
     testImplementation(libs.robolectric)
     debugImplementation(libs.compose.ui.test.manifest)

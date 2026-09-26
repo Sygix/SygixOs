@@ -6,26 +6,29 @@
 package fr.sygix.sygixos.ui.settings
 
 import android.content.Context
-import android.os.Looper
 import androidx.test.core.app.ApplicationProvider
+import fr.sygix.sygixos.MainDispatcherRule
+import fr.sygix.sygixos.await
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.TvProviderHeroSource
 import fr.sygix.sygixos.model.TvApp
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class SettingsViewModelTest {
+
+    @get:Rule
+    val mainDispatcher = MainDispatcherRule()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val prefs = LauncherPrefs(context)
@@ -40,16 +43,6 @@ class SettingsViewModelTest {
         prefs.setPinned(emptySet())
         prefs.setGridOrder(emptyList())
         prefs.setCachedApps(emptyList())
-    }
-
-    // Le viewModelScope tourne sur Dispatchers.Main (looper Robolectric en pause) :
-    // pomper le looper laisse les coroutines du ViewModel se terminer.
-    private fun pumpMain() {
-        val shadow = shadowOf(Looper.getMainLooper())
-        repeat(20) {
-            shadow.idle()
-            Thread.sleep(10)
-        }
     }
 
     private fun buildViewModel() = SettingsViewModel(
@@ -68,8 +61,7 @@ class SettingsViewModelTest {
     fun `state exposes sources sorted by label, all enabled by default`() = runBlocking {
         seedApps("com.b", "com.a")
         val vm = buildViewModel()
-        pumpMain()
-        val state = vm.state.value
+        val state = vm.state.await { it.sources.size == 2 }
         assertEquals(listOf("A", "B"), state.sources.map { it.app.label })
         assertTrue(state.sources.all { it.enabled })
         assertTrue(state.hiddenApps.isEmpty())
@@ -79,15 +71,12 @@ class SettingsViewModelTest {
     fun `toggleSource flips the enabled flag in state and persists`() = runBlocking {
         seedApps("com.a")
         val vm = buildViewModel()
-        pumpMain()
+        vm.state.await { it.sources.size == 1 }
         vm.toggleSource("com.a")
-        pumpMain()
-        val state = vm.state.value
-        assertFalse(state.sources.single().enabled)
+        assertFalse(vm.state.await { !it.sources.single().enabled }.sources.single().enabled)
         assertFalse(repo.isSourceEnabled("com.a"))
         vm.toggleSource("com.a")
-        pumpMain()
-        assertTrue(vm.state.value.sources.single().enabled)
+        assertTrue(vm.state.await { it.sources.single().enabled }.sources.single().enabled)
         assertTrue(repo.isSourceEnabled("com.a"))
     }
 
@@ -95,16 +84,13 @@ class SettingsViewModelTest {
     fun `unhide removes one app, unhideAll clears the hidden list`() = runBlocking {
         seedApps("com.a", "com.b")
         val vm = buildViewModel()
-        pumpMain()
         repo.hideApp("com.a")
         repo.hideApp("com.b")
-        pumpMain()
-        assertEquals(setOf("A", "B"), vm.state.value.hiddenApps.map { h -> h.label }.toSet())
+        val hidden = vm.state.await { it.hiddenApps.size == 2 }
+        assertEquals(setOf("A", "B"), hidden.hiddenApps.map { h -> h.label }.toSet())
         vm.unhide("com.a")
-        pumpMain()
-        assertEquals(listOf("B"), vm.state.value.hiddenApps.map { h -> h.label })
+        assertEquals(listOf("B"), vm.state.await { it.hiddenApps.size == 1 }.hiddenApps.map { h -> h.label })
         vm.unhideAll()
-        pumpMain()
-        assertTrue(vm.state.value.hiddenApps.isEmpty())
+        assertTrue(vm.state.await { it.hiddenApps.isEmpty() }.hiddenApps.isEmpty())
     }
 }
