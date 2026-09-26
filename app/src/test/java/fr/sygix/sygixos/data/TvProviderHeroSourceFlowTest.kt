@@ -57,7 +57,6 @@ private class FakeTvProvider : ContentProvider() {
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
 }
 
-// Simule un accès refusé au TV Provider (READ_TV_LISTINGS absent) à l'enregistrement de l'observateur.
 @Implements(ContentResolver::class)
 class DeniedObserverShadowContentResolver : ShadowContentResolver() {
     @Implementation

@@ -16,8 +16,6 @@ import kotlinx.coroutines.withTimeout
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
-// viewModelScope sur un dispatcher non confiné : les coroutines des ViewModels avancent
-// sans pomper le looper Robolectric, et un état attendu se lit avec `await`.
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRule : TestWatcher() {
     override fun starting(description: Description) = Dispatchers.setMain(UnconfinedTestDispatcher())

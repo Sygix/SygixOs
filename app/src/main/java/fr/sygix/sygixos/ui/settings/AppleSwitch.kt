@@ -28,8 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
 // Switch style Apple : track coloré, pouce glissant sur ressort.
-// Composant purement visuel : non focalisable, non cliquable, sans sémantique propre ;
-// la ligne hôte porte le rôle Switch, l'état et l'action.
 @Composable
 fun AppleSwitch(
     checked: Boolean,

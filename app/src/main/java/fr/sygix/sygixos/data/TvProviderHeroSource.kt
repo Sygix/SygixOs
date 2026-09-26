@@ -29,16 +29,12 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         runCatching { queryAll() }.getOrDefault(emptyList())
     }
 
-    // Comptage léger (projection minimale, par app) des programmes publiés par les chaînes
-    // (PreviewPrograms) pour la page réglages ; Watch Next est une file de reprise, pas une
-    // publication de l'app.
     suspend fun programCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val counts = mutableMapOf<String, Int>()
         runCatching {
             resolver.query(TvContract.PreviewPrograms.CONTENT_URI, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
                 while (c.moveToNext()) {
-                    // NULL vaut « browsable » (même sémantique que le héro) : isNull || 0 = filtré.
                     if (!c.isNull(1) && c.getInt(1) == 0) continue
                     val pkg = c.getString(0) ?: continue
                     counts[pkg] = (counts[pkg] ?: 0) + 1
@@ -51,8 +47,6 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     // Flux réactif des comptages : l'observateur est armé AVANT la valeur initiale (envoyée
     // immédiatement, hors antirebond), puis chaque changement du contenu TV déclenche une
     // réinterrogation après un délai d'antirebond ; désinscription à l'annulation.
-    // Enregistrement refusé (SecurityException, provider absent) : une seule émission, sans
-    // observation, plutôt qu'une exception qui remonterait jusqu'au ViewModel.
     fun programCountsFlow(debounceMillis: Long = 500): Flow<Map<String, Int>> = channelFlow {
         val resolver = context.contentResolver
         val signals = Channel<Unit>(Channel.CONFLATED)

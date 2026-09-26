@@ -56,8 +56,6 @@ class AppCatalogRepository(
     suspend fun moveInGrid(packageName: String, delta: Int) {
         val apps = installed.value ?: return
         prefs.updateGridOrder { current, hidden ->
-            // Déplacement calculé sur la liste VISIBLE uniquement, puis les packages cachés
-            // sont réinsérés à leur position (sinon le déplacement est invisible).
             val visibleOrder = AppCatalog.grid(apps.filter { it.packageName !in hidden }, current).map { it.packageName }
             withHiddenKept(apps, current, hidden, AppCatalog.move(visibleOrder, packageName, delta))
         }

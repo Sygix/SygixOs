@@ -85,8 +85,6 @@ fun HeroStage(
     focusRequester: FocusRequester,
     onOpen: (HeroItem) -> Unit,
     modifier: Modifier = Modifier,
-    // Faux quand un autre élément de la zone héro (l'engrenage) détient le focus : le
-    // changement de programme ne doit pas le lui reprendre.
     claimFocus: Boolean = true,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
@@ -365,8 +363,6 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
             Text(label, style = MaterialTheme.typography.titleMedium, color = content)
         }
     }
-    // Un seul nœud focalisable : changer d'habillage au focus ne doit pas recréer le nœud
-    // (sinon le focus est perdu, repris par l'engrenage, puis redemandé en boucle).
     Box(focusModifier) {
         if (focused) {
             Box(Modifier.clip(pill).background(Color.White)) { labelRow() }

@@ -76,11 +76,9 @@ fun SettingsScreen(
     var hiddenSubScreen by rememberSaveable { mutableStateOf(false) }
     val categoryFocusers = remember { SettingsCategory.entries.map { FocusRequester() } }
     val contentFocus = remember { FocusRequester() }
-    // Un état de liste par catégorie : le volet droit repart en haut à chaque changement.
     val contentListState = remember(categoryIndex) { LazyListState() }
     val category = SettingsCategory.entries[categoryIndex]
 
-    // Entrée dans le volet droit (Droite ou OK) : refusée s'il n'y a rien à focaliser.
     fun enterContent() {
         val target = SettingsCategory.entries[categoryIndex]
         if (target == SettingsCategory.SOURCES && state.sources.isEmpty()) return
@@ -91,8 +89,6 @@ fun SettingsScreen(
         when (pane) {
             SettingsPane.CATEGORIES -> categoryFocusers[categoryIndex].tryRequestFocus()
             SettingsPane.CONTENT -> {
-                // La 1re ligne d'une LazyColumn défilée n'est plus composée : on remonte en
-                // haut avant de demander le focus ; en cas d'échec, le focus reste à gauche.
                 contentListState.scrollToItem(0)
                 if (!contentFocus.tryRequestFocus()) pane = SettingsPane.CATEGORIES
             }
@@ -124,14 +120,11 @@ fun SettingsScreen(
                 when (e.key) {
                     Key.DirectionUp, Key.DirectionDown -> if (pane == SettingsPane.CATEGORIES) {
                         val delta = if (e.key == Key.DirectionUp) -1 else 1
-                        // Pas de boucle : on s'arrête aux bords, comme tvOS.
                         categoryIndex = (categoryIndex + delta).coerceIn(0, SettingsCategory.entries.lastIndex)
                         true
                     } else {
                         false
                     }
-                    // Y compris « Applications cachées » vide : Droite focalise le volet droit,
-                    // l'ouverture du sous-écran reste sur validation (OK).
                     Key.DirectionRight -> if (pane == SettingsPane.CATEGORIES) { enterContent(); true } else false
                     Key.DirectionLeft -> if (pane == SettingsPane.CONTENT) { pane = SettingsPane.CATEGORIES; true } else false
                     Key.Back -> { onBack(); true }

@@ -61,16 +61,12 @@ fun HiddenAppsScreen(
     modifier: Modifier = Modifier,
 ) {
     val rowFocus = remember { mutableMapOf<String, FocusRequester>() }
-    // Rang à focaliser au prochain changement de liste : 0 à l'ouverture, puis le rang de
-    // la ligne réactivée (sa voisine prend sa place) ; l'état vide gère son propre focus.
     var pendingFocusIndex by remember { mutableStateOf<Int?>(0) }
     LaunchedEffect(hiddenApps) {
         val index = pendingFocusIndex ?: return@LaunchedEffect
         pendingFocusIndex = null
         if (hiddenApps.isEmpty()) return@LaunchedEffect
         val target = hiddenApps[index.coerceIn(0, hiddenApps.lastIndex)]
-        // Compose donne d'abord le focus à la première ligne quand la ligne focalisée
-        // disparaît : on demande le nôtre à la frame suivante.
         withFrameNanos { }
         rowFocus.getValue(target.packageName).tryRequestFocus()
     }
@@ -125,8 +121,6 @@ fun HiddenAppsScreen(
                                 onFocused = { focused = it },
                             )
                             .tvClickable(onClick = { pendingFocusIndex = index; onUnhide(app.packageName) })
-                            // Accessibilité : un seul nœud, état « Cachée » (le switch dit
-                            // « activé » pour une app cachée, ce qui serait trompeur).
                             .semantics(mergeDescendants = true) {
                                 role = Role.Switch
                                 toggleableState = ToggleableState.On

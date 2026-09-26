@@ -42,8 +42,6 @@ class SettingsViewModel(
 
     val icons: AppIconCache = AppIconCache.forPackageManager(pm)
 
-    // Calculé une seule fois, et déclaré avant `state` : la première émission du combine
-    // peut arriver pendant l'initialisation (dispatcher non confiné).
     private val version: String = runCatching {
         pm.getPackageInfo(selfPackage, 0).versionName
     }.getOrNull().orEmpty()

@@ -58,7 +58,6 @@ import kotlinx.coroutines.withContext
 
 internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
 
-// Libellés au pluriel correct (chaînes en dur jusqu'à la migration vers strings.xml).
 internal fun programCountLabel(count: Int): String = when (count) {
     0 -> "Aucun programme publié"
     1 -> "1 programme publié"
@@ -136,8 +135,6 @@ private fun SourceRowLine(
                 onFocused = { },
             )
             .tvClickable(onClick = onToggle)
-            // Accessibilité : un seul nœud (libellé + état + action) ; le switch visuel est
-            // piloté par la ligne.
             .semantics(mergeDescendants = true) {
                 role = Role.Switch
                 toggleableState = ToggleableState(row.enabled)
@@ -215,8 +212,6 @@ internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val provided = LocalAppIcons.current
     val icons = remember(provided) { provided ?: AppIconCache.forPackageManager(context.packageManager) }
-    // Icône carrée (et non la bannière 16:9 du héro, qui serait rognée) : lue dans le cache
-    // pendant la composition, chargée sur IO seulement la première fois.
     val icon by produceState(initialValue = icons.cached(packageName), packageName, icons) {
         if (value == null) value = withContext(Dispatchers.IO) { icons.get(packageName) }
     }

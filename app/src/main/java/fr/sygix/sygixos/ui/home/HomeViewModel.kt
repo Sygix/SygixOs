@@ -90,8 +90,6 @@ class HomeViewModel(
         heroValidationJob = launchValidation(uris, VisualQuality.HERO_IN_MEMORY)
     }
 
-    // Changement des sources désactivées : les shelfs déjà préparés sont oubliés et celui
-    // de l'app focalisée est relancé sur le héro recalculé.
     private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
         lastDisabled = disabled
         shelfRequested.clear()

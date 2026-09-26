@@ -33,7 +33,6 @@ class HeroFocusClaimTest {
         compose.waitForIdle()
     }
 
-    // Programme non lançable (pas d'app source) puis lançable : HeroStage redemande le focus.
     private val plain = heroItem("h1", "Programme")
     private val launchable = heroItem("h1", "Programme", sourcePackage = "com.src")
 
@@ -52,7 +51,6 @@ class HeroFocusClaimTest {
         compose.waitForIdle()
         compose.onNodeWithTag("hero-open").assertExists()
         compose.onNodeWithTag("settings-gear").assertIsFocused()
-        // OK ouvre bien les réglages, pas le programme.
         press(Key.Enter)
         compose.onNodeWithTag("settings-screen").assertExists()
     }

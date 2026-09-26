@@ -123,6 +123,5 @@ fun Modifier.tvClickable(
         .focusable()
 }
 
-// Faux si le requester n'est attaché à aucun nœud ou si le nœud refuse le focus (canFocus = false).
 fun FocusRequester.tryRequestFocus(): Boolean =
     runCatching { requestFocus(FocusDirection.Enter) }.getOrDefault(false)

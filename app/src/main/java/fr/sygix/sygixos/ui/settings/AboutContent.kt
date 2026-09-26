@@ -35,8 +35,6 @@ import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tvFocus
 
-// Catégorie « À propos » : version du launcher et licences OSS (données aboutlibraries,
-// lignes maison focalisables au DPAD).
 @Composable
 internal fun AboutContent(
     version: String,
@@ -74,8 +72,6 @@ internal fun AboutContent(
         Spacer(Modifier.height(24.dp))
         Text("Licences open source", style = MaterialTheme.typography.titleMedium, color = Color.White)
         Spacer(Modifier.height(8.dp))
-        // Chargement asynchrone : null tant que le JSON n'est pas lu. Sans ligne composée,
-        // contentFocus n'est attaché à rien et SettingsScreen garde le focus à gauche.
         val libraries by produceLibraries(R.raw.aboutlibraries)
         val entries = libraries?.libraries
         when {

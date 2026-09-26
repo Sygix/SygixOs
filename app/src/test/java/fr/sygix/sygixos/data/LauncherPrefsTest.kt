@@ -18,9 +18,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
-// Le DataStore préférences est un singleton par process (délégué de fichier) : Robolectric
-// recrée l'application à chaque test, pas le DataStore. Le @Before remet les clés à zéro
-// pour rendre chaque test indépendant de l'ordre d'exécution.
 @RunWith(RobolectricTestRunner::class)
 class LauncherPrefsTest {
 
@@ -109,11 +106,9 @@ class LauncherPrefsTest {
         seedApps("com.a", "com.b", "com.c")
         repo.hideApp("com.b")
         assertEquals(listOf("com.a", "com.c"), repo.catalog.first().grid.map { it.packageName })
-        // Droite sur A passe par-dessus B (cachée) : la grille visible devient [C, A].
         repo.moveInGrid("com.a", 1)
         assertEquals(listOf("com.c", "com.a"), repo.catalog.first().grid.map { it.packageName })
         assertEquals(listOf("com.c", "com.b", "com.a"), prefs.gridOrder.first())
-        // Retour vers la gauche : A repasse devant C, B reste à sa place.
         repo.moveInGrid("com.a", -1)
         assertEquals(listOf("com.a", "com.c"), repo.catalog.first().grid.map { it.packageName })
         assertEquals(listOf("com.a", "com.b", "com.c"), prefs.gridOrder.first())
@@ -124,11 +119,9 @@ class LauncherPrefsTest {
         seedApps("com.a", "com.b", "com.c")
         repo.hideApp("com.b")
         repo.moveInGrid("com.a", 1)
-        // Annulation du déplacement (Retour) : l'ordre visible d'avant est restauré, B conservée.
         repo.setGridOrder(listOf("com.a", "com.c"))
         assertEquals(listOf("com.a", "com.b", "com.c"), prefs.gridOrder.first())
         assertEquals(listOf("com.a", "com.c"), repo.catalog.first().grid.map { it.packageName })
-        // Sans app cachée, l'ordre est écrit tel quel.
         repo.unhideAll()
         repo.setGridOrder(listOf("com.c", "com.a", "com.b"))
         assertEquals(listOf("com.c", "com.a", "com.b"), prefs.gridOrder.first())

@@ -10,8 +10,6 @@ import android.graphics.Bitmap
 import android.util.LruCache
 import androidx.core.graphics.drawable.toBitmap
 
-// Icônes carrées des apps (PackageManager) : un seul appel binder par package, partagé
-// entre les lignes des réglages et conservé d'une ouverture des réglages à l'autre.
 class AppIconCache(private val load: (String) -> Bitmap?) {
 
     private val cache = LruCache<String, Bitmap>(MAX_ENTRIES)

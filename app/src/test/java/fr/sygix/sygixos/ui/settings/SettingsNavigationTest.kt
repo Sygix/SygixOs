@@ -32,7 +32,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
-// Taille TV : le focus et le défilement observés à la taille Robolectric par défaut ne sont pas probants.
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class SettingsNavigationTest {
@@ -87,7 +86,6 @@ class SettingsNavigationTest {
         it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("license-row-") == true
     }
 
-    // Les licences sont lues sur IO (produceLibraries) : on attend la première ligne composée.
     private fun openAboutAndWaitForLicenses() {
         press(Key.DirectionDown)
         press(Key.DirectionDown)
@@ -131,7 +129,6 @@ class SettingsNavigationTest {
         row.assert(hasClickAction())
         row.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, androidx.compose.ui.semantics.Role.Switch))
         compose.onNodeWithTag("source-row-com.b").assertIsOff()
-        // Le switch visuel n'annonce rien de son côté (pas de rôle en double).
         compose.onNodeWithTag("source-switch-com.a", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Role))
     }

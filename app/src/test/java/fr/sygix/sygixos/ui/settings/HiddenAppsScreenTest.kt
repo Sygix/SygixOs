@@ -64,7 +64,6 @@ class HiddenAppsScreenTest {
         compose.waitForIdle()
     }
 
-    // Écran branché sur une liste mutable : réactiver retire réellement la ligne.
     private fun setLiveScreen(initial: List<TvApp>) {
         val hidden = mutableStateOf(initial)
         compose.setContent {
@@ -109,10 +108,8 @@ class HiddenAppsScreenTest {
         press(Key.Enter)
         compose.onNodeWithTag("hidden-row-com.b").assertDoesNotExist()
         compose.onNodeWithTag("hidden-row-com.c").assertIsFocused()
-        // Dernière ligne réactivée : le focus remonte sur la voisine du dessus.
         press(Key.Enter)
         compose.onNodeWithTag("hidden-row-com.a").assertIsFocused()
-        // Plus rien à réactiver : l'état vide garde le focus dans le sous-écran.
         press(Key.Enter)
         compose.onNodeWithTag("hidden-empty").assertIsDisplayed()
         compose.onNodeWithTag("hidden-empty-focus").assertIsFocused()
@@ -125,7 +122,6 @@ class HiddenAppsScreenTest {
         row.assertIsOn()
         row.assert(hasClickAction())
         row.assert(hasStateDescription("Cachée"))
-        // Le libellé est fusionné dans la ligne, le switch visuel n'a pas de rôle propre.
         row.assert(SemanticsMatcher.expectValue(SemanticsProperties.Text, listOf(androidx.compose.ui.text.AnnotatedString("A"))))
         compose.onNodeWithTag("hidden-switch-com.a", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Role))

@@ -39,7 +39,6 @@ private class StaticFeedProvider(private val items: List<HeroItem>) : HeroConten
     override suspend fun load(): List<HeroItem> = items
 }
 
-// Aucun réseau en test : chaque visuel est « vérifié » (inutilisable) sans requête.
 private class OfflineImageLoader : ImageLoader {
     override val defaults = DefaultRequestOptions()
     override val components = ComponentRegistry()
@@ -119,15 +118,12 @@ class HomeViewModelSourceToggleTest {
         repo.setSourceEnabled("com.a", false)
         repo.setSourceEnabled("com.b", false)
         val fallback = vm.state.await { (it as? HomeState.Ready)?.hero?.fromApps == false } as HomeState.Ready
-        // Repli nature : le même repli que HeroRepository, pas un héro vide.
         assertFalse(fallback.hero.fromApps)
         assertEquals(listOf("nature-0"), fallback.hero.items.map { it.id })
     }
 
     @Test
     fun `re-enabling a source re-prepares the shelf of the focused app on the recomputed hero`() = runBlocking {
-        // 25 visuels de com.b occupent la validation du héro (HERO_VALIDATED = 24) : le
-        // visuel de com.a ne peut être vérifié que par la préparation de son shelf.
         val items = (1..25).map { heroItem("b$it", "B$it", imageUrl = "https://x/b$it.jpg", sourcePackage = "com.b") } +
             heroItem("a", "A", imageUrl = "https://x/a.jpg", sourcePackage = "com.a")
         LauncherPrefs(context).setDisabledSources(setOf("com.a"))
@@ -136,12 +132,10 @@ class HomeViewModelSourceToggleTest {
         vm.refreshHero()
         vm.state.await { (it as? HomeState.Ready)?.hero?.items?.size == 25 }
 
-        // Shelf demandé pour com.a alors que sa source est désactivée : rien à vérifier.
         vm.prepareShelf("com.a")
         repo.setSourceEnabled("com.a", true)
         vm.state.await { (it as? HomeState.Ready)?.hero?.items?.size == 26 }
 
-        // La source réactivée : le shelf de l'app focalisée est relancé sur le héro recalculé.
         vm.state.await { "https://x/a.jpg" in ((it as? HomeState.Ready)?.hero?.checked ?: emptySet()) }
         Unit
     }
