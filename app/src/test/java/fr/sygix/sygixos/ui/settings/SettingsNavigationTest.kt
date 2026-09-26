@@ -8,10 +8,11 @@ package fr.sygix.sygixos.ui.settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
@@ -21,8 +22,11 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
+// Taille TV : le focus et le défilement observés à la taille Robolectric par défaut ne sont pas probants.
 @RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "w960dp-h540dp-xhdpi")
 class SettingsNavigationTest {
 
     @get:Rule
@@ -63,6 +67,19 @@ class SettingsNavigationTest {
         SourceRow(app = TvApp("com.a", "A"), enabled = true),
         SourceRow(app = TvApp("com.b", "B"), enabled = false),
     )
+
+    private fun longSourceRows() = (1..30).map { SourceRow(app = TvApp("com.s$it", "S$it"), enabled = true) }
+
+    private val licenseRow = SemanticsMatcher("license row") {
+        it.config.getOrNull(SemanticsProperties.TestTag)?.startsWith("license-row-") == true
+    }
+
+    // Les licences sont lues sur IO (produceLibraries) : on attend la première ligne composée.
+    private fun openAboutAndWaitForLicenses() {
+        press(Key.DirectionDown)
+        press(Key.DirectionDown)
+        compose.waitUntil(10_000) { compose.onAllNodes(licenseRow).fetchSemanticsNodes().isNotEmpty() }
+    }
 
     @Test
     fun `first category has focus at opening and right pane shows its content`() {
@@ -166,35 +183,59 @@ class SettingsNavigationTest {
     }
 
     @Test
-    fun `right on about focuses licenses and back returns to categories`() {
+    fun `right on about focuses the first license and down reaches the next one`() {
         setState()
-        press(Key.DirectionDown)
-        press(Key.DirectionDown)
+        openAboutAndWaitForLicenses()
         press(Key.DirectionRight)
-        compose.onNodeWithTag("about-licenses").assertIsFocused()
+        compose.onAllNodes(licenseRow)[0].assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onAllNodes(licenseRow)[1].assertIsFocused()
         press(Key.DirectionLeft)
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
     }
 
     @Test
-    fun `long sources list keeps dpad navigation working`() {
-        val rows = (1..30).map { SourceRow(app = TvApp("com.s$it", "S$it"), enabled = true) }
-        setState(sources = rows)
+    fun `long sources list scrolls with down and left returns to the category`() {
+        setState(sources = longSourceRows())
         press(Key.DirectionRight)
         compose.onNodeWithTag("source-row-com.s1").assertIsFocused()
-        // Liste plus longue que la fenêtre visible : le focus reste dans le volet droit
-        // (LazyColumn : la recherche de focus ne compose pas au-delà de la fenêtre).
         repeat(10) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("settings-category-SOURCES").assertIsNotFocused()
+        compose.onNodeWithTag("source-row-com.s11").assertIsFocused()
         press(Key.DirectionLeft)
         compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
     }
 
     @Test
+    fun `re-entering a scrolled sources list focuses its first row and back still works`() {
+        var backs = 0
+        setState(sources = longSourceRows(), onBack = { backs++ })
+        press(Key.DirectionRight)
+        repeat(12) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("source-row-com.s13").assertIsFocused()
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("source-row-com.s1").assertIsFocused()
+        press(Key.Back)
+        assertEquals(1, backs)
+    }
+
+    @Test
+    fun `ok on sources with an empty list keeps the category focused and back still works`() {
+        var backs = 0
+        setState(onBack = { backs++ })
+        press(Key.Enter)
+        compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
+        press(Key.Back)
+        assertEquals(1, backs)
+    }
+
+    @Test
     fun `about category shows version and licenses`() {
         setState()
-        press(Key.DirectionDown)
-        press(Key.DirectionDown)
+        openAboutAndWaitForLicenses()
         compose.onNodeWithTag("about-version").assertExists()
         compose.onNodeWithTag("about-licenses").assertExists()
     }
