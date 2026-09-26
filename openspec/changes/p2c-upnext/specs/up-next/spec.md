@@ -40,7 +40,7 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **THEN** le modèle canonique et la rangée absorbent ces IDs sans refonte, et le niveau 5 de dédoublonnage s'active quand il est connu ; BetaSeries reste une étape d'enrichissement et non la source unique de la rangée
 
 ### Requirement: Champs facultatifs
-Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
+Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Une valeur de `watch_next_type` inconnue (hors des quatre valeurs définies par Android : `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`) SHALL être traitée comme une valeur absente, donc rattachée au groupe « à suivre ». Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
 
 #### Scenario: titre absent
 - **WHEN** un programme n'a ni titre ni titre de série
@@ -53,6 +53,10 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 #### Scenario: type watch next absent
 - **WHEN** un programme n'a pas de `watch_next_type`
 - **THEN** il est rattaché au groupe « à suivre » (`NEXT`/`NEW`) : la rangée le place après les `CONTINUE` et avant les `WATCHLIST`, et dans un doublon il perd contre un `CONTINUE` et gagne contre un `WATCHLIST`
+
+#### Scenario: type watch next inconnu
+- **WHEN** un programme publie une valeur de `watch_next_type` hors de `CONTINUE`, `NEXT`, `NEW` et `WATCHLIST`
+- **THEN** il est traité comme un programme sans `watch_next_type` : rattaché au groupe « à suivre » (`NEXT`/`NEW`) pour le tri comme pour le gagnant d'un doublon, sans être exclu de la rangée
 
 #### Scenario: type absent avec saison et épisode
 - **WHEN** un programme n'a pas de `COLUMN_TYPE` mais publie un numéro de saison et un numéro d'épisode

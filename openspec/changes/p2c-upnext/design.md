@@ -54,7 +54,7 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 
 **Types absents** (décisions Sygix, exigence « Champs facultatifs » de up-next) :
 - `COLUMN_TYPE` absent : le type est inféré, épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; le type inféré sert aux niveaux 2 à 4 et à la carte comme un type publié ;
-- `watch_next_type` absent : le programme est rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les `CONTINUE` et avant les `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon.
+- `watch_next_type` absent ou inconnu (valeur hors de `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`, traitée comme absente) : le programme est rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les `CONTINUE` et avant les `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon.
 
 **Gagnant d'un doublon** (décision produit) :
 1. `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, programmes sans `watch_next_type` inclus), qui bat `WATCHLIST` ;
@@ -117,7 +117,7 @@ Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « App
 - [Repo public] → toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
 
 ## Notes de test
-- Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents, même titre et même année (fusion) ; types absents : inférence épisode/film, programme sans `watch_next_type` dans le groupe « à suivre » (tri et gagnant).
+- Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents, même titre et même année (fusion) ; types absents : inférence épisode/film, programme sans `watch_next_type` ou avec une valeur inconnue dans le groupe « à suivre » (tri et gagnant).
 - Filtre des apps sources : test JUnit (une source désactivée n'est ni gagnante ni dans les sources du menu) et test Compose (bascule du switch → la carte disparaît sans redémarrage).
 - UI : Robolectric + Compose **à la taille d'une TV** (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), jamais la taille Robolectric par défaut : séquence D-pad héro → dock → zone grille (rangée Up Next puis apps, et la montée), position « après la grille », rangée sautée, menu « Ouvrir avec… » (y compris à une entrée), états (squelette, erreur, masquée), réglage de position, testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`.
 - Validation finale sur la TV réelle en `assembleRelease` : rendu de la rangée avec les apps installées, navigation, réglage de position.

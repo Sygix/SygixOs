@@ -14,7 +14,7 @@ P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une r
 - **Menu « Ouvrir avec… »** (décision produit) : appui long sur une carte, liste des apps qui ont ce contenu, ouverture via leur intent, rien n'est persisté ; le menu s'ouvre même avec une seule entrée
 - **Badge app** : petite icône de l'app source prise dans le `PackageManager` (aucun logo embarqué)
 - **Cartes 16:9 uniformes** : image 16:9 plein cadre quand elle est exploitable, sinon poster portrait centré sur fond sombre ; seuil de qualité propre aux cartes (la règle ≥ 1080 px du héro ne s'applique pas), carte gardée avec placeholder en dessous ; barre de progression pour les items en cours ; états chargement / erreur / vide / permission refusée
-- **Champs facultatifs** (décisions produit) : chaque colonne est facultative ; aucun titre → programme exclu ; date d'engagement absente → plus ancien de son groupe, puis `_ID` croissant ; `watch_next_type` absent → groupe « à suivre » ; `COLUMN_TYPE` absent → type inféré (épisode si saison et épisode sont présents, film sinon), utilisé pour le dédoublonnage et la carte
+- **Champs facultatifs** (décisions produit) : chaque colonne est facultative ; aucun titre → programme exclu ; date d'engagement absente → plus ancien de son groupe, puis `_ID` croissant ; `watch_next_type` absent ou inconnu (hors des 4 valeurs Android, traité comme absent) → groupe « à suivre » ; `COLUMN_TYPE` absent → type inféré (épisode si saison et épisode sont présents, film sinon), utilisé pour le dédoublonnage et la carte
 - **Modèle canonique `UpNextItem`** avec champ `externalIds` facultatif (prêt pour l'enrichissement BetaSeries de P4) et liste des sources du contenu conservée après fusion (pour le menu « Ouvrir avec… »)
 
 ## Capabilities
@@ -32,7 +32,7 @@ P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une r
 ## Impact
 - persistance : le réglage « Position d'Up Next » est persisté dans DataStore ; le menu « Ouvrir avec… » ne persiste rien ; l'ordre de préférence des apps est une constante en p2c
 - code existant réutilisé : lecture des `WatchNextPrograms` de toutes les apps et observation du provider déjà en place dans `TvProviderHeroSource`, filtre des apps sources déjà en place dans `HeroFeed` / `HomeViewModel` (détail dans `design.md`)
-- **Dépendances** : `jellyfin-tvprovider-only` (embarqué dans cette PR), `ui-testing` (archivé dans cette PR avant l'écriture du delta MODIFIED), `p2b-settings` (archivé sur main, capability `settings`), `betaseries-integration` (delta MODIFIED aligné)
+- **Dépendances** : `jellyfin-tvprovider-only` (embarqué dans cette PR), `ui-testing` (archivé dans cette PR avant l'écriture du delta MODIFIED), `p2b-settings` (archivé sur main, capability `settings`), `betaseries-integration` (delta MODIFIED aligné). Implémentation reportée à une itération ultérieure ; à implémenter et archiver **après** `home-settings-polish`, dont les deltas sur launcher-shell « Navigation 3 paliers » et settings « Apps sources » / « Cacher une application » devront être repris lors du rebase.
 - **Données de l'appareil** : le launcher lit des lignes `WatchNextPrograms` d'apps tierces sous `READ_TV_LISTINGS` (constaté avec `v0.0.1-rc.1`, voir `design.md`) ; le remplissage des colonnes n'est pas mesuré, chaque champ est donc facultatif. Toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres
 
 ## Non-goals
