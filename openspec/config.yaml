@@ -26,16 +26,20 @@ rules:
     - "Lister explicitement les capabilities touchées (y compris launcher-shell, ui-testing, settings) et les changes dont celui-ci dépend."
     - "Si une hypothèse change en cours de route (source de données, périmètre), reprendre tous les documents du change et la description de la PR : aucune trace de l'ancienne hypothèse ne doit rester."
     - "Section Non-goals obligatoire : ce qui est reporté et à quelle phase."
+    - "Tout choix produit non tranché par Sygix va dans une section « Questions ouvertes » et n'apparaît nulle part ailleurs comme décision (ni en SHALL dans les specs, ni dans design ou tasks) tant qu'il n'est pas validé."
   specs:
     - "Chaque exigence qui charge des données couvre les scénarios : chargement, vide, erreur, permission refusée ou source absente, rafraîchissement (retour au premier plan)."
     - "Toute UI focalisable spécifie la navigation D-pad : focus initial, déplacements aux bords (pas de boucle sauf mention), touche Retour, restauration du focus au retour d'un sous-écran ou d'une autre app, et le cas où l'élément focalisé a disparu."
     - "Toute nouvelle zone ou tout nouveau palier sur l'accueil exige un delta MODIFIED sur launcher-shell (Navigation 3 paliers) et sur ui-testing."
     - "Ne jamais s'appuyer sur un champ de données sans avoir vérifié que la source le fournit réellement ; sinon, le marquer comme hypothèse et prévoir une tâche de vérification sur l'appareil."
     - "Pas de contradiction avec une autre spec ou un autre change ouvert : une seule capability décrit un comportement, les autres y renvoient."
+    - "Si une exigence existante change, écrire un delta MODIFIED sur cette exigence (en archivant d'abord le change qui la porte si besoin), jamais un ADDED parallèle qui la contredirait après archivage."
+    - "Pour un comportement déjà spécifié ailleurs (focus, animations, thème, navigation), renvoyer à l'exigence existante sans recopier ses valeurs."
     - "Format strict : '### Requirement:' avec SHALL/MUST, '#### Scenario:' avec des puces '- **WHEN**' / '- **THEN**' séparées, jamais sur une seule ligne."
   design:
     - "Pour chaque source de données : champs réellement disponibles (colonnes, types), ce qui manque, et comment on s'en passe."
     - "Préférer la solution la plus simple qui couvre la spec ; pas de score, de préférence persistée ou d'option sans UI ni besoin exprimé."
+    - "Avant de poser une hypothèse sur une source, exploiter ce que le repo sait déjà (README, specs courantes, changes archivés, code existant)."
     - "Erreurs : jamais avalées ; une source renvoie un Result (ou équivalent) pour que l'UI distingue erreur et vide. Timeout borné sur tout appel réseau ou ContentResolver."
     - "UI : réutiliser le design system (tvFocus/tvClickable, Motion, Dimens, GlassSurface) et nommer les testTags."
   tasks:
@@ -43,6 +47,7 @@ rules:
     - "Inclure les tests : JUnit pour la logique pure, tests Compose de navigation D-pad avec @Config(qualifiers = \"w960dp-h540dp-xhdpi\") (taille TV), jamais la taille Robolectric par défaut."
     - "Inclure : chaînes FR en ressources, testTags, mise à jour du README si le comportement visible change, validation sur la TV réelle en assembleRelease, openspec archive."
     - "Aucun chemin, variable ou configuration propre à une machine (JAVA_HOME, ~/android-sdk…) : uniquement ./gradlew <tâche>."
+    - "Chaque tâche a un critère de fin vérifiable ; pas de tâche « étudier » ou « envisager » : trancher dans design ou la mettre en Questions ouvertes."
 
 operations:
   apply:
@@ -50,6 +55,9 @@ operations:
       - "Ne cocher une tâche qu'après l'avoir vérifiée dans le code et par un test qui échouerait sans le changement."
       - "Tester le focus et le défilement à la taille d'une TV (w960dp-h540dp-xhdpi) ; un comportement observé seulement à la taille Robolectric par défaut n'est pas un bug avéré."
       - "Protéger tout accès au TV Provider (query, registerContentObserver) contre SecurityException et provider absent."
+      - "Chaque test contient une assertion qui échouerait sans le comportement testé ; pas de Thread.sleep, attendre un état (first { … } sous withTimeout, runTest)."
+      - "Avant d'écrire une logique, vérifier qu'elle n'existe pas déjà (repository, domaine) ; ne rien ajouter qui ne soit ni dans la spec ni demandé (une idée va en suggestion dans la PR)."
+      - "Réponse à une review : reprendre tous les points sans exception, chacun avec un statut (traité / partiel / non traité / traité autrement) et une preuve (fichier:ligne, nom du test) ; un point non traité est dit explicitement avec sa raison vérifiée."
       - "Avant d'ouvrir ou de mettre à jour la PR : lancer openspec-verify-change sur le change et ./gradlew test ; dans la réponse à une review, ne déclarer traité que ce qui a été vérifié."
   archive:
     guidance:
