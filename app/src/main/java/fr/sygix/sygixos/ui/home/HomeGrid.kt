@@ -13,6 +13,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
@@ -27,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -52,6 +55,7 @@ import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.data.Catalog
+import fr.sygix.sygixos.domain.GridScroll
 import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
@@ -116,11 +120,19 @@ internal fun HomeGrid(
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val contentWidth = screenWidth - Dimens.ScreenMarginH * 2
     val rowHeight = (contentWidth - Dimens.GridSpacing * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
-    val panelBlock = contentWidth / Dimens.ShelfAspectRatio + 8.dp + Dimens.GridRowSpacing
-    val panelBlockPx = with(density) { panelBlock.toPx() }
-    val rowHeightPx = with(density) { rowHeight.toPx() }
-    val bottomMarginPx = with(density) { Dimens.GridRowSpacing.toPx() }
-    val spacingPx = with(density) { Dimens.GridRowSpacing.toPx() }
+    val panelBlock = contentWidth / Dimens.ShelfAspectRatio + Dimens.GridRowSpacing
+    val geometry = remember(density, screenWidth) {
+        with(density) {
+            GridScroll(
+                topMargin = Dimens.GridTopMargin.toPx(),
+                rowHeight = rowHeight.toPx(),
+                rowSpacing = Dimens.GridRowSpacing.toPx(),
+                panelHeight = panelBlock.toPx(),
+                margin = Dimens.GridRowSpacing.toPx(),
+            )
+        }
+    }
+    var anchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val tileRequesters = remember { mutableMapOf<String, FocusRequester>() }
     fun requesterFor(packageName: String) = tileRequesters.getOrPut(packageName) { FocusRequester() }
 
@@ -136,21 +148,10 @@ internal fun HomeGrid(
         withFrameNanos { }
         val viewport = scrollState.viewportSize.toFloat()
         if (viewport <= 0f) return@LaunchedEffect
-        val rowTop = Dimens.GridTopMargin.value * density.density +
-            row * (rowHeightPx + spacingPx) +
-            if (openRow in 0..row) panelBlockPx else 0f
-        val blockTop = rowTop - if (openRow == row) panelBlockPx else 0f
-        val blockBottom = rowTop + rowHeightPx
-        val target = if (blockBottom - blockTop + 2 * bottomMarginPx > viewport) {
-            blockTop - bottomMarginPx
-        } else {
-            scrollState.value.toFloat().coerceIn(
-                blockBottom + bottomMarginPx - viewport,
-                blockTop - bottomMarginPx,
-            )
-        }.coerceAtLeast(0f)
-        val delta = target - scrollState.value
-        if (abs(delta) > 1f) {
+        val next = geometry.next(anchor, row, openRow, viewport)
+        anchor = next
+        val delta = next.scroll - scrollState.value
+        if (abs(delta) >= 1f) {
             scrollState.animateScrollBy(delta, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
         }
     }
@@ -165,10 +166,7 @@ internal fun HomeGrid(
         requesterFor(movingApp).tryRequestFocus()
     }
     LaunchedEffect(focusEnabled) {
-        if (!focusEnabled) {
-            openApp = null
-            scrollState.scrollTo(0)
-        }
+        if (!focusEnabled) openApp = null
     }
 
     if (catalog.grid.isEmpty()) {
@@ -178,6 +176,7 @@ internal fun HomeGrid(
         return
     }
 
+    CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScroll) {
     Column(
         modifier
             .fillMaxSize()
@@ -232,4 +231,9 @@ internal fun HomeGrid(
             }
         }
     }
+    }
+}
+
+private val NoAutoScroll = object : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
