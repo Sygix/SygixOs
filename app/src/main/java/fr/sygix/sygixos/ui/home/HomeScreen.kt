@@ -205,10 +205,14 @@ internal fun LauncherHome(
     val gearFocus = remember { FocusRequester() }
     var gearFocused by remember { mutableStateOf(false) }
     val dockAvailable = catalog.dock.isNotEmpty()
+    val gridAvailable = catalog.grid.isNotEmpty()
     val menuOpen = menuApp != null
 
     LaunchedEffect(dockAvailable) {
         if (zone == Zone.DOCK && !dockAvailable) zone = Zone.HERO
+    }
+    LaunchedEffect(gridAvailable) {
+        if (zone == Zone.GRID && !gridAvailable) zone = Zone.HERO
     }
     LaunchedEffect(zone, menuOpen, settingsOpen) {
         if (menuOpen || settingsOpen) return@LaunchedEffect

@@ -103,6 +103,25 @@ class CatalogUpdateFocusTest {
     }
 
     @Test
+    fun `hiding the only grid app returns the focus to the hero and back still works`() {
+        catalog = catalogOf(dock = listOf(app("com.d1", "Dock 1")), grid = listOf(app("com.a", "Alpha")))
+        setContent(Zone.GRID)
+        compose.onNodeWithTag("app-tile-com.a").assertIsFocused()
+
+        longPress()
+        repeat(3) { press(Key.DirectionRight) }
+        compose.onNodeWithTag("menu-hide").assertIsFocused()
+        press(Key.Enter)
+
+        compose.onNodeWithTag("app-tile-com.a").assertDoesNotExist()
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("app-tile-com.d1").assertIsFocused()
+        press(Key.Back)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+    }
+
+    @Test
     fun `unpinning the focused dock app removes its tile and focuses the next one`() {
         setContent(Zone.DOCK)
         press(Key.DirectionRight)
