@@ -15,7 +15,7 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
 ## Conventions de code (non négociables)
 - SOLID, KISS, DRY : petites classes à responsabilité unique, interfaces aux frontières (repos, sources de données), zéro logique dans les composables
 - State uniflow : ViewModel → StateFlow → Compose ; pas d'état dupliqué
-- Commentaires : uniquement quand le code ne s'auto-décrit pas. Pas de commentaires narratifs ni de docstrings décoratives
+- Commentaires : aucun commentaire dans le code ni dans les tests, sauf l'en-tête de licence de chaque fichier
 - Tous les appels réseau : états loading/empty/error en UI, timeout borné, jamais de crash silencieux
 - Tests JUnit sur la logique métier (fusions Up Next, tri, mapping) ; UI validée sur la TV réelle
 - Pas de backend : tout en local (Coil, DataStore, media3)
