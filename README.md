@@ -35,7 +35,6 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS: Li
 | Polish | Continuous hero/grid scroll, hidden apps in the settings panel, source apps sorting | 🚧 in progress ([#16](https://github.com/Sygix/SygixOs/pull/16)) |
 | P2c | Up Next row (all apps, deduplication) | 📝 spec done, implementation planned |
 | P2c | Search | planned |
-| P3 | Screensaver (looping nature clips, local cache) | planned |
 | P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
 | P5 | Replacing the system launcher | ADB commands available (see Installation) |
 
