@@ -11,10 +11,16 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Motion
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performKeyInput
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 class HomeGridTest {
@@ -88,5 +94,61 @@ class HomeGridTest {
         compose.mainClock.advanceTimeBy(Motion.SHELF_OPEN_DELAY_MS + Motion.SHELF_EXPAND_MS)
         compose.waitForIdle()
         compose.onNodeWithTag("shelf-panel").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-xhdpi")
+    fun `a deep row with its shelf open stays on screen and the hero never comes back while in the grid`() {
+        val apps = (0 until 40).map { app("com.a%02d".format(it), "App $it") }
+        val withPosters = listOf("com.a05", "com.a25")
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(
+                catalog = catalogOf(dock = emptyList(), grid = apps),
+                hero = heroStateOf(
+                    items = withPosters.map { heroItem("h-$it", "Titre", imageUrl = "uri-$it", sourcePackage = it) },
+                    validated = withPosters.map { "uri-$it" }.toSet(),
+                ),
+            )
+        }
+        settle()
+        val screen = compose.screenHeight()
+        press(Key.DirectionDown)
+        repeat(5) {
+            press(Key.DirectionDown)
+            assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+        }
+        compose.onNodeWithTag("app-tile-com.a25").assertIsFocused()
+        compose.mainClock.advanceTimeBy(Motion.SHELF_OPEN_DELAY_MS + Motion.SHELF_EXPAND_MS + 200)
+        compose.waitForIdle()
+        val panel = compose.span("shelf-panel")
+        val tile = compose.span("app-tile-com.a25")
+        assertTrue(panel.top >= 0f && tile.bottom <= screen)
+        assertTrue(panel.bottom <= tile.top)
+        assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+
+        repeat(4) {
+            press(Key.DirectionUp)
+            assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+        }
+        compose.onNodeWithTag("app-tile-com.a05").assertIsFocused()
+        compose.mainClock.advanceTimeBy(Motion.SHELF_OPEN_DELAY_MS + Motion.SHELF_EXPAND_MS + 200)
+        compose.waitForIdle()
+        compose.onNodeWithTag("shelf-panel").assertExists()
+        assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+        assertTrue(compose.span("shelf-panel").top >= 0f)
+    }
+
+    private fun settle() {
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
+    }
+
+    private fun press(key: Key) {
+        compose.onRoot().performKeyInput {
+            keyDown(key)
+            keyUp(key)
+        }
+        settle()
     }
 }

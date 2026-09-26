@@ -14,20 +14,20 @@ class GridScroll(
 ) {
     data class Anchor(val scroll: Float, val row: Int, val rowTop: Float)
 
-    fun rowTop(row: Int, openRow: Int): Float =
-        topMargin + row * (rowHeight + rowSpacing) + if (openRow in 0..row) panelHeight else 0f
+    fun rowTop(row: Int, openRow: Int, origin: Float = 0f): Float =
+        origin + topMargin + row * (rowHeight + rowSpacing) + if (openRow in 0..row) panelHeight else 0f
 
-    fun next(anchor: Anchor?, row: Int, openRow: Int, viewport: Float): Anchor {
-        val top = rowTop(row, openRow)
+    fun next(anchor: Anchor?, row: Int, openRow: Int, viewport: Float, origin: Float = 0f): Anchor {
+        val top = rowTop(row, openRow, origin)
         val blockTop = if (openRow == row) top - panelHeight else top
         val minScroll = top + rowHeight + margin - viewport
         val maxScroll = blockTop - topMargin
         val preferred = when {
-            anchor == null -> 0f
+            anchor == null -> origin
             anchor.row == row -> anchor.scroll + top - anchor.rowTop
             else -> anchor.scroll
         }
         val fitted = if (minScroll > maxScroll) maxScroll else preferred.coerceIn(minScroll, maxScroll)
-        return Anchor(fitted.coerceAtLeast(0f), row, top)
+        return Anchor(fitted.coerceAtLeast(origin), row, top)
     }
 }

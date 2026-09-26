@@ -20,7 +20,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -33,7 +32,7 @@ import fr.sygix.sygixos.model.TvApp
 @Composable
 internal fun Dock(
     apps: List<TvApp>,
-    alpha: Float,
+    active: Boolean,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
     onTileClick: (TvApp) -> Unit,
@@ -43,12 +42,10 @@ internal fun Dock(
     val packages = remember(apps) { apps.map { it.packageName } }
     val focus = rememberTileFocus(packages, focusEnabled)
     val entryApp = focus.entry(packages)
-    val active = alpha > 0.01f
     BoxWithConstraints(
         modifier
             .padding(start = Dimens.ScreenMarginH, end = Dimens.ScreenMarginH, bottom = Dimens.DockBottomMargin)
-            .fillMaxWidth()
-            .alpha(alpha),
+            .fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
         val tileWidth = DockLayout.tileWidth(maxWidth.value, apps.size, Dimens.GridSpacing.value, Dimens.GridColumns).dp

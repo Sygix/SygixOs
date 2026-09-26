@@ -34,7 +34,7 @@ class DockTest {
             MaterialTheme {
                 Dock(
                     apps = apps,
-                    alpha = 1f,
+                    active = true,
                     focusEnabled = true,
                     focusRequester = focusRequester,
                     onTileClick = {},

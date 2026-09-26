@@ -18,6 +18,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.settings.HiddenRow
 import fr.sygix.sygixos.ui.settings.SettingsState
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,15 +66,36 @@ class SettingsEntryTest {
     }
 
     @Test
-    fun `gear disappears in the grid zone and comes back on the hero`() {
+    fun `gear leaves with the hero in the grid zone and comes back with it`() {
         setupHome()
+        val gear = compose.span("settings-gear")
+        val hero = compose.span("zone-hero")
         press(Key.DirectionDown)
         press(Key.DirectionDown)
         compose.onNodeWithTag("app-tile-com.grid").assertIsFocused()
-        compose.onNodeWithTag("settings-gear").assertDoesNotExist()
+        val gearDown = compose.span("settings-gear")
+        val heroDown = compose.span("zone-hero")
+        assertTrue(gearDown.bottom <= 0f)
+        assertTrue(heroDown.top < hero.top)
+        assertEquals(heroDown.top - hero.top, gearDown.top - gear.top, 1f)
+
+        press(Key.DirectionUp)
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        assertEquals(gear, compose.span("settings-gear"))
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("settings-gear").assertIsFocused()
+    }
+
+    @Test
+    fun `back from the grid brings the gear back to its place without focus`() {
+        setupHome()
+        val gear = compose.span("settings-gear")
+        press(Key.DirectionDown)
+        press(Key.DirectionDown)
         press(Key.Back)
         compose.onNodeWithTag("zone-hero").assertIsFocused()
-        compose.onNodeWithTag("settings-gear").assertExists()
+        assertEquals(gear, compose.span("settings-gear"))
     }
 
     @Test

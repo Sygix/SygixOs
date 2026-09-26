@@ -11,25 +11,18 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.focusGroup
-import androidx.compose.foundation.gestures.BringIntoViewSpec
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -37,14 +30,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import kotlin.math.abs
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -61,11 +52,9 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun HomeGrid(
     catalog: Catalog,
-    alpha: Float,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
     shelfPrograms: List<HeroItem>,
@@ -75,6 +64,10 @@ internal fun HomeGrid(
     onTileFocus: (rowIndex: Int) -> Unit,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
+    origin: Float,
+    viewport: Float,
+    anchor: GridScroll.Anchor?,
+    onAnchor: (GridScroll.Anchor) -> Unit,
     modifier: Modifier = Modifier,
     initialShelfApp: String? = null,
     movingApp: String? = null,
@@ -116,7 +109,6 @@ internal fun HomeGrid(
     val openRow = remember(rows, openApp) { rows.indexOfFirst { row -> row.any { it.packageName == openApp } } }
     val shelfUris = postersOf(openApp)
 
-    val scrollState = rememberScrollState()
     val density = LocalDensity.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val contentWidth = screenWidth - Dimens.ScreenMarginH * 2
@@ -133,22 +125,14 @@ internal fun HomeGrid(
             )
         }
     }
-    var anchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
+    val currentAnchor by rememberUpdatedState(anchor)
 
     fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focus.focusedApp } }
 
-    LaunchedEffect(openRow, focusedApp) {
+    LaunchedEffect(openRow, focusedApp, origin, viewport) {
         val row = focusedRow()
-        if (row < 0) return@LaunchedEffect
-        withFrameNanos { }
-        val viewport = scrollState.viewportSize.toFloat()
-        if (viewport <= 0f) return@LaunchedEffect
-        val next = geometry.next(anchor, row, openRow, viewport)
-        anchor = next
-        val delta = next.scroll - scrollState.value
-        if (abs(delta) >= 1f) {
-            scrollState.animateScrollBy(delta, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
-        }
+        if (row < 0 || viewport <= 0f) return@LaunchedEffect
+        onAnchor(geometry.next(currentAnchor, row, openRow, viewport, origin))
     }
     LaunchedEffect(movingApp, rows) {
         if (movingApp == null) return@LaunchedEffect
@@ -160,69 +144,61 @@ internal fun HomeGrid(
     }
 
     if (catalog.grid.isEmpty()) {
-        Box(modifier.fillMaxSize().alpha(alpha), contentAlignment = Alignment.Center) {
+        Box(modifier.fillMaxWidth().height(with(density) { viewport.toDp() }), contentAlignment = Alignment.Center) {
             Text("Aucune app TV détectée", style = MaterialTheme.typography.titleMedium, color = Color.White.copy(alpha = 0.6f))
         }
         return
     }
 
-    CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScroll) {
-        Column(
-            modifier
-                .fillMaxSize()
-                .alpha(alpha)
-                .verticalScroll(scrollState)
-                .padding(horizontal = Dimens.ScreenMarginH, vertical = Dimens.GridTopMargin)
-                .focusGroup(),
-            verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
-        ) {
-            rows.forEachIndexed { rowIndex, rowApps ->
-                Column {
-                    AnimatedVisibility(
-                        visible = rowIndex == openRow && shelfUris.isNotEmpty(),
-                        enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                            fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
-                        exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                            fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
-                    ) {
-                        ShelfPanel(shelfUris, Modifier.padding(bottom = Dimens.GridRowSpacing))
+    Column(
+        modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.ScreenMarginH, vertical = Dimens.GridTopMargin)
+            .focusGroup(),
+        verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
+    ) {
+        rows.forEachIndexed { rowIndex, rowApps ->
+            Column {
+                AnimatedVisibility(
+                    visible = rowIndex == openRow && shelfUris.isNotEmpty(),
+                    enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
+                        fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
+                    exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
+                        fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
+                ) {
+                    ShelfPanel(shelfUris, Modifier.padding(bottom = Dimens.GridRowSpacing))
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    rowApps.forEachIndexed { column, app ->
+                        key(app.packageName) {
+                            AppTile(
+                                app = app,
+                                focusEnabled = focusEnabled,
+                                onClick = { onTileClick(app) },
+                                onLongClick = { onTileLongClick(app) },
+                                onFocusChanged = { focused ->
+                                    if (focused) {
+                                        onTileFocus(rowIndex)
+                                        focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
+                                        onAppFocused(app.packageName)
+                                    }
+                                },
+                                focusRequester = focus.requesterFor(app.packageName),
+                                lifted = app.packageName == movingApp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
+                            )
+                        }
                     }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        rowApps.forEachIndexed { column, app ->
-                            key(app.packageName) {
-                                AppTile(
-                                    app = app,
-                                    focusEnabled = focusEnabled,
-                                    onClick = { onTileClick(app) },
-                                    onLongClick = { onTileLongClick(app) },
-                                    onFocusChanged = { focused ->
-                                        if (focused) {
-                                            onTileFocus(rowIndex)
-                                            focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
-                                            onAppFocused(app.packageName)
-                                        }
-                                    },
-                                    focusRequester = focus.requesterFor(app.packageName),
-                                    lifted = app.packageName == movingApp,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
-                                )
-                            }
-                        }
-                        repeat(Dimens.GridColumns - rowApps.size) {
-                            Spacer(Modifier.weight(1f))
-                        }
+                    repeat(Dimens.GridColumns - rowApps.size) {
+                        Spacer(Modifier.weight(1f))
                     }
                 }
             }
         }
     }
-}
-
-private val NoAutoScroll = object : BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }

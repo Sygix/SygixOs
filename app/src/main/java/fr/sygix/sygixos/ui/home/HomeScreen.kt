@@ -5,12 +5,18 @@
 
 package fr.sygix.sygixos.ui.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +38,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.CornerRadius
@@ -50,10 +55,12 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +75,8 @@ import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.data.Catalog
+import fr.sygix.sygixos.domain.GridScroll
+import fr.sygix.sygixos.domain.HomePage
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.AmbientGradient
@@ -180,8 +189,17 @@ private fun gearPath(size: Size): Path {
 
 private const val GearTeeth = 8
 
+private class PageMemory {
+    var gridActive: Boolean? = null
+}
+
+private val NoAutoScroll = object : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
+}
+
 private val NoCounts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap())
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LauncherHome(
     catalog: Catalog,
@@ -240,11 +258,14 @@ internal fun LauncherHome(
     }
 
     val heroVisible = zone != Zone.GRID
-    val gridAlpha by animateFloatAsState(if (heroVisible) 0f else 1f, tween(Motion.LAYER_FADE_MS, easing = AppleEasing), label = "gridAlpha")
-    val heroAlpha by animateFloatAsState(if (heroVisible) 1f else 0f, tween(Motion.LAYER_FADE_MS, easing = AppleEasing), label = "heroAlpha")
+    val gridActive = zone == Zone.GRID
+    val pageScroll = rememberScrollState()
+    val pageMemory = remember { PageMemory() }
+    var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
+    val density = LocalDensity.current
 
     CompositionLocalProvider(LocalHazeState provides haze.takeIf { glassBlur }) {
-    Box(
+    BoxWithConstraints(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
@@ -285,32 +306,81 @@ internal fun LauncherHome(
                 }
             },
     ) {
-        HeroStage(
-            items = hero.items,
-            validatedVisuals = hero.validated,
-            active = zone == Zone.HERO && !menuOpen && !settingsOpen,
-            visible = heroVisible && !settingsOpen,
-            focusRequester = heroFocus,
-            claimFocus = !gearFocused,
-            onOpen = onOpenHero,
-            modifier = Modifier.testTag("zone-hero").alpha(heroAlpha).hazeSource(haze, zIndex = 0f),
-        )
-        AmbientGradient(Modifier.fillMaxSize().alpha(gridAlpha).hazeSource(haze, zIndex = 1f))
-        HomeGrid(
-            catalog = catalog,
-            alpha = gridAlpha,
-            focusEnabled = zone == Zone.GRID && !menuOpen,
-            focusRequester = gridFocus,
-            shelfPrograms = if (hero.fromApps) hero.items else emptyList(),
-            validatedVisuals = hero.validated,
-            checkedVisuals = hero.checked,
-            onAppFocused = onAppFocused,
-            onTileFocus = { gridRow = it },
-            onTileClick = onOpenApp,
-            onTileLongClick = { menuApp = it },
-            movingApp = movingApp,
-            modifier = Modifier.testTag("zone-grid").hazeSource(haze, zIndex = 2f),
-        )
+        val viewportHeight = maxHeight
+        val viewport = with(density) { viewportHeight.toPx() }
+        val pageTarget = HomePage.target(gridActive, gridAnchor, viewport)
+        LaunchedEffect(gridActive, pageTarget) {
+            val transition = HomePage.transition(pageMemory.gridActive, gridActive)
+            pageMemory.gridActive = gridActive
+            val target = pageTarget.roundToInt()
+            when (transition) {
+                HomePage.Transition.SNAP -> pageScroll.scrollTo(target)
+                HomePage.Transition.ZONE -> pageScroll.animateScrollTo(target, tween(Motion.PAGE_SCROLL_MS, easing = AppleEasing))
+                HomePage.Transition.SAME_ZONE -> pageScroll.animateScrollTo(target, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
+            }
+        }
+        CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScroll) {
+            Column(Modifier.fillMaxSize().verticalScroll(pageScroll, enabled = false)) {
+                Box(Modifier.fillMaxWidth().height(viewportHeight)) {
+                    HeroStage(
+                        items = hero.items,
+                        validatedVisuals = hero.validated,
+                        active = zone == Zone.HERO && !menuOpen && !settingsOpen,
+                        visible = heroVisible && !settingsOpen,
+                        focusRequester = heroFocus,
+                        claimFocus = !gearFocused,
+                        onOpen = onOpenHero,
+                        modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
+                    )
+                    Dock(
+                        apps = catalog.dock,
+                        active = heroVisible,
+                        focusEnabled = zone == Zone.DOCK && !menuOpen,
+                        focusRequester = dockFocus,
+                        onTileClick = onOpenApp,
+                        onTileLongClick = { menuApp = it },
+                        modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
+                    )
+                    if (!settingsOpen) {
+                        SettingsGear(
+                            focusEnabled = zone == Zone.HERO && !menuOpen,
+                            focusRequester = gearFocus,
+                            onFocusedChange = { gearFocused = it },
+                            onOpen = { settingsOpen = true },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 24.dp, end = 48.dp),
+                        )
+                    }
+                }
+                Box(
+                    Modifier
+                        .testTag("zone-grid")
+                        .fillMaxWidth()
+                        .heightIn(min = viewportHeight)
+                        .hazeSource(haze, zIndex = 1f),
+                ) {
+                    AmbientGradient(Modifier.matchParentSize())
+                    HomeGrid(
+                        catalog = catalog,
+                        focusEnabled = zone == Zone.GRID && !menuOpen,
+                        focusRequester = gridFocus,
+                        shelfPrograms = if (hero.fromApps) hero.items else emptyList(),
+                        validatedVisuals = hero.validated,
+                        checkedVisuals = hero.checked,
+                        onAppFocused = onAppFocused,
+                        onTileFocus = { gridRow = it },
+                        onTileClick = onOpenApp,
+                        onTileLongClick = { menuApp = it },
+                        origin = viewport,
+                        viewport = viewport,
+                        anchor = gridAnchor,
+                        onAnchor = { gridAnchor = it },
+                        movingApp = movingApp,
+                    )
+                }
+            }
+        }
         if (movingApp != null) {
             GlassSurface(
                 Modifier
@@ -323,33 +393,6 @@ internal fun LauncherHome(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-                )
-            }
-        }
-        Dock(
-            apps = catalog.dock,
-            alpha = heroAlpha,
-            focusEnabled = zone == Zone.DOCK && !menuOpen,
-            focusRequester = dockFocus,
-            onTileClick = onOpenApp,
-            onTileLongClick = { menuApp = it },
-            modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
-        )
-        if (!settingsOpen) {
-            AnimatedVisibility(
-                visible = heroVisible,
-                enter = fadeIn(tween(Motion.LAYER_FADE_MS, easing = AppleEasing)),
-                exit = fadeOut(tween(Motion.LAYER_FADE_MS, easing = AppleEasing)),
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 24.dp, end = 48.dp)
-                    .zIndex(6f),
-            ) {
-                SettingsGear(
-                    focusEnabled = zone == Zone.HERO && !menuOpen,
-                    focusRequester = gearFocus,
-                    onFocusedChange = { gearFocused = it },
-                    onOpen = { settingsOpen = true },
                 )
             }
         }

@@ -9,6 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onRoot
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.HeroItem
@@ -64,3 +67,13 @@ internal fun TestHome(
         }
     }
 }
+
+internal data class Span(val top: Float, val bottom: Float)
+
+internal fun ComposeContentTestRule.span(tag: String): Span {
+    val node = onNodeWithTag(tag).fetchSemanticsNode()
+    val top = node.positionInRoot.y
+    return Span(top, top + node.size.height)
+}
+
+internal fun ComposeContentTestRule.screenHeight(): Float = onRoot().fetchSemanticsNode().size.height.toFloat()

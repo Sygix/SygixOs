@@ -13,7 +13,7 @@ val AppleEasing: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
 
 object Motion {
     const val FOCUS_MS = 300
-    const val LAYER_FADE_MS = 400
+    const val PAGE_SCROLL_MS = 400
     const val HERO_CROSSFADE_MS = 1_400
     const val HERO_VIDEO_FADE_MS = 700
     const val HERO_DWELL_MS = 12_000L

@@ -62,4 +62,25 @@ class GridScrollTest {
         val opened = grid.next(null, 0, 0, viewport)
         assertEquals(0f, opened.scroll, 0f)
     }
+
+    @Test
+    fun `with an origin the grid starts there and every position is shifted by it`() {
+        val origin = 540f
+        assertEquals(580f, grid.rowTop(0, -1, origin), 0f)
+        val first = grid.next(null, 0, -1, viewport, origin)
+        assertEquals(origin, first.scroll, 0f)
+        val fourth = grid.next(first, 4, -1, viewport, origin)
+        assertEquals(origin + 50f, fourth.scroll, 0f)
+        val deep = grid.next(grid.next(null, 5, -1, viewport, origin), 5, 5, viewport, origin)
+        assertEquals(origin + 504f, deep.scroll, 0f)
+    }
+
+    @Test
+    fun `with an origin the scroll never goes above the grid`() {
+        val origin = 540f
+        val opened = grid.next(null, 0, 0, viewport, origin)
+        assertEquals(origin, opened.scroll, 0f)
+        val back = grid.next(GridScroll.Anchor(0f, 3, 0f), 0, -1, viewport, origin)
+        assertEquals(origin, back.scroll, 0f)
+    }
 }

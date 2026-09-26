@@ -65,7 +65,7 @@ Restore with `adb shell pm enable <package>`. Use at your own risk: disabling th
 
 ## Navigation
 
-Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom) → grid (covers the hero).
+Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom of the hero) → grid. The home screen is a single page: the hero fills the first screen, with the dock and the settings gear on it, and the grid sits below. Going from the dock to the grid scrolls the page in one continuous move: the hero, the dock and the gear slide out at the top while the grid comes up. Up from the first row, or Back, scrolls back.
 
 - **Down / Up**: switch tiers; only the active zone takes focus.
 - **Left / Right**: stay within the zone (previous or next program on the hero).
