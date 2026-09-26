@@ -40,7 +40,11 @@ La grille SHALL être couverte par des tests de rendu et d'insertion du panneau 
 
 #### Scenario: panneau shelf au focus
 - **WHEN** une tuile d'app avec contenu publié prend le focus
-- **THEN** le panneau shelf est inséré dans la grille (présence vérifiée par testTag) ; **WHEN** l'app ne publie rien THEN aucun panneau n'est inséré
+- **THEN** le panneau shelf est inséré dans la grille (présence vérifiée par testTag)
+
+#### Scenario: shelf sans contenu
+- **WHEN** l'app ne publie rien
+- **THEN** aucun panneau n'est inséré
 
 ### Requirement: Couverture héro
 Le héro SHALL être couvert par des tests de rendu du carrousel et de l'état fallback.
@@ -58,7 +62,11 @@ La navigation D-pad entre héro, dock et grille SHALL être couverte par des tes
 
 #### Scenario: descente
 - **WHEN** l'utilisateur presse bas depuis le héro (dock non vide)
-- **THEN** le focus passe au dock ; **WHEN** il presse bas depuis le dock THEN la grille prend le focus
+- **THEN** le focus passe au dock
+
+#### Scenario: descente depuis le dock
+- **WHEN** l'utilisateur presse bas depuis le dock
+- **THEN** la grille prend le focus
 
 #### Scenario: descente sans dock
 - **WHEN** l'utilisateur presse bas depuis le héro alors que le dock est vide
