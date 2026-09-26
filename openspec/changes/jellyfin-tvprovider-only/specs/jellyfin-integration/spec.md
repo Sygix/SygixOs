@@ -4,6 +4,7 @@
 
 ### Requirement: Configuration
 **Reason :** Aucune connexion au serveur Jellyfin : l'intégration passe exclusivement par le TV Provider Android, il n'y a ni credentials ni authentification.
+**Migration :** Aucune : aucun écran, stockage ni code de configuration Jellyfin n'existe dans le launcher.
 
 ## MODIFIED Requirements
 
@@ -16,7 +17,7 @@ Le client Jellyfin SHALL être consommé exclusivement via les programmes qu'il 
 
 #### Scenario: aucun client Jellyfin
 - **WHEN** aucun programme Jellyfin n'est présent dans le TV Provider (client absent, non authentifié ou sans contenu en cours)
-- **THEN** la rangée applique les états spécifiés par up-next (rangée masquée), sans erreur ni invitation à configurer quoi que ce soit
+- **THEN** l'état affiché suit « États de la rangée » de up-next, sans erreur ni invitation à configurer quoi que ce soit
 
 ### Requirement: Résilience
 L'app SHALL tolérer un TV Provider vide ou indisponible sans crash ; les états affichés dans ces cas sont ceux spécifiés par la capability up-next.
