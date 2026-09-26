@@ -9,9 +9,9 @@ Préalable (fait) : la PR #17 (`fix/home-ui-bugs`) est mergée sur `main`, son c
 - [x] 1.4 Test `LauncherPrefsTest` d'une entrée de date orpheline (package absent de l'ensemble) ignorée à la lecture et absente après la prochaine écriture
 
 ## 2. Tri (logique pure)
-- [ ] 2.1 Créer `domain/SettingsOrdering.kt` avec `sources(apps, counts)` (D7) ; tests JUnit `SettingsOrderingTest` : 12 / 0 / 3 / 0 donne l'ordre 12, 3, puis alphabétique ; compteurs absents (map vide) donne l'alphabétique complet ; la casse du nom n'influence pas l'ordre
-- [ ] 2.2 Ajouter `hidden(apps, dates)` ; tests JUnit : datées de la plus récente à la plus ancienne puis non datées alphabétiques ; toutes sans date → alphabétique ; toutes datées → aucune partie alphabétique
-- [ ] 2.3 Départage à égalité (> 0) par ordre alphabétique insensible à la casse dans `sources` ; test JUnit `SettingsOrderingTest` : deux apps à 5 programmes (« beta », « Alpha ») et une à 7 donnent 7, « Alpha », « beta »
+- [x] 2.1 Créer `domain/SettingsOrdering.kt` avec `sources(apps, counts)` (D7) ; tests JUnit `SettingsOrderingTest` : 12 / 0 / 3 / 0 donne l'ordre 12, 3, puis alphabétique ; compteurs absents (map vide) donne l'alphabétique complet ; la casse du nom n'influence pas l'ordre
+- [x] 2.2 Ajouter `hidden(apps, dates)` ; tests JUnit : datées de la plus récente à la plus ancienne puis non datées alphabétiques ; toutes sans date → alphabétique ; toutes datées → aucune partie alphabétique
+- [x] 2.3 Départage à égalité (> 0) par ordre alphabétique insensible à la casse dans `sources` ; test JUnit `SettingsOrderingTest` : deux apps à 5 programmes (« beta », « Alpha ») et une à 7 donnent 7, « Alpha », « beta »
 
 ## 3. Réglages : volet « Applications cachées » et tri des listes
 - [ ] 3.1 `SettingsViewModel` : exposer `hiddenRows` (composition instantanée, état `hidden` vivant) et `refreshHiddenRows()` (D5) ; test `SettingsViewModelTest` : après `unhide`, la ligne est toujours présente avec `hidden = false` ; après `hide` de la même app, `hidden = true` sans changement d'ordre ; après `refreshHiddenRows()`, la ligne réactivée a disparu
