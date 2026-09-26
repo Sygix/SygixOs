@@ -29,6 +29,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -36,12 +38,10 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusRestorer
 import kotlin.math.abs
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -58,7 +58,7 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun HomeGrid(
     catalog: Catalog,
@@ -78,6 +78,7 @@ internal fun HomeGrid(
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
     var focusedApp by remember { mutableStateOf(initialShelfApp) }
+    var focusedIndex by remember { mutableIntStateOf(0) }
     var openApp by remember { mutableStateOf<String?>(null) }
 
     val visuals by rememberUpdatedState(validatedVisuals)
@@ -125,10 +126,9 @@ internal fun HomeGrid(
 
     fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focusedApp } }
 
-    fun restoreTarget(): FocusRequester {
-        val app = catalog.grid.firstOrNull { it.packageName == focusedApp } ?: catalog.grid.firstOrNull()
-        return app?.let { requesterFor(it.packageName) } ?: FocusRequester.Default
-    }
+    val focusedGone = focusedApp != null && catalog.grid.none { it.packageName == focusedApp }
+    val entryApp = (catalog.grid.firstOrNull { it.packageName == focusedApp }
+        ?: catalog.grid.getOrNull(focusedIndex.coerceAtMost(catalog.grid.lastIndex)))?.packageName
 
     LaunchedEffect(openRow, focusedApp) {
         val row = focusedRow()
@@ -153,6 +153,11 @@ internal fun HomeGrid(
         if (abs(delta) > 1f) {
             scrollState.animateScrollBy(delta, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
         }
+    }
+    LaunchedEffect(rows, focusEnabled) {
+        if (!focusEnabled || entryApp == null || !(focusedGone || focusedApp != null)) return@LaunchedEffect
+        withFrameNanos { }
+        requesterFor(entryApp).tryRequestFocus()
     }
     LaunchedEffect(movingApp, rows) {
         if (movingApp == null) return@LaunchedEffect
@@ -179,8 +184,6 @@ internal fun HomeGrid(
             .alpha(alpha)
             .verticalScroll(scrollState)
             .padding(horizontal = Dimens.ScreenMarginH, vertical = Dimens.GridTopMargin)
-            .focusRequester(focusRequester)
-            .focusRestorer { restoreTarget() }
             .focusGroup(),
         verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
     ) {
@@ -199,23 +202,28 @@ internal fun HomeGrid(
                 horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                rowApps.forEach { app ->
-                    AppTile(
-                        app = app,
-                        focusEnabled = focusEnabled,
-                        onClick = { onTileClick(app) },
-                        onLongClick = { onTileLongClick(app) },
-                        onFocusChanged = { focused ->
-                            if (focused) {
-                                onTileFocus(rowIndex)
-                                focusedApp = app.packageName
-                                onAppFocused(app.packageName)
-                            }
-                        },
-                        focusRequester = requesterFor(app.packageName),
-                        lifted = app.packageName == movingApp,
-                        modifier = Modifier.weight(1f),
-                    )
+                rowApps.forEachIndexed { column, app ->
+                    key(app.packageName) {
+                        AppTile(
+                            app = app,
+                            focusEnabled = focusEnabled,
+                            onClick = { onTileClick(app) },
+                            onLongClick = { onTileLongClick(app) },
+                            onFocusChanged = { focused ->
+                                if (focused) {
+                                    onTileFocus(rowIndex)
+                                    focusedApp = app.packageName
+                                    focusedIndex = rowIndex * Dimens.GridColumns + column
+                                    onAppFocused(app.packageName)
+                                }
+                            },
+                            focusRequester = requesterFor(app.packageName),
+                            lifted = app.packageName == movingApp,
+                            modifier = Modifier
+                                .weight(1f)
+                                .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
+                        )
+                    }
                 }
                 repeat(Dimens.GridColumns - rowApps.size) {
                     Spacer(Modifier.weight(1f))

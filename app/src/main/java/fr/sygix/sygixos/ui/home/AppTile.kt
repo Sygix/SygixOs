@@ -75,12 +75,12 @@ internal fun AppTile(
 }
 
 @Composable
-private fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
+internal fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
     val context = LocalContext.current
     val provided = LocalAppArtwork.current
     val source = remember(provided) { provided ?: AppArtworkSource(context.packageManager) }
     return produceState<AppArtwork?>(initialValue = source.cached(app), app.packageName, source) {
-        if (value == null) value = withContext(Dispatchers.IO) { runCatching { source.load(app) }.getOrNull() }
+        value = source.cached(app) ?: withContext(Dispatchers.IO) { runCatching { source.load(app) }.getOrNull() }
     }
 }
 
