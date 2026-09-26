@@ -1,6 +1,6 @@
 # Delta launcher-shell
 
-Les trois exigences ci-dessous changent le rendu de la transition héro ↔ grille (défilement vertical continu à la place d'un fondu de couches). Les paliers, les règles de focus, le Top Shelf, la mise en pause et la libération du héro restent spécifiés par leurs exigences existantes (« Panneau Top Shelf au focus », « Fond vidéo de secours », « Préchargement et mémoire »), auxquelles ces scénarios renvoient. La courbe et les durées sont celles du design system, spécifiées par « Focus tvOS » (250-400 ms, courbe Apple) : elles ne sont pas recopiées ici. L'engrenage suit le héro comme le dock : son comportement est spécifié par « Icône réglages flottante » de `settings`, auquel ces scénarios renvoient. `p2c-upnext` (sur `main`, non archivé, implémenté après ce change) modifie aussi « Navigation 3 paliers » : voir `proposal.md`, « Dépendances et chevauchements ».
+Les trois premières exigences ci-dessous changent le rendu de la transition héro ↔ grille (défilement vertical continu à la place d'un fondu de couches). La quatrième, « Panneau Top Shelf au focus », garde sa règle de placement telle qu'elle est sur `main` ; seul son scénario « sortie et retour dans la grille » est reformulé pour la page d'un seul tenant : la page remonte jusqu'au héro, mais la position de la grille est conservée et retrouvée à la redescente. Les paliers, les règles de focus, la mise en pause et la libération du héro restent spécifiés par leurs exigences existantes (« Fond vidéo de secours », « Préchargement et mémoire »), auxquelles ces scénarios renvoient. « Focus d'une app disparue » reste valable telle quelle : quand la zone active se vide, le héro reprend le focus et la page revient au héro avec l'animation de « Navigation 3 paliers ». La courbe et les durées sont celles du design system, spécifiées par « Focus tvOS » (250-400 ms, courbe Apple) : elles ne sont pas recopiées ici. L'engrenage suit le héro comme le dock : son comportement est spécifié par « Icône réglages flottante » de `settings`, auquel ces scénarios renvoient. `p2c-upnext` (sur `main`, non archivé, implémenté après ce change) modifie aussi « Navigation 3 paliers » : voir `proposal.md`, « Dépendances et chevauchements ».
 
 ## MODIFIED Requirements
 
@@ -13,7 +13,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 
 #### Scenario: traversée du dock
 - **WHEN** l'utilisateur descend depuis le dock
-- **THEN** la page défile d'environ un écran en une seule animation continue : le héro, le dock et l'engrenage (« Icône réglages flottante » de `settings`) sortent par le haut pendant que la grille remonte jusqu'à occuper tout l'écran ; la grille prend le focus (dernière tuile visitée, sinon la première) ; la lecture du héro est mise en pause
+- **THEN** la page défile en une seule animation continue : le héro, le dock et l'engrenage (« Icône réglages flottante » de `settings`) sortent par le haut pendant que la grille remonte jusqu'à occuper tout l'écran, d'environ un écran à la première entrée, jusqu'à la position de la grille laissée à la sortie sinon (« Panneau Top Shelf au focus », scénario « sortie et retour dans la grille ») ; la grille prend le focus (dernière tuile visitée, sinon la première) ; la lecture du héro est mise en pause
 
 #### Scenario: dock jamais visible en vue grille
 - **WHEN** la zone grille est active, pendant ou après le défilement
@@ -72,3 +72,46 @@ Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro 
 #### Scenario: héro hors écran
 - **WHEN** le héro est entièrement hors écran
 - **THEN** sa lecture est en pause et ses ressources sont libérées conformément à « Préchargement et mémoire » et « Fond vidéo de secours »
+
+### Requirement: Panneau Top Shelf au focus
+Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focusée, et se refermer quand l'app focusée n'a rien à montrer ; aucune place n'est réservée quand il est fermé. Le défilement de la grille SHALL suivre une règle de placement unique, appliquée au bloc focusé (la rangée focusée, plus le panneau quand il est ouvert au-dessus d'elle) : le bloc reste entre la marge haute de la grille (40 dp sous le haut de l'écran) et la marge basse (20 dp au-dessus du bas de l'écran, l'espacement entre rangées). La grille ne défile que pour y ramener le bloc, et ce défilement est animé avec la durée et la courbe de l'expansion du panneau. Tant que la zone grille est active, la page ne remonte jamais au-dessus du début de la grille : le héro reste hors écran.
+
+#### Scenario: arrivée dans la grille
+- **WHEN** l'utilisateur descend du dock vers la grille
+- **THEN** la grille occupe tout l'écran, sans emplacement réservé ni panneau
+
+#### Scenario: insertion
+- **WHEN** le focus reste environ 3 s sur une tuile dont l'app a des visuels validés
+- **THEN** le panneau s'insère au-dessus de la rangée focusée (la rangée précédente reste au-dessus du panneau), avec une animation d'expansion ; la rangée focusée reste immobile à l'écran et les rangées précédentes remontent pour laisser la place au panneau
+
+#### Scenario: insertion près du haut
+- **WHEN** le panneau s'ouvre au-dessus d'une rangée trop proche du haut pour qu'il tienne sous la marge haute sans déplacer cette rangée
+- **THEN** le haut du panneau s'aligne sur la marge haute et la rangée focusée descend juste ce qu'il faut pour lui laisser la place
+
+#### Scenario: déplacement du focus
+- **WHEN** un panneau est déjà ouvert et le focus passe à une autre tuile dont l'app a des visuels validés
+- **THEN** le panneau montre immédiatement les visuels de la nouvelle app, sans délai ni fermeture intermédiaire, et se replace au-dessus de la nouvelle rangée focusée
+
+#### Scenario: fermeture
+- **WHEN** le focus passe sur une tuile dont l'app n'a aucun visuel validé
+- **THEN** le panneau se referme et la grille reprend toute la place ; la rangée focusée reste immobile à l'écran, sauf près du début de la grille, quand il ne reste plus de quoi défiler : la grille revient alors à sa position de départ
+
+#### Scenario: focus toujours visible
+- **WHEN** le panneau s'ouvre, se ferme ou change de rangée, ou que le focus change de rangée
+- **THEN** la tuile focusée reste entièrement visible entre les marges, selon les scénarios de cette exigence ; la grille ne défile pas davantage
+
+#### Scenario: déplacement dans une rangée
+- **WHEN** le focus passe à gauche ou à droite dans la même rangée, sans ouverture ni fermeture du panneau
+- **THEN** la grille ne défile pas
+
+#### Scenario: changement de rangée
+- **WHEN** le focus passe sur une autre rangée
+- **THEN** la grille ne défile pas si le bloc focusé est déjà entre les marges ; sinon elle défile juste ce qu'il faut pour l'y ramener : bas de la rangée sur la marge basse en descendant, haut du bloc sur la marge haute en montant
+
+#### Scenario: bloc trop grand
+- **WHEN** le bloc focusé ne tient pas entre les deux marges
+- **THEN** le haut du bloc (le haut du panneau s'il est ouvert) s'aligne sur la marge haute
+
+#### Scenario: sortie et retour dans la grille
+- **WHEN** l'utilisateur quitte la zone grille (Retour, ou remontée vers le dock ou le héro) puis y revient
+- **THEN** la page défile jusqu'au héro (« Navigation 3 paliers »), mais la position de la grille n'est pas remise à zéro : au retour, la page redescend jusqu'à la position de la grille laissée à la sortie, la rangée focusée à la même place à l'écran (le panneau éventuellement ouvert s'est refermé à la sortie), le focus va à la dernière tuile visitée (« Navigation 3 paliers »), et la grille ne défile davantage que si cette tuile est hors des marges

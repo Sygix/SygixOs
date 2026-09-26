@@ -1,15 +1,15 @@
 # Delta settings
 
-Cinq exigences modifiées : « Icône réglages flottante » (l'engrenage part avec le héro), « Page de réglages » (exception de focus pour le volet « Applications cachées »), « Applications cachées » (liste dans le volet de droite, plus de sous-écran), « Apps sources » (tri figé à l'entrée) et « Cacher une application » (date de masquage). `p2c-upnext` (sur `main`, non archivé, implémenté après ce change) modifie aussi « Page de réglages », « Apps sources » et « Cacher une application » : voir `proposal.md`, « Dépendances et chevauchements ».
+Cinq exigences modifiées : « Icône réglages flottante » (texte courant : engrenage opaque sans fond ni verre, affiché seulement avec le héro ; ce change remplace son fondu par le défilement : l'engrenage part avec le héro), « Page de réglages » (exception de focus pour le volet « Applications cachées »), « Applications cachées » (liste dans le volet de droite, plus de sous-écran), « Apps sources » (tri figé à l'entrée) et « Cacher une application » (date de masquage). `p2c-upnext` (sur `main`, non archivé, implémenté après ce change) modifie aussi « Page de réglages », « Apps sources » et « Cacher une application » : voir `proposal.md`, « Dépendances et chevauchements ».
 
 ## MODIFIED Requirements
 
 ### Requirement: Icône réglages flottante
-Le home SHALL afficher sur le héro une icône engrenage flottante en haut à droite, discrète (verre translucide, faible opacité), qui ouvre la page de réglages. L'engrenage SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : pendant le défilement vers la grille il sort par le haut avec le héro, et il n'est jamais visible en vue grille.
+Le home SHALL afficher sur le héro une icône engrenage flottante en haut à droite, qui ouvre la page de réglages. L'icône SHALL être un engrenage plein façon tvOS, blanc opaque, dessiné sans fond, sans bordure ni matériau verre. L'engrenage SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : il n'a aucun fondu propre, sort par le haut avec le héro pendant le défilement vers la grille, revient avec lui, et il n'est jamais visible en vue grille.
 
 #### Scenario: affichage
 - **WHEN** le héro est affiché
-- **THEN** l'icône engrenage est visible en haut à droite, en matériau verre translucide discret (lisible sur le héro vidéo sans le masquer), sans détourner le focus du héro à l'ouverture du home
+- **THEN** l'engrenage est visible en haut à droite, blanc opaque, sans fond, sans bordure ni verre, sans masquer le héro et sans détourner le focus du héro à l'ouverture du home
 
 #### Scenario: accès DPAD
 - **WHEN** l'utilisateur presse haut depuis le héro
@@ -19,9 +19,13 @@ Le home SHALL afficher sur le héro une icône engrenage flottante en haut à dr
 - **WHEN** l'utilisateur presse OK sur l'icône réglages
 - **THEN** la page de réglages plein écran s'ouvre, la lecture du héro est mise en pause
 
-#### Scenario: défilement vers la grille
-- **WHEN** la page de l'accueil défile du héro vers la grille ou revient vers le héro (« Navigation 3 paliers » de `launcher-shell`)
-- **THEN** l'engrenage suit exactement le mouvement du héro, sans fondu propre ni décalage : il sort par le haut à la descente, revient avec le héro à la remontée, et il est entièrement hors écran en vue grille
+#### Scenario: zone grille
+- **WHEN** l'utilisateur passe en zone grille et la page de l'accueil défile du héro vers la grille (« Navigation 3 paliers » de `launcher-shell`)
+- **THEN** l'engrenage suit exactement le mouvement du héro, sans fondu propre ni décalage, et sort par le haut avec lui ; à la fin du défilement il est entièrement hors écran ; il n'est ni visible ni focusable tant que la grille est affichée
+
+#### Scenario: retour sur le héro
+- **WHEN** l'utilisateur revient sur le héro depuis la grille (Retour, ou remontée par le dock)
+- **THEN** l'engrenage revient par le haut avec le héro, dans le même mouvement et sans fondu propre, jusqu'à sa position initiale, sans prendre le focus
 
 ### Requirement: Page de réglages
 Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, fond sombre neutre, navigable au DPAD uniquement.
