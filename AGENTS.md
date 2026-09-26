@@ -31,7 +31,15 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
 - Commits signés et author cohérent avec le compte GitHub
 - Namespace Android : `fr.sygix.<appname>` — launcher : `fr.sygix.sygixos`
 - Cible : Android 14+ (minSdk 34, compileSdk 37)
-- Dépendances externes : uniquement des libs éprouvées/maintenues (Room, Retrofit, Coil...)
+- Dépendances externes : uniquement des libs éprouvées/maintenues (Room, Retrofit, Coil...), sous licence compatible AGPL-3.0 (Apache-2.0, MIT, BSD, LGPL, GPL-3.0…)
+- Licence : AGPL-3.0-or-later. Tout fichier `.kt` / `.kts` créé commence par cet en-tête, puis une ligne vide (y compris les tests) :
+  ```
+  /*
+   * Copyright (C) <année> Sygix
+   * SPDX-License-Identifier: AGPL-3.0-or-later
+   */
+  ```
+  Avant de pousser, vérifier qu'aucun fichier n'en manque : `git ls-files '*.kt' '*.kts' | xargs grep -L 'SPDX-License-Identifier: AGPL-3.0-or-later'` doit être vide
 
 ## Environnement
 - Messages de commit en anglais, impératif court

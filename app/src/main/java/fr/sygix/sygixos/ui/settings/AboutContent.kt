@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2026 Sygix
- * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 package fr.sygix.sygixos.ui.settings
@@ -64,7 +64,7 @@ internal fun AboutContent(
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            "SygixOs est un logiciel libre distribué sous licence GNU GPL-3.0. " +
+            "SygixOs est un logiciel libre distribué sous licence GNU AGPL-3.0. " +
                 "Le code source est disponible sur github.com/Sygix/SygixOs.",
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.7f),

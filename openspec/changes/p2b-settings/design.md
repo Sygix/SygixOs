@@ -18,7 +18,7 @@ Composant switch unique réutilisé partout (apps sources, apps cachées) : OK b
 Une app cachée reste comptée dans les apps sources et vice versa. Le masquage survit à la réinstallation de l'app.
 
 ### Licences OSS et version
-Plugin Gradle `aboutlibraries` : les licences sont générées automatiquement depuis les dépendances réelles du build, affichées dans « À propos » (liste navigable DPAD). La licence GPL-3.0 du repo est également présentée dans cette section. La version affichée provient du versionName de l'app.
+Plugin Gradle `aboutlibraries` : les licences sont générées automatiquement depuis les dépendances réelles du build, affichées dans « À propos » (liste navigable DPAD). La licence AGPL-3.0 du repo est également présentée dans cette section. La version affichée provient du versionName de l'app.
 
 ### Nombre de programmes publiés
 Affiché sous le nom dans la ligne « Apps sources » (comptage TV Provider par app, requête légère au chargement de la catégorie, cache accepté) — utile pour diagnostiquer une app qui ne publie rien.
