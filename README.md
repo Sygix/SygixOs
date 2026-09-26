@@ -31,7 +31,9 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS: Li
 | P1 | Scaffold, Liquid Glass design system, app grid, dock | ✅ done |
 | P2a | Full-screen hero fed by the TV Provider, Top Shelf preview, nature fallback | ✅ done |
 | P2b | Settings: source apps, hidden apps, about | ✅ done |
-| P2c | Up Next row (all apps, deduplication) | 📝 spec in review ([#13](https://github.com/Sygix/SygixOs/pull/13)) |
+| Polish | Home fixes: settings gear, grid and dock refresh, Top Shelf placement | ✅ done (v0.0.1-rc.2) |
+| Polish | Continuous hero/grid scroll, hidden apps in the settings panel, source apps sorting | 🚧 in progress ([#16](https://github.com/Sygix/SygixOs/pull/16)) |
+| P2c | Up Next row (all apps, deduplication) | 📝 spec done, implementation planned |
 | P2c | Search | planned |
 | P3 | Screensaver (looping nature clips, local cache) | planned |
 | P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
