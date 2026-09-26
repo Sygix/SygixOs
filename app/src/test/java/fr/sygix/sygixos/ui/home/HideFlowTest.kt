@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -72,6 +73,8 @@ class HideFlowTest {
             }
             compose.waitForIdle()
         }
+        // Ne pas supposer l'ordre du menu : vérifier que « Cacher » a le focus avant OK.
+        compose.onNodeWithTag("menu-hide").assertIsFocused()
         compose.onRoot().performKeyInput {
             keyDown(Key.Enter)
             keyUp(Key.Enter)

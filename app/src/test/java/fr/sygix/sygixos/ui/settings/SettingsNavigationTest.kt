@@ -9,7 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
@@ -41,6 +43,7 @@ class SettingsNavigationTest {
     private fun setState(
         sources: List<SourceRow> = emptyList(),
         hidden: List<TvApp> = emptyList(),
+        onBack: () -> Unit = {},
     ) {
         compose.setContent {
             MaterialTheme {
@@ -49,6 +52,7 @@ class SettingsNavigationTest {
                     onToggleSource = { toggled.add(it) },
                     onUnhide = { unhid.add(it) },
                     onUnhideAll = { unhideAll++ },
+                    onBack = onBack,
                 )
             }
         }
@@ -71,12 +75,11 @@ class SettingsNavigationTest {
     fun `up and down in left pane switch the active category`() {
         setState()
         press(Key.DirectionDown)
-        compose.onNodeWithTag("settings-category-HIDDEN").assertExists()
-        compose.onNodeWithTag("open-hidden").assertExists()
+        compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
         press(Key.DirectionDown)
-        compose.onNodeWithTag("settings-about").assertExists()
+        compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
         press(Key.DirectionUp)
-        compose.onNodeWithTag("open-hidden").assertExists()
+        compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
     }
 
     @Test
@@ -97,18 +100,41 @@ class SettingsNavigationTest {
     }
 
     @Test
-    fun `hidden category opens sub screen and back returns to settings pane`() {
+    fun `right on hidden category focuses the entry and ok opens the sub screen`() {
         setState(hidden = listOf(TvApp("com.h", "H")))
         press(Key.DirectionDown)
         press(Key.DirectionRight)
+        // Droite ne fait que focaliser le volet droit : le sous-écran reste fermé.
+        compose.onNodeWithTag("open-hidden").assertIsFocused()
+        compose.onNodeWithTag("hidden-apps-screen").assertDoesNotExist()
+        // Seule la validation (OK) ouvre le sous-écran ; Retour revient sur la catégorie.
+        press(Key.Enter)
         compose.onNodeWithTag("hidden-apps-screen").assertExists()
         press(Key.Back)
         compose.onNodeWithTag("hidden-apps-screen").assertDoesNotExist()
-        compose.onNodeWithTag("settings-screen").assertExists()
+        compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
     }
 
     @Test
-    fun `emptying the hidden list while sub-screen is open closes it and back reaches settings`() {
+    fun `empty hidden list still focuses the entry and ok shows the empty sub screen`() {
+        var backs = 0
+        setState(onBack = { backs++ })
+        press(Key.DirectionDown)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("open-hidden").assertIsFocused()
+        press(Key.Enter)
+        // État vide navigable : le sous-écran reste ouvert, Retour fonctionne.
+        compose.onNodeWithTag("hidden-apps-screen").assertExists()
+        compose.onNodeWithTag("hidden-empty").assertExists()
+        press(Key.Back)
+        compose.onNodeWithTag("hidden-apps-screen").assertDoesNotExist()
+        compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
+        press(Key.Back)
+        assertEquals(1, backs)
+    }
+
+    @Test
+    fun `emptying the hidden list while sub-screen is open keeps it navigable`() {
         val hidden = mutableStateOf(listOf(TvApp("com.h", "H")))
         var backs = 0
         compose.setContent {
@@ -125,14 +151,43 @@ class SettingsNavigationTest {
         compose.waitForIdle()
         press(Key.DirectionDown)
         press(Key.DirectionRight)
+        press(Key.Enter)
         compose.onNodeWithTag("hidden-apps-screen").assertExists()
         press(Key.Enter)
+        // La liste est vidée : le sous-écran reste ouvert sur son état vide (pas d'auto-fermeture).
+        compose.onNodeWithTag("hidden-empty").assertExists()
+        compose.onNodeWithTag("hidden-apps-screen").assertExists()
+        press(Key.Back)
         compose.onNodeWithTag("hidden-apps-screen").assertDoesNotExist()
-        compose.onNodeWithTag("hidden-empty").assertDoesNotExist()
         compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
         press(Key.Back)
         assertEquals(1, backs)
         compose.onNodeWithTag("settings-screen").assertExists()
+    }
+
+    @Test
+    fun `right on about focuses licenses and back returns to categories`() {
+        setState()
+        press(Key.DirectionDown)
+        press(Key.DirectionDown)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("about-licenses").assertIsFocused()
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+    }
+
+    @Test
+    fun `long sources list keeps dpad navigation working`() {
+        val rows = (1..30).map { SourceRow(app = TvApp("com.s$it", "S$it"), enabled = true) }
+        setState(sources = rows)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("source-row-com.s1").assertIsFocused()
+        // Liste plus longue que la fenêtre visible : le focus reste dans le volet droit
+        // (LazyColumn : la recherche de focus ne compose pas au-delà de la fenêtre).
+        repeat(10) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("settings-category-SOURCES").assertIsNotFocused()
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
     }
 
     @Test

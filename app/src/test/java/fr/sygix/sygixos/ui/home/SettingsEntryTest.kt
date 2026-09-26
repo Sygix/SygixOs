@@ -85,6 +85,7 @@ class SettingsEntryTest {
         compose.onNodeWithTag("settings-screen").assertExists()
         press(Key.DirectionDown)
         press(Key.DirectionRight)
+        press(Key.Enter)
         compose.onNodeWithTag("hidden-apps-screen").assertExists()
         press(Key.Back)
         compose.onNodeWithTag("hidden-apps-screen").assertDoesNotExist()
@@ -92,6 +93,25 @@ class SettingsEntryTest {
         press(Key.Back)
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
+    }
+
+    @Test
+    fun `settings reopen and nav work after returning from settings`() {
+        setupHome()
+        press(Key.DirectionUp)
+        press(Key.Enter)
+        compose.onNodeWithTag("settings-screen").assertExists()
+        press(Key.Back)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        // Après le retour des réglages : le héro reprend le focus et les réglages restent ouvrables.
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("settings-gear").assertIsFocused()
+        press(Key.Enter)
+        compose.onNodeWithTag("settings-screen").assertExists()
+        press(Key.Back)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("app-tile-com.dock").assertIsFocused()
     }
 
     @Test
