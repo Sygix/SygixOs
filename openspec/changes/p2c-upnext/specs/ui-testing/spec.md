@@ -1,27 +1,35 @@
 # Delta ui-testing
 
-Le change `ui-testing` (non encore archivé) introduit la capability : ses exigences ne peuvent pas être MODIFIED ici. La couverture ci-dessous est donc déclarée ADDED et complète « Navigation D-pad des trois zones » du change ui-testing ; à fusionner avec elle lors de l'archivage.
+Le change `ui-testing` est archivé dans cette PR (commit dédié) : « Navigation D-pad des trois zones » existe désormais dans les specs courantes, le delta ci-dessous est donc un MODIFIED réel.
 
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Couverture rangée Up Next
-La navigation D-pad avec la rangée Up Next et les états de la rangée SHALL être couverts par des tests simulant les key events physiques, exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`).
+### Requirement: Navigation D-pad des trois zones
+La navigation D-pad entre héro, dock, rangée Up Next et grille SHALL être couverte par des tests simulant les key events physiques, exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`).
 
 #### Scenario: descente
 - **WHEN** l'utilisateur presse bas depuis le héro (dock non vide)
-- **THEN** le focus passe au dock ; **WHEN** il presse bas depuis le dock THEN la rangée Up Next prend le focus, puis la première rangée d'apps
+- **THEN** le focus passe au dock, puis à la rangée Up Next, puis à la première rangée d'apps
 
 #### Scenario: descente sans dock
 - **WHEN** l'utilisateur presse bas depuis le héro alors que le dock est vide
 - **THEN** la rangée Up Next prend le focus directement, puis la première rangée d'apps
+
+#### Scenario: descente depuis le dock
+- **WHEN** l'utilisateur presse bas depuis le dock
+- **THEN** la rangée Up Next prend le focus, puis la première rangée d'apps
 
 #### Scenario: descente sans rangée Up Next
 - **WHEN** l'utilisateur descend depuis le dock alors que la rangée Up Next est masquée
 - **THEN** la première rangée d'apps prend le focus sans palier intermédiaire
 
 #### Scenario: remontée
-- **WHEN** l'utilisateur presse haut depuis la grille (première ligne)
-- **THEN** le focus revient à la rangée Up Next puis au dock puis au héro
+- **WHEN** l'utilisateur presse haut depuis la première rangée d'apps
+- **THEN** la rangée Up Next reprend le focus si elle est affichée, puis le dock puis le héro ; si elle est masquée, le focus revient au dock puis au héro
+
+#### Scenario: retour au héro
+- **WHEN** l'utilisateur presse Retour depuis la zone grille
+- **THEN** le héro reprend le focus
 
 #### Scenario: restauration au retour d'une app
 - **WHEN** le test simule l'ouverture d'une app depuis une carte Up Next puis le retour au launcher

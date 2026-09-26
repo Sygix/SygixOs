@@ -3,11 +3,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: Navigation 3 paliers
-Le DPAD SHALL naviguer héro → dock → rangée Up Next → apps (descend) et apps → dock → héro (monte) de façon déterministe : seule la zone active est focusable, et le palier Up Next est sauté si la rangée est masquée. La navigation détaillée de la rangée Up Next est spécifiée par la capability up-next.
+Le DPAD SHALL naviguer héro → dock → rangée Up Next → apps (descend) et apps → rangée Up Next → dock → héro (monte) de façon déterministe : seule la zone active est focusable, et le palier Up Next est sauté si la rangée est masquée. La navigation détaillée de la rangée Up Next est spécifiée par la capability up-next.
 
 #### Scenario: descente depuis le héro
 - **WHEN** l'utilisateur presse bas depuis le héro
-- **THEN** le premier élément du dock prend le focus, ou la grille si le dock est vide
+- **THEN** le premier élément du dock prend le focus, ou la rangée Up Next si le dock est vide
 
 #### Scenario: traversée du dock
 - **WHEN** l'utilisateur descend depuis le dock et que la rangée Up Next est affichée
@@ -21,6 +21,18 @@ Le DPAD SHALL naviguer héro → dock → rangée Up Next → apps (descend) et 
 - **WHEN** l'utilisateur presse gauche ou droite alors que le focus est sur la rangée Up Next
 - **THEN** le focus reste dans la rangée, sans boucle aux bords ; haut depuis la rangée rend le focus au dock (ou au héro si le dock est vide) ; bas passe à la première rangée d'apps
 
+#### Scenario: remontée
+- **WHEN** l'utilisateur presse haut depuis la première rangée d'apps
+- **THEN** la rangée Up Next prend le focus si elle est affichée (dernière carte visitée, sinon la première), sinon le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis la rangée Up Next rend le focus au dock (ou au héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
+
+#### Scenario: position après la grille
+- **WHEN** le réglage « Position d'Up Next » vaut « après la grille »
+- **THEN** bas depuis la dernière rangée d'apps donne le focus à la rangée Up Next, haut depuis la rangée Up Next revient à la dernière rangée d'apps, et la remontée standard (haut depuis la première rangée d'apps) mène au dock puis au héro
+
+#### Scenario: rangée devenue vide
+- **WHEN** l'utilisateur revient au launcher alors que la rangée Up Next n'a plus de contenu
+- **THEN** la rangée est masquée et le focus va à la première rangée d'apps
+
 #### Scenario: retour depuis une app
 - **WHEN** l'utilisateur revient au launcher après avoir ouvert une app depuis la rangée Up Next
 - **THEN** le focus est restauré sur la carte d'origine, ou sur la première carte si celle-ci a disparu ; Retour depuis la zone grille ramène au héro
@@ -28,10 +40,6 @@ Le DPAD SHALL naviguer héro → dock → rangée Up Next → apps (descend) et 
 #### Scenario: cohabitation avec la Top Shelf
 - **WHEN** le focus est sur la rangée Up Next
 - **THEN** aucun panneau Top Shelf n'est ouvert ; le panneau reste lié au focus des tuiles d'apps
-
-#### Scenario: remontée
-- **WHEN** l'utilisateur presse haut depuis la première rangée de la grille
-- **THEN** le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
 
 #### Scenario: couches inactives
 - **WHEN** une zone n'est pas active
