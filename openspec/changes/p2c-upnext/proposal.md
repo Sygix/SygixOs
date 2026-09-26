@@ -24,14 +24,14 @@ P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une r
 ### Modified Capabilities
 - `launcher-shell` : « Navigation 3 paliers » (la zone grille comprend la rangée Up Next, première ou dernière ligne, sautée si masquée), « Rangée Up Next » (renvoi à up-next), « Sélection des apps sources » (le filtre couvre aussi Up Next)
 - `ui-testing` : « Sélecteurs stables » (testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`), « Navigation D-pad des trois zones » (rangée Up Next dans la zone grille, position réglable, états, menu)
-- `settings` : ADDED « Position d'Up Next » (catégorie « Écran d'accueil ») ; les MODIFIED « Page de réglages », « Apps sources » et « Cacher une application » attendent l'archivage de `p2b-settings` (texte exact dans `design.md`, pose en tâche 1.1)
+- `settings` : ADDED « Position d'Up Next » (catégorie « Écran d'accueil ») ; MODIFIED « Page de réglages » (nouvelle catégorie « Écran d'accueil »), « Apps sources » et « Cacher une application » (`p2b-settings` archivé, tâche 1.1 faite)
 - `betaseries-integration` : « Agrégation Up Next » (BetaSeries enrichit les items de toutes les sources au lieu de s'y concaténer)
 - `jellyfin-integration` : par le change embarqué `jellyfin-tvprovider-only` (contrat de données TV Provider)
 
 ## Impact
 - persistance : le réglage « Position d'Up Next » est persisté dans DataStore ; le menu « Ouvrir avec… » ne persiste rien ; l'ordre de préférence des apps est une constante en p2c
 - code existant réutilisé : lecture des `WatchNextPrograms` de toutes les apps et observation du provider déjà en place dans `TvProviderHeroSource`, filtre des apps sources déjà en place dans `HeroFeed` / `HomeViewModel` (détail dans `design.md`)
-- **Dépendances** : `jellyfin-tvprovider-only` (embarqué dans cette PR), `ui-testing` (archivé dans cette PR avant l'écriture du delta MODIFIED), `p2b-settings` (mergé ; son archivage précède la pose des MODIFIED sur `settings` et l'archivage de p2c), `betaseries-integration` (delta MODIFIED aligné)
+- **Dépendances** : `jellyfin-tvprovider-only` (embarqué dans cette PR), `ui-testing` (archivé dans cette PR avant l'écriture du delta MODIFIED), `p2b-settings` (archivé sur main, capability `settings`), `betaseries-integration` (delta MODIFIED aligné)
 - **Vérification sur l'appareil** : la visibilité réelle des lignes `WatchNextPrograms` des autres apps sous `READ_TV_LISTINGS` doit être confirmée sur la TV de test avant tout code (tâche 2.1) ; si seules nos propres lignes sont visibles, le change est suspendu et revu. Seule la structure du dump est publiée (colonnes, packages, compteurs, types), jamais de titres
 
 ## Non-goals

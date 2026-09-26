@@ -2,7 +2,7 @@
 
 ## 1. Prérequis de spec
 
-- [ ] 1.1 Après archivage de `p2b-settings` par Sygix (post-test TV) : poser les MODIFIED « Page de réglages », « Apps sources » et « Cacher une application » dans `specs/settings/spec.md` de ce change, avec le texte exact de `design.md` (« MODIFIED à poser sur settings ») ; vérifié par `openspec validate --all --strict` vert et `openspec/specs/settings/spec.md` présent
+- [x] 1.1 Après archivage de `p2b-settings` (main `423dbbd`) : MODIFIED « Page de réglages », « Apps sources » et « Cacher une application » posés dans `specs/settings/spec.md` de ce change ; vérifié par `openspec validate --all --strict` vert et `openspec/specs/settings/spec.md` présent
 - [ ] 1.2 `jellyfin-tvprovider-only` embarqué dans cette PR et `ui-testing` archivé (commit dédié) : vérifié par `openspec validate --all --strict` vert et `openspec/specs/ui-testing/spec.md` contenant « Navigation D-pad des trois zones »
 
 ## 2. Vérification sur l'appareil (avant tout code)
