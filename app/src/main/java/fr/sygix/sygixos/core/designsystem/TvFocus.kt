@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -122,4 +123,6 @@ fun Modifier.tvClickable(
         .focusable()
 }
 
-fun FocusRequester.tryRequestFocus(): Boolean = runCatching { requestFocus(); true }.getOrDefault(false)
+// Faux si le requester n'est attaché à aucun nœud ou si le nœud refuse le focus (canFocus = false).
+fun FocusRequester.tryRequestFocus(): Boolean =
+    runCatching { requestFocus(FocusDirection.Enter) }.getOrDefault(false)

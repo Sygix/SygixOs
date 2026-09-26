@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -75,16 +76,27 @@ fun SettingsScreen(
     var hiddenSubScreen by rememberSaveable { mutableStateOf(false) }
     val categoryFocusers = remember { SettingsCategory.entries.map { FocusRequester() } }
     val contentFocus = remember { FocusRequester() }
+    // Un état de liste par catégorie : le volet droit repart en haut à chaque changement.
+    val contentListState = remember(categoryIndex) { LazyListState() }
     val category = SettingsCategory.entries[categoryIndex]
 
-    LaunchedEffect(Unit) {
-        categoryFocusers.first().tryRequestFocus()
+    // Entrée dans le volet droit (Droite ou OK) : refusée s'il n'y a rien à focaliser.
+    fun enterContent() {
+        val target = SettingsCategory.entries[categoryIndex]
+        if (target == SettingsCategory.SOURCES && state.sources.isEmpty()) return
+        pane = SettingsPane.CONTENT
     }
+
     LaunchedEffect(pane, categoryIndex) {
-        if (pane == SettingsPane.CATEGORIES) categoryFocusers[categoryIndex].tryRequestFocus()
-    }
-    LaunchedEffect(pane) {
-        if (pane == SettingsPane.CONTENT) contentFocus.tryRequestFocus()
+        when (pane) {
+            SettingsPane.CATEGORIES -> categoryFocusers[categoryIndex].tryRequestFocus()
+            SettingsPane.CONTENT -> {
+                // La 1re ligne d'une LazyColumn défilée n'est plus composée : on remonte en
+                // haut avant de demander le focus ; en cas d'échec, le focus reste à gauche.
+                contentListState.scrollToItem(0)
+                if (!contentFocus.tryRequestFocus()) pane = SettingsPane.CATEGORIES
+            }
+        }
     }
     // Retour du sous-écran : le focus repart sur la catégorie active.
     LaunchedEffect(hiddenSubScreen) {
@@ -117,17 +129,9 @@ fun SettingsScreen(
                     } else {
                         false
                     }
-                    Key.DirectionRight -> if (pane == SettingsPane.CATEGORIES) {
-                        if (category == SettingsCategory.SOURCES && state.sources.isEmpty()) {
-                            // Rien à focaliser dans le volet droit : on ne bascule pas sur CONTENT.
-                            true
-                        } else {
-                            // Y compris « Applications cachées » vide : Droite focus le volet
-                            // droit, l'ouverture du sous-écran reste sur validation (OK).
-                            pane = SettingsPane.CONTENT
-                            true
-                        }
-                    } else false
+                    // Y compris « Applications cachées » vide : Droite focalise le volet droit,
+                    // l'ouverture du sous-écran reste sur validation (OK).
+                    Key.DirectionRight -> if (pane == SettingsPane.CATEGORIES) { enterContent(); true } else false
                     Key.DirectionLeft -> if (pane == SettingsPane.CONTENT) { pane = SettingsPane.CATEGORIES; true } else false
                     Key.Back -> { onBack(); true }
                     else -> false
@@ -152,7 +156,7 @@ fun SettingsScreen(
                         focusRequester = categoryFocusers[index],
                         onClick = {
                             categoryIndex = index
-                            pane = SettingsPane.CONTENT
+                            enterContent()
                         },
                         modifier = Modifier.testTag("settings-category-${entry.name}"),
                     )
@@ -165,6 +169,7 @@ fun SettingsScreen(
                     SettingsCategory.SOURCES -> SourcesContent(
                         rows = state.sources,
                         counts = counts,
+                        listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT && !hiddenSubScreen,
                         contentFocus = contentFocus,
                         onToggle = onToggleSource,
@@ -177,6 +182,7 @@ fun SettingsScreen(
                     )
                     SettingsCategory.ABOUT -> AboutContent(
                         version = state.version,
+                        listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT && !hiddenSubScreen,
                         contentFocus = contentFocus,
                     )
