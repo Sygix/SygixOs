@@ -1,7 +1,7 @@
 # Capability : jellyfin-integration
 
 ## Purpose
-Intégration complète Jellyfin (serveur homelab) : reprise de lecture, Up Next, posters, recherche.
+Intégration Jellyfin par le TV Provider Android (client installé) : consommation des contenus qu'il publie pour la rangée Up Next ; aucune connexion directe au serveur.
 
 ## Requirements
 ### Requirement: Configuration

@@ -8,16 +8,19 @@
 ## MODIFIED Requirements
 
 ### Requirement: Continue watching / Up Next
-Le home SHALL afficher les items en cours et les épisodes Next Up tels que publiés dans le TV Provider Android (`WatchNextPrograms`) par le client Jellyfin installé, avec poster, titre, progression et reprise via l'intent du programme.
+Le client Jellyfin SHALL être consommé exclusivement via les programmes qu'il publie dans le TV Provider Android (`WatchNextPrograms`) ; l'affichage, les états et l'ouverture des contenus sont spécifiés par la capability up-next.
 
 #### Scenario: reprise
-- **WHEN** un client Jellyfin installé publie des programmes watch next avec position de lecture THEN le home les affiche avec poster, titre et progression, et l'appui ouvre l'intent de reprise fourni par le programme
+- **WHEN** un client Jellyfin installé publie des programmes watch next avec position de lecture
+- **THEN** le launcher lit ces programmes dans le TV Provider avec les champs publiés (titre, poster, progression, intent), sans aucun appel direct au serveur Jellyfin ; l'affichage et l'ouverture suivent up-next
 
 #### Scenario: aucun client Jellyfin
-- **WHEN** aucun programme Jellyfin n'est présent dans le TV Provider (client absent, non authentifié ou sans contenu en cours) THEN la rangée concernée applique l'état vide standard (discret ou masquée selon le layout), sans erreur ni invitation à configurer quoi que ce soit
+- **WHEN** aucun programme Jellyfin n'est présent dans le TV Provider (client absent, non authentifié ou sans contenu en cours)
+- **THEN** la rangée applique les états spécifiés par up-next (rangée masquée), sans erreur ni invitation à configurer quoi que ce soit
 
 ### Requirement: Résilience
-L'app SHALL tolérer un TV Provider vide ou indisponible sans crash, avec état vide + retry au retour au launcher.
+L'app SHALL tolérer un TV Provider vide ou indisponible sans crash ; les états affichés dans ces cas sont ceux spécifiés par la capability up-next.
 
 #### Scenario: comportement
-- **WHEN** la requête vers le TV Provider échoue THEN état UI vide + retry au prochain retour au launcher, jamais de crash
+- **WHEN** la requête vers le TV Provider échoue ou que le provider est absent
+- **THEN** aucun crash et l'état affiché suit l'exigence « États de la rangée » de up-next
