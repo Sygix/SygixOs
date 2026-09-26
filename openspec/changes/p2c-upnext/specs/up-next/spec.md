@@ -1,9 +1,12 @@
 # Delta up-next
 
+## Purpose
+Rangée Up Next de l'écran d'accueil : agrégation des programmes watch next publiés par toutes les apps dans le TV Provider Android, dédoublonnage, tri, cartes, ouverture et menu « Ouvrir avec… ».
+
 ## ADDED Requirements
 
 ### Requirement: Source multi-apps
-La rangée Up Next SHALL agréger les programmes `WatchNextPrograms` de toutes les apps visibles dans le TV Provider Android, lues sous `READ_TV_LISTINGS` et filtrées sur `COLUMN_BROWSABLE`, sans limiter aux programmes d'une app en particulier. Seuls les `WatchNextPrograms` alimentent la rangée : les `PreviewPrograms` ne sont pas lus.
+La rangée Up Next SHALL agréger les programmes `WatchNextPrograms` de toutes les apps visibles dans le TV Provider Android, lues sous `READ_TV_LISTINGS` et filtrées sur `COLUMN_BROWSABLE`, sans limiter aux programmes d'une app en particulier. Seuls les `WatchNextPrograms` alimentent la rangée : les `PreviewPrograms` ne sont pas lus. Les filtres des réglages (apps sources désactivées, apps cachées) s'appliquent tels que définis par la capability settings (« Apps sources », « Cacher une application ») et par launcher-shell (« Sélection des apps sources »).
 
 #### Scenario: agrégation
 - **WHEN** plusieurs apps publient des programmes watch next
@@ -13,13 +16,9 @@ La rangée Up Next SHALL agréger les programmes `WatchNextPrograms` de toutes l
 - **WHEN** la rangée est chargée
 - **THEN** la requête `ContentResolver` s'exécute hors du thread principal avec un timeout borné, et la source renvoie un résultat qui distingue une erreur d'un résultat vide
 
-#### Scenario: source désactivée
-- **WHEN** une app est désactivée dans le réglage « Apps sources »
-- **THEN** aucun programme de cette app n'apparaît dans la rangée
-
-#### Scenario: app cachée de la grille
-- **WHEN** une app est cachée de la grille
-- **THEN** elle disparaît de la grille mais ses contenus restent dans la rangée Up Next
+#### Scenario: filtres des réglages
+- **WHEN** une app est désactivée dans « Apps sources » ou cachée de la grille
+- **THEN** la rangée applique les exigences « Apps sources » et « Cacher une application » de la capability settings, avant le dédoublonnage, sans redémarrage
 
 #### Scenario: types non pris en charge
 - **WHEN** un programme publie un `COLUMN_TYPE` qui n'est ni un épisode ni un film (clip, extrait, autre)
@@ -56,12 +55,20 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** une seule carte est retenue
 
 #### Scenario: film entre apps
-- **WHEN** deux apps publient le même film (titre normalisé + année) et que les deux années sont connues et différentes
-- **THEN** aucune fusion n'a lieu (remakes)
+- **WHEN** deux apps publient un film de même titre normalisé et de même année
+- **THEN** une seule carte est retenue
+
+#### Scenario: remake
+- **WHEN** deux apps publient un film de même titre normalisé et que les deux années sont connues et différentes
+- **THEN** aucune fusion n'a lieu
+
+#### Scenario: types différents
+- **WHEN** deux apps publient un même titre normalisé, l'un comme film et l'autre comme épisode
+- **THEN** aucune fusion n'a lieu
 
 #### Scenario: année inconnue
 - **WHEN** l'année est connue d'un seul côté (aucune source confirmée ne la fournit dans le TV Provider)
-- **THEN** la fusion a lieu sur le titre normalisé seul — limite assumée et documentée
+- **THEN** la fusion a lieu sur le titre normalisé seul, limite assumée et documentée
 
 #### Scenario: normalisation stricte
 - **WHEN** les titres sont comparés
@@ -72,14 +79,18 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** les items restent en double jusqu'à l'activation du niveau 5 en P4, et cette limite est documentée
 
 ### Requirement: Gagnant d'un doublon
-Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : un item en cours (`CONTINUE`) bat un item à suivre (`NEXT`/`NEW`) ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
+Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat `NEXT`/`NEW`, qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
 
 #### Scenario: reprise en cours
-- **WHEN** un même contenu existe à la fois comme en cours (`CONTINUE`) et comme à suivre (`NEXT`/`NEW`)
+- **WHEN** un même contenu existe à la fois comme en cours (`CONTINUE`) et comme à suivre (`NEXT`/`NEW`) ou mis de côté (`WATCHLIST`)
 - **THEN** l'item en cours est retenu, avec sa progression et sa date d'activité
 
+#### Scenario: à suivre contre mis de côté
+- **WHEN** un même contenu existe à la fois comme à suivre (`NEXT`/`NEW`) et comme mis de côté (`WATCHLIST`)
+- **THEN** l'item à suivre est retenu
+
 #### Scenario: engagement le plus récent
-- **WHEN** les items candidats sont tous du même type de progression
+- **WHEN** les items candidats sont tous du même groupe de type watch next
 - **THEN** celui dont le timestamp d'activité est le plus récent est retenu
 
 #### Scenario: égalité
@@ -87,30 +98,30 @@ Quand plusieurs items partagent une même clé, la carte retenue SHALL être dé
 - **THEN** l'ordre de préférence des apps (constante en p2c, Jellyfin d'abord) tranche
 
 ### Requirement: Tri et limite
-La rangée SHALL être triée de façon déterministe en trois groupes : les items en cours (`CONTINUE`) d'abord par timestamp d'activité décroissant, puis les items à suivre (`NEXT`/`NEW`) par timestamp d'activité décroissant et à égalité par identifiant croissant, puis les items `WATCHLIST` ; le tri est stable et la rangée est limitée à 20 items. « En cours » désigne le type `CONTINUE` ; la progression ne sert qu'à la barre de la carte.
+La rangée SHALL être triée de façon déterministe en trois groupes : les items en cours (`CONTINUE`) d'abord, puis les items à suivre (`NEXT`/`NEW`), puis les items `WATCHLIST` ; dans chaque groupe, par timestamp d'activité décroissant et à égalité par `_ID` croissant ; le tri est stable et la rangée est limitée à 20 items. « En cours » désigne le type `CONTINUE` ; la progression ne sert qu'à la barre de la carte.
 
 #### Scenario: ordre des groupes
 - **WHEN** la rangée est affichée
-- **THEN** les groupes se suivent dans l'ordre `CONTINUE`, puis `NEXT`/`NEW`, puis `WATCHLIST`, chaque groupe trié par engagement décroissant (à égalité par `_ID` croissant dans `NEXT`/`NEW`), sans dépendre d'une date de sortie absente de la source
+- **THEN** les groupes se suivent dans l'ordre `CONTINUE`, puis `NEXT`/`NEW`, puis `WATCHLIST`, chaque groupe trié par engagement décroissant et à égalité par `_ID` croissant, sans dépendre d'une date de sortie absente de la source
 
 #### Scenario: inclusion WATCHLIST
 - **WHEN** une app publie des programmes de type `WATCHLIST`
-- **THEN** ils apparaissent en dernier groupe de la rangée, dans la limite des 20 items
+- **THEN** ils apparaissent en dernier groupe de la rangée, triés par engagement décroissant et à égalité par `_ID` croissant, dans la limite des 20 items
 
 #### Scenario: limite
 - **WHEN** plus de 20 items subsistent après dédoublonnage et tri
 - **THEN** la rangée affiche les 20 premiers selon l'ordre ci-dessus
 
 ### Requirement: Position de la rangée
-La rangée Up Next SHALL être une ligne style tvOS en tête de la zone grille, au-dessus des apps, formant le palier Up Next de la navigation, avec une position réglable dans les réglages (« Position d'Up Next » : avant la grille, par défaut, ou après la grille).
+La rangée Up Next SHALL être une ligne style tvOS de la zone grille, première ligne de la zone par défaut (au-dessus de la première rangée d'apps) ou dernière ligne (sous la dernière rangée d'apps) selon le réglage « Position d'Up Next » de la capability settings ; elle n'est pas un palier distinct de launcher-shell : la zone grille masque le héro comme pour les apps, sans changement de fond entre la rangée et les apps. La navigation D-pad de la zone grille, rangée Up Next incluse, est spécifiée par « Navigation 3 paliers » de launcher-shell.
 
 #### Scenario: position par défaut
-- **WHEN** la zone grille prend le focus
-- **THEN** la rangée Up Next est affichée en tête, au-dessus de la première rangée d'apps
+- **WHEN** la zone grille prend le focus et que le réglage vaut « avant la grille »
+- **THEN** la rangée Up Next est la première ligne de la zone grille, au-dessus de la première rangée d'apps, sur le fond de la zone grille
 
 #### Scenario: position réglée après la grille
 - **WHEN** le réglage « Position d'Up Next » vaut « après la grille »
-- **THEN** la rangée est affichée sous la dernière rangée d'apps, dans la même zone
+- **THEN** la rangée est la dernière ligne de la zone grille, sous la dernière rangée d'apps, sur le même fond
 
 ### Requirement: Indépendance avec le héro
 La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au héro : le héro peut montrer les mêmes contenus.
@@ -120,7 +131,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-Chaque carte Up Next SHALL être au format 16:9 uniforme affichant l'image du programme en 16:9 plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, avec le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder si l'image manque, et un petit badge avec l'icône de l'app source prise dans le `PackageManager`.
+Chaque carte Up Next SHALL être au format 16:9 uniforme affichant l'image du programme en 16:9 plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, avec le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder si l'image manque ou est trop petite, et un petit badge avec l'icône de l'app source prise dans le `PackageManager`. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas.
 
 #### Scenario: carte épisode
 - **WHEN** l'item est un épisode
@@ -134,6 +145,10 @@ Chaque carte Up Next SHALL être au format 16:9 uniforme affichant l'image du pr
 - **WHEN** une carte est affichée
 - **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué), et un placeholder remplace l'image si celle-ci manque ou échoue
 
+#### Scenario: image trop petite
+- **WHEN** l'image décodée d'une carte fait moins de deux fois la largeur affichée de la carte
+- **THEN** la carte reste dans la rangée avec le placeholder à la place de l'image ; l'item n'est pas écarté
+
 #### Scenario: focus
 - **WHEN** une carte prend le focus
 - **THEN** le comportement visuel suit l'exigence « Focus tvOS » de launcher-shell
@@ -143,22 +158,22 @@ L'appui sur une carte SHALL ouvrir l'intent publié par le programme de la rang�
 
 #### Scenario: intent disponible
 - **WHEN** l'utilisateur valide une carte dont le programme publie un intent
-- **THEN** cet intent est ouvert (l'app affiche sa fiche ou reprend selon son propre comportement — le verbe est « ouvrir », pas « lire »)
+- **THEN** cet intent est ouvert (l'app affiche sa fiche ou reprend selon son propre comportement ; le verbe est « ouvrir », pas « lire »)
 
 #### Scenario: intent absent ou en échec
 - **WHEN** le programme ne publie pas d'intent, ou que son ouverture échoue (activity absente, exception de sécurité)
 - **THEN** l'app source est lancée, sans crash
 
 ### Requirement: Menu « Ouvrir avec… »
-L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les apps qui possèdent ce contenu, chacune ouverte via l'intent qu'elle publie ; rien n'est persisté.
+L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les apps qui possèdent ce contenu, chacune ouverte via l'intent qu'elle publie ; le menu s'ouvre même quand une seule app possède le contenu ; rien n'est persisté.
 
 #### Scenario: ouverture du menu
 - **WHEN** l'utilisateur fait un appui long sur une carte
-- **THEN** le menu « Ouvrir avec… » liste les sources du contenu conservées par l'item (package, nom, icône, intent), avec leur nom et leur icône
+- **THEN** le menu « Ouvrir avec… » liste les sources du contenu conservées par l'item, avec leur nom et leur icône
 
 #### Scenario: focus initial dans le menu
 - **WHEN** le menu s'ouvre
-- **THEN** le focus est sur la première entrée, et gauche/droite restent dans le menu sans boucle aux bords
+- **THEN** le focus est sur la première entrée, et les déplacements restent dans le menu sans boucle aux bords
 
 #### Scenario: choix d'une app
 - **WHEN** l'utilisateur valide une entrée du menu
@@ -170,14 +185,14 @@ L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les
 
 #### Scenario: source unique
 - **WHEN** une seule app possède le contenu de la carte
-- **THEN** le menu réduit à une entrée est affiché
+- **THEN** le menu s'ouvre quand même, avec cette seule entrée
 
 #### Scenario: intent en échec depuis le menu
 - **WHEN** l'ouverture de l'intent d'une source choisie dans le menu échoue
 - **THEN** l'app source est lancée en repli et un toast en informe l'utilisateur, sans crash
 
 ### Requirement: États de la rangée
-La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home.
+La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home. Le comportement du focus quand la rangée se masque est spécifié par « Navigation 3 paliers » de launcher-shell (scénario « rangée devenue vide »).
 
 #### Scenario: permission refusée
 - **WHEN** `READ_TV_LISTINGS` n'est pas accordée
@@ -187,9 +202,9 @@ La rangée SHALL couvrir les états chargement, erreur, vide et permission refus
 - **WHEN** la requête vers le TV Provider échoue ou dépasse le timeout au premier chargement
 - **THEN** une carte d'état focusable (message + « Réessayer ») remplace la rangée, distincte de l'état vide, sans crash
 
-#### Scenario: navigation de la carte d'erreur
+#### Scenario: carte d'erreur
 - **WHEN** la carte « Réessayer » est focusée
-- **THEN** elle participe à la navigation de la rangée : gauche/droite restent dans la rangée, bas passe aux apps, haut revient au dock (puis au héro), et OK relance la requête
+- **THEN** elle occupe la place de la rangée dans la navigation de la zone grille, quelle que soit la position réglée (avant ou après la grille), et OK relance la requête
 
 #### Scenario: chargement initial
 - **WHEN** le premier chargement dépasse ~300 ms
@@ -206,10 +221,6 @@ La rangée SHALL couvrir les états chargement, erreur, vide et permission refus
 #### Scenario: vide
 - **WHEN** aucun item n'est retourné
 - **THEN** la rangée est masquée
-
-#### Scenario: rangée devenue vide au retour d'une app
-- **WHEN** l'utilisateur revient au launcher alors que la rangée n'a plus de contenu
-- **THEN** la rangée est masquée et le focus va à la première rangée d'apps
 
 #### Scenario: non-blocage
 - **WHEN** la rangée est dans n'importe quel état

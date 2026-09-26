@@ -1,18 +1,36 @@
 # Design : p2c-upnext
 
+## Context
+Motivation et périmètre : voir `proposal.md`. Ce document fixe le comment. État du repo qui conditionne l'approche :
+- `TvProviderHeroSource` (`app/src/main/java/fr/sygix/sygixos/data/TvProviderHeroSource.kt`) **lit déjà les `WatchNextPrograms` de toutes les apps** pour le héro (`queryAll()`, `mapWatchNextRow()`) : package, `COLUMN_BROWSABLE`, titre, poster et ratio, miniature, vidéo d'aperçu, intent, position, durée, `last_engagement_time`. Elle expose aussi `programCountsFlow()`, un patron d'observation du provider (`ContentObserver` armé avant la valeur initiale, antirebond, désinscription à l'annulation, registration protégée par `runCatching`).
+- Le filtre des apps sources existe : `apps.disabledSources` combiné dans `HomeViewModel.state` (`HomeViewModel.kt`) et `filterBySources()` (`domain/HeroFeed.kt`).
+- Le menu contextuel `AppContextMenu.kt` est lié à `TvApp`.
+- La lecture des `PreviewPrograms` publiés par les autres apps est acquise : le change archivé `2026-09-22-spec-sync` (`proposal.md`) documente environ 500 programmes lus sur la TV de test. Le README ne contient pas ce chiffre.
+- `p2b-settings` est mergé mais non archivé : `openspec/specs/settings` n'existe pas encore.
+
+## Goals / Non-Goals
+**Goals :** une seule source TV Provider pour la rangée, logique pure (mapping, dédoublonnage, tri) testable en JUnit, réutilisation du code existant du héro et des réglages, aucun état dupliqué.
+
+**Non-Goals :** voir `proposal.md` ; au niveau design, aucun second cache d'images, aucun score, aucune persistance hors du réglage de position.
+
 ## Décisions
 
 ### Source : TV Provider, toutes les apps
-La rangée lit uniquement `WatchNextPrograms` (les `PreviewPrograms` ne sont pas lus : pas de `watch_next_type` exploitable et des `_ID` qui peuvent entrer en collision) via `ContentResolver` sous `READ_TV_LISTINGS`, avec le filtre `COLUMN_BROWSABLE` déjà appliqué par le héro (`TvProviderHeroSource`), sans filtrer sur le package : **toutes les apps visibles** alimentent la rangée. La requête s'exécute sur `Dispatchers.IO` avec un `withTimeout` court (~2 s).
+La rangée lit uniquement `WatchNextPrograms` (les `PreviewPrograms` ne sont pas lus : pas de `watch_next_type` exploitable et des `_ID` qui peuvent entrer en collision) via `ContentResolver` sous `READ_TV_LISTINGS`, avec le filtre `COLUMN_BROWSABLE` déjà appliqué par le héro, sans filtrer sur le package : **toutes les apps visibles** alimentent la rangée. La requête s'exécute sur `Dispatchers.IO` avec un `withTimeout` court (~2 s).
 
-**État des connaissances et hypothèses à vérifier sur l'appareil (tâche 2, avant tout code)** :
-- la lecture des programmes publiés par les autres apps est déjà acquise : le README documente ~500 programmes lus sur la TCL (previews du TV Provider). La vraie inconnue se limite aux lignes `WatchNextPrograms` des autres apps — le TvProvider peut restreindre la lecture aux lignes de l'appelant — et aux colonnes qu'elles remplissent ;
+**Réutilisation de l'existant** (alternative écartée : une seconde lecture indépendante du provider, qui dupliquerait le mapping du héro) :
+- les extensions `Cursor.optString` / `optLong` / `optInt`, `landscapeImage()` et `HeroOrdering.progressRatio()` sont aujourd'hui privées à `TvProviderHeroSource` ou internes : les extraire dans un helper partagé du package `data`, utilisé par le mappeur `Cursor` → `UpNextItem` ;
+- le `ContentObserver` de la rangée suit le patron de `programCountsFlow()` (observateur armé avant la valeur initiale, antirebond, `runCatching` sur la registration, désinscription dans `finally`), sur `WatchNextPrograms.CONTENT_URI` ;
+- le filtre « Apps sources » réutilise `disabledSources` et `filterBySources` : la liste d'items est filtrée sur le package **avant** le dédoublonnage, pour qu'une source désactivée ne serve jamais de gagnant ni de source du menu « Ouvrir avec… ». Les apps cachées (`hiddenApps`) ne filtrent pas la rangée.
+
+**État des connaissances et hypothèses à vérifier sur l'appareil (tâche 2.1, avant tout code)** :
+- la lecture des programmes des autres apps est acquise pour les `PreviewPrograms` (voir Context). La vraie inconnue se limite aux lignes `WatchNextPrograms` des autres apps (le TvProvider peut restreindre la lecture aux lignes de l'appelant) et aux colonnes qu'elles remplissent ;
 - colonnes supposées disponibles et à confirmer : titre de série, `episode_title`, numéros de saison/épisode, `internal_provider_id`, `content_id`, `intent_uri`, `poster_art_uri`, `watch_next_type`, `last_engagement_time`, position de lecture, **année (`release_date`)**, `COLUMN_TYPE`, durée, `COLUMN_BROWSABLE`.
 
-D'après `jellyfin-androidtv` (`LeanbackChannelWorker.getBaseItemAsWatchNextProgram`), les programmes Jellyfin portent `internal_provider_id`, le type, le titre de série, `episode_title`, les numéros de saison et d'épisode, `watch_next_type` et un intent qui ouvre la **fiche** de l'item (`StartupActivity` + `ItemId`) — pas la lecture. Le verbe de la rangée est donc « ouvrir », pas « lire » : l'app affiche sa fiche ou reprend selon son propre comportement. `release_date` est absent des programmes Jellyfin : ni le tri ni le dédoublonnage ne s'y fient (voir niveau 4).
+D'après `jellyfin-androidtv` (`LeanbackChannelWorker.getBaseItemAsWatchNextProgram`), les programmes Jellyfin portent `internal_provider_id`, le type, le titre de série, `episode_title`, les numéros de saison et d'épisode, `watch_next_type` et un intent qui ouvre la **fiche** de l'item (`StartupActivity` + `ItemId`), pas la lecture. Le verbe de la rangée est donc « ouvrir », pas « lire » : l'app affiche sa fiche ou reprend selon son propre comportement. `release_date` est absent des programmes Jellyfin : ni le tri ni le dédoublonnage ne s'y fient (voir niveau 4).
 
 ### Modèle canonique
-`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent — la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune — conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB) — vide en p2c, rempli en P4 par l'enrichissement BetaSeries.
+`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), vide en p2c, rempli en P4 par l'enrichissement BetaSeries.
 
 `UpNextSource` est une interface aux frontières (SOLID) : retourne un `Result<List<UpNextItem>>` pour que l'UI distingue **erreur** et **vide** (jamais d'exception avalée, contrairement à `TvProviderHeroSource.load()` qui avale via `runCatching {...}.getOrDefault(emptyList())`).
 
@@ -24,7 +42,7 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 | 1. Dans une app | `package_name` + `internal_provider_id`, sinon `content_id`, sinon `intent_uri` | Retirer les doublons exacts |
 | 2. Série dans une app | `package_name` + titre de série normalisé | Au plus une carte par série : l'épisode en cours prime sur l'épisode suivant |
 | 3. Épisode entre apps | titre de série normalisé + saison + épisode | Même épisode sur deux apps |
-| 4. Film entre apps | titre normalisé + année | Pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée) |
+| 4. Film entre apps | titre normalisé + année | Même titre et même année → fusion ; pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée) ; types différents (film contre épisode) → jamais de fusion |
 | 5. P4 | ID IMDb/TVDB ajouté aux items par l'enrichissement BetaSeries | Prend le pas sur les niveaux 3 et 4 quand il est connu |
 
 **Normalisation** : minuscules, diacritiques retirés (NFKD), ponctuation et `(année)` supprimés, espaces compactés, puis **égalité stricte**. Aucune correspondance approximative : il ne faut jamais fusionner à tort.
@@ -34,50 +52,108 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 **Types exclus** : les programmes dont le `COLUMN_TYPE` n'est ni un épisode ni un film (clip, extrait, autre) ne sont pas convertis en items.
 
 **Gagnant d'un doublon** (décision produit) :
-1. un item en cours (`CONTINUE`) bat un item à suivre (`NEXT`/`NEW`) ;
+1. `CONTINUE` bat `NEXT`/`NEW`, qui bat `WATCHLIST` ;
 2. ensuite, l'engagement le plus récent (`last_engagement_time` décroissant) ;
 3. à égalité, l'ordre de préférence des apps (constante en p2c : Jellyfin d'abord) tranche.
 
 ### Tri
 `release_date` n'est pas fiable (absent côté Jellyfin) et trier globalement par `last_engagement_time` mettrait tous les `NEXT` avant les `CONTINUE` (Jellyfin publie pour `NEXT` un `last_engagement_time` égal à l'heure de synchro, qui tourne toutes les heures). Tri final :
-1. items `CONTINUE` d'abord, par `last_engagement_time` décroissant ;
-2. puis `NEXT`/`NEW` par `last_engagement_time` décroissant, et à égalité par `_ID` croissant ;
-3. puis items `WATCHLIST` (même tri que `NEXT`/`NEW`) — décision Sygix : la `WATCHLIST` est **incluse** en dernier groupe ;
-4. tri **stable** (l'ordre d'entrée des niveaux de dédoublonnage est préservé à égalité).
+1. items `CONTINUE` d'abord ;
+2. puis `NEXT`/`NEW` ;
+3. puis `WATCHLIST` (décision Sygix : incluse en dernier groupe) ;
+4. dans chaque groupe : `last_engagement_time` décroissant, à égalité `_ID` croissant ;
+5. tri **stable** (l'ordre d'entrée des niveaux de dédoublonnage est préservé à égalité).
 
 Limite : 20 items.
 
 ### Position (décision produit)
-Une ligne style tvOS en tête de la zone grille, au-dessus des apps — c'est le **palier Up Next** de la navigation. Séquence D-pad : héro → dock → Up Next → apps à la descente, et apps → Up Next → dock → héro à la montée (détaillée dans le delta launcher-shell). Le réglage « Position d'Up Next » (delta ADDED sur `settings` dans ce change, `p2b-settings` en dépendance) permet *avant la grille* (défaut) ou *après la grille* ; le palier est sauté si la rangée est masquée.
+La rangée Up Next est la **première ligne de la zone grille** : on y arrive par bas depuis le dock, et la zone grille masque alors le héro, exactement comme pour les apps ; un bas de plus descend sur la première rangée d'apps dans la même zone, sans changement de fond. C'est un arrêt D-pad entre le dock et les apps, mais **pas un palier distinct** au sens de launcher-shell (une zone avec son propre fond) : « Navigation 3 paliers » reste héro → dock → grille. La rangée est sautée si elle est masquée. Le réglage « Position d'Up Next » (catégorie « Écran d'accueil », delta `settings`) permet *avant la grille* (défaut) ou *après la grille* : la rangée est alors la **dernière ligne de la zone grille**. Toute la navigation de la zone grille, rangée incluse, est dans le delta launcher-shell ; up-next et settings y renvoient.
 
 **Pas de dédoublonnage entre le héro et Up Next** (décision produit) : le héro peut montrer les mêmes contenus, comme sur tvOS. Écrit explicitement dans la spec pour que personne ne « l'optimise » plus tard.
 
 Cohabitation avec la Top Shelf : le panneau Top Shelf appartient au focus des tuiles de la grille ; tant que le focus est sur la rangée Up Next, aucun panneau n'est ouvert.
+
+### Réglage « Position d'Up Next » et catégorie « Écran d'accueil »
+Nouvelle entrée `HOME` dans `SettingsCategory` (`ui/settings/SettingsScreen.kt`), libellé « Écran d'accueil », placée avant « À propos », qui accueillera les futurs réglages de l'accueil. Le contrôle est un sélecteur à deux valeurs : OK bascule, gauche/droite se déplacent sans boucle, gauche depuis la première valeur et Retour rendent le focus au volet des catégories (règle « changement de catégorie » de « Page de réglages »). Persistance : nouvelle clé DataStore dans `LauncherPrefs`, exposée en `Flow` et combinée dans `HomeViewModel.state` comme `disabledSources`.
 
 ### Carte
 - format **16:9 uniforme** : image du programme en 16:9 plein cadre quand elle est exploitable, sinon poster portrait centré sur fond sombre ;
 - texte : titre de série, `SxxEyy`, titre d'épisode (films : titre seul) ;
 - barre de progression pour les `CONTINUE` seulement (progression 0–1) ;
 - focus tvOS : suit l'exigence « Focus tvOS » de launcher-shell (renvoi, aucune valeur recopiée ici) ;
-- placeholder si le poster échoue ou manque ;
-- règle « ≥ 1080 px » de « Qualité des visuels » **non applicable** aux posters portrait Up Next (artwork fourni par les apps, tailles hétérogènes) — le poster est affiché tel quel, centré ;
+- placeholder si le poster échoue, manque ou est trop petit ;
+- **seuil de qualité propre aux cartes** (décision Sygix) : la règle « ≥ 1080 px » de « Qualité des visuels » ne s'applique pas ; une image est exploitable si sa largeur décodée est ≥ 2 × la largeur affichée de la carte ; en dessous, la carte reste avec le placeholder, l'item n'est jamais écarté ;
 - badge : petite icône de l'app source prise dans le `PackageManager` (aucun logo de marque embarqué) ;
 - budget mémoire : posters Up Next intégrés au mécanisme existant « Préchargement et mémoire » de launcher-shell (même cache Coil), pas de second cache.
 
 ### Ouverture et menu « Ouvrir avec… » (décision produit)
 Appui OK sur une carte : ouverture de `COLUMN_INTENT_URI` du programme ; si absent ou si l'ouverture échoue (`ActivityNotFoundException`, `SecurityException`), l'app source est lancée (`LeanbackLauncher` du package). Aucun routage par score en p2c.
 
-Appui long : menu « Ouvrir avec… » listant les sources du contenu conservées par l'item, chacune ouverte via **son** intent publié ; OK valide, Retour ferme, le focus revient sur la carte ; focus initial sur la première entrée, bords sans boucle ; intent en échec → repli lancement de l'app + toast. Rien n'est persisté. Si une seule app possède le contenu, le menu réduit (« Ouvrir avec » à une entrée) est affiché ; le menu contextuel existant (`AppContextMenu.kt`, lié à `TvApp`) est généralisé pour accepter les entrées Up Next.
+Appui long : menu « Ouvrir avec… » listant les sources du contenu conservées par l'item, chacune ouverte via **son** intent publié ; OK valide, Retour ferme, le focus revient sur la carte ; focus initial sur la première entrée, bords sans boucle ; intent en échec → repli lancement de l'app + toast. Rien n'est persisté. **Le menu s'ouvre même avec une seule entrée** (décision Sygix). Le menu contextuel existant (`AppContextMenu.kt`, lié à `TvApp`) est généralisé pour accepter les entrées Up Next.
 
 ### États de la rangée
 - **Permission refusée** : rangée **masquée**, sans carte d'erreur (scénario dédié) ;
-- **Erreur** (requête en échec, timeout au premier chargement) : carte d'état focusable (message + « Réessayer ») — l'erreur se distingue du vide grâce au `Result` de la source ; en erreur au rechargement, le contenu précédent reste affiché ;
+- **Erreur** (requête en échec, timeout au premier chargement) : carte d'état focusable (message + « Réessayer »), à la place de la rangée dans la navigation quelle que soit la position réglée ; l'erreur se distingue du vide grâce au `Result` de la source ; en erreur au rechargement, le contenu précédent reste affiché ;
 - **Chargement** : squelette au **premier** chargement uniquement, et seulement si la requête dépasse ~300 ms ; aux rechargements, l'état précédent reste affiché jusqu'au résultat (jamais de saut de mise en page) ;
-- **Vide** : rangée masquée ; au retour d'une app, le focus va à la première rangée d'apps ;
-- **Rafraîchissement** : retour au premier plan ou permission `READ_TV_LISTINGS` venant d'être accordée → la rangée se recharge, le contenu précédent reste affiché pendant le rechargement. Un `ContentObserver` sur `WatchNextPrograms.CONTENT_URI` (décision : implémenté, protégé contre `SecurityException` et provider absent) déclenche aussi le rechargement quand le provider change. Hypothèse documentée (comportement des apps, non testable dans le launcher) : Jellyfin ne resynchronise le TV Provider qu'une fois par heure — le launcher reflète simplement ce que le provider expose, sans traiter ce délai comme une erreur.
+- **Vide** : rangée masquée ; le focus au retour d'une app suit « rangée devenue vide » de launcher-shell ;
+- **Rafraîchissement** : retour au premier plan ou permission `READ_TV_LISTINGS` venant d'être accordée → la rangée se recharge, le contenu précédent reste affiché pendant le rechargement. `MainActivity` ne rappelle aujourd'hui que `refreshHero()` : la rangée s'y ajoute. Le `ContentObserver` sur `WatchNextPrograms.CONTENT_URI` déclenche aussi le rechargement quand le provider change. Hypothèse documentée (comportement des apps, non testable dans le launcher) : Jellyfin ne resynchronise le TV Provider qu'une fois par heure ; le launcher reflète simplement ce que le provider expose, sans traiter ce délai comme une erreur.
 - Non-blocage : la navigation du home reste fonctionnelle dans tous les états.
 
+### Compteur des apps sources
+`TvProviderHeroSource.programCounts()` ne compte que les `PreviewPrograms` : une app qui ne publie que des `WatchNextPrograms` affiche « 0 programme » dans « Apps sources » alors qu'elle alimente Up Next. Ce change n'y touche pas ; l'élargissement du compteur est en Questions ouvertes du `proposal.md`.
+
+## MODIFIED à poser sur settings après l'archivage de p2b-settings
+Texte exact des trois deltas MODIFIED à créer dans `openspec/changes/p2c-upnext/specs/settings/spec.md` (section `## MODIFIED Requirements`) dès que `openspec/specs/settings/spec.md` existe (tâche 1.1). Base : le delta ADDED de `p2b-settings`, dont seuls les passages en gras changent.
+
+### Requirement: Page de réglages
+Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, fond sombre neutre, navigable au DPAD uniquement.
+
+#### Scenario: structure
+- **WHEN** la page de réglages s'ouvre
+- **THEN** le volet gauche liste les catégories « Apps sources », « Applications cachées », **« Écran d'accueil »**, « À propos », le volet droit affiche le contenu de la catégorie active, la première catégorie porte le focus à l'ouverture
+
+#### Scenario: changement de catégorie
+- **WHEN** l'utilisateur presse haut/bas dans le volet gauche
+- **THEN** la catégorie active change et le volet droit affiche son contenu ; droite depuis le volet gauche porte le focus sur le premier élément du volet droit, gauche depuis le volet droit le rend au volet gauche
+
+#### Scenario: retour
+- **WHEN** l'utilisateur presse Retour depuis la page de réglages
+- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend
+
+### Requirement: Apps sources
+La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf **et à la rangée Up Next** ; par défaut toutes les apps sont activées.
+
+#### Scenario: présentation
+- **WHEN** la catégorie « Apps sources » est affichée
+- **THEN** chaque ligne montre l'icône de l'app, son nom et sous le nom des informations sur l'app dont le nombre de programmes publiés dans le TV Provider, avec à droite de la ligne un toggle switch
+
+#### Scenario: bascule
+- **WHEN** l'utilisateur presse OK sur une ligne
+- **THEN** le switch bascule avec l'animation Apple, l'effet est immédiat : les programmes de l'app disparaissent ou réapparaissent dans le héro, le Top Shelf **et la rangée Up Next** sans redémarrage, et l'état est persisté (DataStore)
+
+### Requirement: Cacher une application
+Le menu contextuel d'une tuile SHALL offrir une option « Cacher » en plus des actions existantes (épingler/retirer du dock, déplacer) ; une app cachée disparaît de la grille et du dock.
+
+#### Scenario: action cacher
+- **WHEN** l'utilisateur choisit « Cacher » dans le menu contextuel (appui long sur OK)
+- **THEN** l'app disparaît de la grille et du dock (épinglage éventuel retiré), sans confirmation supplémentaire, et l'état est persisté (DataStore)
+
+#### Scenario: portée du masquage
+- **WHEN** une app est cachée
+- **THEN** elle n'apparaît plus ni dans la grille ni dans le dock ; sa contribution au héro, au Top Shelf **et à Up Next** reste régie uniquement par les apps sources
+
+#### Scenario: réinstallation
+- **WHEN** une app cachée est réinstallée ou mise à jour
+- **THEN** elle reste cachée jusqu'à réactivation explicite dans les réglages
+
+## Risks / Trade-offs
+- [Le TvProvider ne rend visibles que nos propres lignes `WatchNextPrograms`] → tâche 2.1 avant tout code, critère de sortie explicite (change suspendu et revu).
+- [Colonnes vides ou absentes selon l'app] → chaque colonne est lue en `opt*` ; une colonne manquante dégrade (pas d'année, pas de progression) sans exclure l'item, sauf `COLUMN_TYPE` hors épisode/film.
+- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à P4.
+- [Repo public] → le dump de la tâche 2.1 n'est publié que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
+
 ## Notes de test
-- Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents.
-- UI : Robolectric + Compose **à la taille d'une TV** (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), jamais la taille Robolectric par défaut : séquence D-pad héro → dock → Up Next → apps (et la montée), menu « Ouvrir avec… », états (squelette, erreur, masquée), testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`.
-- Validation finale sur la TV réelle en `assembleRelease` : colonnes réellement visibles (tâche 2) et rendu.
+- Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents, même titre et même année (fusion).
+- Filtre des apps sources : test JUnit (une source désactivée n'est ni gagnante ni dans les sources du menu) et test Compose (bascule du switch → la carte disparaît sans redémarrage).
+- UI : Robolectric + Compose **à la taille d'une TV** (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), jamais la taille Robolectric par défaut : séquence D-pad héro → dock → zone grille (rangée Up Next puis apps, et la montée), position « après la grille », rangée sautée, menu « Ouvrir avec… » (y compris à une entrée), états (squelette, erreur, masquée), réglage de position, testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`.
+- Validation finale sur la TV réelle en `assembleRelease` : colonnes réellement visibles (tâche 2.1) et rendu.
