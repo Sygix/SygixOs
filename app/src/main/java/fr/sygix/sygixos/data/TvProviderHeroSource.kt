@@ -54,6 +54,8 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     // Flux réactif des comptages : l'observateur est armé AVANT la valeur initiale (envoyée
     // immédiatement, hors antirebond), puis chaque changement du contenu TV déclenche une
     // réinterrogation après un délai d'antirebond ; désinscription à l'annulation.
+    // Enregistrement refusé (SecurityException, provider absent) : une seule émission, sans
+    // observation, plutôt qu'une exception qui remonterait jusqu'au ViewModel.
     fun programCountsFlow(debounceMillis: Long = 500): Flow<Map<String, Int>> = channelFlow {
         val resolver = context.contentResolver
         val signals = Channel<Unit>(Channel.CONFLATED)
@@ -63,17 +65,19 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
                 signals.trySend(Unit)
             }
         }
-        resolver.registerContentObserver(TvContract.PreviewPrograms.CONTENT_URI, true, observer)
-        resolver.registerContentObserver(TvContract.WatchNextPrograms.CONTENT_URI, true, observer)
+        val observing = runCatching {
+            resolver.registerContentObserver(TvContract.PreviewPrograms.CONTENT_URI, true, observer)
+            resolver.registerContentObserver(TvContract.WatchNextPrograms.CONTENT_URI, true, observer)
+        }.isSuccess
         try {
             send(programCounts())
-            while (true) {
+            while (observing) {
                 signals.receive()
                 delay(debounceMillis)
                 send(programCounts())
             }
         } finally {
-            resolver.unregisterContentObserver(observer)
+            runCatching { resolver.unregisterContentObserver(observer) }
         }
     }
 

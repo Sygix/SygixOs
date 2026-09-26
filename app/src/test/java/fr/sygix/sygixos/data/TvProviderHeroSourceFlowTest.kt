@@ -6,8 +6,10 @@
 package fr.sygix.sygixos.data
 
 import android.content.ContentProvider
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
+import android.database.ContentObserver
 import android.database.Cursor
 import android.database.MatrixCursor
 import android.media.tv.TvContract
@@ -16,12 +18,16 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.Implementation
+import org.robolectric.annotation.Implements
 import org.robolectric.shadows.ShadowContentResolver
 
 // Fournisseur TV factice : état mutable pour simuler les publications des apps sources.
@@ -51,8 +57,31 @@ private class FakeTvProvider : ContentProvider() {
     override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?): Int = 0
 }
 
+// Simule un accès refusé au TV Provider (READ_TV_LISTINGS absent) à l'enregistrement de l'observateur.
+@Implements(ContentResolver::class)
+class DeniedObserverShadowContentResolver : ShadowContentResolver() {
+    @Implementation
+    override fun registerContentObserver(uri: Uri, notifyForDescendents: Boolean, observer: ContentObserver) {
+        throw SecurityException("Permission Denial: READ_TV_LISTINGS")
+    }
+}
+
 @RunWith(AndroidJUnit4::class)
 class TvProviderHeroSourceFlowTest {
+
+    @Test
+    @Config(shadows = [DeniedObserverShadowContentResolver::class])
+    fun `programCountsFlow emits counts once and completes when observer registration is denied`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val provider = FakeTvProvider()
+        ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
+        provider.previewRows.add(arrayOf("com.a", "1"))
+
+        val emissions = withTimeout(10_000) {
+            TvProviderHeroSource(context).programCountsFlow(debounceMillis = 1).toList()
+        }
+        assertEquals(listOf(mapOf("com.a" to 1)), emissions)
+    }
 
     @Test
     fun `programCountsFlow emits initial counts then re-queries on content change`() = runBlocking {
