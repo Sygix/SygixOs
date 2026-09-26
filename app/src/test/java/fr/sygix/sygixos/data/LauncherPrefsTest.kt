@@ -8,10 +8,14 @@ package fr.sygix.sygixos.data
 import androidx.test.core.app.ApplicationProvider
 import android.content.Context
 import fr.sygix.sygixos.model.TvApp
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -22,7 +26,8 @@ import org.robolectric.RobolectricTestRunner
 class LauncherPrefsTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val prefs = LauncherPrefs(context)
+    private var now = 1_000L
+    private val prefs = LauncherPrefs(context) { now }
     private val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
 
     @Before
@@ -126,4 +131,65 @@ class LauncherPrefsTest {
         repo.setGridOrder(listOf("com.c", "com.a", "com.b"))
         assertEquals(listOf("com.c", "com.a", "com.b"), prefs.gridOrder.first())
     }
+
+    @Test
+    fun `hiding an app records the hiding date from the clock`() = runBlocking {
+        seedApps("com.a", "com.b")
+        now = 42_000L
+        repo.hideApp("com.a")
+        assertEquals(mapOf("com.a" to 42_000L), prefs.hiddenWithDates.first())
+    }
+
+    @Test
+    fun `hide, unhide and hide again keeps a single date, the latest one`() = runBlocking {
+        seedApps("com.a")
+        now = 10L
+        prefs.hideApps("com.a")
+        prefs.unhideApps("com.a")
+        assertEquals(emptyMap<String, Long?>(), prefs.hiddenWithDates.first())
+        assertNull(context.dataStore.data.first()[datesKey])
+        now = 20L
+        prefs.hideApps("com.a")
+        assertEquals(mapOf("com.a" to 20L), prefs.hiddenWithDates.first())
+        assertEquals("com.a\t20", context.dataStore.data.first()[datesKey])
+    }
+
+    @Test
+    fun `clearing the hidden set clears the dates too`() = runBlocking {
+        prefs.hideApps("com.a", "com.b")
+        prefs.setHidden(emptySet())
+        assertEquals(emptyMap<String, Long?>(), prefs.hiddenWithDates.first())
+        assertNull(context.dataStore.data.first()[datesKey])
+    }
+
+    @Test
+    fun `apps hidden by a previous version stay hidden without a date and reading writes nothing`() = runBlocking {
+        seedApps("com.a", "com.b", "com.c")
+        context.dataStore.edit { prefs ->
+            prefs[stringSetPreferencesKey("hidden_apps")] = setOf("com.a", "com.b")
+            prefs[stringSetPreferencesKey("pinned_apps")] = setOf("com.a", "com.c")
+            prefs.remove(datesKey)
+        }
+        val before = context.dataStore.data.first()
+        assertEquals(mapOf<String, Long?>("com.a" to null, "com.b" to null), prefs.hiddenWithDates.first())
+        val catalog = repo.catalog.first()
+        assertEquals(listOf("com.c"), catalog.grid.map { it.packageName })
+        assertEquals(listOf("com.c"), catalog.dock.map { it.packageName })
+        assertEquals(before, context.dataStore.data.first())
+    }
+
+    @Test
+    fun `a date without a hidden package is ignored on read and dropped on the next write`() = runBlocking {
+        context.dataStore.edit { prefs ->
+            prefs[stringSetPreferencesKey("hidden_apps")] = setOf("com.a")
+            prefs[datesKey] = "com.a\t5\ncom.orphan\t7"
+        }
+        assertEquals(mapOf<String, Long?>("com.a" to 5L), prefs.hiddenWithDates.first())
+        now = 9L
+        prefs.hideApps("com.b")
+        assertEquals(mapOf<String, Long?>("com.a" to 5L, "com.b" to 9L), prefs.hiddenWithDates.first())
+        assertFalse(context.dataStore.data.first()[datesKey].orEmpty().contains("com.orphan"))
+    }
+
+    private val datesKey = stringPreferencesKey("hidden_apps_dates")
 }

@@ -3,10 +3,10 @@
 Préalable (fait) : la PR #17 (`fix/home-ui-bugs`) est mergée sur `main`, son change `home-ui-bugfixes` est archivé et ce change est rebasé dessus (ordre retenu dans `proposal.md`, « Dépendances »).
 
 ## 1. Persistance des dates de masquage
-- [ ] 1.1 Ajouter la clé `hidden_apps_dates` et `hiddenWithDates` dans `data/LauncherPrefs.kt` (D8), `hideApps` datant chaque masquage avec une horloge injectée dans le même `edit` ; vérifier par un test `LauncherPrefsTest` qui masque une app et lit sa date exacte via l'horloge fixe
-- [ ] 1.2 Retirer la date dans `unhideApps` et `setHidden(emptySet())` ; vérifier par un test `LauncherPrefsTest` masquer → réactiver → masquer qui ne laisse qu'une entrée, à la seconde date
-- [ ] 1.3 Compatibilité de lecture : test `LauncherPrefsTest` avec un DataStore pré-rempli au format ancien (`hidden_apps` seul) qui vérifie que `hiddenWithDates` renvoie `null` pour ces apps, que `catalog` les exclut toujours de la grille et du dock, et qu'aucune écriture n'a lieu à la lecture (contenu du DataStore identique après collecte)
-- [ ] 1.4 Test `LauncherPrefsTest` d'une entrée de date orpheline (package absent de l'ensemble) ignorée à la lecture et absente après la prochaine écriture
+- [x] 1.1 Ajouter la clé `hidden_apps_dates` et `hiddenWithDates` dans `data/LauncherPrefs.kt` (D8), `hideApps` datant chaque masquage avec une horloge injectée dans le même `edit` ; vérifier par un test `LauncherPrefsTest` qui masque une app et lit sa date exacte via l'horloge fixe
+- [x] 1.2 Retirer la date dans `unhideApps` et `setHidden(emptySet())` ; vérifier par un test `LauncherPrefsTest` masquer → réactiver → masquer qui ne laisse qu'une entrée, à la seconde date
+- [x] 1.3 Compatibilité de lecture : test `LauncherPrefsTest` avec un DataStore pré-rempli au format ancien (`hidden_apps` seul) qui vérifie que `hiddenWithDates` renvoie `null` pour ces apps, que `catalog` les exclut toujours de la grille et du dock, et qu'aucune écriture n'a lieu à la lecture (contenu du DataStore identique après collecte)
+- [x] 1.4 Test `LauncherPrefsTest` d'une entrée de date orpheline (package absent de l'ensemble) ignorée à la lecture et absente après la prochaine écriture
 
 ## 2. Tri (logique pure)
 - [ ] 2.1 Créer `domain/SettingsOrdering.kt` avec `sources(apps, counts)` (D7) ; tests JUnit `SettingsOrderingTest` : 12 / 0 / 3 / 0 donne l'ordre 12, 3, puis alphabétique ; compteurs absents (map vide) donne l'alphabétique complet ; la casse du nom n'influence pas l'ordre
