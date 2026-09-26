@@ -17,8 +17,10 @@ import fr.sygix.sygixos.ui.settings.SettingsState
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
+@Config(qualifiers = "w960dp-h540dp-xhdpi")
 class SettingsEntryTest {
 
     @get:Rule
@@ -115,7 +117,6 @@ class SettingsEntryTest {
         compose.onNodeWithTag("settings-screen").assertExists()
         press(Key.Back)
         compose.onNodeWithTag("zone-hero").assertIsFocused()
-        // Après le retour des réglages : le héro reprend le focus et les réglages restent ouvrables.
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-gear").assertIsFocused()
         press(Key.Enter)
