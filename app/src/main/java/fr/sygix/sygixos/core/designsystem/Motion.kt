@@ -38,4 +38,5 @@ object Dimens {
     val DockOuterMargin = ScreenMarginH - DockPadding
     const val ShelfAspectRatio = 1920f / 720f
     val ShelfPeek = 40.dp
+    val GearSize = 36.dp
 }

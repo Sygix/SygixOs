@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.unit.dp
@@ -35,9 +34,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -71,8 +76,6 @@ import fr.sygix.sygixos.ui.settings.SettingsScreen
 import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.SettingsViewModel
 import fr.sygix.sygixos.ui.settings.rememberSettingsViewModel
-import kotlin.math.cos
-import kotlin.math.sin
 
 @Composable
 fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
@@ -109,7 +112,6 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
 
 internal enum class Zone { HERO, DOCK, GRID }
 
-// Engrenage flottant en haut à droite du héro, en verre translucide discret.
 @Composable
 private fun SettingsGear(
     focusEnabled: Boolean,
@@ -118,38 +120,58 @@ private fun SettingsGear(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    GlassSurface(
+    GearIcon(
         modifier
             .testTag("settings-gear")
-            // Accessibilité : décrit l'action de l'engrenage pour les lecteurs d'écran.
             .semantics { contentDescription = "Réglages" }
             .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = onFocusedChange)
-            .tvClickable(onClick = onOpen),
-        shape = RoundedCornerShape(50),
-    ) {
-        GearGlyph(Modifier.size(30.dp).padding(5.dp))
-    }
+            .tvClickable(onClick = onOpen)
+            .size(Dimens.GearSize),
+    )
 }
 
 @Composable
-private fun GearGlyph(modifier: Modifier = Modifier) {
+private fun GearIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
     Canvas(modifier) {
-        val stroke = size.minDimension * 0.22f
-        val r = size.minDimension / 2f - stroke / 2f
-        val c = Offset(size.width / 2f, size.height / 2f)
-        for (i in 0 until 8) {
-            val angle = Math.toRadians((i * 45).toDouble())
-            drawLine(
-                Color.White.copy(alpha = 0.9f),
-                c + Offset((r * cos(angle)).toFloat(), (r * sin(angle)).toFloat()),
-                c + Offset((r * 1.35f * cos(angle)).toFloat(), (r * 1.35f * sin(angle)).toFloat()),
-                strokeWidth = stroke * 0.8f,
-            )
-        }
-        drawCircle(Color.White.copy(alpha = 0.9f), radius = r, center = c, style = Stroke(stroke))
-        drawCircle(Color.Black, radius = r * 0.4f, center = c)
+        drawPath(gearPath(size), color)
     }
 }
+
+private fun gearPath(size: Size): Path {
+    val center = size.center
+    val outer = size.minDimension / 2f
+    val body = outer * 0.72f
+    val hole = outer * 0.27f
+    val toothWidth = outer * 0.36f
+    val tooth = Path().apply {
+        addRoundRect(
+            RoundRect(
+                Rect(Offset(center.x - toothWidth / 2f, center.y - outer), Size(toothWidth, outer - body * 0.55f)),
+                CornerRadius(toothWidth * 0.42f),
+            ),
+        )
+    }
+    return Path().apply {
+        addOval(Rect(center, body))
+        for (i in 0 until GearTeeth) {
+            addPath(
+                Path().apply {
+                    addPath(tooth)
+                    transform(
+                        Matrix().apply {
+                            translate(center.x, center.y)
+                            rotateZ(i * 360f / GearTeeth)
+                            translate(-center.x, -center.y)
+                        },
+                    )
+                },
+            )
+        }
+        addOval(Rect(center, hole), Path.Direction.Clockwise)
+    }
+}
+
+private const val GearTeeth = 8
 
 @Composable
 internal fun LauncherHome(
