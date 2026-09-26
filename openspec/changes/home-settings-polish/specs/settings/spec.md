@@ -39,7 +39,7 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 - **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend
 
 ### Requirement: Apps sources
-La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro et au Top Shelf ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie), avec les compteurs connus à ce moment, puis rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent jamais de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
+La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro et au Top Shelf ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès le lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
@@ -49,21 +49,29 @@ La catégorie « Apps sources » SHALL lister toutes les apps TV installées ave
 - **WHEN** la catégorie est affichée avec des apps publiant respectivement 12, 0, 3 et 0 programmes
 - **THEN** l'ordre est : l'app à 12, l'app à 3, puis les deux apps à 0 par ordre alphabétique
 
+#### Scenario: compteurs prêts à l'entrée
+- **WHEN** l'utilisateur entre dans la catégorie « Apps sources » alors que le premier comptage, lancé au démarrage du launcher, est déjà arrivé
+- **THEN** la liste s'affiche directement triée par compteur, sans passage par l'ordre alphabétique ni retri ultérieur tant que la catégorie reste active
+
+#### Scenario: compteurs en retard
+- **WHEN** l'utilisateur entre dans la catégorie « Apps sources » avant l'arrivée du premier comptage, puis ce comptage arrive alors que le focus est sur une ligne
+- **THEN** la liste s'affiche d'abord par ordre alphabétique, puis elle est retriée une seule fois par compteur à l'arrivée du comptage ; le focus reste sur la même app, à sa nouvelle position ; les émissions suivantes mettent seulement à jour les nombres affichés, sans retri
+
 #### Scenario: égalité de compteur
 - **WHEN** deux apps publient le même nombre de programmes, supérieur à 0
 - **THEN** elles sont départagées par ordre alphabétique de leur nom (insensible à la casse), à leur place dans la partie des apps à compteur non nul
 
 #### Scenario: compteurs mis à jour dans la catégorie
 - **WHEN** un compteur change (programme publié ou retiré dans le TV Provider) alors que la catégorie « Apps sources » est active
-- **THEN** le nombre affiché sur la ligne se met à jour sur place, aucune ligne ne change de position et le focus reste sur la même ligne
+- **THEN** le nombre affiché sur la ligne se met à jour sur place, aucune ligne ne change de position et le focus reste sur la même ligne (hors le retri unique du scénario « compteurs en retard »)
 
 #### Scenario: nouvel ordre à la prochaine entrée
 - **WHEN** l'utilisateur quitte la catégorie (autre catégorie ou fermeture des réglages) puis y revient après un changement de compteur
 - **THEN** l'ordre est recalculé avec les compteurs connus à cette nouvelle entrée
 
 #### Scenario: aucun compteur disponible
-- **WHEN** aucun compteur n'est disponible à l'entrée dans la catégorie (TV Provider absent ou permission refusée)
-- **THEN** toutes les apps sont considérées à 0 et listées par ordre alphabétique, sans erreur visible ni crash ; le switch de chaque ligne reste utilisable
+- **WHEN** le comptage ne peut rien lire (TV Provider absent ou permission refusée)
+- **THEN** toutes les apps sont considérées à 0 et listées par ordre alphabétique, y compris après l'arrivée du comptage vide, sans erreur visible ni crash ; le switch de chaque ligne reste utilisable
 
 #### Scenario: bascule
 - **WHEN** l'utilisateur presse OK sur une ligne
