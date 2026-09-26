@@ -7,7 +7,6 @@ package fr.sygix.sygixos.ui.settings
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -17,25 +16,32 @@ import androidx.compose.ui.platform.LocalContext
 import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.AppIconCache
-import fr.sygix.sygixos.data.TvProviderHeroSource
+import fr.sygix.sygixos.domain.SettingsOrdering
 import fr.sygix.sygixos.model.TvApp
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class SourceRow(val app: TvApp, val enabled: Boolean)
 
+data class HiddenRow(val app: TvApp, val hidden: Boolean, val hiddenAt: Long?)
+
 data class SettingsState(
     val sources: List<SourceRow> = emptyList(),
-    val hiddenApps: List<TvApp> = emptyList(),
+    val hiddenRows: List<HiddenRow> = emptyList(),
     val version: String = "",
 )
 
 class SettingsViewModel(
     private val apps: AppCatalogRepository,
-    private val tvProvider: TvProviderHeroSource,
+    programCounts: Flow<Map<String, Int>>,
     private val pm: PackageManager,
     private val selfPackage: String,
 ) : ViewModel() {
@@ -46,34 +52,69 @@ class SettingsViewModel(
         pm.getPackageInfo(selfPackage, 0).versionName
     }.getOrNull().orEmpty()
 
-    // Comptages exposés séparément : seules les lignes dont le compte change se recomposent.
-    // WhileSubscribed : aucun scan du TV Provider tant que les réglages ne sont pas affichés.
-    val counts: StateFlow<Map<String, Int>> = tvProvider.programCountsFlow()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+    val counts: StateFlow<Map<String, Int>?> = programCounts
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val library: StateFlow<Library?> = combine(apps.allApps, apps.hiddenWithDates) { installed, dates ->
+        Library(installed.distinctBy { it.packageName }, dates)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val sourceCounts = MutableStateFlow<Map<String, Int>?>(null)
+
+    private val hiddenOrder = MutableStateFlow<List<String>?>(null)
 
     val state: StateFlow<SettingsState> = combine(
         apps.disabledSources,
-        apps.allApps,
-        apps.hidden,
-    ) { disabled, allApps, hidden ->
-        val sourceApps = allApps.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
+        library,
+        sourceCounts,
+        hiddenOrder,
+    ) { disabled, current, frozenCounts, order ->
+        val installed = current?.apps.orEmpty()
+        val dates = current?.hiddenDates.orEmpty()
+        val byPackage = installed.associateBy { it.packageName }
         SettingsState(
-            sources = sourceApps.map { app ->
-                SourceRow(
-                    app = app,
-                    enabled = app.packageName !in disabled,
-                )
+            sources = SettingsOrdering.sources(installed, frozenCounts.orEmpty()).map { app ->
+                SourceRow(app = app, enabled = app.packageName !in disabled)
             },
-            hiddenApps = sourceApps.filter { it.packageName in hidden },
+            hiddenRows = order.orEmpty().mapNotNull { pkg ->
+                byPackage[pkg]?.let { HiddenRow(app = it, hidden = pkg in dates, hiddenAt = dates[pkg]) }
+            },
             version = version,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
-    fun toggleSource(packageName: String) {
-        // Bascule atomique : lecture et écriture dans la même transaction DataStore.
+    init {
         viewModelScope.launch {
-            apps.toggleSource(packageName)
+            counts.filterNotNull().collect { latest -> sourceCounts.update { it ?: latest } }
         }
+        viewModelScope.launch {
+            val loaded = library.filterNotNull().first()
+            hiddenOrder.update { it ?: hiddenSnapshot(loaded) }
+        }
+    }
+
+    fun enterCategory(category: SettingsCategory) {
+        when (category) {
+            SettingsCategory.SOURCES -> sourceCounts.value = counts.value
+            SettingsCategory.HIDDEN -> refreshHiddenRows()
+            SettingsCategory.ABOUT -> Unit
+        }
+    }
+
+    fun refreshHiddenRows() {
+        hiddenOrder.value = library.value?.let(::hiddenSnapshot)
+    }
+
+    private fun hiddenSnapshot(library: Library): List<String> =
+        SettingsOrdering.hidden(library.apps.filter { it.packageName in library.hiddenDates }, library.hiddenDates)
+            .map { it.packageName }
+
+    fun toggleSource(packageName: String) {
+        viewModelScope.launch { apps.toggleSource(packageName) }
+    }
+
+    fun hide(packageName: String) {
+        viewModelScope.launch { apps.hideApp(packageName) }
     }
 
     fun unhide(packageName: String) {
@@ -81,8 +122,11 @@ class SettingsViewModel(
     }
 
     fun unhideAll() {
-        viewModelScope.launch { apps.unhideAll() }
+        val listed = hiddenOrder.value.orEmpty()
+        viewModelScope.launch { apps.unhideApps(listed) }
     }
+
+    private data class Library(val apps: List<TvApp>, val hiddenDates: Map<String, Long?>)
 
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
@@ -90,7 +134,7 @@ class SettingsViewModel(
             val app = context.applicationContext as SygixOsApp
             return SettingsViewModel(
                 apps = app.appCatalogRepository,
-                tvProvider = app.tvProviderHeroSource,
+                programCounts = app.tvProviderHeroSource.programCountsFlow(),
                 pm = app.packageManager,
                 selfPackage = app.packageName,
             ) as T

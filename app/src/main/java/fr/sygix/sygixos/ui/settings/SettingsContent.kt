@@ -43,13 +43,16 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.core.designsystem.tvFocus
@@ -64,23 +67,23 @@ internal fun programCountLabel(count: Int): String = when (count) {
     else -> "$count programmes publiés"
 }
 
-internal fun hiddenCountLabel(count: Int): String = when (count) {
-    0 -> "Aucune application cachée"
-    1 -> "1 application cachée"
-    else -> "$count applications cachées"
-}
-
-// Catégorie « Apps sources » : une ligne par app TV installée, switch de contribution au héro / Top Shelf.
 @Composable
 internal fun SourcesContent(
     rows: List<SourceRow>,
-    counts: State<Map<String, Int>>,
+    counts: State<Map<String, Int>?>,
     listState: LazyListState,
     focusEnabled: Boolean,
     contentFocus: FocusRequester,
     onToggle: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var focusedPackage by remember { mutableStateOf<String?>(null) }
+    val order = remember(rows) { rows.map { it.app.packageName } }
+    LaunchedEffect(order) {
+        val focused = focusedPackage?.takeIf { focusEnabled } ?: return@LaunchedEffect
+        val item = order.indexOf(focused).takeIf { it >= 0 }?.plus(1) ?: return@LaunchedEffect
+        if (listState.layoutInfo.visibleItemsInfo.none { it.index == item }) listState.scrollToItem(item)
+    }
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -104,6 +107,7 @@ internal fun SourcesContent(
                 counts = counts,
                 focusEnabled = focusEnabled,
                 focusRequester = if (rows.firstOrNull()?.app?.packageName == row.app.packageName) contentFocus else null,
+                onFocused = { focusedPackage = row.app.packageName },
                 onToggle = { onToggle(row.app.packageName) },
             )
             Spacer(Modifier.height(10.dp))
@@ -114,14 +118,14 @@ internal fun SourcesContent(
 @Composable
 private fun SourceRowLine(
     row: SourceRow,
-    counts: State<Map<String, Int>>,
+    counts: State<Map<String, Int>?>,
     focusEnabled: Boolean,
     focusRequester: FocusRequester?,
+    onFocused: () -> Unit,
     onToggle: () -> Unit,
 ) {
-    // Compte lu au niveau de la ligne : seul le rang dont le compte change se recompose.
     val programCount by remember(row.app.packageName) {
-        derivedStateOf { counts.value[row.app.packageName] ?: 0 }
+        derivedStateOf { counts.value?.get(row.app.packageName) ?: 0 }
     }
     Row(
         Modifier
@@ -132,7 +136,7 @@ private fun SourceRowLine(
             .tvFocus(
                 focusRequester = focusRequester,
                 enabled = focusEnabled,
-                onFocused = { },
+                onFocused = { if (it) onFocused() },
             )
             .tvClickable(onClick = onToggle)
             .semantics(mergeDescendants = true) {
@@ -157,32 +161,98 @@ private fun SourceRowLine(
     }
 }
 
-// Catégorie « Applications cachées » : entrée du volet droit ouvrant le sous-écran.
 @Composable
-internal fun HiddenCategoryContent(
-    hiddenApps: List<fr.sygix.sygixos.model.TvApp>,
+internal fun HiddenContent(
+    rows: List<HiddenRow>,
+    listState: LazyListState,
     focusEnabled: Boolean,
     contentFocus: FocusRequester,
-    onOpen: () -> Unit,
+    onHide: (String) -> Unit,
+    onUnhide: (String) -> Unit,
+    onUnhideAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxWidth().fillMaxHeight()) {
-        Text("Applications cachées", style = MaterialTheme.typography.headlineSmall, color = Color.White)
-        Spacer(Modifier.height(12.dp))
-        Text(
-            "Les applications cachées n'apparaissent plus dans la grille ni dans le dock.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White.copy(alpha = 0.6f),
-        )
-        Spacer(Modifier.height(20.dp))
-        val count = hiddenApps.size
-        SettingsEntryButton(
-            label = hiddenCountLabel(count),
-            focusEnabled = focusEnabled,
-            focusRequester = contentFocus,
-            onClick = onOpen,
-            modifier = Modifier.testTag("open-hidden"),
-        )
+    if (rows.isEmpty()) {
+        Box(modifier.testTag("hidden-pane").fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                stringResource(R.string.hidden_empty),
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.testTag("hidden-empty"),
+            )
+        }
+        return
+    }
+    LazyColumn(
+        state = listState,
+        modifier = modifier
+            .testTag("hidden-pane")
+            .fillMaxWidth()
+            .fillMaxHeight(),
+    ) {
+        item {
+            Text(stringResource(R.string.settings_category_hidden), style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Spacer(Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.hidden_description),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.6f),
+            )
+            Spacer(Modifier.height(20.dp))
+        }
+        item {
+            SettingsEntryButton(
+                label = stringResource(R.string.hidden_unhide_all),
+                focusEnabled = focusEnabled,
+                focusRequester = null,
+                onClick = onUnhideAll,
+                modifier = Modifier.testTag("unhide-all"),
+            )
+            Spacer(Modifier.height(20.dp))
+        }
+        items(rows, key = { it.app.packageName }) { row ->
+            val packageName = row.app.packageName
+            HiddenRowLine(
+                row = row,
+                focusEnabled = focusEnabled,
+                focusRequester = if (rows.first().app.packageName == packageName) contentFocus else null,
+                onToggle = if (row.hidden) { { onUnhide(packageName) } } else { { onHide(packageName) } },
+            )
+            Spacer(Modifier.height(10.dp))
+        }
+    }
+}
+
+@Composable
+private fun HiddenRowLine(
+    row: HiddenRow,
+    focusEnabled: Boolean,
+    focusRequester: FocusRequester?,
+    onToggle: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val state = stringResource(if (row.hidden) R.string.hidden_state_hidden else R.string.hidden_state_visible)
+    Row(
+        Modifier
+            .testTag("hidden-row-${row.app.packageName}")
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
+            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = { focused = it })
+            .tvClickable(onClick = onToggle)
+            .semantics(mergeDescendants = true) {
+                role = Role.Switch
+                toggleableState = ToggleableState(row.hidden)
+                stateDescription = state
+                onClick { onToggle(); true }
+            }
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppIcon(row.app.packageName)
+        Spacer(Modifier.width(18.dp))
+        Text(row.app.label, style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.weight(1f))
+        AppleSwitch(checked = row.hidden, tag = "hidden-switch-${row.app.packageName}")
     }
 }
 

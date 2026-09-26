@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_category_sources">Apps sources</string>
+    <string name="settings_category_hidden">Applications cachées</string>
+    <string name="settings_category_about">À propos</string>
+    <string name="hidden_description">Les applications cachées n\'apparaissent plus dans la grille ni dans le dock.</string>
+    <string name="hidden_unhide_all">Tout réactiver</string>
+    <string name="hidden_empty">Aucune application cachée</string>
+    <string name="hidden_state_hidden">Cachée</string>
+    <string name="hidden_state_visible">Visible</string>
+</resources>

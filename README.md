@@ -18,8 +18,8 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS: Li
   - the grid can be reordered with the arrow keys.
 - **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row.
 - **Settings** (gear at the top of the hero):
-  - choose which apps feed the hero and the preview;
-  - hide apps from the grid, and restore them;
+  - choose which apps feed the hero and the preview; apps that publish content come first, by number of programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
+  - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
   - version and library licenses.
 - **Never a black screen**: falls back to nature clips (Pexels), then to an animated gradient.
 - **Fully local**: no backend, no telemetry, no hard-coded app list.

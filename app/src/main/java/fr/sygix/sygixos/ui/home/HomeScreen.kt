@@ -54,8 +54,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
@@ -73,6 +73,7 @@ import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
 import fr.sygix.sygixos.ui.settings.LocalAppIcons
+import fr.sygix.sygixos.ui.settings.SettingsCategory
 import fr.sygix.sygixos.ui.settings.SettingsScreen
 import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.SettingsViewModel
@@ -103,8 +104,10 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 settings = settingsState,
                 counts = settingsViewModel.counts,
                 onToggleSource = settingsViewModel::toggleSource,
+                onHide = settingsViewModel::hide,
                 onUnhide = settingsViewModel::unhide,
                 onUnhideAll = settingsViewModel::unhideAll,
+                onSettingsCategory = settingsViewModel::enterCategory,
                 glassBlur = glassBlur,
             )
         }
@@ -177,6 +180,8 @@ private fun gearPath(size: Size): Path {
 
 private const val GearTeeth = 8
 
+private val NoCounts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap())
+
 @Composable
 internal fun LauncherHome(
     catalog: Catalog,
@@ -189,10 +194,12 @@ internal fun LauncherHome(
     onRestoreOrder: (List<String>) -> Unit = {},
     onHideApp: (TvApp) -> Unit = {},
     settings: SettingsState? = null,
-    counts: Flow<Map<String, Int>> = flowOf(emptyMap()),
+    counts: StateFlow<Map<String, Int>?> = NoCounts,
     onToggleSource: (String) -> Unit = {},
+    onHide: (String) -> Unit = {},
     onUnhide: (String) -> Unit = {},
     onUnhideAll: () -> Unit = {},
+    onSettingsCategory: (SettingsCategory) -> Unit = {},
     initialZone: Zone = Zone.HERO,
     glassBlur: Boolean = true,
 ) {
@@ -347,13 +354,15 @@ internal fun LauncherHome(
             }
         }
         if (settingsOpen) {
-            val countsState = counts.collectAsStateWithLifecycle(initialValue = emptyMap())
+            val countsState = counts.collectAsStateWithLifecycle()
             SettingsScreen(
                 state = settings ?: SettingsState(),
                 counts = countsState,
                 onToggleSource = onToggleSource,
+                onHide = onHide,
                 onUnhide = onUnhide,
                 onUnhideAll = onUnhideAll,
+                onCategoryEntered = onSettingsCategory,
                 onBack = { settingsOpen = false },
             )
         }

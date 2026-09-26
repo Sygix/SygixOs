@@ -7,12 +7,16 @@ package fr.sygix.sygixos.ui.home
 
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.ui.settings.HiddenRow
 import fr.sygix.sygixos.ui.settings.SettingsState
 import org.junit.Rule
 import org.junit.Test
@@ -92,18 +96,15 @@ class SettingsEntryTest {
     }
 
     @Test
-    fun `back from hidden apps sub screen returns to settings pane, not home`() {
-        setupHome(SettingsState(hiddenApps = listOf(app("com.hidden", "Hidden"))))
+    fun `back from the hidden apps pane closes the settings and resumes the hero`() {
+        setupHome(SettingsState(hiddenRows = listOf(HiddenRow(app("com.hidden", "Hidden"), hidden = true, hiddenAt = null))))
         press(Key.DirectionUp)
         press(Key.Enter)
         compose.onNodeWithTag("settings-screen").assertExists()
         press(Key.DirectionDown)
         press(Key.DirectionRight)
-        press(Key.Enter)
-        compose.onNodeWithTag("hidden-apps-screen").assertExists()
-        press(Key.Back)
-        compose.onNodeWithTag("hidden-apps-screen").assertDoesNotExist()
-        compose.onNodeWithTag("settings-screen").assertExists()
+        compose.onNodeWithTag("hidden-row-com.hidden").assertIsFocused()
+        compose.onNode(hasTestTag("hidden-row-com.hidden") and hasAnyAncestor(hasTestTag("hidden-pane"))).assertIsDisplayed()
         press(Key.Back)
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
         compose.onNodeWithTag("zone-hero").assertIsFocused()

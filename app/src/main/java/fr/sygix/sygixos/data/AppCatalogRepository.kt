@@ -25,6 +25,8 @@ class AppCatalogRepository(
 
     val hidden: Flow<Set<String>> = prefs.hidden
 
+    val hiddenWithDates: Flow<Map<String, Long?>> = prefs.hiddenWithDates
+
     val disabledSources: Flow<Set<String>> = prefs.disabledSources
 
     val allApps: Flow<List<TvApp>> = installed.filterNotNull()
@@ -81,6 +83,10 @@ class AppCatalogRepository(
 
     suspend fun unhideApp(packageName: String) {
         prefs.unhideApps(packageName)
+    }
+
+    suspend fun unhideApps(packages: Collection<String>) {
+        prefs.unhideApps(*packages.toTypedArray())
     }
 
     suspend fun unhideAll() {
