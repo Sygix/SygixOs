@@ -1,27 +1,28 @@
 # Tasks : p2c-upnext
 
 ## Prérequis
-- [ ] 1. Change `jellyfin-tvprovider-only` fusionné (jellyfin-integration réécrite en TV Provider uniquement — plus de serveur, ni credentials, ni écran de config)
+- [ ] 1. Change `jellyfin-tvprovider-only` fusionné (jellyfin-integration réécrite en TV Provider uniquement)
 
-## Spécification
-- [ ] 2. Relire le delta contre le code réel au moment de l'implémentation (nav home, menu contextuel, patterns DataStore) et corriger la spec avant de coder
+## Vérification sur l'appareil (avant tout code)
+- [ ] 2. Test sur la TCL : lister les lignes `WatchNextPrograms` et `PreviewPrograms` lisibles sous `READ_TV_LISTINGS` — packages visibles, colonnes réellement remplies par chaque app (titre de série, `episode_title`, saison/épisode, `internal_provider_id`, `content_id`, `intent_uri`, poster, `watch_next_type`, `last_engagement_time`, position). Ajuster les hypothèses de `design.md` avec les résultats avant d'écrire le moindre code.
 
 ## Implémentation
-- [ ] 3. Modèle canonique `UpNextItem` + interface `UpNextProvider` (IDs externes dès l'extraction)
-- [ ] 4. Provider Jellyfin : extraction des `WatchNextPrograms` du TV Provider (épisodes + films en cours publiés par le client Jellyfin : titre, poster, position, intent de reprise), mappeurs vers items canoniques
-- [ ] 5. Fusion locale : dédoublonnage (en cours gagne), tri par date d'activité décroissante, limite 20
-- [ ] 6. Persistance DataStore : ordre de préférence des apps, overrides par série (map ID externe → app)
-- [ ] 7. `PlaybackTargetResolver` : score rang × dispo, override prioritaire, écart des apps non installées
-- [ ] 8. Adapters : Jellyfin (VIEW intent + extra `source=30`, fallback app), Stremio (deep link `stremio:///detail/…?autoPlay=true`, fallback app), générique (lancement app)
-- [ ] 9. Cascade d'échec : fallback app puis app suivante de l'ordre, toast discret si aucune, jamais de crash
-- [ ] 10. UI rangée : position sous le héro au-dessus de la grille, squelette loading, carte d'état erreur + « Réessayer », masquée si vide ou non configurée
-- [ ] 11. Badge logo app cible sur chaque carte, sans texte, mise à jour sans rechargement
-- [ ] 12. Menu contextuel d'override (appui long) : « Toujours ouvrir avec » + « Retirer l'override » conditionnel
+- [ ] 3. Modèle canonique `UpNextItem` (avec champ `externalIds` facultatif) + interface `UpNextSource` renvoyant un `Result` (erreur ≠ vide)
+- [ ] 4. Source TV Provider : requête `ContentResolver` sur `Dispatchers.IO` avec `withTimeout` ~2 s, mappeurs `Cursor` → `UpNextItem` pour toutes les apps visibles
+- [ ] 5. Normalisation des titres + dédoublonnage en niveaux 1 à 4 (niveau 5 = P4, via `externalIds`), gagnant : reprise en cours > engagement le plus récent > ordre de préférence (constante)
+- [ ] 6. Tri : `CONTINUE` d'abord par `last_engagement_time` décroissant, puis `NEXT`/`NEW` (même tri, à égalité par `_ID` croissant), tri stable, `WATCHLIST` exclu, limite 20
+- [ ] 7. Intégration `HomeViewModel`/`HomeState` : état de la rangée dans le uniflow existant, déclencheurs de refresh (retour au premier plan, permission accordée), étude d'un `ContentObserver` protégé contre `SecurityException` et provider absent
+- [ ] 8. UI rangée : ligne en tête de la zone grille (position avant/après la grille pilotée par le réglage p2b), carte 16:9 avec poster portrait centré, texte `SxxEyy` + titre d'épisode, barre de progression `CONTINUE`, placeholder image, badge icône app via `PackageManager`, squelette au premier chargement > 300 ms seulement
+- [ ] 9. Ouverture : intent publié (`COLUMN_INTENT_URI`) puis lancement de l'app source en repli, sans crash
+- [ ] 10. Généralisation du menu contextuel (`AppContextMenu` découplé de `TvApp`) : « Ouvrir avec… » sur une carte, aucune persistance
+- [ ] 11. Réglage « Position d'Up Next » côté change `p2b-settings` (avant la grille, défaut / après la grille) — coordonner avec la PR settings
 
 ## Tests
-- [ ] 13. Tests unitaires : fusion, dédup, tri, résolution de cible (score, override, sans IMDb), persistance par exceptions
-- [ ] 14. Tests UI Robolectric + Compose : états de rangée, DPAD, menu contextuel, badge, non-blocage de la nav home
+- [ ] 12. Tests JUnit : normalisation, chaque niveau de dédoublonnage (y compris faux positifs : remake avec année différente, même titre mais types différents), gagnant, tri, limite, mapping `Cursor` → `UpNextItem`
+- [ ] 13. Tests UI Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`, jamais la taille Robolectric par défaut) : navigation D-pad héro → dock → Up Next → apps, palier sauté, restauration du focus au retour d'une app, menu « Ouvrir avec… », états de la rangée ; testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`
 
-## Validation
-- [ ] 15. `openspec validate p2c-upnext --type change --strict` vert
-- [ ] 16. Build + tests verts : `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ANDROID_HOME=~/android-sdk ./gradlew assembleDebug test`
+## Finition
+- [ ] 14. Chaînes FR en ressources (aucun texte en dur)
+- [ ] 15. Mise à jour du README si le comportement visible change
+- [ ] 16. Build et tests verts : `./gradlew test assembleRelease` (aucune configuration propre à une machine) + validation sur la TV réelle en `assembleRelease`
+- [ ] 17. `openspec validate --all --strict` vert, puis `openspec archive p2c-upnext` après merge sur main et validation sur la TV

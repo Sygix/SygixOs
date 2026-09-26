@@ -2,110 +2,170 @@
 
 ## ADDED Requirements
 
-### Requirement: Modèle provider-agnostic
-La rangée Up Next SHALL être alimentée par des providers derrière une interface commune, chaque item étant un modèle canonique indépendant de l'app d'origine.
+### Requirement: Source multi-apps
+La rangée Up Next SHALL agréger les programmes watch next (`WatchNextPrograms`, complétés de `PreviewPrograms`) de toutes les apps visibles dans le TV Provider Android, lues sous `READ_TV_LISTINGS`, sans limiter aux programmes d'une app en particulier.
+
+#### Scenario: agrégation
+- **WHEN** plusieurs apps publient des programmes watch next
+- **THEN** la rangée affiche les items de toutes les sources visibles, chaque carte portant l'app qui a publié le programme retenu
+
+#### Scenario: accès aux données
+- **WHEN** la rangée est chargée
+- **THEN** la requête `ContentResolver` s'exécute hors du thread principal avec un timeout borné, et la source renvoie un résultat qui distingue une erreur d'un résultat vide
+
+#### Scenario: hypothèse de visibilité
+- **WHEN** l'implémentation démarre
+- **THEN** la visibilité réelle des lignes des autres apps sous `READ_TV_LISTINGS` a été vérifiée sur l'appareil (colonnes et packages visibles) avant toute utilisation d'une colonne ; toute colonne non confirmée est marquée comme hypothèse
+
+### Requirement: Modèle canonique
+La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'app d'origine, avec un champ `externalIds` facultatif.
 
 #### Scenario: constitution
-- **WHEN** la rangée Up Next est chargée
-- **THEN** chaque item expose série, saison, épisode, type (épisode ou film), titre d'affichage, poster, progression optionnelle, date d'activité, IDs externes quand le programme en expose et app provider ; les IDs externes manquants écartent les apps qui en dépendent (ex. Stremio sans IMDb)
+- **WHEN** un programme watch next est converti en item de la rangée
+- **THEN** l'item expose le package source, le type (épisode ou film), le titre de série, la saison, l'épisode, le titre d'affichage, le poster, la progression optionnelle, le type watch next, le timestamp d'activité, l'intent publié et le nom de l'app source ; le champ `externalIds` est présent mais vide en p2c
 
 #### Scenario: extension P4
-- **WHEN** un nouveau provider (BetaSeries) est ajouté
-- **THEN** il s'agit d'un nouvel adapter de l'interface provider, sans modification du modèle canonique ni de la rangée
+- **WHEN** l'enrichissement BetaSeries (P4) ajoute des IDs externes (IMDb, TVDB) aux items de toutes les sources
+- **THEN** le modèle canonique et la rangée absorbent ces IDs sans refonte, et le niveau 5 de dédoublonnage s'active quand il est connu ; BetaSeries reste une étape d'enrichissement et non la source unique de la rangée
 
-### Requirement: Fusion Continue Watching + Next Up
-La rangée SHALL fusionner les épisodes et films en cours avec les épisodes à suivre, dédoublonnés et triés par date d'activité décroissante.
+### Requirement: Dédoublonnage en niveaux
+La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P4, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu.
 
-#### Scenario: fusion
-- **WHEN** le TV Provider contient des programmes Jellyfin en cours ou à suivre
-- **THEN** la rangée affiche les items en cours (épisodes et films, avec barre de progression) et les épisodes à suivre, limités à 20 items
+#### Scenario: doublons dans une app
+- **WHEN** une app publie le même contenu plusieurs fois (y compris en `PreviewPrograms` et `WatchNextPrograms`)
+- **THEN** un seul item est retenu, identifié par `package_name` + `internal_provider_id`, sinon `content_id`, sinon `intent_uri`
 
-#### Scenario: dédoublonnage
-- **WHEN** un même épisode apparaît à la fois comme en cours et comme à suivre
-- **THEN** seul l'item en cours est retenu (progression et date de reprise conservées)
+#### Scenario: série dans une app
+- **WHEN** une app publie à la fois l'épisode en cours d'une série et son épisode suivant
+- **THEN** une seule carte est affichée pour la série et l'épisode en cours prime
 
-#### Scenario: tri
+#### Scenario: épisode et film entre apps
+- **WHEN** deux apps publient le même épisode (titre de série normalisé + saison + épisode) ou le même film (titre normalisé + année)
+- **THEN** une seule carte est retenue ; pour un film, aucune fusion n'a lieu si les deux années sont connues et différentes (remakes)
+
+#### Scenario: normalisation stricte
+- **WHEN** les titres sont comparés
+- **THEN** la comparaison est une égalité stricte après normalisation (minuscules, diacritiques retirés, ponctuation et « (année) » supprimés, espaces compactés), sans correspondance approximative
+
+#### Scenario: limite assumée
+- **WHEN** deux apps publient le même contenu sous des titres localisés différents
+- **THEN** les items restent en double jusqu'à l'activation du niveau 5 en P4, et cette limite est documentée
+
+### Requirement: Gagnant d'un doublon
+Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : une reprise en cours (progression > 0) bat un « à suivre » ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
+
+#### Scenario: reprise en cours
+- **WHEN** un même contenu existe à la fois comme en cours et comme à suivre
+- **THEN** l'item en cours est retenu, avec sa progression et sa date d'activité
+
+#### Scenario: engagement le plus récent
+- **WHEN** les items candidats sont tous du même type de progression
+- **THEN** celui dont le timestamp d'activité est le plus récent est retenu
+
+#### Scenario: égalité
+- **WHEN** deux candidats ont le même timestamp d'activité
+- **THEN** l'ordre de préférence des apps (constante en p2c, Jellyfin d'abord) tranche
+
+### Requirement: Tri et limite
+La rangée SHALL être triée de façon déterministe : les items en cours (`CONTINUE`) d'abord par timestamp d'activité décroissant, puis les items à suivre (`NEXT`/`NEW`) par timestamp d'activité décroissant et à égalité par identifiant croissant, avec un tri stable ; les items `WATCHLIST` sont exclus ; la rangée est limitée à 20 items.
+
+#### Scenario: ordre des groupes
 - **WHEN** la rangée est affichée
-- **THEN** les items sont triés par date d'activité décroissante (date de reprise pour les items en cours, date de sortie sinon)
+- **THEN** les items en cours précèdent les items à suivre, chaque groupe trié par engagement décroissant, sans dépendre d'une date de sortie absente de la source
 
-### Requirement: Résolution de l'app de lecture
-La cible de lecture de chaque item SHALL être résolue par un score combinant l'ordre de préférence des apps persisté et la disponibilité, l'override par série étant prioritaire.
+#### Scenario: exclusion WATCHLIST
+- **WHEN** une app publie des programmes de type `WATCHLIST`
+- **THEN** ils n'apparaissent pas dans la rangée
 
-#### Scenario: résolution automatique
-- **WHEN** un item n'a pas d'override
-- **THEN** la cible est l'apps candidate au meilleur score (rang dans l'ordre de préférence × disponibilité) ; les apps non installées sont écartées ; à égalité, l'ordre de préférence tranche
+#### Scenario: limite
+- **WHEN** plus de 20 items subsistent après dédoublonnage et tri
+- **THEN** la rangée affiche les 20 premiers selon l'ordre ci-dessus
 
-#### Scenario: priorité de l'override
-- **WHEN** la série d'un item possède un override vers une app installée
-- **THEN** la cible est cette app, indépendamment du score
+### Requirement: Position de la rangée
+La rangée Up Next SHALL être une ligne style tvOS en tête de la zone grille, au-dessus des apps, sans nouveau palier de navigation, avec une position réglable dans les réglages (« Position d'Up Next » : avant la grille, par défaut, ou après la grille).
 
-#### Scenario: disponibilité Stremio
-- **WHEN** un item n'a pas d'ID IMDb
-- **THEN** Stremio n'est pas considéré disponible pour cet item
+#### Scenario: position par défaut
+- **WHEN** la zone grille prend le focus
+- **THEN** la rangée Up Next est affichée en tête, au-dessus de la première rangée d'apps
 
-### Requirement: Ouverture de lecture avec fallback
-La lecture SHALL s'ouvrir via l'adapter de la cible résolue, avec fallback borné si l'ouverture échoue.
+#### Scenario: position réglée après la grille
+- **WHEN** le réglage « Position d'Up Next » vaut « après la grille »
+- **THEN** la rangée est affichée sous la dernière rangée d'apps, dans la même zone
 
-#### Scenario: Jellyfin
-- **WHEN** la cible est Jellyfin
-- **THEN** un intent `ACTION_VIEW` (data = ID de l'item, catégorie `LEANBACK_LAUNCHER`, extra `source=30`) est envoyé à l'activity de démarrage du client Jellyfin ; si l'intent échoue, l'app Jellyfin est lancée seule
+### Requirement: Indépendance avec le héro
+La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au héro : le héro peut montrer les mêmes contenus.
 
-#### Scenario: Stremio
-- **WHEN** la cible est Stremio
-- **THEN** le deep link `stremio:///detail/series/{imdb}/{imdb}:{saison}:{épisode}?autoPlay=true` (épisodes) ou `stremio:///detail/movie/{imdb}/{imdb}` (films) est ouvert ; si le lien échoue, l'app Stremio est lancée seule
+#### Scenario: contenu commun
+- **WHEN** un contenu apparaît à la fois dans le héro et dans la rangée Up Next
+- **THEN** les deux zones l'affichent, sans filtrage entre elles
 
-#### Scenario: app sans deep link
-- **WHEN** la cible est une app sans deep link supporté
-- **THEN** l'app est lancée seule
+### Requirement: Carte Up Next
+Chaque carte Up Next SHALL être au format 16:9 uniforme avec le poster portrait centré sur fond sombre, le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder si l'image manque, et un petit badge avec l'icône de l'app source prise dans le `PackageManager`.
 
-#### Scenario: échec en cascade
-- **WHEN** l'ouverture échoue pour la cible et son fallback
-- **THEN** l'app suivante de l'ordre de préférence est tentée ; si aucune ne répond, un toast discret est affiché, sans crash
+#### Scenario: carte épisode
+- **WHEN** l'item est un épisode
+- **THEN** la carte affiche le poster en 16:9, le titre de série, « SxxEyy », le titre d'épisode et, pour un item en cours, la barre de progression
 
-### Requirement: Override par série
-Le menu contextuel d'une carte Up Next SHALL permettre de forcer l'app de lecture d'une série, avec persistance par exceptions.
+#### Scenario: carte film
+- **WHEN** l'item est un film
+- **THEN** la carte affiche le poster en 16:9 et le titre du film
 
-#### Scenario: menu contextuel
+#### Scenario: badge et image
+- **WHEN** une carte est affichée
+- **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué), et un placeholder remplace le poster si celui-ci manque ou échoue
+
+#### Scenario: focus
+- **WHEN** une carte prend le focus
+- **THEN** le comportement visuel suit l'exigence « Focus tvOS » de launcher-shell (zoom ~1.1x, ombre douce, easing Apple)
+
+### Requirement: Ouverture d'un item
+L'appui sur une carte SHALL ouvrir l'intent publié par le programme de la rangée (`COLUMN_INTENT_URI`) ; à défaut, ou en cas d'échec d'ouverture, l'app source SHALL être lancée.
+
+#### Scenario: intent disponible
+- **WHEN** l'utilisateur valide une carte dont le programme publie un intent
+- **THEN** cet intent est ouvert (l'app affiche sa fiche ou reprend selon son propre comportement — le verbe est « ouvrir », pas « lire »)
+
+#### Scenario: intent absent ou en échec
+- **WHEN** le programme ne publie pas d'intent, ou que son ouverture échoue (activity absente, exception de sécurité)
+- **THEN** l'app source est lancée, sans crash
+
+### Requirement: Menu « Ouvrir avec… »
+L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les apps qui possèdent ce contenu, chacune ouverte via l'intent qu'elle publie ; rien n'est persisté.
+
+#### Scenario: ouverture du menu
 - **WHEN** l'utilisateur fait un appui long sur une carte
-- **THEN** un menu contextuel s'ouvre : « Toujours ouvrir avec » (apps supportées installées + « Automatique ») et « Retirer l'override » si un override existe pour la série
+- **THEN** le menu « Ouvrir avec… » liste les apps de la clé de dédoublonnage retenue, avec leur nom et leur icône
 
-#### Scenario: application
-- **WHEN** l'utilisateur choisit une app dans « Toujours ouvrir avec »
-- **THEN** la persistance enregistre l'exception pour l'ID externe de la série, la cible de toutes les cartes de cette série est re-résolue et le badge se met à jour sans rechargement
+#### Scenario: choix d'une app
+- **WHEN** l'utilisateur valide une entrée du menu
+- **THEN** l'app choisie est ouverte via l'intent qu'elle publie, le menu se ferme et le focus revient sur la carte
 
-#### Scenario: retrait
-- **WHEN** l'utilisateur choisit « Retirer l'override »
-- **THEN** l'exception est supprimée de la persistance et la série redevient « Automatique »
+#### Scenario: fermeture et focus
+- **WHEN** l'utilisateur presse Retour pendant que le menu est ouvert
+- **THEN** le menu se ferme sans ouvrir d'app et le focus revient sur la carte
 
-#### Scenario: sans override ajouté
-- **WHEN** une série sans override apparaît dans la rangée
-- **THEN** elle est résolue automatiquement, sans action requise
-
-### Requirement: Badge app cible
-Chaque carte Up Next SHALL afficher le logo de l'app de lecture résolue, sans texte.
-
-#### Scenario: affichage
-- **WHEN** une carte Up Next est affichée
-- **THEN** un petit logo de l'app cible résolue est visible sur la carte, sans texte
-
-#### Scenario: mise à jour
-- **WHEN** la cible d'une série change (override ou préférence)
-- **THEN** le badge des cartes concernées reflète la nouvelle cible sans rechargement de la rangée
+#### Scenario: source unique
+- **WHEN** une seule app possède le contenu de la carte
+- **THEN** le menu réduit à une entrée est affiché
 
 ### Requirement: États de la rangée
-La rangée SHALL couvrir les états TV Provider sans contenu Jellyfin, chargement, erreur et vide, sans jamais bloquer le reste du home.
+La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home.
 
-#### Scenario: aucun contenu Jellyfin
-- **WHEN** aucun programme Jellyfin n'est présent dans le TV Provider (client absent, non authentifié ou rien en cours)
-- **THEN** la rangée Up Next est absente du home, sans invitation à configurer quoi que ce soit
-
-#### Scenario: chargement
-- **WHEN** les données sont en cours de récupération
-- **THEN** un squelette de cartes est affiché, sans flash de contenu
+#### Scenario: permission refusée
+- **WHEN** `READ_TV_LISTINGS` n'est pas accordée
+- **THEN** la rangée est masquée, sans carte d'erreur et sans invitation à configurer quoi que ce soit
 
 #### Scenario: erreur
-- **WHEN** la requête vers le TV Provider échoue
-- **THEN** une carte d'état focusable (message + « Réessayer ») remplace la rangée, sans crash
+- **WHEN** la requête vers le TV Provider échoue ou dépasse le timeout
+- **THEN** une carte d'état focusable (message + « Réessayer ») remplace la rangée, distincte de l'état vide, sans crash
+
+#### Scenario: chargement initial
+- **WHEN** le premier chargement dépasse ~300 ms
+- **THEN** un squelette de cartes est affiché ; s'il est plus court, aucune étape intermédiaire n'apparaît
+
+#### Scenario: rechargement
+- **WHEN** la rangée se recharge alors qu'un contenu est déjà affiché
+- **THEN** l'état précédent reste affiché jusqu'au résultat, sans saut de mise en page ni squelette
 
 #### Scenario: vide
 - **WHEN** aucun item n'est retourné
@@ -114,3 +174,14 @@ La rangée SHALL couvrir les états TV Provider sans contenu Jellyfin, chargemen
 #### Scenario: non-blocage
 - **WHEN** la rangée est dans n'importe quel état
 - **THEN** la navigation DPAD du home (héro, dock, grille) reste fonctionnelle
+
+### Requirement: Rafraîchissement
+La rangée SHALL se recharger quand le launcher revient au premier plan ou que `READ_TV_LISTINGS` vient d'être accordée.
+
+#### Scenario: retour au premier plan
+- **WHEN** le launcher revient au premier plan (ou que la permission vient d'être accordée)
+- **THEN** la rangée se recharge, le contenu précédent reste affiché pendant ce temps
+
+#### Scenario: limite de fraîcheur
+- **WHEN** la rangée est rechargée
+- **THEN** elle reflète les données publiées par les apps, qui ne resynchronisent pas en continu (Jellyfin, par exemple, ne resynchronise qu'une fois par heure) — ce délai est documenté et non traité comme une erreur

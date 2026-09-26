@@ -1,24 +1,33 @@
 # Change : p2c-upnext
 
 ## Why
-P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une rangée Up Next au-dessus de la grille (« fusion Jellyfin puis BetaSeries, tri par date d'activité ») mais rien n'existe encore. Ce change matérialise cette exigence avec un **modèle provider-agnostic** : la rangée est alimentée par des providers (Jellyfin en p2c, BetaSeries en P4) et chaque carte route la lecture vers la **bonne app installée** (Jellyfin, Stremio, …) via un système de score de priorité, au lieu de lier la rangée à une seule app. La recherche (autre moitié du P2c du README) fait l'objet d'un change séparé.
+P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une rangée Up Next au-dessus de la grille, mais rien n'existe encore. Décision produit validée : la rangée agrège les programmes watch next de **toutes les apps visibles dans le TV Provider** (pas seulement Jellyfin), avec un dédoublonnage à plusieurs niveaux, et chaque carte ouvre l'**intent publié par son programme** (`COLUMN_INTENT_URI`), sinon l'app est lancée. La recherche (autre moitié du P2c du README) fait l'objet d'un change séparé.
 
 ## What Changes
-- **Modèle Up Next provider-agnostic** : item canonique (série, saison, épisode, titre, poster, progression, IDs externes IMDb/TVDB, date d'activité, app source) alimenté par une interface provider ; Jellyfin est le premier provider, BetaSeries (P4) n'ajoutera qu'un adapter
-- **Fusion Continue Watching + Next Up** : épisodes en cours + films en cours (barre de progression) + épisodes à suivre de l'API `/Shows/NextUp`, dédoublonnés (l'épisode en cours gagne) et triés par date d'activité décroissante
-- **Badge app cible** : petit logo de l'app de lecture résolue sur chaque carte, sans texte
-- **Routage de lecture par adapter** avec chaîne de fallback :
-  - Jellyfin : `ACTION_VIEW` (item ID, catégorie `LEANBACK_LAUNCHER`, extra `source=30`) sur `StartupActivity` — intent non documenté, fallback lancement de l'app
-  - Stremio : deep link `stremio:///detail/series/{imdb}/{imdb}:{s}:{e}` (`autoPlay=true`), fallback lancement de l'app
-  - Apps sans deep link (Netflix, etc.) : lancement de l'app seul, sobre
-- **Score de priorité** : app cible = ordre de préférence persisté (défaut Jellyfin > Stremio) × disponibilité catalogue ; l'override par série est prioritaire sur le score
-- **Override par série** : menu contextuel sur une carte (« Toujours ouvrir avec … », « Retirer l'override »), persistance de l'ensemble des exceptions (jamais un snapshot)
-- **États de la rangée** : loading / vide / erreur + retry, timeouts bornés ; rangée masquée si aucun serveur Jellyfin n'est configuré
+- **Source unique : le TV Provider Android** (`WatchNextPrograms` / `PreviewPrograms`, lu sous `READ_TV_LISTINGS`) : items en cours et à suivre publiés par toutes les apps, sans appels réseau ni credentials
+- **Dédoublonnage en 5 niveaux** (clé d'identité, de la plus fiable à la moins fiable) : doublons exacts dans une app, série dans une app, épisode entre apps, film entre apps, puis en P4 les IDs IMDb/TVDB ajoutés par l'enrichissement BetaSeries
+- **Gagnant d'un doublon** (décision produit) : une reprise en cours (position > 0) bat un « à suivre » ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord)
+- **Tri** : items `CONTINUE` d'abord (par `last_engagement_time` décroissant), puis `NEXT`/`NEW` (même tri, à égalité par `_ID` croissant) ; tri stable ; `WATCHLIST` exclu de la rangée
+- **Position réglable** (décision produit) : une ligne style tvOS en tête de la zone grille, au-dessus des apps ; réglage p2b « Position d'Up Next » : *avant la grille* (défaut) ou *après la grille*
+- **Aucun dédoublonnage entre le héro et Up Next** (décision produit) : le héro peut montrer les mêmes contenus, comme sur tvOS
+- **Menu « Ouvrir avec… »** (décision produit) : appui long sur une carte, liste des apps qui ont ce contenu, ouverture via leur intent, rien n'est persisté — remplace l'override par série
+- **Badge app** : petite icône de l'app source prise dans le `PackageManager` (aucun logo embarqué)
+- **Cartes 16:9 uniformes**, poster portrait centré sur fond sombre, barre de progression pour les items en cours, états chargement / erreur / vide / permission refusée
+- **Modèle canonique `UpNextItem`** avec champ `externalIds` facultatif, prêt pour l'enrichissement BetaSeries de P4
 
 ## Impact
 - specs affectées : nouvelle capability `up-next` (delta ci-dessous)
-- launcher-shell : l'exigence « Rangée Up Next » devient implémentée par cette capability (pas de modification de son texte)
-- jellyfin-integration : l'exigence « Continue watching / Up Next » (reprise via l'intent du programme) devient implémentée par cette capability ; réécrite en TV Provider uniquement par le change `jellyfin-tvprovider-only` (aucun serveur, aucun credentials)
-- **Dépendance** : le change `jellyfin-tvprovider-only` (décision : pas d'API directe pour le moment) doit être fusionné avant l'implémentation de p2c ; la source Jellyfin de la rangée est le TV Provider Android, pas le serveur
-- persistance : nouveaux états DataStore (ordre de lecture, overrides par série)
-- hors scope : recherche (change séparé), BetaSeries (P4, adapter seulement), UI de réordre de l'ordre de lecture global (l'override par série couvre le besoin immédiat), multi-comptes Jellyfin
+- launcher-shell : deltas MODIFIED « Navigation 3 paliers » (séquence héro → dock → Up Next → apps) et « Rangée Up Next » (délégation à up-next)
+- ui-testing : delta MODIFIED « Navigation D-pad des trois zones » (quatre zones avec Up Next) et couverture des états de la rangée
+- jellyfin-integration : reste le contrat de données (TV Provider), l'UI et l'ouverture sont décrites par up-next — les deux capabilities se renvoient l'une à l'autre, aucune contradiction
+- settings (change `p2b-settings`) : nouveau réglage « Position d'Up Next » à ajouter de son côté (non édité ici)
+- persistance : aucune nouvelle persistance (le menu « Ouvrir avec… » ne persiste rien) ; l'ordre de préférence des apps est une constante en p2c
+- **Dépendance** : le change `jellyfin-tvprovider-only` doit être fusionné avant l'implémentation de p2c
+- **Vérification sur l'appareil** : la visibilité réelle des lignes `WatchNextPrograms` des autres apps sous `READ_TV_LISTINGS` doit être confirmée sur la TCL avant tout code (tâche 1)
+
+## Non-goals
+- **Routage de lecture par score et deep links** (Stremio `autoPlay`, `source=30`) : retiré de p2c, pourra revenir en P4 avec les IDs externes
+- **Override par série persisté** : remplacé par le menu « Ouvrir avec… » (rien n'est persisté)
+- **BetaSeries comme source** : en P4, BetaSeries sert d'abord à **enrichir** les items de toutes les sources avec des IDs externes IMDb/TVDB (niveau 5 de dédoublonnage) ; la rangée reste multi-sources
+- **Correspondance approximative des titres** : égalité stricte après normalisation, jamais de fusion à tort ; les titres localisés différemment restent en double jusqu'à P4
+- Recherche (change séparé), réglage d'ordre de préférence des apps (constante en p2c), multi-comptes
