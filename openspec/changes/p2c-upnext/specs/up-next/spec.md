@@ -39,6 +39,49 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **WHEN** l'enrichissement BetaSeries (P4) ajoute des IDs externes (IMDb, TVDB) aux items de toutes les sources
 - **THEN** le modèle canonique et la rangée absorbent ces IDs sans refonte, et le niveau 5 de dédoublonnage s'active quand il est connu ; BetaSeries reste une étape d'enrichissement et non la source unique de la rangée
 
+### Requirement: Champs facultatifs
+Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli.
+
+#### Scenario: titre absent
+- **WHEN** un programme n'a ni titre ni titre de série
+- **THEN** il est exclu de la rangée
+
+#### Scenario: titre de série absent
+- **WHEN** un épisode n'a pas de titre de série mais un titre
+- **THEN** le titre sert de titre d'affichage et de clé de titre normalisé, sans « SxxEyy » si les numéros manquent
+
+#### Scenario: numéros de saison ou d'épisode absents
+- **WHEN** un épisode n'a pas de numéro de saison ou d'épisode
+- **THEN** la carte omet « SxxEyy » ; le niveau 3 de dédoublonnage ne s'applique pas à cet item (pas de fusion entre apps sans numéros), le niveau 2 reste appliqué
+
+#### Scenario: identifiants absents
+- **WHEN** un programme n'a ni `internal_provider_id`, ni `content_id`, ni `intent_uri`
+- **THEN** la clé du niveau 1 est `package_name` + `_ID` : seule la ligne elle-même est dédoublonnée
+
+#### Scenario: année absente
+- **WHEN** un film n'a pas de `release_date`
+- **THEN** le niveau 4 de dédoublonnage suit le scénario « année inconnue »
+
+#### Scenario: position ou durée absentes
+- **WHEN** la position de lecture ou la durée manque
+- **THEN** l'item n'a pas de progression : aucune barre n'est affichée, même pour un `CONTINUE`, et son groupe de tri ne change pas
+
+#### Scenario: engagement absent
+- **WHEN** `last_engagement_time` manque
+- **THEN** l'item est traité comme le plus ancien de son groupe (engagement nul) et départagé par `_ID` croissant
+
+#### Scenario: image absente
+- **WHEN** ni poster ni miniature ne sont publiés, ou que l'image ne se charge pas
+- **THEN** la carte affiche le placeholder (scénario « badge et image »)
+
+#### Scenario: intent absent
+- **WHEN** `intent_uri` manque
+- **THEN** l'ouverture lance l'app source (scénario « intent absent ou en échec ») et l'entrée du menu « Ouvrir avec… » fait de même
+
+#### Scenario: browsable absent
+- **WHEN** `COLUMN_BROWSABLE` manque
+- **THEN** le programme est considéré comme browsable, comme dans le héro
+
 ### Requirement: Dédoublonnage en niveaux
 La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P4, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu.
 
@@ -67,7 +110,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** aucune fusion n'a lieu
 
 #### Scenario: année inconnue
-- **WHEN** l'année est connue d'un seul côté (aucune source confirmée ne la fournit dans le TV Provider)
+- **WHEN** l'année est connue d'un seul côté
 - **THEN** la fusion a lieu sur le titre normalisé seul, limite assumée et documentée
 
 #### Scenario: normalisation stricte

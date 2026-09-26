@@ -6,6 +6,7 @@ Motivation et périmètre : voir `proposal.md`. Ce document fixe le comment. Ét
 - Le filtre des apps sources existe : `apps.disabledSources` combiné dans `HomeViewModel.state` (`HomeViewModel.kt`) et `filterBySources()` (`domain/HeroFeed.kt`).
 - Le menu contextuel `AppContextMenu.kt` est lié à `TvApp`.
 - La lecture des `PreviewPrograms` publiés par les autres apps est acquise : le change archivé `2026-09-22-spec-sync` (`proposal.md`) documente environ 500 programmes lus sur la TV de test. Le README ne contient pas ce chiffre.
+- Constats sur l'appareil : voir « Constats et hypothèses retenues ».
 - `p2b-settings` est archivé sur main (`423dbbd`) : la capability `settings` existe, ce change y pose ses MODIFIED.
 
 ## Goals / Non-Goals
@@ -23,9 +24,9 @@ La rangée lit uniquement `WatchNextPrograms` (les `PreviewPrograms` ne sont pas
 - le `ContentObserver` de la rangée suit le patron de `programCountsFlow()` (observateur armé avant la valeur initiale, antirebond, `runCatching` sur la registration, désinscription dans `finally`), sur `WatchNextPrograms.CONTENT_URI` ;
 - le filtre « Apps sources » réutilise `disabledSources` et `filterBySources` : la liste d'items est filtrée sur le package **avant** le dédoublonnage, pour qu'une source désactivée ne serve jamais de gagnant ni de source du menu « Ouvrir avec… ». Les apps cachées (`hiddenApps`) ne filtrent pas la rangée.
 
-**État des connaissances et hypothèses à vérifier sur l'appareil (tâche 2.1, avant tout code)** :
-- la lecture des programmes des autres apps est acquise pour les `PreviewPrograms` (voir Context). La vraie inconnue se limite aux lignes `WatchNextPrograms` des autres apps (le TvProvider peut restreindre la lecture aux lignes de l'appelant) et aux colonnes qu'elles remplissent ;
-- colonnes supposées disponibles et à confirmer : titre de série, `episode_title`, numéros de saison/épisode, `internal_provider_id`, `content_id`, `intent_uri`, `poster_art_uri`, `watch_next_type`, `last_engagement_time`, position de lecture, **année (`release_date`)**, `COLUMN_TYPE`, durée, `COLUMN_BROWSABLE`.
+**Constats et hypothèses retenues** :
+- constats sur la TV de test avec `v0.0.1-rc.1` : sous `READ_TV_LISTINGS`, le launcher lit bien des lignes `WatchNextPrograms` publiées par des apps tierces. Au moins Twitch : une reprise avec position et durée, affichée par le héro avec barre de progression et « Reprendre ». Très probablement Jellyfin : image en `content://` servie par son ImageProvider. Un dump par `adb shell` n'est pas possible (0 ligne dans `watch_next_program` et `preview_program` : le TvProvider filtre par appelant, la sélection est refusée, pas de `run-as` en release ni de root) ; aucun test sur l'appareil n'est donc prévu avant le code ;
+- le remplissage exact des colonnes par chaque app n'est pas mesuré : **chaque colonne est facultative** et la spec définit le comportement quand elle manque (exigence « Champs facultatifs » de up-next). Colonnes lues : titre, titre de série, `episode_title`, numéros de saison/épisode, `internal_provider_id`, `content_id`, `intent_uri`, `poster_art_uri` et ratio, `thumbnail_uri`, `watch_next_type`, `last_engagement_time`, position de lecture, durée, `release_date` (année), `COLUMN_TYPE`, `COLUMN_BROWSABLE` ; `package_name` et `_ID` sont toujours remplis par le provider.
 
 D'après `jellyfin-androidtv` (`LeanbackChannelWorker.getBaseItemAsWatchNextProgram`), les programmes Jellyfin portent `internal_provider_id`, le type, le titre de série, `episode_title`, les numéros de saison et d'épisode, `watch_next_type` et un intent qui ouvre la **fiche** de l'item (`StartupActivity` + `ItemId`), pas la lecture. Le verbe de la rangée est donc « ouvrir », pas « lire » : l'app affiche sa fiche ou reprend selon son propre comportement. `release_date` est absent des programmes Jellyfin : ni le tri ni le dédoublonnage ne s'y fient (voir niveau 4).
 
@@ -106,13 +107,13 @@ Appui long : menu « Ouvrir avec… » listant les sources du contenu conservée
 Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « Apps sources » et « Cacher une application » sont posés dans `specs/settings/spec.md` de ce change (tâche 1.1, faite après l'archivage de `p2b-settings`).
 
 ## Risks / Trade-offs
-- [Le TvProvider ne rend visibles que nos propres lignes `WatchNextPrograms`] → tâche 2.1 avant tout code, critère de sortie explicite (change suspendu et revu).
-- [Colonnes vides ou absentes selon l'app] → chaque colonne est lue en `opt*` ; une colonne manquante dégrade (pas d'année, pas de progression) sans exclure l'item, sauf `COLUMN_TYPE` hors épisode/film.
+- [Une app remplit moins de colonnes que prévu] → chaque champ est facultatif avec un comportement défini (« Champs facultatifs ») ; le seul rejet est l'absence de tout titre ou un `COLUMN_TYPE` hors épisode/film.
+- [Colonnes non mesurées sur l'appareil] → lecture en `opt*`, dégradation champ par champ (pas d'année, pas de progression, pas de `SxxEyy`) sans exclure l'item ; les cas non tranchés sont en Questions ouvertes du `proposal.md`.
 - [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à P4.
-- [Repo public] → le dump de la tâche 2.1 n'est publié que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
+- [Repo public] → toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
 
 ## Notes de test
 - Dédoublonnage (chaque niveau), normalisation, gagnant, tri : tests **JUnit** purs sur le mapping `Cursor` → `UpNextItem` → fusion, y compris les faux positifs : remake avec une année différente, même titre mais types différents, même titre et même année (fusion).
 - Filtre des apps sources : test JUnit (une source désactivée n'est ni gagnante ni dans les sources du menu) et test Compose (bascule du switch → la carte disparaît sans redémarrage).
 - UI : Robolectric + Compose **à la taille d'une TV** (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), jamais la taille Robolectric par défaut : séquence D-pad héro → dock → zone grille (rangée Up Next puis apps, et la montée), position « après la grille », rangée sautée, menu « Ouvrir avec… » (y compris à une entrée), états (squelette, erreur, masquée), réglage de position, testTags `zone-upnext`, `upnext-card-<key>`, `upnext-menu`.
-- Validation finale sur la TV réelle en `assembleRelease` : colonnes réellement visibles (tâche 2.1) et rendu.
+- Validation finale sur la TV réelle en `assembleRelease` : rendu de la rangée avec les apps installées, navigation, réglage de position.

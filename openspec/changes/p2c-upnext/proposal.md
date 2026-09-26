@@ -32,7 +32,7 @@ P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une r
 - persistance : le réglage « Position d'Up Next » est persisté dans DataStore ; le menu « Ouvrir avec… » ne persiste rien ; l'ordre de préférence des apps est une constante en p2c
 - code existant réutilisé : lecture des `WatchNextPrograms` de toutes les apps et observation du provider déjà en place dans `TvProviderHeroSource`, filtre des apps sources déjà en place dans `HeroFeed` / `HomeViewModel` (détail dans `design.md`)
 - **Dépendances** : `jellyfin-tvprovider-only` (embarqué dans cette PR), `ui-testing` (archivé dans cette PR avant l'écriture du delta MODIFIED), `p2b-settings` (archivé sur main, capability `settings`), `betaseries-integration` (delta MODIFIED aligné)
-- **Vérification sur l'appareil** : la visibilité réelle des lignes `WatchNextPrograms` des autres apps sous `READ_TV_LISTINGS` doit être confirmée sur la TV de test avant tout code (tâche 2.1) ; si seules nos propres lignes sont visibles, le change est suspendu et revu. Seule la structure du dump est publiée (colonnes, packages, compteurs, types), jamais de titres
+- **Données de l'appareil** : le launcher lit des lignes `WatchNextPrograms` d'apps tierces sous `READ_TV_LISTINGS` (constaté avec `v0.0.1-rc.1`, voir `design.md`) ; le remplissage des colonnes n'est pas mesuré, chaque champ est donc facultatif. Toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres
 
 ## Non-goals
 - **Routage de lecture par score et deep links** (Stremio `autoPlay`, `source=30`) : retiré de p2c, pourra revenir en P4 avec les IDs externes
@@ -45,3 +45,5 @@ P2c du roadmap : rangée Up Next dédiée. La spec launcher-shell prévoit une r
 ## Questions ouvertes
 - **BetaSeries comme source à part entière en P4** : en plus de l'enrichissement, les épisodes « à voir » BetaSeries pourraient devenir une source de plus de la rangée. Non tranché ; ne figure dans aucun SHALL
 - **Compteur « Apps sources »** : il ne compte aujourd'hui que les `PreviewPrograms` ; une app qui ne publie que du watch next affiche 0. Inclure les `WatchNextPrograms` dans le compteur est un choix produit à trancher (voir `design.md`, « Compteur des apps sources »)
+- **`watch_next_type` absent** : un programme sans type watch next n'a pas de groupe de tri ni de rang dans le gagnant d'un doublon. Non tranché (exclusion, ou rattachement à `NEXT`/`NEW`) ; en attendant, la spec ne définit pas ce cas
+- **`COLUMN_TYPE` absent** : un programme sans type n'est ni épisode ni film pour le dédoublonnage et la carte. Non tranché (exclusion, ou inférence : épisode si saison et épisode sont présents, sinon film) ; en attendant, la spec ne définit pas ce cas
