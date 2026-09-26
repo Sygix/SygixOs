@@ -4,6 +4,22 @@ plugins {
     alias(libs.plugins.aboutlibraries)
 }
 
+// versionCode dérivé du tag SemVer : major·10⁸ + minor·10⁵ + patch·10² + suffixe
+// (alpha.N → N, beta.N → 30+N, rc.N → 60+N, finale → 99) pour garantir alpha < beta < rc < finale.
+// Plafond Android de 2 100 000 000 : major ≤ 20, minor et patch ≤ 999, N ≤ 29.
+fun versionCodeOf(version: String): Int {
+    val match = requireNotNull(
+        Regex("""(\d{1,2})\.(\d{1,3})\.(\d{1,3})(?:-(alpha|beta|rc)\.?(\d{1,2}))?""").matchEntire(version)
+    ) { "SYGIXOS_VERSION doit être vX.Y.Z ou vX.Y.Z-(alpha|beta|rc).N, reçu : $version" }
+    val (major, minor, patch, stage, n) = match.destructured
+    require(major.toInt() <= 20) { "major doit être ≤ 20 (plafond du versionCode Android), reçu : $version" }
+    val suffix = if (stage.isEmpty()) 99 else {
+        require(n.toInt() <= 29) { "le numéro de pré-release doit être ≤ 29, reçu : $version" }
+        mapOf("alpha" to 0, "beta" to 30, "rc" to 60).getValue(stage) + n.toInt()
+    }
+    return major.toInt() * 100_000_000 + minor.toInt() * 100_000 + patch.toInt() * 100 + suffix
+}
+
 android {
     namespace = "fr.sygix.sygixos"
     compileSdk = 37
@@ -13,10 +29,7 @@ android {
         minSdk = 34
         targetSdk = 37
         val ciVersion = System.getenv("SYGIXOS_VERSION")?.removePrefix("v")
-        versionCode = ciVersion?.split(".")?.let { parts ->
-            val (maj, min, pat) = parts.map { it.toInt() }
-            maj * 10000 + min * 100 + pat
-        } ?: 1
+        versionCode = ciVersion?.let(::versionCodeOf) ?: 1
         versionName = ciVersion ?: "0.1.0"
     }
 
