@@ -10,9 +10,9 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -33,6 +33,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -131,10 +132,13 @@ private fun SettingsGear(
 }
 
 @Composable
-private fun GearIcon(modifier: Modifier = Modifier, color: Color = Color.White) {
-    Canvas(modifier) {
-        drawPath(gearPath(size), color)
-    }
+private fun GearIcon(modifier: Modifier = Modifier) {
+    Spacer(
+        modifier.drawWithCache {
+            val path = gearPath(size)
+            onDrawBehind { drawPath(path, Color.White) }
+        },
+    )
 }
 
 private fun gearPath(size: Size): Path {
@@ -239,10 +243,7 @@ internal fun LauncherHome(
             .background(Color.Black)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                if (settingsOpen) {
-                    // SettingsScreen gère ses touches (Retour inclus) : on laisse tout passer.
-                    return@onPreviewKeyEvent false
-                }
+                if (settingsOpen) return@onPreviewKeyEvent false
                 if (menuOpen) {
                     return@onPreviewKeyEvent if (e.key == Key.Back) { menuApp = null; true } else false
                 }
@@ -346,7 +347,6 @@ internal fun LauncherHome(
             }
         }
         if (settingsOpen) {
-            // Comptages collectés uniquement tant que les réglages sont affichés.
             val countsState = counts.collectAsStateWithLifecycle(initialValue = emptyMap())
             SettingsScreen(
                 state = settings ?: SettingsState(),
