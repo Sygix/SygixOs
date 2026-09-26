@@ -55,31 +55,26 @@ class AppCatalogRepository(
 
     suspend fun moveInGrid(packageName: String, delta: Int) {
         val apps = installed.value ?: return
-        val hidden = prefs.hidden.first()
-        prefs.updateGridOrder { current ->
-            // Déplacement calculé sur la liste VISIBLE uniquement : l'ordre produit est la
-            // séquence des apps visibles déplacée, dans laquelle on réinsère les packages
-            // cachés à leur position d'origine (sinon le déplacement est invisible).
+        prefs.updateGridOrder { current, hidden ->
+            // Déplacement calculé sur la liste VISIBLE uniquement, puis les packages cachés
+            // sont réinsérés à leur position (sinon le déplacement est invisible).
             val visibleOrder = AppCatalog.grid(apps.filter { it.packageName !in hidden }, current).map { it.packageName }
-            val movedVisible = AppCatalog.move(visibleOrder, packageName, delta)
-            val oldFull = AppCatalog.grid(apps, current).map { it.packageName }
-            val remaining = movedVisible.toMutableList()
-            oldFull.map { pkg -> if (pkg in hidden) pkg else remaining.removeFirstOrNull() }
-                .filterNotNull() + remaining
+            withHiddenKept(apps, current, hidden, AppCatalog.move(visibleOrder, packageName, delta))
         }
     }
 
     suspend fun setGridOrder(order: List<String>) {
         val apps = installed.value ?: return prefs.setGridOrder(order)
-        val hidden = prefs.hidden.first()
-        if (hidden.isEmpty()) return prefs.setGridOrder(order)
         // Restauration depuis la liste visible : les packages cachés gardent leur position.
-        prefs.updateGridOrder { current ->
-            val oldFull = AppCatalog.grid(apps, current).map { it.packageName }
-            val remaining = order.toMutableList()
-            oldFull.map { pkg -> if (pkg in hidden) pkg else remaining.removeFirstOrNull() }
-                .filterNotNull() + remaining
-        }
+        prefs.updateGridOrder { current, hidden -> withHiddenKept(apps, current, hidden, order) }
+    }
+
+    private fun withHiddenKept(apps: List<TvApp>, current: List<String>, hidden: Set<String>, visibleOrder: List<String>): List<String> {
+        if (hidden.isEmpty()) return visibleOrder
+        val oldFull = AppCatalog.grid(apps, current).map { it.packageName }
+        val remaining = visibleOrder.toMutableList()
+        return oldFull.map { pkg -> if (pkg in hidden) pkg else remaining.removeFirstOrNull() }
+            .filterNotNull() + remaining
     }
 
     suspend fun hideApp(packageName: String) {

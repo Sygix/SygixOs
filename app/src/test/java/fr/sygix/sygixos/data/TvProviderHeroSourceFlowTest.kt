@@ -84,6 +84,17 @@ class TvProviderHeroSourceFlowTest {
     }
 
     @Test
+    fun `programCounts only counts channel programs, not the Watch Next queue`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val provider = FakeTvProvider()
+        ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
+        provider.previewRows.add(arrayOf("com.a", "1"))
+        provider.watchNextRows.add(arrayOf("com.a", "1"))
+        provider.watchNextRows.add(arrayOf("com.w", "1"))
+        assertEquals(mapOf("com.a" to 1), TvProviderHeroSource(context).programCounts())
+    }
+
+    @Test
     fun `programCountsFlow emits initial counts then re-queries on content change`() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()

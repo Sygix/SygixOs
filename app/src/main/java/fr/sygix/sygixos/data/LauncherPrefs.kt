@@ -44,10 +44,11 @@ class LauncherPrefs(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[pinnedKey] = transform(prefs[pinnedKey] ?: emptySet()) }
     }
 
-    suspend fun updateGridOrder(transform: (List<String>) -> List<String>) {
+    // L'ordre et les apps cachées sont lus dans la même transaction que l'écriture.
+    suspend fun updateGridOrder(transform: (order: List<String>, hidden: Set<String>) -> List<String>) {
         context.dataStore.edit { prefs ->
             val current = prefs[orderKey]?.split(LINE)?.filter { it.isNotEmpty() } ?: emptyList()
-            prefs[orderKey] = transform(current).joinToString(LINE)
+            prefs[orderKey] = transform(current, prefs[hiddenKey] ?: emptySet()).joinToString(LINE)
         }
     }
 
