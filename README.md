@@ -1,66 +1,139 @@
 # SygixOs
 
-Launcher Apple TV-style pour Google TV — design tvOS (Liquid Glass), sans pubs, avec contenu des apps installées (Jellyfin, Netflix, Prime… via le TV Provider système). Remplace le launcher Google TV sur Android 14+.
+[![test](https://github.com/Sygix/SygixOs/actions/workflows/test.yml/badge.svg)](https://github.com/Sygix/SygixOs/actions/workflows/test.yml)
+[![release](https://img.shields.io/github/v/release/Sygix/SygixOs?include_prereleases&sort=semver)](https://github.com/Sygix/SygixOs/releases)
+[![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
-## Statut
+A free and open source launcher for Android TV / Google TV, inspired by tvOS: Liquid Glass, polished focus and animations, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, with no server and no account.
 
-| Phase | Contenu | Statut |
+> Independent project, not affiliated with Apple, Google or TCL. Apple TV and tvOS are trademarks of Apple Inc.; Android TV and Google TV are trademarks of Google LLC.
+
+## Features
+
+- **Full-screen hero**: a muted slideshow (crossfade, slow zoom) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. The "Open" / "Resume" button opens the content page in its app.
+- **Dock and app grid**:
+  - apps are detected automatically;
+  - 16:9 tiles show the Android TV banner;
+  - apps can be pinned to the dock;
+  - the grid can be reordered with the arrow keys.
+- **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row.
+- **Settings** (gear at the top of the hero):
+  - choose which apps feed the hero and the preview;
+  - hide apps from the grid, and restore them;
+  - version and library licenses.
+- **Never a black screen**: falls back to nature clips (Pexels), then to an animated gradient.
+- **Fully local**: no backend, no telemetry, no hard-coded app list.
+
+## Roadmap
+
+| Phase | Scope | Status |
 |---|---|---|
-| P1 | Squelette + design system + grille d'apps + dock | ✅ fait |
-| P2a | Héro plein écran : programmes du TV Provider système, diaporama auto, fallback clips nature | ✅ fait |
-| P2b | Réglages du launcher : choix des apps sources du héro / Top Shelf | à venir |
-| P2c | Rangée Up Next dédiée + recherche | à venir |
-| P3 | Screensaver système (clips nature en boucle, cache local) | à venir |
-| P4 | BetaSeries (OAuth) + fusion Up Next | à venir |
-| P5 | Remplacement du launcher système (ADB) | à venir |
+| P1 | Scaffold, Liquid Glass design system, app grid, dock | ✅ done |
+| P2a | Full-screen hero fed by the TV Provider, Top Shelf preview, nature fallback | ✅ done |
+| P2b | Settings: source apps, hidden apps, about | ✅ done |
+| P2c | Up Next row (all apps, deduplication) | 📝 spec in review ([#13](https://github.com/Sygix/SygixOs/pull/13)) |
+| P2c | Search | planned |
+| P3 | Screensaver (looping nature clips, local cache) | planned |
+| P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
+| P5 | Replacing the system launcher | ADB commands available (see Installation) |
 
-## Fonctionnement du héro
-Le héro est un fond plein écran, muet, qui enchaîne tout seul (fondu croisé, zoom lent façon Apple TV) les programmes que les apps installées publient dans le **TV Provider Android** (`content://android.media.tv`, watch next + preview programs : reprise de lecture, nouveautés, recommandations de Jellyfin, Netflix, Prime…). Vidéo d'aperçu si l'app en publie une, sinon poster. Gauche/droite : programme précédent/suivant ; le bouton « Ouvrir » (« Reprendre » si lecture en cours) sous le titre porte le focus et ouvre la fiche du contenu via l'intent fourni par l'app. Aucune connexion à un serveur, aucune liste d'apps codée en dur.
+Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Specs and the user interface are written in French.
 
-La lecture des programmes des autres apps exige la permission runtime `android.permission.READ_TV_LISTINGS`, demandée au premier lancement ; sans elle le provider ne renvoie que nos propres lignes. Le héro se recharge à chaque retour au launcher ; le catalogue d'apps est mis en cache pour un affichage immédiat au démarrage.
+## Requirements
 
-Les visuels sont validés avant affichage (vidéo d'aperçu privilégiée, image ou vidéo d'au moins 1080 px de large) ; un programme sans visuel correct n'entre pas dans le diaporama. Le TV Provider pouvant publier des centaines de programmes, seuls les premiers visuels du héro sont validés au démarrage, les affiches d'une app l'étant quand le focus s'y pose.
+- Android TV or Google TV on **Android 14 or later** (minSdk 34)
+- Tested on a TCL Google TV (Android 14)
 
-Fallback quand rien n'est publié : clips nature libres de droits (Pexels, 2560x1440, streaming, un seul lecteur), puis dégradé sombre animé si aucune vidéo ne peut être lue. Jamais d'écran noir.
+## Installation
+
+1. On the TV: Settings → About → press "Build" 7 times (developer mode), then enable ADB debugging.
+2. Download `app-release.apk` from the [Releases](https://github.com/Sygix/SygixOs/releases) page.
+3. Install it:
+   ```
+   adb connect <TV-IP>:<port>
+   adb install -r app-release.apk
+   ```
+4. On first launch, grant the "TV programs" permission (`READ_TV_LISTINGS`). Without it, the hero cannot see other apps' content.
+
+To make SygixOs the default launcher by disabling the Google TV one (reversible):
+```
+adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
+adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
+```
+Restore with `adb shell pm enable <package>`. Use at your own risk: disabling the stock launcher may behave differently depending on the TV model.
 
 ## Navigation
-DPAD uniquement, trois paliers : héro → dock (apps épinglées, overlay bas) → grille (masque le héro). Seule la zone active est focusable. Bas/haut changent de palier, gauche/droite restent dans la zone. Retour : revient au héro. Appui long sur OK sur une tuile : épingler/retirer du dock, ou « Déplacer » pour réorganiser la grille aux flèches (OK valide, Retour annule), ordre persisté. Dans la grille, l'aperçu ne s'ouvre qu'après environ 3 s de focus immobile sur une app qui publie des visuels : il s'insère au-dessus de la rangée et pousse la grille vers le bas. Tant qu'il est ouvert, passer sur une autre app avec du contenu bascule sans délai ni fermeture intermédiaire ; passer sur une app sans contenu le referme. Ouverture, déplacement et fermeture partagent un seul défilement calculé, synchronisé avec l'animation, pour qu'il n'y ait jamais deux mouvements à la suite. Les tuiles sont 16:9 et affichent la bannière Android TV de l'app (sinon son icône).
 
-## Installation (test sur TV)
-1. Sur la TV : Paramètres → À propos → 7× sur « Build » (mode développeur), puis activer le débogage ADB
-2. `adb connect <IP-TV>:<port>` puis `adb install -r app/build/outputs/apk/debug/app-debug.apk` ; accorder la permission « programmes TV » au premier lancement
-3. Remplacement définitif (P5, réversible) :
-   ```
-   adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
-   adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
-   ```
-   Rétablir : `adb shell pm enable <package>`
+Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom) → grid (covers the hero).
 
-## Performance
-Le build `debug` interprète le bytecode (ART sans AOT) : la navigation y est saccadée sur la TV. Le build `release` (R8) tourne sans image sautée. Toujours juger la fluidité sur `assembleRelease`.
+- **Down / Up**: switch tiers; only the active zone takes focus.
+- **Left / Right**: stay within the zone (previous or next program on the hero).
+- **Up from the hero**: settings gear.
+- **Back**: returns to the hero.
+- **Long press OK** on a tile:
+  - pin to or unpin from the dock;
+  - "Move" to reorder the grid with the arrows (OK confirms, Back cancels);
+  - "Hide".
 
-## Build
-JDK 17+, SDK Android avec la plateforme et les build-tools 37 :
+## How the hero works
+
+The hero reads the programs apps publish to the TV Provider (`content://android.media.tv`, watch next and preview programs), and opens each item through the intent provided by the app. It reloads every time you return to the launcher.
+
+- **Artwork validated before display**: a preview video, or an image or video at least 1080 px wide. A program without suitable artwork is left out of the slideshow.
+- **Progressive validation**: the TV Provider can hold hundreds of programs, so only the first hero visuals are validated at startup, and an app's posters when it gets focus.
+- **Instant startup**: the app catalog is cached.
+
+## Building from source
+
+Requirements: JDK 21, Android SDK with platform and build-tools 37.
 ```
-ANDROID_HOME=~/android-sdk ./gradlew assembleDebug testDebugUnitTest
+./gradlew testDebugUnitTest      # JUnit / Robolectric tests
+./gradlew assembleRelease        # APK to test on the TV
 ```
-Sans SDK local, dans un conteneur jetable (amd64 obligatoire : adb et aapt2 sont x86_64, adb y joint la TV) :
+Without a local SDK, use a throwaway container (Docker or Podman; amd64 is required because adb and aapt2 are x86_64):
 ```
 docker run -d --name sygixos-build --platform linux/amd64 -v "$PWD":/work -w /work \
-  -v sygixos-gradle:/root/.gradle -v sygixos-m2:/root/.m2 ghcr.io/cirruslabs/android-sdk:34 sleep infinity
+  -v sygixos-gradle:/root/.gradle ghcr.io/cirruslabs/android-sdk:34 sleep infinity
 docker exec sygixos-build sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
-docker exec sygixos-build ./gradlew assembleDebug testDebugUnitTest
-docker exec sygixos-build ./gradlew assembleRelease                                  # build à tester sur la TV
+docker exec sygixos-build ./gradlew testDebugUnitTest assembleRelease
 ```
-Le conteneur doit disposer d'environ 4 Go : avant une session de build, `./gradlew --stop` évite que des démons Gradle résiduels fassent tuer le build par le noyau.
-Les tests Robolectric tournent sur l'API 34 (`app/src/test/resources/robolectric.properties`) et ont besoin des ouvertures JDK déclarées dans `app/build.gradle.kts`.
-La signature release vient de l'environnement (`SYGIXOS_STORE_FILE`, `SYGIXOS_STORE_PASSWORD`, `SYGIXOS_KEY_ALIAS`, `SYGIXOS_KEY_PASSWORD`) ; sans ces variables, la clé de debug est utilisée.
+On Fedora or any other SELinux system, add `:z` to the mount (`-v "$PWD":/work:z`). Give the container about 4 GB of memory. Run `./gradlew --stop` before a build session, so leftover Gradle daemons don't get the build killed.
 
-## Structure
+**Performance:** the `debug` build interprets bytecode and stutters on the TV. Always judge smoothness on `assembleRelease` (R8).
+
+**Signing:** signing keys come from the environment (`SYGIXOS_STORE_FILE`, `SYGIXOS_STORE_PASSWORD`, `SYGIXOS_KEY_ALIAS`, `SYGIXOS_KEY_PASSWORD`). Without these variables, the debug key is used.
+
+**Releases:** a `vX.Y.Z` tag (or `vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N`) triggers the `release` workflow. It builds, tests, signs and publishes the APK to a GitHub release; the `versionCode` is derived from the tag.
+
+## Contributing
+
+Contributions are welcome, through issues or pull requests.
+
+- **Spec first**: every feature or behavior change starts with an [OpenSpec](https://github.com/Fission-AI/OpenSpec) proposal in `openspec/changes/<id>/`, approved before implementation. Project context and authoring rules: [`openspec/config.yaml`](openspec/config.yaml).
+- **Conventions**: [`AGENTS.md`](AGENTS.md) (in French) applies to humans and AI agents alike. In short:
+  - uniflow architecture (ViewModel → StateFlow → Compose), no logic in composables;
+  - no code comments;
+  - AGPL license header on every file;
+  - D-pad navigation tests at TV screen size.
+- **Git**:
+  - `feat/`, `fix/`, `chore/` branches;
+  - [Conventional Commits](https://www.conventionalcommits.org/) in English;
+  - signed commits;
+  - green CI (`./gradlew test`).
+- **Validation**: run `openspec validate --all --strict` before opening a PR.
+
+## Project layout
+
 ```
-openspec/           specs et workflow de spécification (config.yaml, specs/, changes/)
-app/                application Android (core/, data/, domain/, ui/)
+app/          Android app: core/ (design system), data/, domain/, model/, ui/
+openspec/     current specs (specs/), changes (changes/), rules (config.yaml)
+.github/      CI (test) and release publishing (release)
 ```
 
 ## Stack
-Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (Liquid Glass) · media3 (ExoPlayer) · Coil · DataStore · tests JUnit/Robolectric
+
+Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (Liquid Glass) · media3 (ExoPlayer) · Coil · DataStore · JUnit / Robolectric
+
+## License
+
+SygixOs is licensed under the [GNU AGPL-3.0-or-later](LICENSE). Third-party library licenses are listed in the app (Settings → About). The fallback nature clips are streamed from [Pexels](https://www.pexels.com/license/).
