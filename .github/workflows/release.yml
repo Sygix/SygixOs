@@ -2,7 +2,8 @@ name: release
 
 on:
   push:
-    tags: ['v*.*.*']
+    # Finales vX.Y.Z et pré-releases vX.Y.Z-(alpha|beta|rc).N ; le suffixe est validé par app/build.gradle.kts.
+    tags: ['v[0-9]+.[0-9]+.[0-9]+', 'v[0-9]+.[0-9]+.[0-9]+-*']
 
 permissions:
   contents: write
@@ -16,7 +17,7 @@ jobs:
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
       - uses: android-actions/setup-android@v3
         with:
@@ -25,7 +26,17 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
 
       - name: Decode keystore
-        run: echo "${{ secrets.SYGIXOS_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+        env:
+          SYGIXOS_KEYSTORE_BASE64: ${{ secrets.SYGIXOS_KEYSTORE_BASE64 }}
+          SYGIXOS_STORE_PASSWORD: ${{ secrets.SYGIXOS_STORE_PASSWORD }}
+          SYGIXOS_KEY_ALIAS: ${{ secrets.SYGIXOS_KEY_ALIAS }}
+          SYGIXOS_KEY_PASSWORD: ${{ secrets.SYGIXOS_KEY_PASSWORD }}
+        run: |
+          # Échoue tôt si un secret manque, plutôt qu'une erreur de signature obscure au build.
+          for name in SYGIXOS_KEYSTORE_BASE64 SYGIXOS_STORE_PASSWORD SYGIXOS_KEY_ALIAS SYGIXOS_KEY_PASSWORD; do
+            [ -n "${!name}" ] || { echo "::error::Secret $name manquant"; exit 1; }
+          done
+          echo "$SYGIXOS_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
 
       - name: Build release APK
         env:
@@ -45,4 +56,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: app/build/outputs/apk/release/app-release.apk
