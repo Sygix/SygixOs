@@ -315,6 +315,10 @@ class SettingsNavigationTest {
         }
         compose.onNodeWithTag("source-row-com.c").assertIsFocused()
         assertEquals(listOf("com.a", "com.c", "com.b", "com.d"), sourceOrder())
+        press(Key.DirectionLeft)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("source-row-com.a").assertIsFocused()
+        assertEquals(listOf("com.a", "com.c", "com.b", "com.d"), sourceOrder())
     }
 
     @Test
