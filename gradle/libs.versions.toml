@@ -8,13 +8,13 @@ media3 = "1.11.1"
 coil = "2.7.0"
 junit = "4.13.2"
 robolectric = "4.17"
-haze = "2.0.0-rc02"
+haze = "2.0.0"
 aboutlibraries = "15.2.0"
-coroutines = "1.9.0"
+coroutines = "1.11.0"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.13.0" }
-androidx-core-ktx = { module = "androidx.core:core-ktx", version = "1.19.0" }
+androidx-core-ktx = { module = "androidx.core:core-ktx", version = "1.19.1" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
