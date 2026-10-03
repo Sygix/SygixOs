@@ -44,16 +44,17 @@ class HeroCapsuleTest {
         compose.waitForIdle()
     }
 
-    private fun setupHome() {
+    private fun setupHome(launchable: Boolean = false) {
+        val items = if (launchable) listOf(heroItem("h1", "Programme", sourcePackage = "com.source")) else emptyList()
         compose.setContent {
             TestHome(
                 catalog = catalogOf(dock = listOf(app("com.dock", "Dock")), grid = listOf(app("com.grid", "Grid"))),
-                hero = heroStateOf(items = emptyList()),
+                hero = heroStateOf(items = items),
                 clock = clock,
             )
         }
         compose.waitForIdle()
-        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        compose.onNodeWithTag(if (launchable) "hero-open" else "zone-hero").assertIsFocused()
     }
 
     @Test
@@ -72,7 +73,7 @@ class HeroCapsuleTest {
 
     @Test
     fun `only the gear takes the focus and left or right keep it there`() {
-        setupHome()
+        setupHome(launchable = true)
         compose.onNodeWithTag("hero-clock").assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Focused))
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-gear").assertIsFocused()
@@ -83,7 +84,7 @@ class HeroCapsuleTest {
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-gear").assertIsFocused()
         press(Key.DirectionDown)
-        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        compose.onNodeWithTag("hero-open").assertIsFocused()
         compose.onNodeWithTag("settings-gear").assertIsNotFocused()
     }
 

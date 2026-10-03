@@ -382,7 +382,6 @@ internal fun LauncherHome(
                         gridRow == 0 -> { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true }
                         else -> false
                     }
-                    Key.DirectionLeft, Key.DirectionRight -> zone == Zone.HERO && gearFocused
                     Key.Back -> { zone = Zone.HERO; true }
                     else -> false
                 }

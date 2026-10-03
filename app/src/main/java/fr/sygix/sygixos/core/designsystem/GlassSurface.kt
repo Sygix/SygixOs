@@ -48,11 +48,12 @@ data class GlassLook(
     val shadow: Color,
     val shadowOffset: Dp,
     val shadowRadius: Dp,
+    val fallback: Color = SygixColors.GlassFallback,
 ) {
     companion object {
         val Dock = GlassLook(SygixColors.GlassTint, SygixColors.GlassShadow, Dimens.GlassShadowOffset, Dimens.GlassShadowRadius)
         val Capsule = GlassLook(SygixColors.CapsuleTint, SygixColors.CapsuleShadow, Dimens.CapsuleShadowOffset, Dimens.CapsuleShadowRadius)
-        val Menu = GlassLook(SygixColors.MenuTint, SygixColors.MenuShadow, Dimens.MenuShadowOffset, Dimens.MenuShadowRadius)
+        val Menu = GlassLook(SygixColors.MenuTint, SygixColors.MenuShadow, Dimens.MenuShadowOffset, Dimens.MenuShadowRadius, SygixColors.MenuFallback)
     }
 }
 
@@ -85,7 +86,7 @@ fun GlassSurface(
                         performanceMode = HazePerformanceMode.Performance,
                     )
                 } else {
-                    Modifier.background(SygixColors.GlassFallback, shape)
+                    Modifier.background(look.fallback, shape)
                 },
             )
             .glassHighlight(shape, SygixColors.GlassHighlight, SygixColors.GlassLowlight),

@@ -15,6 +15,7 @@ object SygixColors {
     val CapsuleTint = Color(22, 22, 28, 97)
     val MenuTint = Color(18, 18, 24, 184)
     val GlassFallback = Color(22, 22, 28, 204)
+    val MenuFallback = Color(18, 18, 24, 235)
     val GlassBorder = Color.White.copy(alpha = 0.16f)
     val GlassHighlight = Color.White.copy(alpha = 0.32f)
     val GlassLowlight = Color.White.copy(alpha = 0.06f)

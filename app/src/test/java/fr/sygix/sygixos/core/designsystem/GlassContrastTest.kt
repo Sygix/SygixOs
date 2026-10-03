@@ -37,5 +37,8 @@ class GlassContrastTest {
         val menu = SygixColors.MenuTint.compositeOver(Color.White).luminance()
         val dock = SygixColors.GlassTint.compositeOver(Color.White).luminance()
         assertTrue(menu < dock)
+        val menuFallback = GlassLook.Menu.fallback.compositeOver(Color.White).luminance()
+        val dockFallback = GlassLook.Dock.fallback.compositeOver(Color.White).luminance()
+        assertTrue(menuFallback < dockFallback)
     }
 }

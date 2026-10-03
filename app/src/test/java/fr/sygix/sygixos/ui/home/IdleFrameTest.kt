@@ -110,7 +110,9 @@ class IdleFrameTest {
     @Test
     fun `focused dock over the animated hero never recomposes`() {
         show(dock, heroStateOf(items = emptyList()))
+        val beforePress = Recomposer.runningRecomposers.value.sumOf { it.changeCount }
         press(Key.DirectionDown)
+        assertTrue(Recomposer.runningRecomposers.value.sumOf { it.changeCount } > beforePress)
         compose.onNodeWithTag("app-tile-com.dock").assertIsFocused()
         assertEquals(0L, recompositionsDuring(5_000))
     }

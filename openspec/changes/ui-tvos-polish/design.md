@@ -23,7 +23,7 @@ Voir `proposal.md` pour la motivation. État de départ (`main`, `d5579cf`) :
 ## Decisions
 
 ### D1. Jetons de la maquette (1920 px = 960 dp, densité 2)
-Les valeurs sont dans `core/designsystem` (`Theme.kt` pour les couleurs `SygixColors`, `Motion.kt` pour `Dimens`), jamais recopiées dans les écrans.
+Les valeurs partagées par plusieurs écrans sont dans `core/designsystem` (`Theme.kt` pour les couleurs `SygixColors`, `Motion.kt` pour `Dimens`, `Type.kt` pour `TextStyles`) ; une valeur propre à un seul écran (barre de progression du héro, volet des réglages, interrupteur, couleur du package dans le menu) est une constante privée de cet écran, définie une seule fois.
 
 | Élément | Maquette (px) | Jeton (dp / sp) |
 | --- | --- | --- |
@@ -66,7 +66,7 @@ Les valeurs sont dans `core/designsystem` (`Theme.kt` pour les couleurs `SygixCo
 - teinte sombre (D1) au lieu de la teinte blanche ;
 - bordure, reflets intérieurs et ombre dessinés par des modificateurs Compose (`border`, `innerShadow`, `dropShadow`), mis en cache par Compose et indépendants du fond ;
 - le flou n'existe que sous le dock, la capsule et le menu ; Haze ne traite que la zone de la surface.
-Le repli (pas de `HazeState`, verre coupé) dessine un fond sombre plus opaque avec la même bordure, sans découper le contenu (`background(shape)` au lieu de `clip`) : une tuile focusée du dock n'est jamais coupée.
+Le repli (pas de `HazeState`, verre coupé) dessine un fond sombre plus opaque (`GlassFallback`, et `MenuFallback` plus foncé pour le menu) avec la même bordure, sans découper le contenu (`background(shape)` au lieu de `clip`) : une tuile focusée du dock n'est jamais coupée.
 Alternative écartée : un `RenderEffect` maison sur une copie réduite du héro ; Haze le fait déjà et gère le repli des appareils sans `RuntimeShader`.
 
 ### D3. Bouton du héro sans flou
@@ -84,7 +84,7 @@ Le nom est placé par une mise en page qui ne compte pas dans la taille de la tu
 - La capsule est une `GlassSurface` (teinte `CapsuleTint`, forme pilule), active comme le verre du dock tant que le héro est à l'écran. Elle contient l'heure puis l'engrenage (pastille de 28 dp, blanc .10 au repos, blanc au focus avec icône `OnPill`, zoom 1,08, ombre). L'engrenage plein actuel est gardé (question 7).
 - Source : `data/SystemClockSource` émet l'heure formatée avec `android.text.format.DateFormat.getTimeFormat(context)` (format 12/24 h et langue du système, relus à chaque émission) au démarrage de la collecte puis à chaque diffusion `ACTION_TIME_TICK`, `ACTION_TIME_CHANGED` et `ACTION_TIMEZONE_CHANGED` (récepteur enregistré pendant la collecte seulement). Aucune donnée externe, aucune erreur possible autre qu'un enregistrement refusé, qui est journalisé et laisse la dernière heure connue.
 - `HomeViewModel.clock` expose un `StateFlow<String>` séparé de `HomeState` (`WhileSubscribed`, valeur initiale lue tout de suite pour que la capsule ne change pas de largeur au démarrage) ; seul le composable de l'heure le collecte (`collectAsStateWithLifecycle`), donc une nouvelle minute ne recompose que ce texte, et rien n'est collecté en arrière-plan. Au retour au premier plan, la collecte reprend et émet l'heure courante aussitôt.
-- Gauche et droite depuis l'engrenage sont consommées par le gestionnaire de touches de l'accueil (la recherche de focus 2D pourrait sinon atteindre le bouton du héro).
+- Gauche et droite depuis l'engrenage ne trouvent aucune cible avec la recherche de focus 2D de Compose (vérifié par `HeroCapsuleTest` avec un bouton « Ouvrir » présent en bas à gauche) : aucun code dédié.
 
 ### D7. Héro : voiles et espacement
 Les trois voiles sont dessinés par un seul `drawBehind`, chacun limité à la zone qu'il couvre (55 % du bas, 62 % de la gauche, rectangle de l'ellipse en haut à droite) pour limiter le remplissage GPU ; l'ellipse est un dégradé radial dont la matrice locale étire le cercle (rayons 320 × 150 dp). Ils font partie de la source du flou : le dock et la capsule floutent un fond déjà assombri.
@@ -100,7 +100,7 @@ Sources trouvées dans le code :
 1. Ken Burns du poster du héro : 16 s d'animation pour 12 s d'affichage, donc toujours actif, et il continuait hors écran après la descente vers la grille (jusqu'à 16 s d'images rendues pour rien, cohérent avec les 626 images en 10 s). → Le Ken Burns s'arrête quand le héro n'est plus visible et reprend à son retour (`Animatable` piloté par `visible`).
 2. Second flou du bouton du héro (D3). → Supprimé.
 3. Verre du dock en pleine qualité adaptative avec aberration chromatique et alpha global (D2). → Mode `Performance`, sans aberration ni alpha.
-4. Lectures de valeurs animées en composition (`AmbientGradient`, Ken Burns du panneau Top Shelf, `tvFocus`, bouton du héro, catégories) : recomposition à chaque image. → Lectures dans `graphicsLayer` / `drawBehind`.
+4. Lectures de valeurs animées en composition (`AmbientGradient`, Ken Burns du panneau Top Shelf, `tvFocus`, zoom du bouton du héro et des catégories) : recomposition à chaque image. → Lectures dans `graphicsLayer` / `drawBehind`. Restent en composition, seulement pendant les 300 ms d'une transition de focus et jamais au repos : les couleurs animées des pilules (`animatedPillColors`) et la couleur du texte du bouton du héro.
 5. Restent, parce que spécifiés (question 5) : le Ken Burns du héro et du panneau Top Shelf, la vidéo d'aperçu et le dégradé animé du repli. Tant que le Ken Burns du héro tourne, le flou du dock et de la capsule est recalculé à chaque image, mais sur un quart des pixels.
 Mesures reproductibles ajoutées (JVM, `IdleFrameTest`), pendant plusieurs secondes d'horloge de test sans touche :
 - compteur de recompositions (`Recomposer.runningRecomposers`, somme des `changeCount`) : zéro sur le héro au dégradé animé, avec le dock focusé sur ce héro, et sur un poster en Ken Burns ; les deux premiers cas échouent sur `main` (le dégradé lisait sa phase en composition) ;

@@ -15,7 +15,7 @@
 
 ## 3. Capsule heure et réglages
 - [x] 3.1 `data/SystemClockSource` et `HomeViewModel.clock` (D6) ; test JUnit `SystemClockSourceTest` : format 24 h (« 21:47 ») et 12 h selon le réglage système, émission initiale puis à chaque diffusion d'heure
-- [x] 3.2 Capsule (`hero-capsule`, `hero-clock`, `settings-gear`) solidaire du héro, verre actif comme le dock ; gauche/droite consommées sur l'engrenage ; test Compose `HeroCapsuleTest` (contenu, focus de l'engrenage seul, gauche/droite, bas, heure mise à jour) ; `SettingsEntryTest` reste vert
+- [x] 3.2 Capsule (`hero-capsule`, `hero-clock`, `settings-gear`) solidaire du héro, verre actif comme le dock ; test Compose `HeroCapsuleTest` (contenu, focus de l'engrenage seul, gauche/droite, bas, heure mise à jour) ; `SettingsEntryTest` reste vert
 - [x] 3.3 Test de la transition : `SettingsEntryTest` vérifie aussi que `hero-capsule` est hors écran en vue grille avec le décalage de `zone-hero`
 
 ## 4. Héro
