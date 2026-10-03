@@ -6,6 +6,18 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import fr.sygix.sygixos.core.designsystem.GlassLook
+import fr.sygix.sygixos.core.designsystem.SygixColors
+import fr.sygix.sygixos.core.designsystem.TextStyles
+import fr.sygix.sygixos.core.designsystem.tvFocusable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.BringIntoViewSpec
@@ -77,7 +89,6 @@ import fr.sygix.sygixos.core.designsystem.LocalHazeState
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
-import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.GridScroll
 import fr.sygix.sygixos.domain.HomePage
@@ -121,6 +132,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 onUnhideAll = settingsViewModel::unhideAll,
                 onSettingsCategory = settingsViewModel::enterCategory,
                 glassBlur = glassBlur,
+                clock = viewModel.clock,
             )
         }
     }
@@ -129,30 +141,98 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
 internal enum class Zone { HERO, DOCK, GRID }
 
 @Composable
-private fun SettingsGear(
-    focusEnabled: Boolean,
-    focusRequester: FocusRequester,
-    onFocusedChange: (Boolean) -> Unit = {},
-    onOpen: () -> Unit,
+private fun HeroCapsule(
+    clock: StateFlow<String>,
+    glassActive: Boolean,
+    gearFocusEnabled: Boolean,
+    gearFocus: FocusRequester,
+    onGearFocused: (Boolean) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val label = stringResource(R.string.settings_title)
-    GearIcon(
-        modifier
-            .testTag("settings-gear")
-            .semantics { contentDescription = label }
-            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = onFocusedChange)
-            .tvClickable(onClick = onOpen)
-            .size(Dimens.GearSize),
-    )
+    GlassSurface(
+        modifier = modifier.testTag("hero-capsule"),
+        shape = RoundedCornerShape(percent = 50),
+        active = glassActive,
+        look = GlassLook.Capsule,
+    ) {
+        Row(
+            Modifier.padding(
+                start = Dimens.CapsulePaddingStart,
+                top = Dimens.CapsulePadding,
+                end = Dimens.CapsulePadding,
+                bottom = Dimens.CapsulePadding,
+            ),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.CapsuleSpacing),
+        ) {
+            ClockText(clock)
+            SettingsGear(
+                focusEnabled = gearFocusEnabled,
+                focusRequester = gearFocus,
+                onFocusedChange = onGearFocused,
+                onOpen = onOpenSettings,
+            )
+        }
+    }
 }
 
 @Composable
-private fun GearIcon(modifier: Modifier = Modifier) {
+private fun ClockText(clock: StateFlow<String>) {
+    val time by clock.collectAsStateWithLifecycle()
+    Text(time, style = TextStyles.Clock, color = SygixColors.OnDark, maxLines = 1, modifier = Modifier.testTag("hero-clock"))
+}
+
+@Composable
+private fun SettingsGear(
+    focusEnabled: Boolean,
+    focusRequester: FocusRequester,
+    onFocusedChange: (Boolean) -> Unit,
+    onOpen: () -> Unit,
+) {
+    val label = stringResource(R.string.settings_title)
+    var focused by remember { mutableStateOf(false) }
+    val progress = animateFloatAsState(
+        targetValue = if (focused) 1f else 0f,
+        animationSpec = tween(Motion.FOCUS_MS, easing = AppleEasing),
+        label = "gearFocus",
+    )
+    Box(
+        Modifier
+            .testTag("settings-gear")
+            .semantics { contentDescription = label }
+            .tvFocusable(
+                onFocused = {
+                    focused = it
+                    onFocusedChange(it)
+                },
+                focusRequester = focusRequester,
+                enabled = focusEnabled,
+            )
+            .tvClickable(onClick = onOpen)
+            .graphicsLayer {
+                val p = progress.value
+                val scale = 1f + (Dimens.GearFocusScale - 1f) * p
+                scaleX = scale
+                scaleY = scale
+                shadowElevation = Dimens.GearFocusElevation.toPx() * p
+                shape = CircleShape
+                clip = false
+            }
+            .drawBehind { drawCircle(lerp(SygixColors.GearRest, SygixColors.PillFocus, progress.value)) }
+            .size(Dimens.GearButton),
+        contentAlignment = Alignment.Center,
+    ) {
+        GearIcon(Modifier.size(Dimens.GearIcon)) { lerp(SygixColors.OnDark, SygixColors.OnPill, progress.value) }
+    }
+}
+
+@Composable
+private fun GearIcon(modifier: Modifier = Modifier, color: () -> Color) {
     Spacer(
         modifier.drawWithCache {
             val path = gearPath(size)
-            onDrawBehind { drawPath(path, Color.White) }
+            onDrawBehind { drawPath(path, color()) }
         },
     )
 }
@@ -199,6 +279,8 @@ private val NoAutoScroll = object : BringIntoViewSpec {
 
 private val NoCounts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap())
 
+private val NoClock: StateFlow<String> = MutableStateFlow("")
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LauncherHome(
@@ -219,6 +301,7 @@ internal fun LauncherHome(
     onSettingsCategory: (SettingsCategory) -> Unit = {},
     initialZone: Zone = Zone.HERO,
     glassBlur: Boolean = true,
+    clock: StateFlow<String> = NoClock,
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -299,6 +382,7 @@ internal fun LauncherHome(
                         gridRow == 0 -> { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true }
                         else -> false
                     }
+                    Key.DirectionLeft, Key.DirectionRight -> zone == Zone.HERO && gearFocused
                     Key.Back -> { zone = Zone.HERO; true }
                     else -> false
                 }
@@ -346,17 +430,19 @@ internal fun LauncherHome(
                         modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
                     )
                     if (!settingsOpen) {
-                        SettingsGear(
-                            focusEnabled = zone == Zone.HERO && !menuOpen,
-                            focusRequester = gearFocus,
-                            onFocusedChange = { gearFocused = it },
-                            onOpen = {
+                        HeroCapsule(
+                            clock = clock,
+                            glassActive = heroOnScreen,
+                            gearFocusEnabled = zone == Zone.HERO && !menuOpen,
+                            gearFocus = gearFocus,
+                            onGearFocused = { gearFocused = it },
+                            onOpenSettings = {
                                 onSettingsCategory(SettingsCategory.Initial)
                                 settingsOpen = true
                             },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(top = 24.dp, end = 48.dp),
+                                .padding(top = Dimens.CapsuleTop, end = Dimens.CapsuleEnd),
                         )
                     }
                 }
