@@ -186,6 +186,7 @@ internal fun HomeGrid(
                                 },
                                 focusRequester = focus.requesterFor(app.packageName),
                                 lifted = app.packageName == movingApp,
+                                showName = true,
                                 modifier = Modifier
                                     .weight(1f)
                                     .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),

@@ -5,6 +5,18 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import fr.sygix.sygixos.core.designsystem.AppleEasing
+import fr.sygix.sygixos.core.designsystem.Motion
+import fr.sygix.sygixos.core.designsystem.TextStyles
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
@@ -46,6 +58,7 @@ import kotlinx.coroutines.withContext
 internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource?> { null }
 
 private val TileBackground = Color(0xFF141418)
+private val TileName = Color.White.copy(alpha = 0.92f)
 
 @Composable
 internal fun AppTile(
@@ -57,19 +70,71 @@ internal fun AppTile(
     onFocusChanged: (Boolean) -> Unit = {},
     focusRequester: FocusRequester? = null,
     lifted: Boolean = false,
+    showName: Boolean = false,
 ) {
     val artwork by rememberAppArtwork(app)
-    Box(
-        modifier
-            .testTag("app-tile-" + app.packageName)
-            .tvFocus(
-                onFocused = onFocusChanged,
-                focusRequester = focusRequester,
-                enabled = focusEnabled,
+    var focused by remember { mutableStateOf(false) }
+    TileWithName(
+        nameVisible = showName && focused,
+        name = {
+            Text(
+                app.label,
+                style = TextStyles.TileName,
+                color = TileName,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("app-tile-name-" + app.packageName),
             )
-            .tvClickable(onClick = onClick, onLongClick = onLongClick),
+        },
+        modifier = modifier,
     ) {
-        TileBox(artwork, app.label, lifted = lifted)
+        Box(
+            Modifier
+                .testTag("app-tile-" + app.packageName)
+                .tvFocus(
+                    onFocused = {
+                        focused = it
+                        onFocusChanged(it)
+                    },
+                    focusRequester = focusRequester,
+                    enabled = focusEnabled,
+                )
+                .tvClickable(onClick = onClick, onLongClick = onLongClick),
+        ) {
+            TileBox(artwork, app.label, lifted = lifted, modifier = Modifier.testTag("app-tile-art-" + app.packageName))
+        }
+    }
+}
+
+@Composable
+private fun TileWithName(
+    nameVisible: Boolean,
+    name: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    tile: @Composable () -> Unit,
+) {
+    val gap = Dimens.TileNameGap
+    Layout(
+        contents = listOf(
+            tile,
+            {
+                AnimatedVisibility(
+                    visible = nameVisible,
+                    enter = fadeIn(tween(Motion.FOCUS_MS, easing = AppleEasing)),
+                    exit = fadeOut(tween(Motion.FOCUS_MS, easing = AppleEasing)),
+                ) { name() }
+            },
+        ),
+        modifier = modifier,
+    ) { (tileMeasurables, nameMeasurables), constraints ->
+        val placedTile = tileMeasurables.first().measure(constraints)
+        val nameConstraints = Constraints(maxWidth = placedTile.width)
+        val placedName = nameMeasurables.map { it.measure(nameConstraints) }
+        layout(placedTile.width, placedTile.height) {
+            placedTile.place(0, 0)
+            placedName.forEach { it.place((placedTile.width - it.width) / 2, placedTile.height + gap.roundToPx()) }
+        }
     }
 }
 
@@ -84,11 +149,11 @@ internal fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
 }
 
 @Composable
-internal fun TileBox(artwork: AppArtwork?, label: String, lifted: Boolean = false) {
+internal fun TileBox(artwork: AppArtwork?, label: String, lifted: Boolean = false, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(Dimens.TileCorner)
     val border = if (lifted) Modifier.border(2.dp, Color.White, shape) else Modifier
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
             .clip(shape)
