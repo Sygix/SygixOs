@@ -7,13 +7,12 @@ package fr.sygix.sygixos.domain
 
 object DockLayout {
 
-    fun tileWidth(available: Float, count: Int, spacing: Float, columns: Int): Float {
-        if (count <= 0) return 0f
-        val gridTile = (available - spacing * (columns - 1)) / columns
-        val fitted = (available - spacing * (count - 1)) / count
-        return minOf(gridTile, fitted)
-    }
+    fun contentWidth(count: Int, tile: Float, spacing: Float, padding: Float): Float =
+        if (count <= 0) 0f else tile * count + spacing * (count - 1) + padding * 2
 
-    fun dockWidth(tileWidth: Float, count: Int, spacing: Float, padding: Float): Float =
-        tileWidth * count + spacing * (count - 1) + padding * 2
+    fun dockWidth(count: Int, tile: Float, spacing: Float, padding: Float, available: Float): Float =
+        minOf(contentWidth(count, tile, spacing, padding), available)
+
+    fun overflows(count: Int, tile: Float, spacing: Float, padding: Float, available: Float): Boolean =
+        contentWidth(count, tile, spacing, padding) > available
 }

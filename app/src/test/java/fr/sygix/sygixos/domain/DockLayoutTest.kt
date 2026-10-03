@@ -6,27 +6,33 @@
 package fr.sygix.sygixos.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class DockLayoutTest {
 
     private val available = 864f
-    private val spacing = 16f
+    private val tile = 120f
+    private val spacing = 14f
+    private val padding = 10f
 
     @Test
-    fun `up to five tiles keep the grid tile width`() {
-        assertEquals(160f, DockLayout.tileWidth(available, 1, spacing, 5))
-        assertEquals(160f, DockLayout.tileWidth(available, 5, spacing, 5))
+    fun `dock wraps fixed size tiles whatever their count`() {
+        assertEquals(140f, DockLayout.dockWidth(1, tile, spacing, padding, available))
+        assertEquals(120f * 3 + 14f * 2 + 20f, DockLayout.dockWidth(3, tile, spacing, padding, available))
+        assertEquals(120f * 6 + 14f * 5 + 20f, DockLayout.dockWidth(6, tile, spacing, padding, available))
     }
 
     @Test
-    fun `more than five tiles shrink to fit`() {
-        assertEquals((864f - 16f * 7) / 8, DockLayout.tileWidth(available, 8, spacing, 5))
+    fun `dock never grows past the available width`() {
+        assertEquals(available, DockLayout.dockWidth(8, tile, spacing, padding, available))
+        assertFalse(DockLayout.overflows(6, tile, spacing, padding, available))
+        assertTrue(DockLayout.overflows(7, tile, spacing, padding, available))
     }
 
     @Test
-    fun `dock width wraps its tiles`() {
-        assertEquals(160f * 2 + 16f + 28f, DockLayout.dockWidth(160f, 2, spacing, 14f))
-        assertEquals(0f, DockLayout.tileWidth(available, 0, spacing, 5))
+    fun `empty dock has no width`() {
+        assertEquals(0f, DockLayout.contentWidth(0, tile, spacing, padding))
     }
 }
