@@ -48,7 +48,7 @@ La transition en défilement entre le héro et la grille SHALL être couverte pa
 ## ADDED Requirements
 
 ### Requirement: Couverture du style tvOS
-Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couvert par des tests exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), par assertions sémantiques, de position et de couleur calculée, sans capture d'image, avec des testTags stables : « hero-capsule », « hero-clock », « settings-gear », « dock-glass », « hero-open », « hero-metadata », « hero-progress », « app-menu », préfixes « app-tile-<package> », « app-tile-name-<package> », « menu-action-<action> », « settings-category-<CATEGORY> », « source-row-<package> », « hidden-row-<package> », et « unhide-all ».
+Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couvert par des tests exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), par assertions sémantiques, de position et de couleur calculée, sans capture d'image, avec des testTags stables : « hero-capsule », « hero-clock », « settings-gear », « dock-glass », « hero-open », « hero-metadata », « hero-progress », « hero-poster », « app-menu », préfixes « app-tile-<package> », « app-tile-art-<package> » (visuel de la tuile, transformations du focus comprises), « app-tile-name-<package> », « menu-action-<action> », « settings-category-<CATEGORY> », « source-row-<package> », « hidden-row-<package> », et « unhide-all ».
 
 #### Scenario: tuile focusée sans débordement
 - **WHEN** une tuile de la grille, puis une tuile du dock prend le focus et l'animation se termine
@@ -83,5 +83,5 @@ Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couv
 - **THEN** le contraste du texte blanc sur le panneau et celui du texte sombre sur la pilule atteignent chacun au moins 4,5:1 ; et dans l'accueil, à l'ouverture du menu, la première action « menu-action-<action> » a le focus, bas passe à l'action suivante, placée sous la première
 
 #### Scenario: écran au repos
-- **WHEN** l'accueil est laissé sans touche, l'horloge de test avancée de plusieurs secondes, après chacune de ces situations : héro sans programme, dock focusé, grille focusée après la descente, grille atteinte depuis un héro dont le poster était affiché
-- **THEN** aucun état Compose n'est modifié pendant cet intervalle (aucune animation ni recomposition en cours) ; dans le dernier cas, le Ken Burns du poster, actif sur le héro, est arrêté une fois le héro sorti de l'écran
+- **WHEN** l'accueil est laissé sans touche, l'horloge de test avancée de plusieurs secondes, après chacune de ces situations : héro sur le dégradé animé du repli, dock focusé sur ce héro, héro dont le poster est en Ken Burns, grille focusée après la descente, grille atteinte depuis un héro dont le poster était affiché
+- **THEN** dans les trois premières, aucune recomposition n'a lieu (les animations spécifiées ne modifient que le dessin) ; dans les deux dernières, aucun état Compose n'est modifié (aucune animation en cours) : le Ken Burns du poster, actif sur le héro, est arrêté une fois le héro sorti de l'écran

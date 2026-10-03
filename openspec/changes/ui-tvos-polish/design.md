@@ -87,7 +87,7 @@ Le nom est placé par une mise en page qui ne compte pas dans la taille de la tu
 - Gauche et droite depuis l'engrenage sont consommées par le gestionnaire de touches de l'accueil (la recherche de focus 2D pourrait sinon atteindre le bouton du héro).
 
 ### D7. Héro : voiles et espacement
-Les trois voiles sont dessinés par un seul `drawBehind`, chacun limité à la zone qu'il couvre (55 % du bas, 62 % de la gauche, rectangle de l'ellipse en haut à droite) pour limiter le remplissage GPU ; l'ellipse est un dégradé radial dessiné dans un repère étiré. Ils font partie de la source du flou : le dock et la capsule floutent un fond déjà assombri.
+Les trois voiles sont dessinés par un seul `drawBehind`, chacun limité à la zone qu'il couvre (55 % du bas, 62 % de la gauche, rectangle de l'ellipse en haut à droite) pour limiter le remplissage GPU ; l'ellipse est un dégradé radial dont la matrice locale étire le cercle (rayons 320 × 150 dp). Ils font partie de la source du flou : le dock et la capsule floutent un fond déjà assombri.
 Les métadonnées et le bouton sont une seule colonne espacée de 10 dp ; la barre de progression n'est composée que si elle existe (plus de boîte transparente de 15 dp) et le titre n'a plus `minLines = 2`. Le bouton reste ancré en bas : seul le haut du bloc bouge d'un programme à l'autre.
 
 ### D8. Pilules (réglages et menu)
@@ -102,12 +102,15 @@ Sources trouvées dans le code :
 3. Verre du dock en pleine qualité adaptative avec aberration chromatique et alpha global (D2). → Mode `Performance`, sans aberration ni alpha.
 4. Lectures de valeurs animées en composition (`AmbientGradient`, Ken Burns du panneau Top Shelf, `tvFocus`, bouton du héro, catégories) : recomposition à chaque image. → Lectures dans `graphicsLayer` / `drawBehind`.
 5. Restent, parce que spécifiés (question 5) : le Ken Burns du héro et du panneau Top Shelf, la vidéo d'aperçu et le dégradé animé du repli. Tant que le Ken Burns du héro tourne, le flou du dock et de la capsule est recalculé à chaque image, mais sur un quart des pixels.
-Mesures reproductibles ajoutées (JVM) : un test « écran au repos » compte les écritures d'état Compose appliquées (`Snapshot.registerApplyObserver`) pendant plusieurs secondes d'horloge de test sans touche, dans quatre situations ; le cas « grille atteinte depuis un poster » échoue sur `main` (Ken Burns hors écran). Les animations infinies (`rememberInfiniteTransition`) sont neutralisées par l'environnement de test Compose : leur passage en phase de dessin est vérifié par lecture du code, pas par ce test.
+Mesures reproductibles ajoutées (JVM, `IdleFrameTest`), pendant plusieurs secondes d'horloge de test sans touche :
+- compteur de recompositions (`Recomposer.runningRecomposers`, somme des `changeCount`) : zéro sur le héro au dégradé animé, avec le dock focusé sur ce héro, et sur un poster en Ken Burns ; les deux premiers cas échouent sur `main` (le dégradé lisait sa phase en composition) ;
+- écritures d'état Compose appliquées (`Snapshot.registerApplyObserver`) : zéro en vue grille, y compris juste après avoir quitté un poster ; ce cas échoue sur `main` (Ken Burns hors écran).
+Le poster est chargé par un `ImageLoader` Coil de test qui répond tout de suite, sans réseau.
 
 ### D10. Tests
-- JUnit : `DockLayoutTest` (taille fixe, bornage), `FocusPillTest` (couleurs), `GlassContrastTest` (contraste ≥ 4,5:1 du texte du menu composé sur blanc avec les jetons, échoue avec l'ancienne teinte blanche), `SystemClockSourceTest` (format 12/24 h selon le réglage système, émission initiale et à la diffusion).
+- JUnit : `DockLayoutTest` (taille fixe, bornage), `FocusPillTest` (couleurs), `GlassContrastTest` (contraste ≥ 4,5:1 du texte du menu composé sur blanc avec les jetons, échoue avec l'ancienne teinte blanche), `SystemClockSourceTest` (format 12/24 h selon le réglage système, émission initiale et à chaque diffusion), `GlassSurfaceTest` (le repli ne découpe plus un enfant plus grand que la surface).
 - Compose à la taille TV : `TvFocusStyleTest` (tuile sans débordement en grille et dans le dock, nom sous la tuile, dock à taille fixe et centré), `HeroCapsuleTest` (capsule, focus de l'engrenage seul, gauche/droite, heure mise à jour), `HeroLayoutTest` (pas d'espace vide sans progression), `SettingsPillTest` (pas de zoom au focus), `ContextMenuTest` (liste verticale), `IdleFrameTest` (écran au repos).
-- Tests adaptés : `HideFlowTest` et `CatalogUpdateFocusTest` (menu vertical : bas au lieu de droite, l'assertion de focus sur « menu-hide » est conservée) ; `DockLayoutTest` (la réduction au-delà de 5 apps n'est plus spécifiée) ; `SettingsEntryTest` est étendu (la capsule part et revient avec le héro, l'engrenage garde son tag).
+- Tests adaptés : `HideFlowTest` et `CatalogUpdateFocusTest` (menu vertical : bas au lieu de droite, l'assertion de focus sur l'action « Cacher » est conservée sous son nouveau tag « menu-action-hide ») ; `DockLayoutTest` (la réduction au-delà de 5 apps n'est plus spécifiée) ; `HomeGridScrollTest` (positions attendues calculées depuis `Dimens` au lieu de valeurs écrites pour l'ancien espacement) ; `HomeViewModelSourceToggleTest` (nouvelle dépendance `clockSource`) ; `AccentColorTest` supprimé avec `AccentColor`, devenu inutile sans halo coloré ; `SettingsEntryTest` est étendu (la capsule part et revient avec le héro, l'engrenage garde son tag).
 
 ### Ce qui reste à mesurer sur la TV
 Sur une pré-release (`assembleRelease`, R8), avec `adb shell dumpsys gfxinfo fr.sygix.sygixos reset` puis `framestats` après 10 s sans toucher :

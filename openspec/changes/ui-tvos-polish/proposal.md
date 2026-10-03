@@ -39,7 +39,8 @@ Deltas écrits sur `main` (`d5579cf`), après l'archivage de `home-settings-poli
 - `ui/hero` : `HeroStage` (voiles, bouton, espacement, Ken Burns en pause hors écran), `AmbientGradient` (lecture en phase de dessin).
 - `ui/settings` : fond, pilules, `AppleSwitch` (dimensions et couleurs de la maquette).
 - Nouvelle source de l'heure (`data/`), exposée par `HomeViewModel` dans un flux séparé de l'état de l'accueil.
-- Tests : `DockLayoutTest`, `HideFlowTest` et `CatalogUpdateFocusTest` adaptés (taille fixe du dock, menu vertical), nouveaux tests Compose à la taille TV et tests JUnit.
+- Tests : `DockLayoutTest`, `HideFlowTest`, `CatalogUpdateFocusTest` et `HomeGridScrollTest` adaptés (taille fixe du dock, menu vertical, nouvel espacement), nouveaux tests Compose à la taille TV et tests JUnit.
+- `domain/AccentColor.kt` et la couleur dominante calculée pour chaque tuile sont supprimés (ils ne servaient qu'au halo).
 - Aucune nouvelle dépendance.
 
 ## Non-goals

@@ -4,20 +4,23 @@
 [![release](https://img.shields.io/github/v/release/Sygix/SygixOs?include_prereleases&sort=semver)](https://github.com/Sygix/SygixOs/releases)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
-A free and open source launcher for Android TV / Google TV, inspired by tvOS: Liquid Glass, polished focus and animations, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, with no server and no account.
+A free and open source launcher for Android TV / Google TV, inspired by tvOS 26: dark Liquid Glass, polished focus and animations, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, with no server and no account.
 
 > Independent project, not affiliated with Apple, Google or TCL. Apple TV and tvOS are trademarks of Apple Inc.; Android TV and Google TV are trademarks of Google LLC.
 
 ## Features
 
-- **Full-screen hero**: a muted slideshow (crossfade, slow zoom) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. The "Open" / "Resume" button opens the content page in its app.
+- **Full-screen hero**: a muted slideshow (crossfade, slow zoom) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Soft dark veils keep the title and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
+- **Clock and settings capsule**: a small dark glass capsule at the top right of the hero shows the time (12 or 24-hour, as set on the TV) and the settings gear.
 - **Dock and app grid**:
   - apps are detected automatically;
   - 16:9 tiles show the Android TV banner;
-  - apps can be pinned to the dock;
+  - the focused tile lifts like on tvOS (zoom, soft shadow, light sheen), and the grid shows the app name below it;
+  - apps can be pinned to the dock, a dark glass bar whose tiles keep one fixed size;
   - the grid can be reordered with the arrow keys.
+- **Dark glass**: the dock, the capsule and the context menu use a dark translucent glass with a live blur computed at reduced resolution, only under these surfaces.
 - **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row.
-- **Settings** (gear at the top of the hero):
+- **Settings** (gear in the capsule, same background as the grid, light focus pills):
   - choose which apps feed the hero and the preview; apps that publish content come first, by number of programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
   - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list that restores the listed apps. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
   - version and library licenses.
@@ -32,7 +35,8 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS: Li
 | P2a | Full-screen hero fed by the TV Provider, Top Shelf preview, nature fallback | ✅ done |
 | P2b | Settings: source apps, hidden apps, about | ✅ done |
 | Polish | Home fixes: settings gear, grid and dock refresh, Top Shelf placement | ✅ done (v0.0.1-rc.2) |
-| Polish | Continuous hero/grid scroll, hidden apps in the settings panel, source apps sorting | 🚧 in progress ([#16](https://github.com/Sygix/SygixOs/pull/16)) |
+| Polish | Continuous hero/grid scroll, hidden apps in the settings panel, source apps sorting | ✅ done (v0.0.1-rc.4) |
+| Polish | tvOS 26 dark glass, focus, readability and smoothness pass | 🚧 in progress |
 | P2c | Up Next row (all apps, deduplication) | 📝 spec done, implementation planned |
 | P2c | Search | planned |
 | P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
@@ -65,13 +69,13 @@ Restore with `adb shell pm enable <package>`. Use at your own risk: disabling th
 
 ## Navigation
 
-Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom of the hero) → grid. The home screen is a single page: the hero fills the first screen, with the dock and the settings gear on it, and the grid sits below. Going from the dock to the grid scrolls the page in one continuous move: the hero, the dock and the gear slide out at the top while the grid comes up, back to where you left the grid. Up from the first row, or Back, scrolls back.
+Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom of the hero) → grid. The home screen is a single page: the hero fills the first screen, with the dock and the clock and settings capsule on it, and the grid sits below. Going from the dock to the grid scrolls the page in one continuous move: the hero, the dock and the capsule slide out at the top while the grid comes up, back to where you left the grid. Up from the first row, or Back, scrolls back.
 
 - **Down / Up**: switch tiers; only the active zone takes focus.
 - **Left / Right**: stay within the zone (previous or next program on the hero).
-- **Up from the hero**: settings gear.
+- **Up from the hero**: settings gear (the clock never takes the focus).
 - **Back**: returns to the hero.
-- **Long press OK** on a tile:
+- **Long press OK** on a tile opens a dark menu (Up / Down to choose, Back to close):
   - pin to or unpin from the dock;
   - "Move" to reorder the grid with the arrows (OK confirms, Back cancels);
   - "Hide".
