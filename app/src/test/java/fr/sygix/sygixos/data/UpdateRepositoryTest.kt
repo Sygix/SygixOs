@@ -22,6 +22,7 @@ import fr.sygix.sygixos.domain.UpdateStep
 import fr.sygix.sygixos.domain.asset
 import fr.sygix.sygixos.domain.release
 import java.io.IOException
+import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
@@ -720,5 +721,43 @@ class UpdateRepositoryTest {
         h.repository.coldStart()
         advanceUntilIdle()
         assertNull(store.relaunch)
+    }
+
+    @Test
+    fun `generic tls error during the download is an interrupted download`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        h.transport.on(h.apkUrl("v0.0.2"), Reply.Fail(SSLException("Read error: Connection reset by peer")))
+        update(h, "v0.0.2")
+        assertEquals(UpdateError.Interrupted, h.failure())
+        assertTrue(h.residualFiles().isEmpty())
+    }
+
+    @Test
+    fun `failure received by a fresh process clears the relaunch request`() = runTest {
+        val store = MemoryUpdateStore().apply { relaunch = 299L }
+        val h = harness(store = store)
+        h.repository.onInstallStatus(InstallStatus.Failed(5, InstallFailure.CONFLICT))
+        advanceUntilIdle()
+        assertNull(store.relaunch)
+        store.relaunch = 299L
+        h.repository.onInstallStatus(InstallStatus.Aborted(5))
+        advanceUntilIdle()
+        assertNull(store.relaunch)
+    }
+
+    @Test
+    fun `system screen is kept for later when SygixOs leaves the foreground before it opens`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        update(h, "v0.0.2")
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
+        h.foreground.isForeground = false
+        advanceUntilIdle()
+        assertTrue(h.screens.launched.isEmpty())
+        assertNull((h.store as MemoryUpdateStore).relaunch)
+        h.foreground.isForeground = true
+        h.repository.onForeground()
+        advanceUntilIdle()
+        assertEquals(listOf("confirm"), h.screens.launched.map { it.action })
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
     }
 }

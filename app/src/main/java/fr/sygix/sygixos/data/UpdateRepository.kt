@@ -138,7 +138,11 @@ class UpdateRepository(
 
     fun onInstallStatus(status: InstallStatus) {
         val current = runtime.value
-        val step = current.step ?: return
+        val step = current.step
+        if (step == null) {
+            if (status is InstallStatus.Aborted || status is InstallStatus.Failed) scope.launch { store.setRelaunch(null) }
+            return
+        }
         if (status.sessionId != current.sessionId) return
         when (status) {
             is InstallStatus.Success -> Unit
@@ -163,6 +167,11 @@ class UpdateRepository(
         val target = runtime.value.step?.candidate?.versionCode ?: return
         scope.launch {
             store.setRelaunch(target)
+            if (!foreground.isForeground) {
+                store.setRelaunch(null)
+                pendingAction = action
+                return@launch
+            }
             if (screens.launch(action.intent)) {
                 systemScreenShown = true
             } else {
