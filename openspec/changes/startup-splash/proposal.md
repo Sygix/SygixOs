@@ -24,7 +24,7 @@ Aucune.
 - **Asset de la mascotte (prérequis d'implémentation)** : le WebP animé final est produit par le chantier logo et n'est pas encore livré. La spécification peut être validée sans lui ; l'implémentation ne commencera qu'à la livraison de l'asset WebP final, qui doit respecter « Fichier de l'animation de la mascotte » (tâche 1.2 de `tasks.md`).
 - **`ui-tvos-polish`** (PR #18, non mergée) : aucune exigence en commun. « Écran initial du home » n'est modifiée ni par `ui-tvos-polish` ni par `p2c-upnext` ; ce change ne touche ni « Navigation 3 paliers » ni « Page de réglages ». L'implémentation modifie `HomeScreen.kt`, aussi modifié par `ui-tvos-polish` : elle part de `main` après le merge de `ui-tvos-polish`.
 - **`p2c-upnext`** (spec sur `main`) : aucun recouvrement.
-- **Ordre d'archivage** : aucune contrainte vis-à-vis de `ui-tvos-polish` ni de `p2c-upnext`.
+- **Ordre d'archivage** : archiver `ui-tvos-polish` avant `startup-splash` (les deux modifient « Écran initial du home » ; ce delta reprend le dégradé figé introduit par `ui-tvos-polish`). Aucune contrainte vis-à-vis de `p2c-upnext`.
 
 ## Impact
 - `ui/home/HomeScreen.kt` : l'état de chargement affiche l'écran de démarrage au lieu de `AmbientGradient` ; l'accueil est composé sous l'écran de démarrage dès son chargement, sans être dessiné, puis révélé par le fondu. `ui/hero/HeroStage.kt` signale son premier visuel prêt.

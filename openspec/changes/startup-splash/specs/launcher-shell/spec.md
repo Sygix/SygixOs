@@ -136,4 +136,4 @@ Le home SHALL s'ouvrir sur un héro plein écran sans cadre : visuel d'un progra
 
 #### Scenario: fallback sans contenu
 - **WHEN** aucune app ne publie de programme, ou la permission est refusée
-- **THEN** le héro joue les vidéos nature en boucle ; tant qu'aucune vidéo ne joue, un dégradé sombre animé est affiché, jamais d'écran noir ni de crash
+- **THEN** le héro joue les vidéos nature en boucle ; tant qu'aucune vidéo ne joue, un dégradé sombre animé est affiché (un seul passage lent, puis figé sur sa dernière position, comme le Ken Burns), jamais d'écran noir ni de crash
