@@ -196,7 +196,7 @@ private fun SettingsCategoryRow(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused, selected)
+    val colors = animatedPillColors(focused, selected, restContent = SygixColors.OnDarkRest)
     Box(
         modifier
             .fillMaxWidth()

@@ -6,7 +6,6 @@
 package fr.sygix.sygixos.domain
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -27,8 +26,7 @@ class DockLayoutTest {
     @Test
     fun `dock never grows past the available width`() {
         assertEquals(available, DockLayout.dockWidth(8, tile, spacing, padding, available))
-        assertFalse(DockLayout.overflows(6, tile, spacing, padding, available))
-        assertTrue(DockLayout.overflows(7, tile, spacing, padding, available))
+        assertTrue(DockLayout.contentWidth(6, tile, spacing, padding) <= available)
     }
 
     @Test

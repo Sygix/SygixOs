@@ -16,6 +16,7 @@ import fr.sygix.sygixos.core.designsystem.focusPill
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -83,8 +84,10 @@ private val RowVerticalPadding = 6.dp
 private val RowGap = 12.dp
 private val RowSpacing = 5.dp
 private val EntryButtonHeight = 42.dp
-private val IconSize = 36.dp
-private val IconCorner = 8.dp
+private val ThumbWidth = 48.dp
+private val ThumbHeight = 27.dp
+private val ThumbCorner = 5.dp
+private const val IconHeightFraction = 0.8f
 
 internal fun programCountLabel(count: Int): String = when (count) {
     0 -> "Aucun programme publié"
@@ -354,8 +357,8 @@ internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
     val bitmap = icon
     Box(
         modifier
-            .size(IconSize)
-            .clip(RoundedCornerShape(IconCorner))
+            .size(ThumbWidth, ThumbHeight)
+            .clip(RoundedCornerShape(ThumbCorner))
             .background(Color.White.copy(alpha = 0.10f)),
         contentAlignment = Alignment.Center,
     ) {
@@ -363,8 +366,8 @@ internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().testTag("app-icon-$packageName"),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxHeight(IconHeightFraction).aspectRatio(1f).testTag("app-icon-$packageName"),
             )
         }
     }

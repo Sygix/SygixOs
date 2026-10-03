@@ -13,7 +13,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -30,10 +29,10 @@ class HomeGridScrollTest {
 
     private val apps = (0 until 40).map { app("com.a%02d".format(it), "App $it") }
     private val withPosters = listOf("com.a05", "com.a25")
-    private val contentWidth = 960f - Dimens.ScreenMarginH.value * 2
-    private val rowHeight = (contentWidth - Dimens.GridSpacing.value * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
-    private val bottomMargin = 540f - Dimens.GridRowSpacing.value
-    private val panelBlock = contentWidth / Dimens.ShelfAspectRatio + Dimens.GridRowSpacing.value
+    private val rowHeight = 86.4f
+    private val bottomMargin = 508f
+    private val topMargin = 40f
+    private val panelBlock = 356f
 
     private fun setContent() {
         compose.mainClock.autoAdvance = false
@@ -98,8 +97,8 @@ class HomeGridScrollTest {
         setContent()
         press(Key.DirectionDown)
         openShelf()
-        assertEquals(Dimens.GridTopMargin.value, compose.onNodeWithTag("shelf-panel").getBoundsInRoot().top.value, 1f)
-        assertEquals(Dimens.GridTopMargin.value + panelBlock, top("com.a05"), 1f)
+        assertEquals(topMargin, compose.onNodeWithTag("shelf-panel").getBoundsInRoot().top.value, 1f)
+        assertEquals(topMargin + panelBlock, top("com.a05"), 1f)
     }
 
     @Test

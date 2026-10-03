@@ -51,8 +51,12 @@ class AppCatalogRepository(
     }
 
     suspend fun togglePin(packageName: String) {
-        // Un seul edit : lecture et écriture dans la même transaction DataStore.
-        prefs.updatePinned { pinned -> AppCatalog.togglePinned(pinned.toList(), packageName).toSet() }
+        val hidden = prefs.hidden.first()
+        val visible = installed.value.orEmpty().filter { it.packageName !in hidden }
+        prefs.updatePinned { pinned ->
+            val dock = AppCatalog.dock(visible, pinned.toList()).map { it.packageName }
+            AppCatalog.togglePinned(pinned.toList(), dock, packageName).toSet()
+        }
     }
 
     suspend fun moveInGrid(packageName: String, delta: Int) {

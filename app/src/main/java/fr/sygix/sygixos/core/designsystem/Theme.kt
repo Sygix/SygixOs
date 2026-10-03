@@ -19,6 +19,7 @@ object SygixColors {
     val GlassBorder = Color.White.copy(alpha = 0.16f)
     val GlassHighlight = Color.White.copy(alpha = 0.32f)
     val GlassLowlight = Color.White.copy(alpha = 0.06f)
+    val MenuHighlight = Color.White.copy(alpha = 0.28f)
     val GlassShadow = Color.Black.copy(alpha = 0.32f)
     val CapsuleShadow = Color.Black.copy(alpha = 0.28f)
     val MenuShadow = Color.Black.copy(alpha = 0.5f)
@@ -36,6 +37,7 @@ object SygixColors {
     val PillShadow = Color.Black.copy(alpha = 0.35f)
     val OnDark = Color.White
     val OnDarkSecondary = Color.White.copy(alpha = 0.6f)
+    val OnDarkRest = Color.White.copy(alpha = 0.9f)
     val GearRest = Color.White.copy(alpha = 0.10f)
     val TileShadow = Color.Black
     val TileSheen = Color.White

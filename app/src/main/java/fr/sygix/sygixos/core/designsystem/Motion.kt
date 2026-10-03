@@ -24,6 +24,7 @@ object Motion {
     const val SHELF_OPEN_DELAY_MS = 3_000L
     const val SHELF_EXPAND_MS = 420
     const val SHELF_FADE_MS = 350
+    const val SHELF_KEN_BURNS_MS = 16_000
 }
 
 object Dimens {
@@ -36,7 +37,6 @@ object Dimens {
     const val TileFocusScale = 1.08f
     val TileFocusLift = 2.dp
     val TileFocusElevation = 11.dp
-    val TileNameGap = 11.5.dp
     val DockBottomMargin = 24.dp
     val DockPadding = 10.dp
     val DockSpacing = 14.dp

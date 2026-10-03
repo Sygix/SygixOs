@@ -17,6 +17,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import coil.Coil
+import fr.sygix.sygixos.core.designsystem.Motion
+import fr.sygix.sygixos.model.HeroItem
 import coil.ComponentRegistry
 import coil.ImageLoader
 import coil.decode.DataSource
@@ -124,6 +126,61 @@ class IdleFrameTest {
         press(Key.DirectionDown)
         compose.onNodeWithTag("app-tile-com.g0").assertIsFocused()
         assertEquals(0, stateWritesDuring(5_000))
+    }
+
+    private fun showPosters(vararg posters: HeroItem, zone: Zone = Zone.HERO) {
+        Coil.setImageLoader(InstantImageLoader())
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(
+                catalog = catalogOf(dock = emptyList(), grid = grid),
+                hero = heroStateOf(items = posters.toList(), validated = posters.mapNotNull { it.imageUrl }.toSet()),
+                initialZone = zone,
+            )
+        }
+    }
+
+    private fun advance(millis: Long) {
+        compose.mainClock.advanceTimeBy(millis)
+        compose.waitForIdle()
+    }
+
+    private fun poster(id: String, pkg: String = "com.source") =
+        heroItem(id, "Programme $id", imageUrl = "https://example.invalid/$id.jpg", sourcePackage = pkg)
+
+    @Test
+    fun `hero ken burns makes one pass then the hero stands still`() {
+        showPosters(poster("h1"))
+        advance(2_000)
+        assertTrue(stateWritesDuring(1_000) > 0)
+        advance(Motion.HERO_KEN_BURNS_MS.toLong())
+        assertEquals(0, stateWritesDuring(5_000))
+        assertEquals(0L, recompositionsDuring(2_000))
+    }
+
+    @Test
+    fun `hero ken burns starts again when the image changes`() {
+        showPosters(poster("h1"), poster("h2"))
+        advance(Motion.HERO_KEN_BURNS_MS + 1_000L)
+        assertTrue(stateWritesDuring(1_000) > 0)
+    }
+
+    @Test
+    fun `top shelf ken burns makes one pass then the panel stands still`() {
+        showPosters(poster("s1", pkg = "com.g0"), zone = Zone.GRID)
+        advance(Motion.SHELF_OPEN_DELAY_MS + 1_000)
+        compose.onNodeWithTag("shelf-panel").assertExists()
+        assertTrue(stateWritesDuring(1_000) > 0)
+        advance(Motion.SHELF_KEN_BURNS_MS.toLong())
+        assertEquals(0, stateWritesDuring(5_000))
+    }
+
+    @Test
+    fun `top shelf ken burns starts again when the poster changes`() {
+        showPosters(poster("s1", pkg = "com.g0"), poster("s2", pkg = "com.g0"), zone = Zone.GRID)
+        advance(Motion.SHELF_OPEN_DELAY_MS + Motion.SHELF_KEN_BURNS_MS + 7_000L)
+        compose.onNodeWithTag("shelf-panel").assertExists()
+        assertTrue(stateWritesDuring(1_000) > 0)
     }
 
     @Test

@@ -28,15 +28,25 @@ data class PillColors(
     val lifted: Boolean,
 )
 
-fun pillColors(focused: Boolean, selected: Boolean = false, rest: Color = Color.Transparent): PillColors = when {
+fun pillColors(
+    focused: Boolean,
+    selected: Boolean = false,
+    rest: Color = Color.Transparent,
+    restContent: Color = SygixColors.OnDark,
+): PillColors = when {
     focused -> PillColors(SygixColors.PillFocus, SygixColors.OnPill, SygixColors.OnPillSecondary, SygixColors.OnPillTertiary, lifted = true)
     selected -> PillColors(SygixColors.PillSelected, SygixColors.OnDark, SygixColors.OnDarkSecondary, SygixColors.OnDarkSecondary, lifted = false)
-    else -> PillColors(rest, SygixColors.OnDark, SygixColors.OnDarkSecondary, SygixColors.OnDarkSecondary, lifted = false)
+    else -> PillColors(rest, restContent, SygixColors.OnDarkSecondary, SygixColors.OnDarkSecondary, lifted = false)
 }
 
 @Composable
-fun animatedPillColors(focused: Boolean, selected: Boolean = false, rest: Color = Color.Transparent): PillColors {
-    val target = pillColors(focused, selected, rest)
+fun animatedPillColors(
+    focused: Boolean,
+    selected: Boolean = false,
+    rest: Color = Color.Transparent,
+    restContent: Color = SygixColors.OnDark,
+): PillColors {
+    val target = pillColors(focused, selected, rest, restContent)
     val spec = tween<Color>(Motion.FOCUS_MS, easing = AppleEasing)
     val container by animateColorAsState(target.container, spec, label = "pillContainer")
     val content by animateColorAsState(target.content, spec, label = "pillContent")

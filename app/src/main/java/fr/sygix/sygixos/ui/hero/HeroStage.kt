@@ -297,6 +297,7 @@ private fun HeroOverlay(
                     focusRequester = buttonFocusRequester,
                     enabled = focusEnabled,
                     onClick = onOpen,
+                    modifier = Modifier.padding(top = ButtonExtraGap),
                 )
             }
         }
@@ -380,7 +381,13 @@ private fun HeroMetadata(item: HeroItem) {
 }
 
 @Composable
-private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enabled: Boolean, onClick: () -> Unit) {
+private fun HeroOpenButton(
+    label: String,
+    focusRequester: FocusRequester,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var focused by remember { mutableStateOf(false) }
     val pill = RoundedCornerShape(percent = 50)
     val progress = animateFloatAsState(
@@ -394,7 +401,7 @@ private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enable
         label = "heroButtonContent",
     )
     Box(
-        Modifier
+        modifier
             .testTag("hero-open")
             .graphicsLayer {
                 val p = progress.value
@@ -447,6 +454,7 @@ private val SourceColor = Color.White.copy(alpha = 0.86f)
 private val ButtonPaddingStart = 16.dp
 private val ButtonPaddingEnd = 20.dp
 private val ButtonGap = 7.dp
-private val PlayGlyphSize = 11.dp
+private val PlayGlyphSize = 13.dp
+private val ButtonExtraGap = 3.dp
 private val TitleShadow = Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), 12f)
 private val SmallTextShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 1f), 3f)

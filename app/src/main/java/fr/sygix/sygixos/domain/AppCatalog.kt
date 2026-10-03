@@ -7,10 +7,20 @@ package fr.sygix.sygixos.domain
 
 import fr.sygix.sygixos.model.TvApp
 
+enum class PinState { PINNED, AVAILABLE, DOCK_FULL }
+
 object AppCatalog {
 
+    const val MAX_DOCK = 6
+
     fun dock(apps: List<TvApp>, pinned: List<String>): List<TvApp> =
-        pinned.mapNotNull { pkg -> apps.find { it.packageName == pkg } }
+        pinned.mapNotNull { pkg -> apps.find { it.packageName == pkg } }.take(MAX_DOCK)
+
+    fun pinState(dock: List<TvApp>, packageName: String): PinState = when {
+        dock.any { it.packageName == packageName } -> PinState.PINNED
+        dock.size >= MAX_DOCK -> PinState.DOCK_FULL
+        else -> PinState.AVAILABLE
+    }
 
     fun grid(apps: List<TvApp>, order: List<String> = emptyList()): List<TvApp> {
         val byPackage = apps.associateBy { it.packageName }
@@ -30,6 +40,10 @@ object AppCatalog {
         }
     }
 
-    fun togglePinned(current: List<String>, packageName: String): List<String> =
-        if (packageName in current) current - packageName else current + packageName
+    fun togglePinned(current: List<String>, dock: List<String>, packageName: String): List<String> = when {
+        packageName in dock -> current - packageName
+        packageName in current -> current
+        dock.size >= MAX_DOCK -> current
+        else -> current + packageName
+    }
 }

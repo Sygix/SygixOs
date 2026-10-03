@@ -54,7 +54,32 @@ class AppCatalogTest {
 
     @Test
     fun `togglePin adds and removes`() {
-        assertEquals(listOf("a"), AppCatalog.togglePinned(emptyList(), "a"))
-        assertEquals(emptyList<String>(), AppCatalog.togglePinned(listOf("a"), "a"))
+        assertEquals(listOf("a"), AppCatalog.togglePinned(emptyList(), emptyList(), "a"))
+        assertEquals(emptyList<String>(), AppCatalog.togglePinned(listOf("a"), listOf("a"), "a"))
+    }
+
+    @Test
+    fun `dock holds six apps at most and keeps every stored pin`() {
+        val many = (1..8).map { TvApp(packageName = "p$it", label = "P$it") }
+        val pinned = many.map { it.packageName }
+        assertEquals(pinned.take(6), AppCatalog.dock(many, pinned).map { it.packageName })
+        val dock = pinned.take(6)
+        assertEquals(pinned, AppCatalog.togglePinned(pinned, dock, "p7"))
+        assertEquals(pinned - "p2", AppCatalog.togglePinned(pinned, dock, "p2"))
+    }
+
+    @Test
+    fun `pinning is refused once the dock is full`() {
+        val dock = (1..6).map { "p$it" }
+        assertEquals(dock, AppCatalog.togglePinned(dock, dock, "new"))
+        assertEquals(dock.take(5) + "new", AppCatalog.togglePinned(dock.take(5), dock.take(5), "new"))
+    }
+
+    @Test
+    fun `pin state tells pinned, available and full`() {
+        val six = (1..6).map { TvApp(packageName = "p$it", label = "P$it") }
+        assertEquals(PinState.PINNED, AppCatalog.pinState(six, "p3"))
+        assertEquals(PinState.DOCK_FULL, AppCatalog.pinState(six, "other"))
+        assertEquals(PinState.AVAILABLE, AppCatalog.pinState(six.take(5), "other"))
     }
 }
