@@ -46,7 +46,7 @@
 ## 6. Documentation et vérification
 - [x] 6.1 README : mise à jour depuis Réglages > À propos, autorisation « applis inconnues », section Installation (première installation par `adb`, puis mises à jour depuis l'app) ; effet de `CATEGORY_HOME` (Android peut proposer un choix de launcher au prochain appui sur Home, SygixOs ne demande jamais à le devenir) et lien avec P5 dans la section sur le remplacement du launcher
 - [x] 6.2 `./gradlew test` vert, `./gradlew assembleRelease` vert, `openspec validate --all --strict` vert
-  - `./gradlew test` : 380 tests verts (157 nouveaux), deux passages complets ; `assembleRelease` vert avec une clé éphémère ; `openspec validate --all --strict` vert.
+  - `./gradlew test` : 384 tests verts (161 nouveaux) ; `assembleRelease` vert avec une clé éphémère ; `openspec validate --all --strict` vert.
 - [x] 6.3 Aucun commentaire ajouté dans le code ni dans les tests (diff vérifié), en-tête de licence sur chaque nouveau fichier `.kt` ; aucun jeton ni secret dans le diff (`git diff origin/main... | grep -niE 'ghp_|github_pat|bearer '` vide)
 
 ## 7. Validation sur la TV tant que le dépôt est privé (pré-release signée par la CI, `assembleRelease`)
@@ -67,7 +67,7 @@
 ## 10. Corrections de la relecture de la PR
 - [x] 10.1 Demande de relance : écrite à l'affichage de l'écran de confirmation ou au `commit` au premier plan, avec le `versionCode` visé, effacée sur abandon, échec, écran indisponible et abandon au démarrage à froid ; le récepteur ne relance que pour la version visée (`UpdateRepositoryTest` : Home pendant le téléchargement puis confirmation acceptée, drapeau effacé par un échec, version différente ; `UpdateRelaunchReceiverTest`)
 - [x] 10.2 Retour d'un écran système sans statut : session abandonnée si elle n'est pas active, « Installation annulée », nouvel appui possible ; session active gardée (`UpdateRepositoryTest`) ; constat sur la TV en 1.1 (g, h) et 9.6
-- [x] 10.3 Asset limité à 200 Mo, espace libre sans dépassement, délais totaux (API 30 s, téléchargement 10 min), statuts d'une autre session ignorés, vérification automatique qui garde une erreur non vue, version retirée affichée à part (avec la version proposée s'il y en a une), `ForegroundTracker` atomique, `User-Agent`, version installée et code QR hors du thread principal, bascule atomique des préversions, erreur TLS distincte, `ACCESS_NETWORK_STATE` déclarée, vérification manuelle toujours envoyée, colonne du code QR superposée (`UpdateSelectorTest`, `HttpsUrlTransportTest`, `GitHubReleaseSourceTest`, `UpdatePrefsTest`, `UpdateRepositoryTest`, `UpdateAboutTest`)
+- [x] 10.3 Asset limité à 200 Mo, espace libre sans dépassement, délais totaux (API 30 s, téléchargement 10 min), statuts d'une autre session ignorés, vérification automatique qui garde une erreur non vue, version retirée affichée à part (avec la version proposée s'il y en a une), `ForegroundTracker` atomique, `User-Agent`, version installée et code QR hors du thread principal, bascule atomique des préversions, erreur TLS distincte (négociation ou certificat seulement, une autre `SSLException` reste une coupure), `ACCESS_NETWORK_STATE` déclarée, vérification manuelle toujours envoyée, colonne du code QR superposée (`UpdateSelectorTest`, `HttpsUrlTransportTest`, `GitHubReleaseSourceTest`, `UpdatePrefsTest`, `UpdateRepositoryTest`, `UpdateAboutTest`)
 
 ## 11. Clôture
 - [ ] 11.1 `openspec archive self-update` après merge, validation sur la TV (9.x) et archivage préalable de `ui-tvos-polish` ; `openspec validate --all --strict` vert après fusion des deltas
