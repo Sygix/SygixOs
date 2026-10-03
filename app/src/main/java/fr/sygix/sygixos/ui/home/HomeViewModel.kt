@@ -56,7 +56,7 @@ class HomeViewModel(
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), clockSource.current())
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
     private var fallbackItems: List<HeroItem> = emptyList()

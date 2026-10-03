@@ -54,7 +54,9 @@ class SystemClockSourceTest {
     @Test
     fun `system 24 hour setting gives a 24 hour time`() = runTest {
         use24Hour(true)
-        assertEquals("21:47", SystemClockSource(context) { evening }.time().first())
+        val source = SystemClockSource(context) { evening }
+        assertEquals("21:47", source.current())
+        assertEquals("21:47", source.time().first())
     }
 
     @Test

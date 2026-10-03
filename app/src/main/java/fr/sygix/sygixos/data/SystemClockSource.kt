@@ -17,7 +17,8 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
-fun interface ClockSource {
+interface ClockSource {
+    fun current(): String
     fun time(): Flow<String>
 }
 
@@ -26,12 +27,12 @@ class SystemClockSource(
     private val now: () -> Long = System::currentTimeMillis,
 ) : ClockSource {
 
-    fun format(): String = DateFormat.getTimeFormat(context).format(Date(now()))
+    override fun current(): String = DateFormat.getTimeFormat(context).format(Date(now()))
 
     override fun time(): Flow<String> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                trySend(format())
+                trySend(current())
             }
         }
         val filter = IntentFilter().apply {
@@ -42,7 +43,7 @@ class SystemClockSource(
         val registered = runCatching {
             ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
         }.onFailure { Log.w(TAG, "horloge sans mise à jour", it) }.isSuccess
-        trySend(format())
+        trySend(current())
         awaitClose {
             if (registered) runCatching { context.unregisterReceiver(receiver) }
         }

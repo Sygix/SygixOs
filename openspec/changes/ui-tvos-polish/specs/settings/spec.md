@@ -20,7 +20,7 @@ Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre som
 
 #### Scenario: retour au premier plan
 - **WHEN** le launcher revient au premier plan après un passage en arrière-plan
-- **THEN** l'heure affichée est l'heure courante dès la première image, sans attendre le changement de minute ; aucune mise à jour n'a lieu tant que le launcher est en arrière-plan
+- **THEN** l'heure affichée redevient l'heure courante dès le retour, sans attendre le changement de minute ; aucune mise à jour n'a lieu tant que le launcher est en arrière-plan
 
 #### Scenario: accès DPAD
 - **WHEN** l'utilisateur presse haut depuis le héro
