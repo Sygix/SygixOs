@@ -5,7 +5,6 @@
 
 package fr.sygix.sygixos.ui.settings
 
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasAnyAncestor
@@ -43,9 +42,9 @@ class SettingsPillTest {
         compose.waitForIdle()
     }
 
-    private fun label(text: String, container: String): Rect =
+    private fun label(text: String, container: String): List<Float> =
         compose.onNode(hasText(text) and hasAnyAncestor(hasTestTag(container)), useUnmergedTree = true)
-            .fetchSemanticsNode().boundsInRoot
+            .fetchSemanticsNode().boundsInRoot.let { listOf(it.left, it.top, it.bottom) }
 
     private fun open() {
         harness.install("Alpha", "Beta", "Gamma")
