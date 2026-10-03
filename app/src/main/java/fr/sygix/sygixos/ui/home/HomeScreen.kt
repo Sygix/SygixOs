@@ -128,6 +128,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
             animated = viewModel.startupAnimated,
             mascot = viewModel.mascot,
             onSplashShown = viewModel::onSplashShown,
+            onFadeFinished = viewModel::onSplashFadeFinished,
         ) { s, interactive ->
             LaunchedEffect(Unit) { viewModel.onHomeShown() }
             LauncherHome(
@@ -456,6 +457,7 @@ internal fun LauncherHome(
                         claimFocus = !gearFocused,
                         onOpen = onOpenHero,
                         onVisualReady = onHeroVisualReady,
+                        motion = interactive,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
                     Dock(

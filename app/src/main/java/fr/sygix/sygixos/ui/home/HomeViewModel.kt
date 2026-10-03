@@ -141,6 +141,8 @@ class HomeViewModel(
 
     fun onHeroVisualReady() = startupController.heroVisualReady()
 
+    fun onSplashFadeFinished() = startupController.fadeFinished()
+
     private fun launchHeroValidationIfNeeded(uris: List<String>) {
         if (uris == lastHeroUris) return
         lastHeroUris = uris
@@ -241,5 +243,4 @@ private val SplashTimings = StartupTimings(
     minMs = Motion.SPLASH_MIN_MS,
     visualCapMs = Motion.SPLASH_VISUAL_CAP_MS,
     capMs = Motion.SPLASH_CAP_MS,
-    fadeMs = Motion.SPLASH_FADE_MS.toLong(),
 )

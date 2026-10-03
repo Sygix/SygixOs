@@ -9,8 +9,6 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import androidx.compose.animation.core.Animatable as FloatAnimatable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -27,7 +25,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -43,8 +40,11 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.data.MascotAnimationSource
 import fr.sygix.sygixos.domain.StartupPhase
 
-val StartupHomeAlpha = SemanticsPropertyKey<Float>("StartupHomeAlpha")
-var SemanticsPropertyReceiver.startupHomeAlpha by StartupHomeAlpha
+internal val StartupHomeAlpha = SemanticsPropertyKey<Float>("StartupHomeAlpha")
+private var SemanticsPropertyReceiver.startupHomeAlpha by StartupHomeAlpha
+
+private fun Modifier.startupOpacity(alpha: Float): Modifier =
+    graphicsLayer { this.alpha = alpha }.semantics { startupHomeAlpha = alpha }
 
 @Composable
 internal fun StartupHost(
@@ -53,22 +53,20 @@ internal fun StartupHost(
     animated: Boolean,
     mascot: MascotAnimationSource,
     onSplashShown: () -> Unit,
+    onFadeFinished: () -> Unit,
     home: @Composable (HomeState.Ready, interactive: Boolean) -> Unit,
 ) {
     val interactive = phase != StartupPhase.Splash
-    val reveal = animateFloatAsState(
-        targetValue = if (interactive) 1f else 0f,
-        animationSpec = if (animated) tween(Motion.SPLASH_FADE_MS, easing = AppleEasing) else snap(),
-        label = "startupReveal",
-    )
+    val fadingOut = phase == StartupPhase.FadingOut
+    val splashAlpha = remember { FloatAnimatable(1f) }
+    val currentOnFadeFinished by rememberUpdatedState(onFadeFinished)
+    LaunchedEffect(fadingOut) {
+        if (!fadingOut) return@LaunchedEffect
+        splashAlpha.animateTo(0f, tween(Motion.SPLASH_FADE_MS, easing = AppleEasing))
+        currentOnFadeFinished()
+    }
     Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .graphicsLayer { alpha = reveal.value }
-                .semantics { startupHomeAlpha = reveal.value }
-                .focusProperties { if (!interactive) canFocus = false },
-        ) {
+        Box(Modifier.fillMaxSize().startupOpacity(if (interactive) 1f else 0f)) {
             when (state) {
                 HomeState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                 is HomeState.Ready -> home(state, interactive)
@@ -79,7 +77,7 @@ internal fun StartupHost(
                 animated = animated,
                 mascot = mascot,
                 onShown = onSplashShown,
-                modifier = Modifier.graphicsLayer { alpha = 1f - reveal.value },
+                modifier = Modifier.graphicsLayer { alpha = splashAlpha.value },
             )
         }
     }

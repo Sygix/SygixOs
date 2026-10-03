@@ -133,7 +133,9 @@ class HomeViewModelStartupTest {
         assertEquals(StartupPhase.Splash, vm.startup.value)
         advanceTimeBy(2)
         assertEquals(StartupPhase.FadingOut, vm.startup.value)
-        advanceTimeBy(400)
+        advanceTimeBy(10_000)
+        assertEquals(StartupPhase.FadingOut, vm.startup.value)
+        vm.onSplashFadeFinished()
         assertEquals(StartupPhase.Done, vm.startup.value)
     }
 

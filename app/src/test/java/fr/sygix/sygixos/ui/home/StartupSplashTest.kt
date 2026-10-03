@@ -54,119 +54,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import kotlin.math.abs
 
-@OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
-class StartupSplashTest {
-
-    private val scheduler = TestCoroutineScheduler()
-    private val dispatcher = StandardTestDispatcher(scheduler)
-
-    @get:Rule
-    val compose = createAndroidComposeRule<ComponentActivity>(dispatcher)
-
-    private val timings = StartupTimings(
-        minMs = Motion.SPLASH_MIN_MS,
-        visualCapMs = Motion.SPLASH_VISUAL_CAP_MS,
-        capMs = Motion.SPLASH_CAP_MS,
-        fadeMs = Motion.SPLASH_FADE_MS.toLong(),
-    )
-    private val ready = HomeState.Ready(
-        catalogOf(dock = listOf(app("com.dock", "Dock")), grid = listOf(app("com.grid", "Grille"))),
-        heroStateOf(items = listOf(heroItem("h1", "Programme"))),
-    )
-    private val homeState = mutableStateOf<HomeState>(HomeState.Loading)
-    private lateinit var controller: StartupController
-    private var shownAt: Long? = null
-    private var shownCount = 0
-    private var reactions = 0
-
-    private fun launch(
-        coldStart: Boolean = true,
-        animated: Boolean = true,
-        mascot: MascotAnimationSource = FakeMascotSource(),
-    ) {
-        controller = StartupController(
-            coldStart = coldStart,
-            gate = StartupGate(timings, animated) { scheduler.currentTime },
-            scope = CoroutineScope(dispatcher),
-            dispatcher = dispatcher,
-        )
-        compose.mainClock.autoAdvance = false
-        compose.setContent {
-            val phase by controller.phase.collectAsState()
-            SygixOsTheme {
-                CompositionLocalProvider(LocalAppArtwork provides AppArtworkSource(LocalContext.current.packageManager)) {
-                    StartupHost(
-                        state = homeState.value,
-                        phase = phase,
-                        animated = animated,
-                        mascot = mascot,
-                        onSplashShown = {
-                            shownAt = scheduler.currentTime
-                            shownCount++
-                            controller.splashShown()
-                        },
-                    ) { s, interactive ->
-                        LauncherHome(
-                            catalog = s.catalog,
-                            hero = s.hero,
-                            onTogglePin = { reactions++ },
-                            onOpenApp = { reactions++ },
-                            onOpenHero = { reactions++ },
-                            glassBlur = false,
-                            interactive = interactive,
-                            onHeroVisualReady = controller::heroVisualReady,
-                        )
-                    }
-                }
-            }
-        }
-        repeat(10) { if (shownAt == null && coldStart) frames(1) }
-        frames(1)
-    }
-
-    private fun frames(count: Int = 3) = repeat(count) { compose.mainClock.advanceTimeByFrame() }
-
-    private fun advanceTo(elapsed: Long) {
-        val delta = checkNotNull(shownAt) + elapsed - scheduler.currentTime
-        if (delta > 0) compose.mainClock.advanceTimeBy(delta, ignoreFrameDuration = true)
-        frames(1)
-    }
-
-    private fun catalogReady() {
-        homeState.value = ready
-        Snapshot.sendApplyNotifications()
-        controller.catalogReady()
-        frames(1)
-    }
-
-    private fun press(keys: List<Key>) {
-        keys.forEach { key ->
-            compose.onRoot().performKeyInput {
-                keyDown(key)
-                keyUp(key)
-            }
-            frames(1)
-        }
-    }
-
-    private fun homeAlpha(): Float =
-        compose.onNode(SemanticsMatcher.keyIsDefined(StartupHomeAlpha)).fetchSemanticsNode().config[StartupHomeAlpha]
-
-    private fun assertNothingFocused() = compose.onAllNodes(isFocused()).assertCountEquals(0)
-
-    private fun assertSplash(shown: Boolean) {
-        compose.onAllNodesWithTag("startup-splash").assertCountEquals(if (shown) 1 else 0)
-    }
-
-    private fun assertBlack(black: Boolean) {
-        val pixels = compose.onRoot().captureToImage().asAndroidBitmap().let { bitmap ->
-            IntArray(bitmap.width * bitmap.height).also { bitmap.getPixels(it, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height) }
-        }
-        val blackArgb = Color.Black.toArgb()
-        assertEquals(black, pixels.all { it == blackArgb })
-    }
+class StartupSplashTest : StartupHostTest(motionScale = 1f) {
 
     @Test
     fun `minimum duration then fade to the focused hero`() {
@@ -184,7 +74,7 @@ class StartupSplashTest {
         frames()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         assertFalse(mascot.isRunning)
@@ -220,7 +110,7 @@ class StartupSplashTest {
         frames()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         advanceTo(1_500 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
     }
 
@@ -237,7 +127,7 @@ class StartupSplashTest {
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         compose.onAllNodesWithTag("hero-poster").assertCountEquals(0)
         advanceTo(2_000 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
     }
 
@@ -248,7 +138,7 @@ class StartupSplashTest {
         advanceTo(4_990)
         assertSplash(true)
         advanceTo(5_000 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
         compose.onAllNodesWithTag("zone-hero").assertCountEquals(0)
         assertBlack(true)
@@ -274,11 +164,34 @@ class StartupSplashTest {
         assertNothingFocused()
         advanceTo(590)
         assertEquals(0f, homeAlpha())
-        advanceTo(800)
-        assertTrue(homeAlpha() in 0.01f..0.99f)
+        advanceTo(610)
+        assertSplash(true)
+        assertEquals(1f, homeAlpha())
         advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
         frames()
         assertEquals(1f, homeAlpha())
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `splash fades linearly over a fully drawn home`() {
+        val green = Color(0xFF00C800)
+        launch(mascot = FakeMascotSource(null), solidHome = green)
+        advanceTo(100)
+        catalogReady()
+        controller.heroVisualReady()
+        advanceTo(300)
+        assertBlack(true)
+        advanceTo(600 + Motion.SPLASH_FADE_MS / 2L)
+        val middle = pixels()
+        assertEquals(1, middle.distinct().size)
+        val level = (middle[0] shr 8) and 0xFF
+        assertTrue("vert à mi-fondu : $level", level in 20..180)
+        assertEquals(0, (middle[0] shr 16) and 0xFF)
+        advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
+        frames(8)
+        assertSplash(false)
+        assertTrue(pixels().all { it == green.toArgb() })
     }
 
     @Test
@@ -306,7 +219,7 @@ class StartupSplashTest {
         assertNothingFocused()
         assertEquals(0, reactions)
         advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         assertEquals(0, reactions)
@@ -319,7 +232,7 @@ class StartupSplashTest {
         catalogReady()
         controller.heroVisualReady()
         advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
         compose.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
         frames()
@@ -336,7 +249,7 @@ class StartupSplashTest {
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
     fun `recreated home shows a plain black screen without the splash`() {
         launch(coldStart = false)
-        frames()
+        frames(8)
         assertSplash(false)
         compose.onAllNodesWithTag("startup-splash-mascot").assertCountEquals(0)
         assertEquals(0, shownCount)
@@ -379,7 +292,7 @@ class StartupSplashTest {
         advanceTo(590)
         assertSplash(true)
         advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
-        frames()
+        frames(8)
         assertSplash(false)
         compose.onNodeWithTag("zone-hero").assertIsFocused()
     }

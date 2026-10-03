@@ -60,6 +60,7 @@ internal fun TestHome(
     updateBadge: StateFlow<Boolean> = MutableStateFlow(false),
     update: UpdateActions = UpdateActions(),
     onHeroVisualReady: () -> Unit = {},
+    interactive: Boolean = true,
 ) {
     val artwork = AppArtworkSource(LocalContext.current.packageManager)
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
@@ -77,6 +78,7 @@ internal fun TestHome(
                 updateBadge = updateBadge,
                 update = update,
                 onHeroVisualReady = onHeroVisualReady,
+                interactive = interactive,
             )
         }
     }

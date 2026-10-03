@@ -99,6 +99,7 @@ fun HeroStage(
     modifier: Modifier = Modifier,
     claimFocus: Boolean = true,
     onVisualReady: () -> Unit = {},
+    motion: Boolean = true,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -198,7 +199,7 @@ fun HeroStage(
             }
             .focusable(),
     ) {
-        AmbientGradient(animated = visible && !hasVisual)
+        AmbientGradient(animated = visible && !hasVisual && motion, deferred = !motion)
         if (showVideo) {
             HeroVideoLayer(player, visible = player.firstFrameRendered)
         }
@@ -210,7 +211,7 @@ fun HeroStage(
             item?.imageUrl?.let { url ->
                 KenBurnsPoster(
                     url,
-                    running = visible,
+                    running = visible && motion,
                     onReady = { onVisualReadyState.value() },
                     onError = { onImageError(item) },
                 )

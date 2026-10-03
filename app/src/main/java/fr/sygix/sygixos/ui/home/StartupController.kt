@@ -32,6 +32,8 @@ class StartupController(
 
     fun heroVisualReady() = record(gate::heroVisualReady)
 
+    fun fadeFinished() = record(gate::fadeFinished)
+
     private fun record(event: () -> Unit) {
         if (_phase.value == StartupPhase.Done) return
         event()

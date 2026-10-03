@@ -11,7 +11,6 @@ data class StartupTimings(
     val minMs: Long,
     val visualCapMs: Long,
     val capMs: Long,
-    val fadeMs: Long,
 )
 
 class StartupGate(
@@ -22,6 +21,7 @@ class StartupGate(
     private var shownAt: Long? = null
     private var catalogAt: Long? = null
     private var visualAt: Long? = null
+    private var fadeDone = false
 
     fun splashShown() {
         if (shownAt == null) shownAt = now()
@@ -35,25 +35,23 @@ class StartupGate(
         if (visualAt == null) visualAt = now()
     }
 
+    fun fadeFinished() {
+        if (phase() == StartupPhase.FadingOut) fadeDone = true
+    }
+
     fun phase(): StartupPhase {
         val start = shownAt ?: return StartupPhase.Splash
-        val elapsed = now() - start
-        val fadeAt = fadeStart(start)
         return when {
-            elapsed < fadeAt -> StartupPhase.Splash
-            elapsed < fadeEnd(fadeAt) -> StartupPhase.FadingOut
-            else -> StartupPhase.Done
+            now() - start < fadeStart(start) -> StartupPhase.Splash
+            !animationsEnabled || fadeDone -> StartupPhase.Done
+            else -> StartupPhase.FadingOut
         }
     }
 
     fun millisUntilChange(): Long? {
         val start = shownAt ?: return null
-        val elapsed = now() - start
-        val fadeAt = fadeStart(start)
-        return listOf(fadeAt, fadeEnd(fadeAt)).firstOrNull { it > elapsed }?.minus(elapsed)
+        return (fadeStart(start) - (now() - start)).takeIf { it > 0 }
     }
-
-    private fun fadeEnd(fadeAt: Long): Long = if (animationsEnabled) fadeAt + timings.fadeMs else fadeAt
 
     private fun fadeStart(start: Long): Long {
         val visual = visualAt?.minus(start) ?: Long.MAX_VALUE

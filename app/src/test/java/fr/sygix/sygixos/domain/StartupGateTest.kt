@@ -11,7 +11,7 @@ import org.junit.Test
 
 class StartupGateTest {
 
-    private val timings = StartupTimings(minMs = 600, visualCapMs = 2_000, capMs = 5_000, fadeMs = 400)
+    private val timings = StartupTimings(minMs = 600, visualCapMs = 2_000, capMs = 5_000)
     private var time = 10_000L
 
     private fun gate(animations: Boolean = true) = StartupGate(timings, animations) { time }
@@ -46,10 +46,21 @@ class StartupGateTest {
         assertEquals(500L, gate.millisUntilChange())
         assertEquals(StartupPhase.Splash, gate.at(599))
         assertEquals(StartupPhase.FadingOut, gate.at(600))
-        assertEquals(400L, gate.millisUntilChange())
-        assertEquals(StartupPhase.FadingOut, gate.at(999))
-        assertEquals(StartupPhase.Done, gate.at(1_000))
         assertNull(gate.millisUntilChange())
+        assertEquals(StartupPhase.FadingOut, gate.at(60_000))
+        gate.fadeFinished()
+        assertEquals(StartupPhase.Done, gate.at(60_000))
+    }
+
+    @Test
+    fun `fade reported finished before it starts is ignored`() {
+        val gate = gate().shownNow()
+        gate.at(100)
+        gate.catalogReady()
+        gate.heroVisualReady()
+        gate.fadeFinished()
+        assertEquals(StartupPhase.Splash, gate.at(599))
+        assertEquals(StartupPhase.FadingOut, gate.at(600))
     }
 
     @Test
@@ -62,7 +73,6 @@ class StartupGateTest {
         gate.at(1_500)
         gate.heroVisualReady()
         assertEquals(StartupPhase.FadingOut, gate.at(1_500))
-        assertEquals(StartupPhase.Done, gate.at(1_900))
     }
 
     @Test
@@ -89,7 +99,6 @@ class StartupGateTest {
         gate.heroVisualReady()
         assertEquals(StartupPhase.Splash, gate.at(4_999))
         assertEquals(StartupPhase.FadingOut, gate.at(5_000))
-        assertEquals(StartupPhase.Done, gate.at(5_400))
     }
 
     @Test
