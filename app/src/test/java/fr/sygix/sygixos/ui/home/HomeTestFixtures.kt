@@ -17,6 +17,8 @@ import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.settings.SettingsState
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 internal fun app(pkg: String, label: String) = TvApp(packageName = pkg, label = label)
 
@@ -52,6 +54,7 @@ internal fun TestHome(
     onHide: (TvApp) -> Unit = {},
     settings: SettingsState? = null,
     glassBlur: Boolean = false,
+    counts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap()),
 ) {
     val artwork = AppArtworkSource(LocalContext.current.packageManager)
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
@@ -64,6 +67,7 @@ internal fun TestHome(
                 glassBlur = glassBlur,
                 onHideApp = onHide,
                 settings = settings,
+                counts = counts,
             )
         }
     }

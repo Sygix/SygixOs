@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -37,7 +38,13 @@ data class SettingsState(
     val sources: List<SourceRow> = emptyList(),
     val hiddenRows: List<HiddenRow> = emptyList(),
     val version: String = "",
-)
+) {
+    fun canEnter(category: SettingsCategory): Boolean = when (category) {
+        SettingsCategory.SOURCES -> sources.isNotEmpty()
+        SettingsCategory.HIDDEN -> hiddenRows.isNotEmpty()
+        SettingsCategory.ABOUT -> true
+    }
+}
 
 class SettingsViewModel(
     private val apps: AppCatalogRepository,
@@ -52,14 +59,15 @@ class SettingsViewModel(
         pm.getPackageInfo(selfPackage, 0).versionName
     }.getOrNull().orEmpty()
 
-    val counts: StateFlow<Map<String, Int>?> = programCounts
-        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
     private val library: StateFlow<Library?> = combine(apps.allApps, apps.hiddenWithDates) { installed, dates ->
         Library(installed.distinctBy { it.packageName }, dates)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val sourceCounts = MutableStateFlow<Map<String, Int>?>(null)
+
+    val counts: StateFlow<Map<String, Int>?> = programCounts
+        .onEach { latest -> sourceCounts.update { it ?: latest } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), null)
 
     private val hiddenOrder = MutableStateFlow<List<String>?>(null)
 
@@ -84,9 +92,6 @@ class SettingsViewModel(
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     init {
-        viewModelScope.launch {
-            counts.filterNotNull().collect { latest -> sourceCounts.update { it ?: latest } }
-        }
         viewModelScope.launch {
             val loaded = library.filterNotNull().first()
             hiddenOrder.update { it ?: hiddenSnapshot(loaded) }
@@ -113,12 +118,8 @@ class SettingsViewModel(
         viewModelScope.launch { apps.toggleSource(packageName) }
     }
 
-    fun hide(packageName: String) {
-        viewModelScope.launch { apps.hideApp(packageName) }
-    }
-
-    fun unhide(packageName: String) {
-        viewModelScope.launch { apps.unhideApp(packageName) }
+    fun toggleHidden(packageName: String) {
+        viewModelScope.launch { apps.toggleHidden(packageName) }
     }
 
     fun unhideAll() {

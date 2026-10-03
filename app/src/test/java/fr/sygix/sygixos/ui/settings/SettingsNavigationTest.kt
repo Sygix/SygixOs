@@ -25,6 +25,7 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -32,6 +33,9 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -46,8 +50,13 @@ class SettingsNavigationTest {
     val compose = createComposeRule()
 
     private val toggled = mutableListOf<String>()
-    private val unhid = mutableListOf<String>()
-    private var unhideAll = 0
+    private val harnesses = mutableListOf<SettingsHarness>()
+
+    @After
+    fun clearViewModels() = harnesses.forEach { it.clear() }
+
+    private fun harness(counts: Flow<Map<String, Int>> = flowOf(emptyMap())) =
+        SettingsHarness(counts).also { harnesses += it }
 
     private fun press(key: Key) {
         compose.onRoot().performKeyInput {
@@ -75,8 +84,8 @@ class SettingsNavigationTest {
                         ),
                         counts = mutableStateOf(counts),
                         onToggleSource = { toggled.add(it) },
-                        onUnhide = { unhid.add(it) },
-                        onUnhideAll = { unhideAll++ },
+                        onToggleHidden = {},
+                        onUnhideAll = {},
                         onBack = onBack,
                     )
                 }
@@ -228,11 +237,10 @@ class SettingsNavigationTest {
 
     @Test
     fun `a list emptied by unhide-all shows the empty state after leaving and coming back`() {
-        val harness = SettingsHarness()
-        harness.seed("Alpha")
+        val harness = harness()
+        harness.install("Alpha", "Keep")
         harness.hideInOrder("Alpha")
-        compose.setContent { harness.Content() }
-        compose.waitForIdle()
+        compose.showSettings(harness)
         press(Key.DirectionDown)
         waitForTag("hidden-row-com.alpha")
         press(Key.DirectionRight)
@@ -252,11 +260,10 @@ class SettingsNavigationTest {
 
     @Test
     fun `an unhidden row stays until the category is left, including after closing the settings`() {
-        val harness = SettingsHarness()
-        harness.seed("Alpha", "Beta")
+        val harness = harness()
+        harness.install("Alpha", "Beta", "Keep")
         harness.hideInOrder("Alpha", "Beta")
-        compose.setContent { harness.Content() }
-        compose.waitForIdle()
+        compose.showSettings(harness)
         press(Key.DirectionDown)
         waitForTag("hidden-row-com.alpha")
         press(Key.DirectionRight)
@@ -282,7 +289,7 @@ class SettingsNavigationTest {
         assertEquals(emptySet<String>(), harness.hiddenNow())
         press(Key.Back)
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
-        compose.runOnIdle { harness.open = true }
+        compose.runOnIdle { harness.openSettings() }
         compose.waitForIdle()
         press(Key.DirectionDown)
         compose.onNodeWithTag("hidden-empty").assertExists()
@@ -293,9 +300,9 @@ class SettingsNavigationTest {
     fun `sources keep their order and focus while counts update, and show the new count`() {
         val counts = MutableSharedFlow<Map<String, Int>>(replay = 1)
         counts.tryEmit(mapOf("com.a" to 12, "com.c" to 3))
-        val harness = SettingsHarness(counts)
-        harness.seed("A", "B", "C", "D")
-        compose.setContent { harness.Content() }
+        val harness = harness(counts)
+        harness.install("A", "B", "C", "D")
+        compose.showSettings(harness)
         waitForTag("source-row-com.a")
         press(Key.DirectionRight)
         press(Key.DirectionDown)
@@ -324,9 +331,9 @@ class SettingsNavigationTest {
     @Test
     fun `a late first count moves the focused row to the top and keeps its focus`() {
         val counts = MutableSharedFlow<Map<String, Int>>(replay = 1)
-        val harness = SettingsHarness(counts)
-        harness.seed("Alpha", "Beta", "Zeta")
-        compose.setContent { harness.Content() }
+        val harness = harness(counts)
+        harness.install("Alpha", "Beta", "Zeta")
+        compose.showSettings(harness)
         waitForTag("source-row-com.zeta")
         assertEquals(listOf("com.alpha", "com.beta", "com.zeta"), sourceOrder())
         press(Key.DirectionRight)
@@ -339,6 +346,26 @@ class SettingsNavigationTest {
         compose.waitForIdle()
         compose.onNodeWithTag("source-row-com.zeta").assertIsFocused()
         assertEquals(listOf("com.zeta", "com.alpha", "com.beta"), sourceOrder())
+    }
+
+    @Test
+    fun `a late first count brings the focused row of a long list to the top and keeps it on screen`() {
+        val counts = MutableSharedFlow<Map<String, Int>>(replay = 1)
+        val harness = harness(counts)
+        val labels = (1..20).map { "App%02d".format(it) } + "Zeta"
+        harness.install(*labels.toTypedArray())
+        compose.showSettings(harness)
+        waitForTag("source-row-com.app01")
+        press(Key.DirectionRight)
+        repeat(20) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("source-row-com.zeta").assertIsFocused().assertIsDisplayed()
+        compose.onNodeWithTag("source-row-com.app01").assertIsNotDisplayed()
+
+        counts.tryEmit(mapOf("com.zeta" to 9))
+        compose.waitUntil(5_000) { sourceOrder().first() == "com.zeta" }
+        compose.waitForIdle()
+        compose.onNodeWithTag("source-row-com.zeta").assertIsFocused().assertIsDisplayed()
+        assertEquals("com.zeta", sourceOrder().first())
     }
 
     private fun waitForTag(tag: String) = compose.waitUntil(5_000) {

@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.data
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -16,6 +17,7 @@ import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+@VisibleForTesting
 internal val Context.dataStore by preferencesDataStore(name = "launcher")
 
 class LauncherPrefs(
@@ -84,16 +86,28 @@ class LauncherPrefs(
 
     suspend fun hideApps(vararg packages: String) {
         val now = clock()
-        context.dataStore.edit { prefs ->
-            writeHidden(prefs, (prefs[hiddenKey] ?: emptySet()) + packages, hiddenDates(prefs) + packages.associateWith { now })
-            prefs[pinnedKey] = (prefs[pinnedKey] ?: emptySet()) - packages.toSet()
-        }
+        context.dataStore.edit { prefs -> hide(prefs, packages.toSet(), now) }
     }
 
     suspend fun unhideApps(vararg packages: String) {
+        context.dataStore.edit { prefs -> unhide(prefs, packages.toSet()) }
+    }
+
+    suspend fun toggleHidden(packageName: String) {
+        val now = clock()
         context.dataStore.edit { prefs ->
-            writeHidden(prefs, (prefs[hiddenKey] ?: emptySet()) - packages.toSet(), hiddenDates(prefs))
+            val packages = setOf(packageName)
+            if (packageName in (prefs[hiddenKey] ?: emptySet())) unhide(prefs, packages) else hide(prefs, packages, now)
         }
+    }
+
+    private fun hide(prefs: MutablePreferences, packages: Set<String>, now: Long) {
+        writeHidden(prefs, (prefs[hiddenKey] ?: emptySet()) + packages, hiddenDates(prefs) + packages.associateWith { now })
+        prefs[pinnedKey] = (prefs[pinnedKey] ?: emptySet()) - packages
+    }
+
+    private fun unhide(prefs: MutablePreferences, packages: Set<String>) {
+        writeHidden(prefs, (prefs[hiddenKey] ?: emptySet()) - packages, hiddenDates(prefs))
     }
 
     private fun hiddenDates(prefs: Preferences): Map<String, Long> =

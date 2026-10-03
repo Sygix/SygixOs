@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_title">Réglages</string>
+    <string name="sources_description">Choisissez les applications qui alimentent le héro et le Top Shelf.</string>
     <string name="settings_category_sources">Apps sources</string>
     <string name="settings_category_hidden">Applications cachées</string>
     <string name="settings_category_about">À propos</string>

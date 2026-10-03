@@ -71,15 +71,16 @@ class LauncherPrefsTest {
     }
 
     @Test
-    fun `unhide restores the app in grid and dock, unhideAll clears everything`() = runBlocking {
+    fun `unhide restores the app in the grid and clearing the hidden set clears everything`() = runBlocking {
         seedApps("com.a", "com.b")
         prefs.setPinned(setOf("com.a", "com.b"))
         repo.hideApp("com.a")
         assertEquals(listOf("com.b"), repo.catalog.first().grid.map { it.packageName })
         assertEquals(listOf("com.b"), repo.catalog.first().dock.map { it.packageName })
-        repo.unhideApp("com.a")
+        repo.unhideApps(listOf("com.a"))
         assertTrue(repo.catalog.first().grid.map { it.packageName }.contains("com.a"))
-        repo.unhideAll()
+        repo.hideApp("com.b")
+        prefs.setHidden(emptySet())
         assertEquals(emptySet<String>(), prefs.hidden.first())
     }
 
@@ -127,7 +128,7 @@ class LauncherPrefsTest {
         repo.setGridOrder(listOf("com.a", "com.c"))
         assertEquals(listOf("com.a", "com.b", "com.c"), prefs.gridOrder.first())
         assertEquals(listOf("com.a", "com.c"), repo.catalog.first().grid.map { it.packageName })
-        repo.unhideAll()
+        prefs.setHidden(emptySet())
         repo.setGridOrder(listOf("com.c", "com.a", "com.b"))
         assertEquals(listOf("com.c", "com.a", "com.b"), prefs.gridOrder.first())
     }
@@ -189,6 +190,20 @@ class LauncherPrefsTest {
         prefs.hideApps("com.b")
         assertEquals(mapOf<String, Long?>("com.a" to 5L, "com.b" to 9L), prefs.hiddenWithDates.first())
         assertFalse(context.dataStore.data.first()[datesKey].orEmpty().contains("com.orphan"))
+    }
+
+    @Test
+    fun `toggling an app hides it with a date and unpins it, toggling again unhides it`() = runBlocking {
+        seedApps("com.a", "com.b")
+        prefs.setPinned(setOf("com.a", "com.b"))
+        now = 30L
+        repo.toggleHidden("com.a")
+        assertEquals(mapOf<String, Long?>("com.a" to 30L), prefs.hiddenWithDates.first())
+        assertEquals(setOf("com.b"), prefs.pinned.first())
+        repo.toggleHidden("com.a")
+        assertEquals(emptyMap<String, Long?>(), prefs.hiddenWithDates.first())
+        assertNull(context.dataStore.data.first()[datesKey])
+        assertTrue("com.a" in repo.catalog.first().grid.map { it.packageName })
     }
 
     private val datesKey = stringPreferencesKey("hidden_apps_dates")

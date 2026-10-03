@@ -60,13 +60,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import fr.sygix.sygixos.R
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
-import kotlinx.coroutines.flow.collectLatest
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -115,8 +117,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 settings = settingsState,
                 counts = settingsViewModel.counts,
                 onToggleSource = settingsViewModel::toggleSource,
-                onHide = settingsViewModel::hide,
-                onUnhide = settingsViewModel::unhide,
+                onToggleHidden = settingsViewModel::toggleHidden,
                 onUnhideAll = settingsViewModel::unhideAll,
                 onSettingsCategory = settingsViewModel::enterCategory,
                 glassBlur = glassBlur,
@@ -135,10 +136,11 @@ private fun SettingsGear(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val label = stringResource(R.string.settings_title)
     GearIcon(
         modifier
             .testTag("settings-gear")
-            .semantics { contentDescription = "Réglages" }
+            .semantics { contentDescription = label }
             .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = onFocusedChange)
             .tvClickable(onClick = onOpen)
             .size(Dimens.GearSize),
@@ -212,8 +214,7 @@ internal fun LauncherHome(
     settings: SettingsState? = null,
     counts: StateFlow<Map<String, Int>?> = NoCounts,
     onToggleSource: (String) -> Unit = {},
-    onHide: (String) -> Unit = {},
-    onUnhide: (String) -> Unit = {},
+    onToggleHidden: (String) -> Unit = {},
     onUnhideAll: () -> Unit = {},
     onSettingsCategory: (SettingsCategory) -> Unit = {},
     initialZone: Zone = Zone.HERO,
@@ -259,6 +260,7 @@ internal fun LauncherHome(
     val pageScroll = rememberScrollState()
     var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val density = LocalDensity.current
+    val countsState = counts.collectAsStateWithLifecycle()
 
     CompositionLocalProvider(LocalHazeState provides haze.takeIf { glassBlur }) {
     BoxWithConstraints(
@@ -348,7 +350,10 @@ internal fun LauncherHome(
                             focusEnabled = zone == Zone.HERO && !menuOpen,
                             focusRequester = gearFocus,
                             onFocusedChange = { gearFocused = it },
-                            onOpen = { settingsOpen = true },
+                            onOpen = {
+                                onSettingsCategory(SettingsCategory.Initial)
+                                settingsOpen = true
+                            },
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
                                 .padding(top = 24.dp, end = 48.dp),
@@ -399,13 +404,11 @@ internal fun LauncherHome(
             }
         }
         if (settingsOpen) {
-            val countsState = counts.collectAsStateWithLifecycle()
             SettingsScreen(
                 state = settings ?: SettingsState(),
                 counts = countsState,
                 onToggleSource = onToggleSource,
-                onHide = onHide,
-                onUnhide = onUnhide,
+                onToggleHidden = onToggleHidden,
                 onUnhideAll = onUnhideAll,
                 onCategoryEntered = onSettingsCategory,
                 onBack = { settingsOpen = false },

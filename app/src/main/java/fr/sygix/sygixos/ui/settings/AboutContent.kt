@@ -29,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
@@ -49,7 +50,7 @@ internal fun AboutContent(
             .fillMaxWidth()
             .fillMaxHeight(),
     ) {
-        Text("À propos", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+        Text(stringResource(R.string.settings_category_about), style = MaterialTheme.typography.headlineSmall, color = Color.White)
         Spacer(Modifier.height(12.dp))
         Text(
             "SygixOs",

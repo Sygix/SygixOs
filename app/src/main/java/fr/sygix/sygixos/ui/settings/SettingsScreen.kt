@@ -31,7 +31,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -62,6 +61,11 @@ enum class SettingsCategory(@StringRes val label: Int) {
     SOURCES(R.string.settings_category_sources),
     HIDDEN(R.string.settings_category_hidden),
     ABOUT(R.string.settings_category_about),
+    ;
+
+    companion object {
+        val Initial: SettingsCategory get() = entries.first()
+    }
 }
 
 @Composable
@@ -69,14 +73,13 @@ fun SettingsScreen(
     state: SettingsState,
     counts: State<Map<String, Int>?> = remember { mutableStateOf(emptyMap<String, Int>()) },
     onToggleSource: (String) -> Unit,
-    onHide: (String) -> Unit = {},
-    onUnhide: (String) -> Unit,
+    onToggleHidden: (String) -> Unit,
     onUnhideAll: () -> Unit,
     onCategoryEntered: (SettingsCategory) -> Unit = {},
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var categoryIndex by rememberSaveable { mutableIntStateOf(0) }
+    var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
     val categoryFocusers = remember { SettingsCategory.entries.map { FocusRequester() } }
     val contentFocus = remember { FocusRequester() }
@@ -84,15 +87,18 @@ fun SettingsScreen(
     val category = SettingsCategory.entries[categoryIndex]
 
     fun enterContent() {
-        val target = SettingsCategory.entries[categoryIndex]
-        if (target == SettingsCategory.SOURCES && state.sources.isEmpty()) return
-        if (target == SettingsCategory.HIDDEN && state.hiddenRows.isEmpty()) return
-        pane = SettingsPane.CONTENT
+        if (state.canEnter(SettingsCategory.entries[categoryIndex])) pane = SettingsPane.CONTENT
     }
 
-    val enteredCategory by rememberUpdatedState(onCategoryEntered)
-    LaunchedEffect(categoryIndex) {
-        enteredCategory(SettingsCategory.entries[categoryIndex])
+    fun selectCategory(index: Int) {
+        if (index == categoryIndex) return
+        categoryIndex = index
+        onCategoryEntered(SettingsCategory.entries[index])
+    }
+
+    val contentAvailable = state.canEnter(category)
+    LaunchedEffect(contentAvailable) {
+        if (!contentAvailable && pane == SettingsPane.CONTENT) pane = SettingsPane.CATEGORIES
     }
     LaunchedEffect(pane, categoryIndex) {
         when (pane) {
@@ -116,7 +122,7 @@ fun SettingsScreen(
                 when (e.key) {
                     Key.DirectionUp, Key.DirectionDown -> if (pane == SettingsPane.CATEGORIES) {
                         val delta = if (e.key == Key.DirectionUp) -1 else 1
-                        categoryIndex = (categoryIndex + delta).coerceIn(0, SettingsCategory.entries.lastIndex)
+                        selectCategory((categoryIndex + delta).coerceIn(0, SettingsCategory.entries.lastIndex))
                         true
                     } else {
                         false
@@ -135,7 +141,7 @@ fun SettingsScreen(
                     .fillMaxHeight()
                     .padding(start = 64.dp, top = 64.dp),
             ) {
-                Text("Réglages", style = MaterialTheme.typography.headlineMedium, color = Color.White)
+                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = Color.White)
                 Spacer(Modifier.height(32.dp))
                 SettingsCategory.entries.forEachIndexed { index, entry ->
                     SettingsCategoryRow(
@@ -145,7 +151,7 @@ fun SettingsScreen(
                         focusEnabled = pane == SettingsPane.CATEGORIES,
                         focusRequester = categoryFocusers[index],
                         onClick = {
-                            categoryIndex = index
+                            selectCategory(index)
                             enterContent()
                         },
                         modifier = Modifier.testTag("settings-category-${entry.name}"),
@@ -169,8 +175,7 @@ fun SettingsScreen(
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
-                        onHide = onHide,
-                        onUnhide = onUnhide,
+                        onToggle = onToggleHidden,
                         onUnhideAll = onUnhideAll,
                     )
                     SettingsCategory.ABOUT -> AboutContent(

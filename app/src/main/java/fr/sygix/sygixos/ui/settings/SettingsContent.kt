@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,12 +33,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -55,11 +59,16 @@ import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.AppIconCache
+import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvFocus
+import fr.sygix.sygixos.domain.ListReveal
+import fr.sygix.sygixos.ui.home.TileFocus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
+
+private const val LeadingItems = 1
 
 internal fun programCountLabel(count: Int): String = when (count) {
     0 -> "Aucun programme publié"
@@ -80,9 +89,10 @@ internal fun SourcesContent(
     var focusedPackage by remember { mutableStateOf<String?>(null) }
     val order = remember(rows) { rows.map { it.app.packageName } }
     LaunchedEffect(order) {
-        val focused = focusedPackage?.takeIf { focusEnabled } ?: return@LaunchedEffect
-        val item = order.indexOf(focused).takeIf { it >= 0 }?.plus(1) ?: return@LaunchedEffect
-        if (listState.layoutInfo.visibleItemsInfo.none { it.index == item }) listState.scrollToItem(item)
+        if (!focusEnabled) return@LaunchedEffect
+        withFrameNanos { }
+        val visible = listState.layoutInfo.visibleItemsInfo.map { it.key }
+        ListReveal.indexToReveal(order, focusedPackage, visible, LeadingItems)?.let { listState.scrollToItem(it) }
     }
     LazyColumn(
         state = listState,
@@ -92,10 +102,10 @@ internal fun SourcesContent(
             .fillMaxHeight(),
     ) {
         item {
-            Text("Apps sources", style = MaterialTheme.typography.headlineSmall, color = Color.White)
+            Text(stringResource(R.string.settings_category_sources), style = MaterialTheme.typography.headlineSmall, color = Color.White)
             Spacer(Modifier.height(12.dp))
             Text(
-                "Choisissez les applications qui alimentent le héro et le Top Shelf.",
+                stringResource(R.string.sources_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.6f),
             )
@@ -167,8 +177,7 @@ internal fun HiddenContent(
     listState: LazyListState,
     focusEnabled: Boolean,
     contentFocus: FocusRequester,
-    onHide: (String) -> Unit,
-    onUnhide: (String) -> Unit,
+    onToggle: (String) -> Unit,
     onUnhideAll: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -182,6 +191,15 @@ internal fun HiddenContent(
             )
         }
         return
+    }
+    val packages = remember(rows) { rows.map { it.app.packageName } }
+    val rowFocus = remember { TileFocus(null) }
+    var unhideAllFocused by remember { mutableStateOf(false) }
+    val refocusActive by rememberUpdatedState(focusEnabled && !unhideAllFocused)
+    LaunchedEffect(packages) {
+        val target = rowFocus.refocus(packages, refocusActive) ?: return@LaunchedEffect
+        withFrameNanos { }
+        rowFocus.requesterFor(target).tryRequestFocus()
     }
     LazyColumn(
         state = listState,
@@ -206,17 +224,20 @@ internal fun HiddenContent(
                 focusEnabled = focusEnabled,
                 focusRequester = null,
                 onClick = onUnhideAll,
+                onFocused = { unhideAllFocused = it },
                 modifier = Modifier.testTag("unhide-all"),
             )
             Spacer(Modifier.height(20.dp))
         }
-        items(rows, key = { it.app.packageName }) { row ->
+        itemsIndexed(rows, key = { _, row -> row.app.packageName }) { index, row ->
             val packageName = row.app.packageName
             HiddenRowLine(
                 row = row,
                 focusEnabled = focusEnabled,
-                focusRequester = if (rows.first().app.packageName == packageName) contentFocus else null,
-                onToggle = if (row.hidden) { { onUnhide(packageName) } } else { { onHide(packageName) } },
+                focusRequester = rowFocus.requesterFor(packageName),
+                onFocused = { rowFocus.onFocused(packageName, index) },
+                onToggle = { onToggle(packageName) },
+                modifier = if (index == 0) Modifier.focusRequester(contentFocus) else Modifier,
             )
             Spacer(Modifier.height(10.dp))
         }
@@ -227,18 +248,27 @@ internal fun HiddenContent(
 private fun HiddenRowLine(
     row: HiddenRow,
     focusEnabled: Boolean,
-    focusRequester: FocusRequester?,
+    focusRequester: FocusRequester,
+    onFocused: () -> Unit,
     onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val state = stringResource(if (row.hidden) R.string.hidden_state_hidden else R.string.hidden_state_visible)
     Row(
-        Modifier
+        modifier
             .testTag("hidden-row-${row.app.packageName}")
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
-            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = { focused = it })
+            .tvFocus(
+                focusRequester = focusRequester,
+                enabled = focusEnabled,
+                onFocused = {
+                    focused = it
+                    if (it) onFocused()
+                },
+            )
             .tvClickable(onClick = onToggle)
             .semantics(mergeDescendants = true) {
                 role = Role.Switch
@@ -262,6 +292,7 @@ internal fun SettingsEntryButton(
     focusEnabled: Boolean,
     focusRequester: FocusRequester?,
     onClick: () -> Unit,
+    onFocused: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -269,7 +300,14 @@ internal fun SettingsEntryButton(
         modifier
             .clip(RoundedCornerShape(16.dp))
             .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
-            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = { focused = it })
+            .tvFocus(
+                focusRequester = focusRequester,
+                enabled = focusEnabled,
+                onFocused = {
+                    focused = it
+                    onFocused(it)
+                },
+            )
             .tvClickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 14.dp),
     ) {

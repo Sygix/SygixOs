@@ -81,16 +81,12 @@ class AppCatalogRepository(
         prefs.hideApps(packageName)
     }
 
-    suspend fun unhideApp(packageName: String) {
-        prefs.unhideApps(packageName)
+    suspend fun toggleHidden(packageName: String) {
+        prefs.toggleHidden(packageName)
     }
 
     suspend fun unhideApps(packages: Collection<String>) {
         prefs.unhideApps(*packages.toTypedArray())
-    }
-
-    suspend fun unhideAll() {
-        prefs.setHidden(emptySet())
     }
 
     suspend fun isSourceEnabled(packageName: String): Boolean =
