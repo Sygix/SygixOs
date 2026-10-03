@@ -77,8 +77,8 @@ class CatalogUpdateFocusTest {
         compose.onNodeWithTag("app-tile-com.b").assertIsFocused()
 
         longPress()
-        repeat(3) { press(Key.DirectionRight) }
-        compose.onNodeWithTag("menu-hide").assertIsFocused()
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
         press(Key.Enter)
 
         compose.onNodeWithTag("app-menu").assertDoesNotExist()
@@ -94,8 +94,8 @@ class CatalogUpdateFocusTest {
         compose.onNodeWithTag("app-tile-com.c").assertIsFocused()
 
         longPress()
-        repeat(3) { press(Key.DirectionRight) }
-        compose.onNodeWithTag("menu-hide").assertIsFocused()
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
         press(Key.Enter)
 
         compose.onNodeWithTag("app-tile-com.c").assertDoesNotExist()
@@ -109,8 +109,8 @@ class CatalogUpdateFocusTest {
         compose.onNodeWithTag("app-tile-com.a").assertIsFocused()
 
         longPress()
-        repeat(3) { press(Key.DirectionRight) }
-        compose.onNodeWithTag("menu-hide").assertIsFocused()
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
         press(Key.Enter)
 
         compose.onNodeWithTag("app-tile-com.a").assertDoesNotExist()
