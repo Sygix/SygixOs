@@ -31,6 +31,18 @@ La transition en défilement entre le héro et la grille SHALL être couverte pa
 - **WHEN** le test presse haut alors que la descente est encore en cours
 - **THEN** le test se termine avec la page à la position du dock, sans exception ni focus perdu
 
+#### Scenario: verre du dock pendant le défilement
+- **WHEN** le test, avec le verre activé, descend du dock vers la grille puis remonte en avançant l'horloge d'animation par étapes
+- **THEN** à chaque étape où une partie de « zone-hero » est à l'écran, le verre de « dock-glass » est actif (propriété sémantique `GlassActive`) ; une fois le héro entièrement hors écran il est inactif ; et la bascule du verre d'une `GlassSurface` ne recrée pas son contenu
+
+#### Scenario: retour dans la grille à la position laissée
+- **WHEN** le test parcourt la grille jusqu'à une position où la première rangée est hors écran, presse Retour, puis redescend vers la grille
+- **THEN** la dernière tuile visitée a le focus, à la même position à l'écran qu'avant Retour, et la page y est arrivée par un mouvement monotone
+
+#### Scenario: plancher de la grille
+- **WHEN** le panneau Top Shelf se referme sur la première rangée de la grille
+- **THEN** à chaque étape de l'animation « zone-hero » reste entièrement hors écran et la grille revient à sa position de départ
+
 #### Scenario: pas de dock en vue grille sur les tests existants
 - **WHEN** les tests existants de navigation (« Navigation D-pad des trois zones ») s'exécutent
 - **THEN** ils passent inchangés dans leurs assertions de focus ; toute assertion fondée sur l'alpha des couches est remplacée par une assertion de position
@@ -40,7 +52,7 @@ Le volet « Applications cachées » des réglages SHALL être couvert par des t
 
 #### Scenario: liste dans le volet
 - **WHEN** la catégorie « Applications cachées » est sélectionnée avec des apps cachées
-- **THEN** aucun sous-écran n'est rendu (aucun nœud « hidden-apps-screen »), « unhide-all » précède les lignes dans l'ordre sémantique, et l'ordre des lignes suit le tri spécifié (datées de la plus récente à la plus ancienne, puis sans date par ordre alphabétique)
+- **THEN** sans aucune validation préalable (aucune touche OK), « unhide-all » et chaque ligne « hidden-row-<package> » sont affichés comme descendants de « hidden-pane », « unhide-all » précède les lignes à l'écran, et l'ordre des lignes suit le tri spécifié (datées de la plus récente à la plus ancienne, puis sans date par ordre alphabétique)
 
 #### Scenario: focus initial sur la première ligne
 - **WHEN** le test presse droite depuis la catégorie « Applications cachées » avec au moins une app cachée
@@ -48,7 +60,7 @@ Le volet « Applications cachées » des réglages SHALL être couvert par des t
 
 #### Scenario: réactiver puis recacher
 - **WHEN** le test presse OK sur une ligne, puis OK à nouveau
-- **THEN** après le premier OK le callback de réactivation est appelé, la ligne est toujours présente, son switch est en position « visible » et elle garde le focus ; après le second OK le callback de masquage est appelé et le switch est en position « cachée »
+- **THEN** après le premier OK le callback de bascule est appelé avec le package de la ligne, l'app n'est plus cachée dans l'état persisté, la ligne est toujours présente, son switch est en position « visible » et elle garde le focus ; après le second OK le callback de bascule est appelé de nouveau, l'app est de nouveau cachée et le switch est en position « cachée »
 
 #### Scenario: tout réactiver
 - **WHEN** le test presse OK sur « unhide-all »
@@ -56,11 +68,19 @@ Le volet « Applications cachées » des réglages SHALL être couvert par des t
 
 #### Scenario: recalcul à la sortie de la catégorie
 - **WHEN** le test réactive une ligne, presse gauche puis droite, puis presse gauche, bas vers une autre catégorie et haut pour revenir sur « Applications cachées »
-- **THEN** après l'aller-retour gauche/droite la ligne réactivée est toujours rendue ; après le changement de catégorie et le retour elle n'est plus rendue, et si c'était la seule, « hidden-empty » est rendu
+- **THEN** après l'aller-retour gauche/droite la ligne réactivée est toujours rendue et le focus est sur la première ligne ; après le changement de catégorie et le retour elle n'est plus rendue, y compris à la première image du volet, et si c'était la seule, « hidden-empty » est rendu
 
 #### Scenario: état vide
 - **WHEN** la catégorie est sélectionnée sans app cachée
-- **THEN** seul « hidden-empty » est rendu (ni « unhide-all » ni ligne), droite laisse le focus sur la catégorie et Retour appelle la fermeture des réglages
+- **THEN** seul « hidden-empty » est affiché (ni « unhide-all » ni ligne), droite laisse le focus sur la catégorie et Retour appelle la fermeture des réglages
+
+#### Scenario: ligne focalisée disparue
+- **WHEN** le test désinstalle l'app de la ligne focalisée, puis les suivantes jusqu'à vider la liste
+- **THEN** le focus passe à chaque fois à la ligne qui occupe la position de la ligne disparue, puis, liste vide, à « settings-category-HIDDEN » ; gauche l'y laisse et Retour appelle la fermeture des réglages ; une désinstallation pendant que « unhide-all » a le focus ne le déplace pas
+
+#### Scenario: longue liste
+- **WHEN** la liste compte plus de lignes que l'écran n'en montre et le test descend jusqu'à la dernière, puis remonte jusqu'à « unhide-all »
+- **THEN** l'élément focalisé est à chaque fois affiché à l'écran (assertion d'affichage, pas seulement d'existence)
 
 #### Scenario: bords et retour
 - **WHEN** le test presse haut depuis « unhide-all », bas depuis la dernière ligne, gauche depuis une ligne, puis Retour

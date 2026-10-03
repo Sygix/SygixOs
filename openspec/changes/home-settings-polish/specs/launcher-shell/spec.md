@@ -5,7 +5,7 @@ Les trois premières exigences ci-dessous changent le rendu de la transition hé
 ## MODIFIED Requirements
 
 ### Requirement: Navigation 3 paliers
-Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la grille suit en dessous ; passer du dock à la grille et de la grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »).
+Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la grille suit en dessous ; passer du dock à la grille et de la grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »). Au retour dans la zone grille, la page SHALL redescendre jusqu'à la position de la grille laissée à la sortie, et non d'un écran exactement (décision de Sygix) ; à la toute première entrée, elle descend d'un écran, au début de la grille.
 
 #### Scenario: descente depuis le héro
 - **WHEN** l'utilisateur presse bas depuis le héro
@@ -14,6 +14,10 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 #### Scenario: traversée du dock
 - **WHEN** l'utilisateur descend depuis le dock
 - **THEN** la page défile en une seule animation continue : le héro, le dock et l'engrenage (« Icône réglages flottante » de `settings`) sortent par le haut pendant que la grille remonte jusqu'à occuper tout l'écran, d'environ un écran à la première entrée, jusqu'à la position de la grille laissée à la sortie sinon (« Panneau Top Shelf au focus », scénario « sortie et retour dans la grille ») ; la grille prend le focus (dernière tuile visitée, sinon la première) ; la lecture du héro est mise en pause
+
+#### Scenario: retour dans la grille à la position laissée
+- **WHEN** l'utilisateur a parcouru la grille jusqu'à une position qui n'est pas son début, la quitte (Retour, ou remontée vers le dock ou le héro), puis y redescend
+- **THEN** la page redescend en une seule animation continue jusqu'à la position de la grille laissée à la sortie, et non d'un écran exactement : la dernière tuile visitée reprend le focus à la même place à l'écran qu'au moment de la sortie
 
 #### Scenario: dock jamais visible en vue grille
 - **WHEN** la zone grille est active, pendant ou après le défilement
@@ -36,7 +40,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 - **THEN** aucun de ses éléments ne peut prendre le focus ; gauche et droite restent dans la zone active
 
 ### Requirement: Dock d'apps épinglées
-Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) contenant les apps épinglées, qui restent également présentes dans la grille. Le dock overlay le héro et SHALL se déplacer avec lui : il n'est visible que lorsque le héro l'est.
+Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) contenant les apps épinglées, qui restent également présentes dans la grille. Le dock overlay le héro et SHALL se déplacer avec lui : il n'est visible que lorsque le héro l'est. Son matériau verre SHALL rester actif tant qu'une partie du héro est à l'écran, y compris pendant le défilement, et n'être coupé qu'une fois le héro entièrement sorti de l'écran (décision de Sygix) : le dock ne change pas d'aspect au début de la descente, et la bascule du verre ne recrée pas son contenu.
 
 #### Scenario: état initial
 - **WHEN** le home s'ouvre
@@ -57,6 +61,10 @@ Le home SHALL afficher un dock Liquid Glass (rail overlay bas semi-transparent) 
 #### Scenario: solidaire du héro
 - **WHEN** la page défile vers la grille ou revient vers le héro (« Navigation 3 paliers »)
 - **THEN** le dock suit exactement le mouvement du héro, sans fondu propre ni décalage ; en vue grille il est entièrement hors écran et son matériau verre n'est plus calculé (« Préchargement et mémoire »)
+
+#### Scenario: verre du dock pendant le défilement
+- **WHEN** la page défile du dock vers la grille, puis de la grille vers le dock
+- **THEN** à la descente, le verre du dock reste actif et identique tant que le héro est au moins en partie à l'écran, et n'est coupé qu'une fois le héro entièrement sorti ; à la remontée, il redevient actif dès que le héro réapparaît ; à aucune de ces bascules les tuiles du dock ne sont recréées (le focus et l'état des tuiles sont conservés)
 
 ### Requirement: Fond de la zone grille
 Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro étant complètement masqué parce qu'il est sorti de l'écran par le haut.
