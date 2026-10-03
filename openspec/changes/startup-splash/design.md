@@ -84,7 +84,7 @@ Contrôle automatique (`MascotAssetContractTest`, JUnit sous Robolectric pour li
 - [Le fondu système par défaut serait visible si une autre couleur s'y glissait] → retrait immédiat (`it.remove()`) et test du thème (scénario « écran de lancement du système » de `ui-testing`).
 - [Décodage de la première image après la première image de l'écran] → fondu d'entrée de 300 ms qui part du fond ; la mascotte n'apparaît jamais d'un coup.
 - [Décodage à 60 images/s trop coûteux sur la TV] → mesure `gfxinfo` (tâche 7.2) ; levier côté asset (canevas plus petit dans le contrat), jamais côté cadence.
-- [Asset non livré au moment de l'implémentation] → tout le reste (logique, thème, tests avec source factice) est réalisable ; la tâche d'intégration de l'asset et son test de contrat bloquent la PR d'implémentation tant que le fichier final n'est pas là.
+- [Asset livré hors contrat (poids, cadence, canevas)] → l'implémentation attend l'asset WebP final (`proposal.md`) ; le test de contrat le refuse avant tout merge et le chantier logo l'ajuste avec les leviers de D4.
 - [L'accueil composé sous l'écran de démarrage démarre la lecture du héro un peu tôt] → muette et invisible ; accepté pour éviter une saccade au début du fondu.
 - [Robolectric ne décode pas le WebP animé] → source injectée dans les tests Compose ; décodage réel validé sur la TV.
 

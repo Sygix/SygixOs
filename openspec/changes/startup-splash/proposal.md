@@ -21,7 +21,7 @@ Aucune.
 - `settings` : non touchée.
 
 ## Dépendances et chevauchements
-- **Asset de la mascotte** : produit par le chantier logo, pas encore livré. La spécification peut être validée sans lui ; l'implémentation de l'écran ne peut être terminée qu'avec le fichier final, qui doit respecter « Fichier de l'animation de la mascotte ».
+- **Asset de la mascotte (prérequis d'implémentation)** : le WebP animé final est produit par le chantier logo et n'est pas encore livré. La spécification peut être validée sans lui ; l'implémentation ne commencera qu'à la livraison de l'asset WebP final, qui doit respecter « Fichier de l'animation de la mascotte » (tâche 1.3 de `tasks.md`).
 - **`ui-tvos-polish`** (PR #18, non mergée) : aucune exigence en commun. « Écran initial du home » n'est modifiée ni par `ui-tvos-polish` ni par `p2c-upnext` ; ce change ne touche ni « Navigation 3 paliers » ni « Page de réglages ». L'implémentation modifie `HomeScreen.kt`, aussi modifié par `ui-tvos-polish` : elle part de `main` après le merge de `ui-tvos-polish`.
 - **`p2c-upnext`** (spec sur `main`) : aucun recouvrement.
 - **Ordre d'archivage** : aucune contrainte vis-à-vis de `ui-tvos-polish` ni de `p2c-upnext`.
