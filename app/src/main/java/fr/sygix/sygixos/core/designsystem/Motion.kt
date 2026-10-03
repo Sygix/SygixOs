@@ -44,7 +44,6 @@ object Dimens {
     val DockTileWidth = 120.dp
     const val ShelfAspectRatio = 1920f / 720f
     val ShelfPeek = 40.dp
-    val GearSize = 36.dp
     val Hairline = 0.5.dp
     val GlassShadowOffset = 6.dp
     val GlassShadowRadius = 16.dp
@@ -57,6 +56,7 @@ object Dimens {
     val CapsuleSpacing = 9.dp
     val GearButton = 28.dp
     val GearIcon = 15.dp
+    val GearFocusElevation = 6.dp
     val MenuWidth = 300.dp
     val MenuPadding = 14.dp
     val MenuCorner = 18.dp

@@ -26,6 +26,7 @@ import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -85,6 +86,7 @@ class HomeViewModelSourceToggleTest {
             hero = HeroRepository(StaticFeedProvider(items), StaticFeedProvider(listOf(natureClip))),
             artwork = AppArtworkSource(context.packageManager),
             validator = VisualValidator(context, OfflineImageLoader()),
+            clockSource = { emptyFlow() },
         )
         return vm to repo
     }

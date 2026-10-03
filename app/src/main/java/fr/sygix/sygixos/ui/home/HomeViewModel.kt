@@ -13,8 +13,10 @@ import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.Catalog
+import fr.sygix.sygixos.data.ClockSource
 import fr.sygix.sygixos.data.HeroRepository
 import fr.sygix.sygixos.data.NatureFallbackProvider
+import fr.sygix.sygixos.data.SystemClockSource
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroFeed
 import fr.sygix.sygixos.domain.ShelfPosters
@@ -50,7 +52,11 @@ class HomeViewModel(
     private val hero: HeroRepository,
     val artwork: AppArtworkSource,
     private val validator: VisualValidator,
+    clockSource: ClockSource,
 ) : ViewModel() {
+
+    val clock: StateFlow<String> = clockSource.time()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), "")
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
     private var fallbackItems: List<HeroItem> = emptyList()
@@ -165,6 +171,7 @@ class HomeViewModel(
                 hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
                 artwork = AppArtworkSource(app.packageManager),
                 validator = VisualValidator(app),
+                clockSource = SystemClockSource(app),
             ) as T
         }
     }

@@ -55,6 +55,7 @@ internal fun TestHome(
     settings: SettingsState? = null,
     glassBlur: Boolean = false,
     counts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap()),
+    clock: StateFlow<String> = MutableStateFlow("21:47"),
 ) {
     val artwork = AppArtworkSource(LocalContext.current.packageManager)
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
@@ -68,6 +69,7 @@ internal fun TestHome(
                 onHideApp = onHide,
                 settings = settings,
                 counts = counts,
+                clock = clock,
             )
         }
     }
