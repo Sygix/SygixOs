@@ -6,6 +6,14 @@
 package fr.sygix.sygixos.ui.settings
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.SygixColors
+import fr.sygix.sygixos.core.designsystem.TextStyles
+import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.focusPill
+import fr.sygix.sygixos.core.designsystem.tvFocusable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,7 +68,6 @@ import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
-import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.domain.ListReveal
 import fr.sygix.sygixos.ui.home.TileFocus
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +76,15 @@ import kotlinx.coroutines.withContext
 internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
 
 private const val LeadingItems = 1
+
+internal val RowShape = RoundedCornerShape(Dimens.SettingsRowCorner)
+private val RowHeight = 48.dp
+private val RowVerticalPadding = 6.dp
+private val RowGap = 12.dp
+private val RowSpacing = 5.dp
+private val EntryButtonHeight = 42.dp
+private val IconSize = 36.dp
+private val IconCorner = 8.dp
 
 internal fun programCountLabel(count: Int): String = when (count) {
     0 -> "Aucun programme publié"
@@ -120,7 +136,7 @@ internal fun SourcesContent(
                 onFocused = { focusedPackage = row.app.packageName },
                 onToggle = { onToggle(row.app.packageName) },
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(RowSpacing))
         }
     }
 }
@@ -137,16 +153,19 @@ private fun SourceRowLine(
     val programCount by remember(row.app.packageName) {
         derivedStateOf { counts.value?.get(row.app.packageName) ?: 0 }
     }
+    var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused)
     Row(
         Modifier
             .testTag("source-row-${row.app.packageName}")
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.06f))
-            .tvFocus(
+            .tvFocusable(
                 focusRequester = focusRequester,
                 enabled = focusEnabled,
-                onFocused = { if (it) onFocused() },
+                onFocused = {
+                    focused = it
+                    if (it) onFocused()
+                },
             )
             .tvClickable(onClick = onToggle)
             .semantics(mergeDescendants = true) {
@@ -154,18 +173,16 @@ private fun SourceRowLine(
                 toggleableState = ToggleableState(row.enabled)
                 onClick { onToggle(); true }
             }
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .focusPill(colors, RowShape)
+            .heightIn(min = RowHeight)
+            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppIcon(row.app.packageName)
-        Spacer(Modifier.width(18.dp))
+        Spacer(Modifier.width(RowGap))
         Column(Modifier.weight(1f)) {
-            Text(row.app.label, style = MaterialTheme.typography.titleMedium, color = Color.White)
-            Text(
-                programCountLabel(programCount),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.White.copy(alpha = 0.55f),
-            )
+            Text(row.app.label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
+            Text(programCountLabel(programCount), style = TextStyles.RowSecondary, color = colors.secondary)
         }
         AppleSwitch(checked = row.enabled, tag = "source-switch-${row.app.packageName}")
     }
@@ -239,7 +256,7 @@ internal fun HiddenContent(
                 onToggle = { onToggle(packageName) },
                 modifier = if (index == 0) Modifier.focusRequester(contentFocus) else Modifier,
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(RowSpacing))
         }
     }
 }
@@ -254,14 +271,13 @@ private fun HiddenRowLine(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused)
     val state = stringResource(if (row.hidden) R.string.hidden_state_hidden else R.string.hidden_state_visible)
     Row(
         modifier
             .testTag("hidden-row-${row.app.packageName}")
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
-            .tvFocus(
+            .tvFocusable(
                 focusRequester = focusRequester,
                 enabled = focusEnabled,
                 onFocused = {
@@ -276,12 +292,21 @@ private fun HiddenRowLine(
                 stateDescription = state
                 onClick { onToggle(); true }
             }
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .focusPill(colors, RowShape)
+            .heightIn(min = RowHeight)
+            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppIcon(row.app.packageName)
-        Spacer(Modifier.width(18.dp))
-        Text(row.app.label, style = MaterialTheme.typography.titleMedium, color = Color.White, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(RowGap))
+        Text(
+            row.app.label,
+            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
+            color = colors.content,
+            modifier = Modifier.weight(1f),
+        )
+        Text(state, style = TextStyles.RowState, color = colors.tertiary, modifier = Modifier.clearAndSetSemantics { })
+        Spacer(Modifier.width(RowGap))
         AppleSwitch(checked = row.hidden, tag = "hidden-switch-${row.app.packageName}")
     }
 }
@@ -296,11 +321,11 @@ internal fun SettingsEntryButton(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused, rest = SygixColors.PillRest)
     Box(
         modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
-            .tvFocus(
+            .fillMaxWidth()
+            .tvFocusable(
                 focusRequester = focusRequester,
                 enabled = focusEnabled,
                 onFocused = {
@@ -309,9 +334,12 @@ internal fun SettingsEntryButton(
                 },
             )
             .tvClickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .focusPill(colors, RowShape)
+            .height(EntryButtonHeight)
+            .padding(horizontal = RowPadding),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Text(label, style = MaterialTheme.typography.titleMedium, color = Color.White)
+        Text(label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
     }
 }
 
@@ -326,8 +354,8 @@ internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
     val bitmap = icon
     Box(
         modifier
-            .size(56.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .size(IconSize)
+            .clip(RoundedCornerShape(IconCorner))
             .background(Color.White.copy(alpha = 0.10f)),
         contentAlignment = Alignment.Center,
     ) {
