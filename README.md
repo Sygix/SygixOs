@@ -19,7 +19,7 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS: Li
 - **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row.
 - **Settings** (gear at the top of the hero):
   - choose which apps feed the hero and the preview; apps that publish content come first, by number of programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
-  - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
+  - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list that restores the listed apps. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
   - version and library licenses.
 - **Never a black screen**: falls back to nature clips (Pexels), then to an animated gradient.
 - **Fully local**: no backend, no telemetry, no hard-coded app list.
@@ -65,7 +65,7 @@ Restore with `adb shell pm enable <package>`. Use at your own risk: disabling th
 
 ## Navigation
 
-Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom of the hero) → grid. The home screen is a single page: the hero fills the first screen, with the dock and the settings gear on it, and the grid sits below. Going from the dock to the grid scrolls the page in one continuous move: the hero, the dock and the gear slide out at the top while the grid comes up. Up from the first row, or Back, scrolls back.
+Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bottom of the hero) → grid. The home screen is a single page: the hero fills the first screen, with the dock and the settings gear on it, and the grid sits below. Going from the dock to the grid scrolls the page in one continuous move: the hero, the dock and the gear slide out at the top while the grid comes up, back to where you left the grid. Up from the first row, or Back, scrolls back.
 
 - **Down / Up**: switch tiers; only the active zone takes focus.
 - **Left / Right**: stay within the zone (previous or next program on the hero).
