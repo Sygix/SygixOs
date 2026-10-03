@@ -14,19 +14,19 @@ La navigation D-pad entre héro, dock et grille, rangée Up Next incluse dans la
 
 #### Scenario: descente
 - **WHEN** l'utilisateur presse bas depuis le héro (dock non vide)
-- **THEN** le focus passe au dock, puis à la rangée Up Next (première ligne de la zone grille), puis à la première rangée d'apps
+- **THEN** le focus passe au dock, puis, à la première entrée dans la zone grille, à la rangée Up Next (première ligne de la zone grille), puis à la première rangée d'apps
 
 #### Scenario: descente sans dock
 - **WHEN** l'utilisateur presse bas depuis le héro alors que le dock est vide
-- **THEN** la rangée Up Next prend le focus directement, puis la première rangée d'apps
+- **THEN** à la première entrée dans la zone grille, la rangée Up Next prend le focus directement, puis la première rangée d'apps
 
 #### Scenario: descente depuis le dock
 - **WHEN** l'utilisateur presse bas depuis le dock
-- **THEN** la rangée Up Next prend le focus, puis la première rangée d'apps
+- **THEN** à la première entrée dans la zone grille, la rangée Up Next prend le focus, puis la première rangée d'apps
 
 #### Scenario: descente sans rangée Up Next
 - **WHEN** l'utilisateur descend depuis le dock alors que la rangée Up Next est masquée
-- **THEN** la première rangée d'apps prend le focus directement
+- **THEN** à la première entrée dans la zone grille, la première rangée d'apps prend le focus directement
 
 #### Scenario: remontée
 - **WHEN** l'utilisateur presse haut depuis la première rangée d'apps
