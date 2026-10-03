@@ -11,67 +11,94 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.hazeGlass
 
 val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 
-private val FallbackGlass = Color(0xCC17171E)
-private val GlassBackdrop = Color(0xFF0B0B10)
-
 val GlassActive = SemanticsPropertyKey<Boolean>("GlassActive")
 var SemanticsPropertyReceiver.glassActive by GlassActive
 
-@OptIn(ExperimentalHazeApi::class)
+@Immutable
+data class GlassLook(
+    val tint: Color,
+    val shadow: Color,
+    val shadowOffset: Dp,
+    val shadowRadius: Dp,
+) {
+    companion object {
+        val Dock = GlassLook(SygixColors.GlassTint, SygixColors.GlassShadow, Dimens.GlassShadowOffset, Dimens.GlassShadowRadius)
+        val Capsule = GlassLook(SygixColors.CapsuleTint, SygixColors.CapsuleShadow, Dimens.CapsuleShadowOffset, Dimens.CapsuleShadowRadius)
+        val Menu = GlassLook(SygixColors.MenuTint, SygixColors.MenuShadow, Dimens.MenuShadowOffset, Dimens.MenuShadowRadius)
+    }
+}
+
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
-    shape: RoundedCornerShape = RoundedCornerShape(20.dp),
+    shape: RoundedCornerShape = RoundedCornerShape(Dimens.DockCorner),
     active: Boolean = true,
+    look: GlassLook = GlassLook.Dock,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
     val glass = haze != null && active
+    val style = remember(shape, look.tint) {
+        GlassStyle.regular.then {
+            shape(shape)
+            tint(look.tint)
+        }
+    }
     Box(
         modifier = modifier
             .semantics { glassActive = glass }
+            .dropShadow(shape, Shadow(radius = look.shadowRadius, color = look.shadow, offset = DpOffset(0.dp, look.shadowOffset)))
+            .border(Dimens.Hairline, SygixColors.GlassBorder, shape)
             .then(
                 if (haze != null && active) {
                     Modifier.hazeGlass(
                         input = HazeInput.Sources(haze),
-                        style = GlassStyle.regular.then {
-                            shape(shape)
-                            backgroundColor(GlassBackdrop)
-                            tint(Color.White.copy(alpha = 0.08f))
-                            specularIntensity(0.7f)
-                            edgeSoftness(2.dp)
-                            chromaticAberrationStrength(0.06f)
-                            alpha(0.96f)
-                        },
+                        style = style,
+                        performanceMode = HazePerformanceMode.Performance,
                     )
                 } else {
-                    Modifier
-                        .clip(shape)
-                        .background(FallbackGlass)
-                        .border(
-                            1.dp,
-                            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.06f))),
-                            shape,
-                        )
+                    Modifier.background(SygixColors.GlassFallback, shape)
                 },
-            ),
+            )
+            .glassHighlight(shape, SygixColors.GlassHighlight, SygixColors.GlassLowlight),
         content = content,
     )
 }
+
+fun Modifier.glassRim(shape: Shape, fill: Color = SygixColors.ButtonRest): Modifier = this
+    .border(Dimens.Hairline, SygixColors.ButtonRim, shape)
+    .background(fill, shape)
+    .glassHighlight(shape, SygixColors.ButtonHighlight, Color.Transparent)
+
+private fun Modifier.glassHighlight(shape: Shape, top: Color, bottom: Color): Modifier = this
+    .innerShadow(shape, Shadow(radius = 0.dp, color = top, offset = DpOffset(0.dp, Dimens.Hairline)))
+    .then(
+        if (bottom.alpha > 0f) {
+            Modifier.innerShadow(shape, Shadow(radius = 0.dp, color = bottom, offset = DpOffset(0.dp, -Dimens.Hairline)))
+        } else {
+            Modifier
+        },
+    )

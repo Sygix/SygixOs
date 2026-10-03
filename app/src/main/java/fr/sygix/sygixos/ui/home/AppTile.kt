@@ -66,7 +66,6 @@ internal fun AppTile(
                 onFocused = onFocusChanged,
                 focusRequester = focusRequester,
                 enabled = focusEnabled,
-                glow = artwork?.let { Color(it.accent) } ?: Color.White,
             )
             .tvClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
