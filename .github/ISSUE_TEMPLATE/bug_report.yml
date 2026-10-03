@@ -1,0 +1,60 @@
+name: Bug report
+description: Something does not work as expected in SygixOs.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        Do not include personal data: no IP addresses, serial numbers, account names, server URLs or tokens. Security issues go through the private advisory form, and questions go to GitHub Discussions.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched the existing issues and this bug is not already reported.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: SygixOs version
+      description: Shown in the settings, or the name of the release you installed.
+      placeholder: v0.0.1-rc.4
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      description: Brand and Android version only.
+      placeholder: Google TV, Android 14
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the home screen
+        2. Move the focus to ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Optional logcat excerpt. Remove anything personal before pasting.
+      render: shell
+    validations:
+      required: false
