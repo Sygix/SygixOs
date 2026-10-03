@@ -6,6 +6,8 @@
 package fr.sygix.sygixos.core.designsystem
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -69,5 +71,20 @@ class GlassSurfaceTest {
             GlassSurface(Modifier.testTag("glass"), active = true) { Box(Modifier.size(40.dp)) }
         }
         compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassActive, false))
+    }
+
+    @Test
+    fun `fallback surface does not cut a child larger than itself`() {
+        compose.setContent {
+            Box(Modifier.size(400.dp)) {
+                GlassSurface(Modifier.offset(100.dp, 100.dp).size(100.dp), active = false) {
+                    Box(Modifier.requiredSize(140.dp).testTag("child"))
+                }
+            }
+        }
+        val bounds = compose.onNodeWithTag("child").fetchSemanticsNode().boundsInWindow
+        val expected = compose.onNodeWithTag("child").fetchSemanticsNode().size
+        assertEquals(expected.width.toFloat(), bounds.width, 0.5f)
+        assertEquals(expected.height.toFloat(), bounds.height, 0.5f)
     }
 }

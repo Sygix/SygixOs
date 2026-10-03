@@ -8,6 +8,7 @@ package fr.sygix.sygixos.core.designsystem
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -16,8 +17,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -26,7 +26,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -36,41 +38,65 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val FOCUS_SCALE = 1.07f
-private const val GLOW_ALPHA = 0.5f
-private const val GLOW_SPREAD = 0.14f
+private const val SQRT_HALF = 0.70710677f
+
+fun Modifier.tvFocusable(
+    onFocused: (Boolean) -> Unit = {},
+    focusRequester: FocusRequester? = null,
+    enabled: Boolean = true,
+): Modifier = this
+    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+    .focusProperties { canFocus = enabled }
+    .onFocusChanged { onFocused(it.isFocused) }
 
 fun Modifier.tvFocus(
     onFocused: (Boolean) -> Unit = {},
     focusRequester: FocusRequester? = null,
     enabled: Boolean = true,
-    glow: Color = Color.White,
+    shape: Shape = RoundedCornerShape(Dimens.TileCorner),
 ): Modifier = composed {
     var focused by remember { mutableStateOf(false) }
-    val progress by animateFloatAsState(
+    val progress = animateFloatAsState(
         targetValue = if (focused) 1f else 0f,
         animationSpec = tween(Motion.FOCUS_MS, easing = AppleEasing),
         label = "focusProgress",
     )
     this
-        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-        .focusProperties { canFocus = enabled }
-        .onFocusChanged { focused = it.isFocused; onFocused(it.isFocused) }
-        .scale(1f + (FOCUS_SCALE - 1f) * progress)
-        .drawBehind {
-            if (progress > 0.01f) {
-                val spread = size.width * GLOW_SPREAD
-                drawRect(
-                    brush = Brush.radialGradient(
-                        colors = listOf(glow.copy(alpha = GLOW_ALPHA * progress), glow.copy(alpha = 0f)),
-                        center = center,
-                        radius = size.width * 0.5f + spread,
-                    ),
-                    topLeft = Offset(-spread, -spread),
-                    size = Size(size.width + spread * 2, size.height + spread * 2),
-                )
+        .tvFocusable(onFocused = { focused = it; onFocused(it) }, focusRequester = focusRequester, enabled = enabled)
+        .graphicsLayer {
+            val p = progress.value
+            val scale = 1f + (Dimens.TileFocusScale - 1f) * p
+            scaleX = scale
+            scaleY = scale
+            translationY = -Dimens.TileFocusLift.toPx() * p
+            shadowElevation = Dimens.TileFocusElevation.toPx() * p
+            this.shape = shape
+            clip = false
+            ambientShadowColor = SygixColors.TileShadow
+            spotShadowColor = SygixColors.TileShadow
+        }
+        .drawWithCache {
+            val outline = shape.createOutline(size, layoutDirection, this)
+            val sheen = sheenBrush(size)
+            onDrawWithContent {
+                drawContent()
+                val p = progress.value
+                if (p > 0f) drawOutline(outline, sheen, alpha = p)
             }
         }
+}
+
+private fun sheenBrush(size: Size): Brush {
+    val half = (size.width + size.height) * SQRT_HALF / 2f
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val direction = Offset(SQRT_HALF, SQRT_HALF) * half
+    return Brush.linearGradient(
+        0f to SygixColors.TileSheen.copy(alpha = 0.30f),
+        0.32f to SygixColors.TileSheen.copy(alpha = 0.08f),
+        0.52f to SygixColors.TileSheen.copy(alpha = 0f),
+        start = center - direction,
+        end = center + direction,
+    )
 }
 
 fun Modifier.tvClickable(

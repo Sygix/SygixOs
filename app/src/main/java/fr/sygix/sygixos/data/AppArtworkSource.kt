@@ -9,10 +9,9 @@ import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import androidx.core.graphics.drawable.toBitmap
-import fr.sygix.sygixos.domain.AccentColor
 import fr.sygix.sygixos.model.TvApp
 
-data class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean, val accent: Int, val blurred: Bitmap)
+data class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean, val blurred: Bitmap)
 
 class AppArtworkSource(private val pm: PackageManager) {
 
@@ -28,12 +27,9 @@ class AppArtworkSource(private val pm: PackageManager) {
     private fun resolve(app: TvApp): AppArtwork? {
         val banner = banner(app)
         val bitmap = banner ?: runCatching { pm.getApplicationIcon(app.packageName).toBitmap() }.getOrNull() ?: return null
-        val sample = Bitmap.createScaledBitmap(bitmap, 16, 9, true)
-        val pixels = IntArray(16 * 9).also { sample.getPixels(it, 0, 16, 0, 0, 16, 9) }
         return AppArtwork(
             bitmap = bitmap,
             isBanner = banner != null,
-            accent = AccentColor.vivid(AccentColor.compute(pixels)),
             blurred = Bitmap.createScaledBitmap(bitmap, 24, 14, true),
         )
     }

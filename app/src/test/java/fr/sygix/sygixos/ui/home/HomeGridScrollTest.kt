@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -29,6 +30,10 @@ class HomeGridScrollTest {
 
     private val apps = (0 until 40).map { app("com.a%02d".format(it), "App $it") }
     private val withPosters = listOf("com.a05", "com.a25")
+    private val contentWidth = 960f - Dimens.ScreenMarginH.value * 2
+    private val rowHeight = (contentWidth - Dimens.GridSpacing.value * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
+    private val bottomMargin = 540f - Dimens.GridRowSpacing.value
+    private val panelBlock = contentWidth / Dimens.ShelfAspectRatio + Dimens.GridRowSpacing.value
 
     private fun setContent() {
         compose.mainClock.autoAdvance = false
@@ -74,7 +79,7 @@ class HomeGridScrollTest {
         setContent()
         repeat(4) { press(Key.DirectionDown) }
         compose.onNodeWithTag("app-tile-com.a20").assertIsFocused()
-        assertEquals(520f, bottom("com.a20"), 1f)
+        assertEquals(bottomMargin, bottom("com.a20"), 1f)
     }
 
     @Test
@@ -93,8 +98,8 @@ class HomeGridScrollTest {
         setContent()
         press(Key.DirectionDown)
         openShelf()
-        assertEquals(40f, compose.onNodeWithTag("shelf-panel").getBoundsInRoot().top.value, 1f)
-        assertEquals(384f, top("com.a05"), 1f)
+        assertEquals(Dimens.GridTopMargin.value, compose.onNodeWithTag("shelf-panel").getBoundsInRoot().top.value, 1f)
+        assertEquals(Dimens.GridTopMargin.value + panelBlock, top("com.a05"), 1f)
     }
 
     @Test
@@ -102,7 +107,7 @@ class HomeGridScrollTest {
         setContent()
         repeat(5) { press(Key.DirectionDown) }
         val before = top("com.a25")
-        assertEquals(430f, before, 1f)
+        assertEquals(bottomMargin - rowHeight, before, 1f)
         openShelf()
         assertEquals(before, top("com.a25"), 1f)
 
@@ -120,6 +125,6 @@ class HomeGridScrollTest {
         compose.onNodeWithTag("hero-open").assertIsFocused()
         press(Key.DirectionDown)
         compose.onNodeWithTag("app-tile-com.a25").assertIsFocused()
-        assertEquals(520f, bottom("com.a25"), 1f)
+        assertEquals(bottomMargin, bottom("com.a25"), 1f)
     }
 }
