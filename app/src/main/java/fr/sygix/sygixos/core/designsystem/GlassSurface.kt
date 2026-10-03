@@ -15,9 +15,14 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.innerShadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.semantics.SemanticsPropertyKey
@@ -88,10 +93,22 @@ fun GlassSurface(
     )
 }
 
-fun Modifier.glassRim(shape: Shape, fill: Color = SygixColors.ButtonRest): Modifier = this
-    .border(Dimens.Hairline, SygixColors.ButtonRim, shape)
-    .background(fill, shape)
-    .glassHighlight(shape, SygixColors.ButtonHighlight, Color.Transparent)
+fun Modifier.glassRim(shape: Shape, focus: () -> Float = { 0f }): Modifier = this
+    .drawWithCache {
+        val outline = shape.createOutline(size, layoutDirection, this)
+        val rim = Stroke(Dimens.Hairline.toPx())
+        onDrawBehind {
+            val p = focus()
+            drawOutline(outline, lerp(SygixColors.ButtonRest, SygixColors.OnDark, p))
+            drawOutline(outline, lerp(SygixColors.ButtonRim, SygixColors.ButtonFocusRim, p), style = rim)
+        }
+    }
+    .innerShadow(shape) {
+        radius = 0f
+        color = SygixColors.ButtonHighlight
+        alpha = 1f - focus()
+        offset = Offset(0f, Dimens.Hairline.toPx())
+    }
 
 private fun Modifier.glassHighlight(shape: Shape, top: Color, bottom: Color): Modifier = this
     .innerShadow(shape, Shadow(radius = 0.dp, color = top, offset = DpOffset(0.dp, Dimens.Hairline)))

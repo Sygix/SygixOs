@@ -56,7 +56,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             }
         }
     }
-    val panX by rememberInfiniteTransition(label = "kenBurns").animateFloat(
+    val panX = rememberInfiniteTransition(label = "kenBurns").animateFloat(
         initialValue = -12f,
         targetValue = 12f,
         animationSpec = infiniteRepeatable(tween(16000, easing = AppleEasing), RepeatMode.Reverse),
@@ -77,7 +77,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             label = "shelfCrossfade",
         ) { uri ->
             if (uri != null) {
-                LoadedPoster(uri, panX, onError = {
+                LoadedPoster(uri, { panX.value }, onError = {
                     Log.w("ShelfPanel", "poster illisible: $uri")
                     failed = failed + uri
                 })
@@ -87,7 +87,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun LoadedPoster(uri: String, panX: Float, onError: () -> Unit) {
+private fun LoadedPoster(uri: String, panX: () -> Float, onError: () -> Unit) {
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current).data(uri).size(1920, 1080).build(),
         onState = { if (it is AsyncImagePainter.State.Error) onError() },
@@ -103,7 +103,7 @@ private fun LoadedPoster(uri: String, panX: Float, onError: () -> Unit) {
                 .fillMaxSize()
                 .graphicsLayer {
                     this.alpha = alpha
-                    translationX = panX
+                    translationX = panX()
                     scaleX = 1.06f
                     scaleY = 1.06f
                 },
