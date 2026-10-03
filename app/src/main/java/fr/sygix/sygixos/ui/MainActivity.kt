@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        splashScreen.setOnExitAnimationListener { it.remove() }
         viewModel = ViewModelProvider(this, HomeViewModel.Factory(applicationContext))[HomeViewModel::class.java]
         val glassBlur = !intent.getBooleanExtra(EXTRA_NO_GLASS, false)
         setContent {
