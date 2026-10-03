@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
@@ -49,14 +50,17 @@ data class GlassLook(
     val shadowOffset: Dp,
     val shadowRadius: Dp,
     val fallback: Color = SygixColors.GlassFallback,
+    val highlight: Color = SygixColors.GlassHighlight,
+    val lowlight: Color = SygixColors.GlassLowlight,
 ) {
     companion object {
         val Dock = GlassLook(SygixColors.GlassTint, SygixColors.GlassShadow, Dimens.GlassShadowOffset, Dimens.GlassShadowRadius)
         val Capsule = GlassLook(SygixColors.CapsuleTint, SygixColors.CapsuleShadow, Dimens.CapsuleShadowOffset, Dimens.CapsuleShadowRadius)
-        val Menu = GlassLook(SygixColors.MenuTint, SygixColors.MenuShadow, Dimens.MenuShadowOffset, Dimens.MenuShadowRadius, SygixColors.MenuFallback)
+        val Menu = GlassLook(SygixColors.MenuTint, SygixColors.MenuShadow, Dimens.MenuShadowOffset, Dimens.MenuShadowRadius, SygixColors.MenuFallback, SygixColors.MenuHighlight, Color.Transparent)
     }
 }
 
+@OptIn(ExperimentalHazeApi::class)
 @Composable
 fun GlassSurface(
     modifier: Modifier = Modifier,
@@ -89,7 +93,7 @@ fun GlassSurface(
                     Modifier.background(look.fallback, shape)
                 },
             )
-            .glassHighlight(shape, SygixColors.GlassHighlight, SygixColors.GlassLowlight),
+            .glassHighlight(shape, look.highlight, look.lowlight),
         content = content,
     )
 }

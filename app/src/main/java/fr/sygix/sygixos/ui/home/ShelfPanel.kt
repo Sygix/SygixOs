@@ -7,11 +7,8 @@ package fr.sygix.sygixos.ui.home
 
 import android.util.Log
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -42,6 +39,9 @@ import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import kotlinx.coroutines.delay
 
+private const val PanStart = -12f
+private const val PanEnd = 12f
+
 @Composable
 internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
     var failed by remember(uris) { mutableStateOf(emptySet<String>()) }
@@ -56,12 +56,6 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             }
         }
     }
-    val panX = rememberInfiniteTransition(label = "kenBurns").animateFloat(
-        initialValue = -12f,
-        targetValue = 12f,
-        animationSpec = infiniteRepeatable(tween(16000, easing = AppleEasing), RepeatMode.Reverse),
-        label = "kenBurnsX",
-    )
     val shape = RoundedCornerShape(16.dp)
     Box(
         modifier
@@ -77,7 +71,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             label = "shelfCrossfade",
         ) { uri ->
             if (uri != null) {
-                LoadedPoster(uri, { panX.value }, onError = {
+                LoadedPoster(uri, onError = {
                     Log.w("ShelfPanel", "poster illisible: $uri")
                     failed = failed + uri
                 })
@@ -87,12 +81,16 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun LoadedPoster(uri: String, panX: () -> Float, onError: () -> Unit) {
+private fun LoadedPoster(uri: String, onError: () -> Unit) {
     val painter = rememberAsyncImagePainter(
         model = ImageRequest.Builder(LocalContext.current).data(uri).size(1920, 1080).build(),
         onState = { if (it is AsyncImagePainter.State.Error) onError() },
     )
     val ready = painter.state is AsyncImagePainter.State.Success
+    val pan = remember(uri) { Animatable(PanStart) }
+    LaunchedEffect(ready) {
+        if (ready) pan.animateTo(PanEnd, tween(Motion.SHELF_KEN_BURNS_MS, easing = AppleEasing))
+    }
     val alpha by animateFloatAsState(if (ready) 1f else 0f, tween(Motion.SHELF_FADE_MS, easing = AppleEasing), label = "posterAlpha")
     if (ready) {
         Image(
@@ -103,7 +101,7 @@ private fun LoadedPoster(uri: String, panX: () -> Float, onError: () -> Unit) {
                 .fillMaxSize()
                 .graphicsLayer {
                     this.alpha = alpha
-                    translationX = panX()
+                    translationX = pan.value
                     scaleX = 1.06f
                     scaleY = 1.06f
                 },

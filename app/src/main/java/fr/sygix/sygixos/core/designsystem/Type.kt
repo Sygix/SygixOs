@@ -21,7 +21,6 @@ val SygixTypography = Typography(
 
 object TextStyles {
     private val Sans = FontFamily.SansSerif
-    val TileName = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
     val HeroTitle = TextStyle(fontFamily = Sans, fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 39.sp, letterSpacing = (-0.5).sp)
     val HeroSource = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
     val Button = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Bold, fontSize = 14.sp)

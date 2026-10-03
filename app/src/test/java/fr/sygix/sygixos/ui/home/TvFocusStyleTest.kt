@@ -11,7 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.layout.findRootCoordinates
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -99,20 +100,58 @@ class TvFocusStyleTest {
     }
 
     @Test
-    fun `focused grid tile shows the app name below it without moving the grid`() {
+    fun `no tile shows the app name, focused or not`() {
         showGrid()
-        val before = listOf("com.g05", "com.g07", "com.g11").associateWith { tile(it) }
-        val focused = focusGridTile()
-        compose.onNodeWithTag("app-tile-name-$focused").assertIsDisplayed()
-        val name = dp(rect("app-tile-name-$focused"))
-        assertTrue(name.top >= art(focused).bottom)
-        assertTrue(name.bottom <= tile("com.g11").top)
-        assertEquals(before, listOf("com.g05", "com.g07", "com.g11").associateWith { tile(it) })
-        compose.onNodeWithTag("app-tile-name-com.g05").assertDoesNotExist()
+        focusGridTile()
+        grid.forEach { app ->
+            compose.onAllNodes(hasText(app.label), useUnmergedTree = true).assertCountEquals(0)
+        }
+    }
 
-        press(Key.DirectionRight)
-        compose.onNodeWithTag("app-tile-name-$focused").assertDoesNotExist()
-        compose.onNodeWithTag("app-tile-name-com.g07").assertIsDisplayed()
+    @Test
+    fun `focused tiles on every edge of the grid stay whole`() {
+        showGrid()
+        compose.onNodeWithTag("app-tile-com.g00").assertIsFocused()
+        assertWhole("com.g00")
+        repeat(4) { press(Key.DirectionRight) }
+        compose.onNodeWithTag("app-tile-com.g04").assertIsFocused()
+        assertWhole("com.g04")
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("app-tile-com.g14").assertIsFocused()
+        assertWhole("com.g14")
+        repeat(4) { press(Key.DirectionLeft) }
+        compose.onNodeWithTag("app-tile-com.g10").assertIsFocused()
+        assertWhole("com.g10")
+    }
+
+    @Test
+    fun `first and last tiles of a full dock stay whole when focused`() {
+        compose.setContent {
+            TestHome(
+                catalog = catalogOf(dock = (0 until 6).map { app("com.d$it", "Dock $it") }, grid = grid),
+                hero = heroStateOf(items = emptyList()),
+            )
+        }
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("app-tile-com.d0").assertIsFocused()
+        assertWhole("com.d0")
+        assertTrue(contains(dp(rect("dock-glass")), art("com.d0")))
+        repeat(5) { press(Key.DirectionRight) }
+        compose.onNodeWithTag("app-tile-com.d5").assertIsFocused()
+        assertWhole("com.d5")
+        assertTrue(contains(dp(rect("dock-glass")), art("com.d5")))
+    }
+
+    private fun assertWhole(pkg: String) {
+        val lifted = art(pkg)
+        val visible = dp(compose.onNodeWithTag("app-tile-art-$pkg").fetchSemanticsNode().boundsInRoot)
+        assertEquals(Dimens.TileFocusScale, lifted.width / tile(pkg).width, 0.01f)
+        assertEquals(lifted.left, visible.left, 0.5f)
+        assertEquals(lifted.top, visible.top, 0.5f)
+        assertEquals(lifted.right, visible.right, 0.5f)
+        assertEquals(lifted.bottom, visible.bottom, 0.5f)
+        assertTrue(contains(screen(), lifted))
     }
 
     @Test

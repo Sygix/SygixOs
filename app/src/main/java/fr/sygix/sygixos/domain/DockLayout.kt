@@ -12,7 +12,4 @@ object DockLayout {
 
     fun dockWidth(count: Int, tile: Float, spacing: Float, padding: Float, available: Float): Float =
         minOf(contentWidth(count, tile, spacing, padding), available)
-
-    fun overflows(count: Int, tile: Float, spacing: Float, padding: Float, available: Float): Boolean =
-        contentWidth(count, tile, spacing, padding) > available
 }

@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +30,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
+import fr.sygix.sygixos.R
+import fr.sygix.sygixos.domain.AppCatalog
+import fr.sygix.sygixos.domain.PinState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -48,14 +54,14 @@ private val PackageColor = Color(235, 235, 245).copy(alpha = 0.7f)
 private val ThumbnailWidth = 56.dp
 private val HeaderGap = 10.dp
 private val ActionGap = 4.dp
+private val UnavailablePadding = 4.dp
 
 @Composable
 internal fun AppContextMenu(
     app: TvApp,
-    pinned: Boolean,
+    pinState: PinState,
     onTogglePin: () -> Unit,
     onHide: () -> Unit,
-    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     onMove: (() -> Unit)? = null,
 ) {
@@ -84,14 +90,18 @@ internal fun AppContextMenu(
             ) {
                 MenuHeader(app)
                 MenuAction(
-                    text = if (pinned) "Retirer du dock" else "Épingler au dock",
+                    text = if (pinState == PinState.PINNED) "Retirer du dock" else "Épingler au dock",
                     action = "pin",
                     onClick = onTogglePin,
                     focusRequester = firstFocus,
+                    unavailable = if (pinState == PinState.DOCK_FULL) {
+                        stringResource(R.string.menu_dock_full, AppCatalog.MAX_DOCK)
+                    } else {
+                        null
+                    },
                 )
                 if (onMove != null) MenuAction(text = "Déplacer", action = "move", onClick = onMove)
                 MenuAction(text = "Cacher", action = "hide", onClick = onHide)
-                MenuAction(text = "Fermer", action = "close", onClick = onDismiss)
             }
         }
     }
@@ -114,26 +124,42 @@ private fun MenuHeader(app: TvApp) {
 }
 
 @Composable
-private fun MenuAction(text: String, action: String, onClick: () -> Unit, focusRequester: FocusRequester? = null) {
+private fun MenuAction(
+    text: String,
+    action: String,
+    onClick: () -> Unit,
+    focusRequester: FocusRequester? = null,
+    unavailable: String? = null,
+) {
     var focused by remember { mutableStateOf(false) }
     val colors = animatedPillColors(focused)
-    Box(
+    Column(
         Modifier
             .testTag("menu-action-$action")
             .fillMaxWidth()
-            .height(Dimens.MenuActionHeight)
             .tvFocusable(onFocused = { focused = it }, focusRequester = focusRequester)
-            .tvClickable(onClick = onClick)
+            .tvClickable(onClick = { if (unavailable == null) onClick() })
+            .semantics { if (unavailable != null) disabled() }
             .focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
-            .padding(horizontal = Dimens.MenuPadding),
-        contentAlignment = Alignment.CenterStart,
+            .heightIn(min = Dimens.MenuActionHeight)
+            .padding(horizontal = Dimens.MenuPadding, vertical = UnavailablePadding),
+        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text,
             style = if (focused) TextStyles.RowFocused else TextStyles.Row,
-            color = colors.content,
+            color = if (unavailable != null) colors.secondary else colors.content,
             maxLines = 1,
             softWrap = false,
         )
+        if (unavailable != null) {
+            Text(
+                unavailable,
+                style = TextStyles.RowSecondary,
+                color = colors.secondary,
+                maxLines = 1,
+                modifier = Modifier.testTag("menu-dock-full"),
+            )
+        }
     }
 }

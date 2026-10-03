@@ -10,4 +10,5 @@
     <string name="hidden_empty">Aucune application cachée</string>
     <string name="hidden_state_hidden">Cachée</string>
     <string name="hidden_state_visible">Visible</string>
+    <string name="menu_dock_full">Dock plein (%1$d apps maximum)</string>
 </resources>

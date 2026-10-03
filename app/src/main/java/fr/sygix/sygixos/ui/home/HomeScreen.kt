@@ -62,6 +62,10 @@ import androidx.compose.ui.geometry.center
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathOperation
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -90,6 +94,7 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.Catalog
+import fr.sygix.sygixos.domain.AppCatalog
 import fr.sygix.sygixos.domain.GridScroll
 import fr.sygix.sygixos.domain.HomePage
 import fr.sygix.sygixos.model.HeroItem
@@ -219,7 +224,7 @@ private fun SettingsGear(
                 shape = CircleShape
                 clip = false
             }
-            .drawBehind { drawCircle(lerp(SygixColors.GearRest, SygixColors.PillFocus, progress.value)) }
+            .drawBehind { drawCircle(lerp(SygixColors.GearRest, SygixColors.OnDark, progress.value)) }
             .size(Dimens.GearButton),
         contentAlignment = Alignment.Center,
     ) {
@@ -231,46 +236,51 @@ private fun SettingsGear(
 private fun GearIcon(modifier: Modifier = Modifier, color: () -> Color) {
     Spacer(
         modifier.drawWithCache {
-            val path = gearPath(size)
-            onDrawBehind { drawPath(path, color()) }
+            val stroke = Stroke(
+                width = size.minDimension * GearStroke,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+            )
+            val outline = gearOutline(size, stroke.width)
+            val hub = size.minDimension / 2f * GearHub
+            onDrawBehind {
+                val tint = color()
+                drawPath(outline, tint, style = stroke)
+                drawCircle(tint, radius = hub, style = stroke)
+            }
         },
     )
 }
 
-private fun gearPath(size: Size): Path {
+private fun gearOutline(size: Size, strokeWidth: Float): Path {
     val center = size.center
-    val outer = size.minDimension / 2f
-    val body = outer * 0.72f
-    val hole = outer * 0.27f
-    val toothWidth = outer * 0.36f
-    val tooth = Path().apply {
-        addRoundRect(
-            RoundRect(
-                Rect(Offset(center.x - toothWidth / 2f, center.y - outer), Size(toothWidth, outer - body * 0.55f)),
-                CornerRadius(toothWidth * 0.42f),
-            ),
-        )
-    }
-    return Path().apply {
-        addOval(Rect(center, body))
-        for (i in 0 until GearTeeth) {
-            addPath(
-                Path().apply {
-                    addPath(tooth)
-                    transform(
-                        Matrix().apply {
-                            translate(center.x, center.y)
-                            rotateZ(i * 360f / GearTeeth)
-                            translate(-center.x, -center.y)
-                        },
-                    )
+    val outer = size.minDimension / 2f - strokeWidth / 2f
+    val body = outer * 0.74f
+    val toothWidth = outer * 0.38f
+    var outline = Path().apply { addOval(Rect(center, body)) }
+    for (i in 0 until GearTeeth) {
+        val tooth = Path().apply {
+            addRoundRect(
+                RoundRect(
+                    Rect(Offset(center.x - toothWidth / 2f, center.y - outer), Size(toothWidth, outer - body * 0.6f)),
+                    CornerRadius(toothWidth * 0.3f),
+                ),
+            )
+            transform(
+                Matrix().apply {
+                    translate(center.x, center.y)
+                    rotateZ(i * 360f / GearTeeth)
+                    translate(-center.x, -center.y)
                 },
             )
         }
-        addOval(Rect(center, hole), Path.Direction.Clockwise)
+        outline = Path.combine(PathOperation.Union, outline, tooth)
     }
+    return outline
 }
 
+private const val GearStroke = 1.8f / 24f
+private const val GearHub = 0.25f
 private const val GearTeeth = 8
 
 private val NoAutoScroll = object : BringIntoViewSpec {
@@ -382,7 +392,10 @@ internal fun LauncherHome(
                         gridRow == 0 -> { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true }
                         else -> false
                     }
-                    Key.Back -> { zone = Zone.HERO; true }
+                    Key.Back -> {
+                        if (zone == Zone.HERO && gearFocused) heroFocus.tryRequestFocus() else zone = Zone.HERO
+                        true
+                    }
                     else -> false
                 }
             },
@@ -502,10 +515,9 @@ internal fun LauncherHome(
         menuApp?.let { app ->
             AppContextMenu(
                 app = app,
-                pinned = catalog.dock.any { it.packageName == app.packageName },
+                pinState = AppCatalog.pinState(catalog.dock, app.packageName),
                 onTogglePin = { onTogglePin(app); menuApp = null },
                 onHide = { onHideApp(app); menuApp = null },
-                onDismiss = { menuApp = null },
                 onMove = if (zone == Zone.GRID) {
                     {
                         orderBeforeMove = catalog.grid.map { it.packageName }

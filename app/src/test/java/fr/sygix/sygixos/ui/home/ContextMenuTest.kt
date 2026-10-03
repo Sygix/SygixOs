@@ -6,7 +6,10 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -35,12 +38,15 @@ class ContextMenuTest {
         compose.waitForIdle()
     }
 
-    private fun openMenuOnGridTile() {
+    private val toggled = mutableListOf<String>()
+
+    private fun openMenuOnGridTile(dock: List<fr.sygix.sygixos.model.TvApp> = emptyList()) {
         compose.setContent {
             TestHome(
-                catalog = catalogOf(dock = emptyList(), grid = listOf(app("com.a", "Alpha"), app("com.b", "Beta"))),
+                catalog = catalogOf(dock = dock, grid = listOf(app("com.a", "Alpha"), app("com.b", "Beta"))),
                 hero = heroStateOf(items = emptyList()),
                 initialZone = Zone.GRID,
+                onTogglePin = { toggled += it.packageName },
             )
         }
         compose.waitForIdle()
@@ -62,7 +68,7 @@ class ContextMenuTest {
     fun `actions are listed vertically and down walks them in order without wrapping`() {
         openMenuOnGridTile()
         compose.onNodeWithTag("menu-action-pin").assertIsFocused()
-        val order = listOf("menu-action-pin", "menu-action-move", "menu-action-hide", "menu-action-close")
+        val order = listOf("menu-action-pin", "menu-action-move", "menu-action-hide")
         order.zipWithNext().forEach { (above, below) ->
             assertTrue(top(below) > top(above))
             assertEquals(left(above), left(below), 0.5f)
@@ -72,13 +78,34 @@ class ContextMenuTest {
             compose.onNodeWithTag(tag).assertIsFocused()
         }
         press(Key.DirectionDown)
-        compose.onNodeWithTag("menu-action-close").assertIsFocused()
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
         press(Key.DirectionLeft)
-        compose.onNodeWithTag("menu-action-close").assertIsFocused()
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
         press(Key.DirectionRight)
-        compose.onNodeWithTag("menu-action-close").assertIsFocused()
-        repeat(4) { press(Key.DirectionUp) }
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
+        repeat(3) { press(Key.DirectionUp) }
         compose.onNodeWithTag("menu-action-pin").assertIsFocused()
+        compose.onNodeWithTag("menu-action-close").assertDoesNotExist()
+        compose.onNodeWithTag("menu-dock-full").assertDoesNotExist()
+    }
+
+    @Test
+    fun `pinning is unavailable with a short message when the dock is full`() {
+        openMenuOnGridTile(dock = (1..6).map { app("com.d$it", "Dock $it") })
+        compose.onNodeWithTag("menu-action-pin").assertIsFocused().assertIsNotEnabled()
+        compose.onNodeWithTag("menu-dock-full", useUnmergedTree = true).assertIsDisplayed()
+        press(Key.Enter)
+        compose.onNodeWithTag("app-menu").assertExists()
+        assertTrue(toggled.isEmpty())
+    }
+
+    @Test
+    fun `pinning stays available below six docked apps`() {
+        openMenuOnGridTile(dock = (1..5).map { app("com.d$it", "Dock $it") })
+        compose.onNodeWithTag("menu-action-pin").assertIsEnabled()
+        compose.onNodeWithTag("menu-dock-full", useUnmergedTree = true).assertDoesNotExist()
+        press(Key.Enter)
+        assertEquals(listOf("com.b"), toggled)
     }
 
     @Test
