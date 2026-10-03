@@ -16,7 +16,8 @@ import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.net.URLEncoder
-import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -53,7 +54,9 @@ class GitHubReleaseSource(
             transport.get(url, apiHeaders(userAgent()), MAX_BODY_BYTES, ApiTimeouts, body)
         } catch (e: UnknownHostException) {
             throw UpdateException(UpdateError.NoNetwork)
-        } catch (e: SSLException) {
+        } catch (e: SSLHandshakeException) {
+            throw UpdateException(UpdateError.SecureConnection)
+        } catch (e: SSLPeerUnverifiedException) {
             throw UpdateException(UpdateError.SecureConnection)
         } catch (e: SocketTimeoutException) {
             throw UpdateException(UpdateError.Timeout)

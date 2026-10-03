@@ -16,6 +16,7 @@ import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -105,7 +106,12 @@ class GitHubReleaseSourceTest {
     @Test
     fun `tls or certificate failure is not reported as a missing network`() {
         assertEquals(UpdateError.SecureConnection, errorOf(list(Reply.Fail(SSLHandshakeException("certificate not yet valid")))))
-        assertEquals(UpdateError.SecureConnection, errorOf(list(Reply.Fail(SSLException("closed")))))
+        assertEquals(UpdateError.SecureConnection, errorOf(list(Reply.Fail(SSLPeerUnverifiedException("peer not verified")))))
+    }
+
+    @Test
+    fun `generic tls read error is a missing network`() {
+        assertEquals(UpdateError.NoNetwork, errorOf(list(Reply.Fail(SSLException("Read error: Connection reset by peer")))))
     }
 
     @Test

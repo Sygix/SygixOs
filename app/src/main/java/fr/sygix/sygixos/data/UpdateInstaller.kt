@@ -17,7 +17,8 @@ import java.io.IOException
 import java.io.OutputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
-import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -98,7 +99,9 @@ class UpdateInstaller(
                     }
                 }
             }
-        } catch (e: SSLException) {
+        } catch (e: SSLHandshakeException) {
+            throw UpdateException(UpdateError.SecureConnection)
+        } catch (e: SSLPeerUnverifiedException) {
             throw UpdateException(UpdateError.SecureConnection)
         } catch (e: IOException) {
             throw UpdateException(UpdateError.Interrupted)
