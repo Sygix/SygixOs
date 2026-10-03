@@ -23,7 +23,9 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 - **Settings** (gear in the capsule, same background as the grid, light focus pills):
   - choose which apps feed the hero and the preview; apps that publish content come first, by number of programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
   - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list that restores the listed apps. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
-  - version and library licenses.
+  - version and library licenses;
+  - updates: "Vérifier les mises à jour" (check for updates) asks the public GitHub releases of this repository, with no account and no token; "Mettre à jour vers X" (update to X) downloads, verifies and installs the new version, with a QR code next to it that opens the release notes on a phone; "Inclure les préversions" (include pre-releases) is off by default.
+- **Self-update**: at startup and when you come back to the home screen, at most once a day, SygixOs checks for a new version in the background. It only signals it with a small blue dot on the settings gear and on "À propos": nothing is ever downloaded or installed without you pressing "Mettre à jour vers X".
 - **Never a black screen**: falls back to nature clips (Pexels), then to a gradient that drifts once and settles.
 - **Fully local**: no backend, no telemetry, no hard-coded app list.
 
@@ -40,6 +42,7 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 | P2c | Up Next row (all apps, deduplication) | 📝 spec done, implementation planned |
 | P2c | Search | planned |
 | P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
+| Self-update | Updates from Settings → About (GitHub releases) | 🚧 in progress |
 | P5 | Replacing the system launcher | ADB commands available (see Installation) |
 
 Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Specs and the user interface are written in French.
@@ -60,7 +63,11 @@ Detailed requirements for each feature live in [`openspec/specs/`](openspec/spec
    ```
 4. On first launch, grant the "TV programs" permission (`READ_TV_LISTINGS`). Without it, the hero cannot see other apps' content.
 
-To make SygixOs the default launcher by disabling the Google TV one (reversible):
+ADB is only needed for this first installation. Later versions install from the app: Settings → About → "Vérifier les mises à jour", then "Mettre à jour vers X". The download goes on if you leave the settings or open another app, and SygixOs restarts on its home screen if it was on screen when the update was installed. The first time, Android may ask you to allow SygixOs to install unknown apps: accept, and the update carries on. An update is installed only if its size, its SHA-256 digest published by GitHub, its package name, its version and its signing certificate all match; a build signed with another key (for example a local debug build) is refused with "Signature différente de l'app installée".
+
+SygixOs declares itself as a possible home screen (`CATEGORY_HOME`), so that Android brings it back after an update when it is your default launcher. It never asks to become the default launcher and changes no setting: after installing it, Android may offer you a choice of launcher the next time you press Home, and the answer is yours.
+
+This is also the first step of P5 (replacing the system launcher). To make SygixOs the default launcher by disabling the Google TV one (reversible), so that it becomes the only possible home screen:
 ```
 adb shell pm disable-user --user 0 com.google.android.apps.tv.launcherx
 adb shell pm disable-user --user 0 com.google.android.tungsten.setupwraith
