@@ -78,6 +78,7 @@ class IdleFrameTest {
             keyDown(key)
             keyUp(key)
         }
+        compose.runOnIdle { Snapshot.sendApplyNotifications() }
         settle()
     }
 
@@ -107,6 +108,14 @@ class IdleFrameTest {
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         assertTrue(stateWritesDuring(1_000) > 0)
         assertEquals(0L, recompositionsDuring(5_000))
+    }
+
+    @Test
+    fun `animated fallback gradient makes one pass then stands still`() {
+        show(dock, heroStateOf(items = emptyList()))
+        assertTrue(stateWritesDuring(1_000) > 0)
+        advance(Motion.AMBIENT_PASS_MS.toLong())
+        assertEquals(0, stateWritesDuring(5_000))
     }
 
     @Test
@@ -159,9 +168,11 @@ class IdleFrameTest {
     }
 
     @Test
-    fun `hero ken burns starts again when the image changes`() {
+    fun `hero ken burns ends before the image changes and starts again on the next one`() {
         showPosters(poster("h1"), poster("h2"))
-        advance(Motion.HERO_KEN_BURNS_MS + 1_000L)
+        advance(Motion.HERO_KEN_BURNS_MS + 200L)
+        assertEquals(0, stateWritesDuring(Motion.HERO_DWELL_MS - Motion.HERO_KEN_BURNS_MS - 400L))
+        advance(2_000)
         assertTrue(stateWritesDuring(1_000) > 0)
     }
 

@@ -70,7 +70,9 @@ import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.domain.ListReveal
+import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.home.TileFocus
+import fr.sygix.sygixos.ui.home.rememberAppArtwork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -181,7 +183,7 @@ private fun SourceRowLine(
             .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(row.app.packageName)
+        AppThumbnail(row.app)
         Spacer(Modifier.width(RowGap))
         Column(Modifier.weight(1f)) {
             Text(row.app.label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
@@ -300,7 +302,7 @@ private fun HiddenRowLine(
             .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(row.app.packageName)
+        AppThumbnail(row.app)
         Spacer(Modifier.width(RowGap))
         Text(
             row.app.label,
@@ -347,14 +349,9 @@ internal fun SettingsEntryButton(
 }
 
 @Composable
-internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val provided = LocalAppIcons.current
-    val icons = remember(provided) { provided ?: AppIconCache.forPackageManager(context.packageManager) }
-    val icon by produceState(initialValue = icons.cached(packageName), packageName, icons) {
-        if (value == null) value = withContext(Dispatchers.IO) { icons.get(packageName) }
-    }
-    val bitmap = icon
+internal fun AppThumbnail(app: TvApp, modifier: Modifier = Modifier) {
+    val artwork by rememberAppArtwork(app)
+    val banner = artwork?.takeIf { it.isBanner }
     Box(
         modifier
             .size(ThumbWidth, ThumbHeight)
@@ -362,13 +359,32 @@ internal fun AppIcon(packageName: String, modifier: Modifier = Modifier) {
             .background(Color.White.copy(alpha = 0.10f)),
         contentAlignment = Alignment.Center,
     ) {
-        if (bitmap != null) {
+        if (banner != null) {
             Image(
-                bitmap = bitmap.asImageBitmap(),
+                bitmap = banner.bitmap.asImageBitmap(),
                 contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxHeight(IconHeightFraction).aspectRatio(1f).testTag("app-icon-$packageName"),
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().testTag("app-banner-${app.packageName}"),
             )
+        } else {
+            AppIcon(app.packageName)
         }
     }
+}
+
+@Composable
+private fun AppIcon(packageName: String) {
+    val context = LocalContext.current
+    val provided = LocalAppIcons.current
+    val icons = remember(provided) { provided ?: AppIconCache.forPackageManager(context.packageManager) }
+    val icon by produceState(initialValue = icons.cached(packageName), packageName, icons) {
+        if (value == null) value = withContext(Dispatchers.IO) { icons.get(packageName) }
+    }
+    val bitmap = icon ?: return
+    Image(
+        bitmap = bitmap.asImageBitmap(),
+        contentDescription = null,
+        contentScale = ContentScale.Fit,
+        modifier = Modifier.fillMaxHeight(IconHeightFraction).aspectRatio(1f).testTag("app-icon-$packageName"),
+    )
 }
