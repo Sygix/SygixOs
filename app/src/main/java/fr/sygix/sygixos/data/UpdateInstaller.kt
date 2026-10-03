@@ -17,6 +17,7 @@ import java.io.IOException
 import java.io.OutputStream
 import java.security.DigestOutputStream
 import java.security.MessageDigest
+import javax.net.ssl.SSLException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +38,7 @@ class UpdateInstaller(
     private val updatesDir: File,
     private val freeSpace: () -> Long,
     private val selfPackage: String,
-    private val userAgent: String,
+    private val userAgent: () -> String,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
@@ -48,7 +49,7 @@ class UpdateInstaller(
             return@withContext InstallOutcome.Failure(known, e.error)
         }
         try {
-            if (freeSpace() < 2 * candidate.size) throw UpdateException(UpdateError.NoSpace)
+            if (freeSpace() / 2 < candidate.size) throw UpdateException(UpdateError.NoSpace)
             onStep(UpdateStep.Downloading(candidate, 0))
             val apk = download(candidate) { percent -> onStep(UpdateStep.Downloading(candidate, percent)) }
             onStep(UpdateStep.Verifying(candidate))
@@ -89,7 +90,7 @@ class UpdateInstaller(
         var lastPercent = 0
         val response = try {
             DigestOutputStream(part.outputStream().buffered(), digest).use { out ->
-                transport.get(candidate.apkUrl, mapOf("User-Agent" to userAgent), candidate.size, DownloadTimeouts, out) { bytes ->
+                transport.get(candidate.apkUrl, mapOf("User-Agent" to userAgent()), candidate.size, DownloadTimeouts, out) { bytes ->
                     val percent = (bytes * 100 / candidate.size).toInt()
                     if (percent > lastPercent) {
                         lastPercent = percent
@@ -97,6 +98,8 @@ class UpdateInstaller(
                     }
                 }
             }
+        } catch (e: SSLException) {
+            throw UpdateException(UpdateError.SecureConnection)
         } catch (e: IOException) {
             throw UpdateException(UpdateError.Interrupted)
         }
@@ -139,7 +142,7 @@ class UpdateInstaller(
                 throw UpdateException(UpdateError.Corrupt)
             }
             clean()
-            store.setRelaunch(foreground.isForeground)
+            store.setRelaunch(candidate.versionCode.takeIf { foreground.isForeground })
             session.commit()
             return session.id
         } catch (e: UpdateException) {
@@ -165,7 +168,7 @@ class UpdateInstaller(
     }
 
     companion object {
-        val DownloadTimeouts = HttpTimeouts(connectMs = 10_000, readMs = 30_000)
+        val DownloadTimeouts = HttpTimeouts(connectMs = 10_000, readMs = 30_000, totalMs = 10L * 60 * 1000)
 
         fun hex(bytes: ByteArray): String = bytes.joinToString("") { "%02x".format(it) }
     }

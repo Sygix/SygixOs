@@ -31,7 +31,7 @@ class HttpsUrlTransportTest {
     private val release = CountDownLatch(1)
     private val transport = HttpsUrlTransport()
     private val headers = GitHubReleaseSource.apiHeaders("SygixOs/1.2.3")
-    private val fast = HttpTimeouts(connectMs = 2_000, readMs = 2_000)
+    private val fast = HttpTimeouts(connectMs = 2_000, readMs = 2_000, totalMs = 10_000)
 
     @Before
     fun start() {
@@ -42,6 +42,18 @@ class HttpsUrlTransportTest {
         server.createContext("/gone") { reply(it, 410, "{}".toByteArray()) }
         server.createContext("/limited") { reply(it, 403, "{}".toByteArray(), "x-ratelimit-remaining" to "0", "x-ratelimit-reset" to "1700000000") }
         server.createContext("/redirect") { reply(it, 302, ByteArray(0), "Location" to "/body") }
+        server.createContext("/slow") { exchange ->
+            record(exchange)
+            exchange.sendResponseHeaders(200, 0)
+            exchange.responseBody.use { out ->
+                repeat(100) {
+                    out.write(ByteArray(8))
+                    out.flush()
+                    if (release.await(50, TimeUnit.MILLISECONDS)) return@use
+                }
+            }
+            exchange.close()
+        }
         server.createContext("/silent") {
             record(it)
             release.await(10, TimeUnit.SECONDS)
@@ -95,10 +107,20 @@ class HttpsUrlTransportTest {
     fun `silent server ends in a timeout`() {
         val start = System.nanoTime()
         val error = runCatching {
-            transport.get(url("/silent"), headers, 1_000, HttpTimeouts(connectMs = 2_000, readMs = 300), ByteArrayOutputStream())
+            transport.get(url("/silent"), headers, 1_000, HttpTimeouts(connectMs = 2_000, readMs = 300, totalMs = 10_000), ByteArrayOutputStream())
         }.exceptionOrNull()
         assertTrue(error.toString(), error is SocketTimeoutException)
         assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 5_000)
+    }
+
+    @Test
+    fun `server that keeps sending slowly ends in a timeout once the total time is over`() {
+        val start = System.nanoTime()
+        val error = runCatching {
+            transport.get(url("/slow"), headers, 10_000, HttpTimeouts(connectMs = 2_000, readMs = 2_000, totalMs = 300), ByteArrayOutputStream())
+        }.exceptionOrNull()
+        assertTrue(error.toString(), error is SocketTimeoutException)
+        assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 3_000)
     }
 
     @Test

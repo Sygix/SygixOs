@@ -10,6 +10,8 @@ import fr.sygix.sygixos.domain.InstallLine
 import fr.sygix.sygixos.domain.QrCode
 import fr.sygix.sygixos.domain.UpdateStatus
 import fr.sygix.sygixos.domain.candidate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -19,11 +21,11 @@ import org.junit.Test
 class AboutUpdateMapperTest {
 
     private val encoded = mutableListOf<String>()
-    private val mapper = AboutUpdateMapper { url -> encoded += url; QrCode.encode(url) }
+    private val mapper = AboutUpdateMapper({ url -> encoded += url; QrCode.encode(url) }, Dispatchers.Unconfined)
     private val v2 = candidate("v0.0.2")
 
     @Test
-    fun `proposed version on a github release page gets a release notes code`() {
+    fun `proposed version on a github release page gets a release notes code`() = runBlocking<Unit> {
         val state = mapper.map(UpdateStatus(proposed = v2), systemScreenReturns = 3)
         assertNotNull(state.releaseNotesQr)
         assertEquals(CheckLine.Available("0.0.2", prerelease = false), state.checkLine)
@@ -33,7 +35,7 @@ class AboutUpdateMapperTest {
     }
 
     @Test
-    fun `release page outside github or not in https gets no code`() {
+    fun `release page outside github or not in https gets no code`() = runBlocking<Unit> {
         listOf("https://example.org/Sygix/SygixOs/releases/tag/v0.0.2", "http://github.com/Sygix/SygixOs/releases/tag/v0.0.2", "").forEach { url ->
             val state = mapper.map(UpdateStatus(proposed = v2.copy(htmlUrl = url)), 0)
             assertNull(url, state.releaseNotesQr)
@@ -43,7 +45,7 @@ class AboutUpdateMapperTest {
     }
 
     @Test
-    fun `no proposed version gets no code and no badge`() {
+    fun `no proposed version gets no code and no badge`() = runBlocking<Unit> {
         val state = mapper.map(UpdateStatus(), 0)
         assertNull(state.releaseNotesQr)
         assertNull(state.installLine)
@@ -51,7 +53,7 @@ class AboutUpdateMapperTest {
     }
 
     @Test
-    fun `the code is encoded once per release page`() {
+    fun `the code is encoded once per release page`() = runBlocking<Unit> {
         repeat(5) { mapper.map(UpdateStatus(proposed = v2), 0) }
         assertEquals(1, encoded.size)
     }

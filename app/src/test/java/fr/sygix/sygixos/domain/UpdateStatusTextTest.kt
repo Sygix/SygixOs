@@ -70,9 +70,14 @@ class UpdateStatusTextTest {
     }
 
     @Test
-    fun `withdrawn version keeps its line with the reason until nothing else is proposed`() {
-        val status = UpdateStatus(lastResult = CheckResult.Ok, step = UpdateStep.Failed(v2, UpdateError.Withdrawn))
-        assertEquals(InstallLine(v2, InstallDetail.Failed(UpdateError.Withdrawn)), UpdateStatusText.installLine(status))
-        assertEquals(CheckLine.UpToDate, UpdateStatusText.checkLine(status))
+    fun `withdrawn version is reported apart and the install line only follows the proposed version`() {
+        val alone = UpdateStatus(lastResult = CheckResult.Ok, step = UpdateStep.Failed(v2, UpdateError.Withdrawn))
+        assertEquals(v2, UpdateStatusText.withdrawn(alone))
+        assertNull(UpdateStatusText.installLine(alone))
+        assertEquals(CheckLine.UpToDate, UpdateStatusText.checkLine(alone))
+        val other = alone.copy(proposed = rc)
+        assertEquals(v2, UpdateStatusText.withdrawn(other))
+        assertEquals(InstallLine(rc, null), UpdateStatusText.installLine(other))
+        assertNull(UpdateStatusText.withdrawn(UpdateStatus(proposed = v2, step = UpdateStep.Failed(v2, UpdateError.Corrupt))))
     }
 }

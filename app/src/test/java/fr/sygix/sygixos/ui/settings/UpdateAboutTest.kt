@@ -243,6 +243,7 @@ class UpdateAboutTest {
         mapOf(
             UpdateError.NoNetwork to "Pas de connexion à Internet",
             UpdateError.Timeout to "GitHub ne répond pas, réessayez plus tard",
+            UpdateError.SecureConnection to "Connexion sécurisée impossible (vérifiez la date et l'heure de la TV)",
             UpdateError.Unavailable(404) to "Releases inaccessibles",
             UpdateError.Unreadable to "Réponse de GitHub illisible",
         ).forEach { (error, text) -> check(AboutUpdateState(checkLine = CheckLine.Failed(error)), "Vérifier les mises à jour", text) }
@@ -264,7 +265,6 @@ class UpdateAboutTest {
             UpdateError.Interrupted to "Téléchargement interrompu",
             UpdateError.NoSpace to "Espace insuffisant",
             UpdateError.InstallAborted to "Installation annulée",
-            UpdateError.Withdrawn to "Cette version n'est plus disponible",
             UpdateError.AssetNotFound to "Fichier de la version introuvable",
         ).forEach { (error, text) ->
             applyUpdate(available.copy(installLine = InstallLine(v2, InstallDetail.Failed(error))))
@@ -287,5 +287,49 @@ class UpdateAboutTest {
         compose.onNode(hasTestTag("update-badge-about") and hasAnyAncestor(hasTestTag("settings-category-ABOUT")), useUnmergedTree = true).assertExists()
         applyUpdate(upToDate)
         compose.onNodeWithTag("update-badge-about", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `release notes column never pushes the following rows nor covers their text`() {
+        show(upToDate)
+        val restingHeight = bounds("update-prereleases").height
+        val checkHeight = bounds("update-check").height
+        val longError = available.copy(installLine = InstallLine(v2, InstallDetail.Failed(UpdateError.SignatureMismatch)))
+        listOf(available, longError).forEach { state ->
+            applyUpdate(state)
+            val check = bounds("update-check")
+            val install = bounds("update-install")
+            val prereleases = bounds("update-prereleases")
+            val qr = bounds("update-release-notes-qr")
+            assertEquals(install.top, qr.top, 1f)
+            assertTrue(install.top - check.bottom < 20f)
+            assertTrue(prereleases.top - install.bottom < 20f)
+            assertEquals(restingHeight, prereleases.height, 1f)
+            assertEquals(checkHeight, check.height, 1f)
+            assertTrue(qr.left >= check.right)
+            assertTrue(qr.left >= install.right)
+            assertTrue(qr.left >= prereleases.right)
+            assertTrue(qr.width >= 239f)
+            assertTrue(bounds("about-licenses").top >= qr.bottom)
+        }
+    }
+
+    @Test
+    fun `withdrawn version keeps its notice alone or next to another proposed version`() {
+        val rc = candidate("v0.0.3-rc.1")
+        show(upToDate.copy(withdrawn = rc))
+        compose.onNodeWithTag("update-install").assertDoesNotExist()
+        compose.onNodeWithTag("update-release-notes-qr").assertDoesNotExist()
+        compose.onNodeWithTag("update-badge-about", useUnmergedTree = true).assertDoesNotExist()
+        assertEquals(listOf("Mettre à jour vers 0.0.3-rc.1", "Cette version n'est plus disponible"), detailOf("update-withdrawn"))
+        press(Key.DirectionRight)
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("update-withdrawn").assertIsFocused()
+        press(Key.Enter)
+        assertTrue(installs.isEmpty())
+        applyUpdate(available.copy(withdrawn = rc))
+        assertEquals(listOf("Mettre à jour vers 0.0.2"), detailOf("update-install"))
+        assertEquals("Cette version n'est plus disponible", detailOf("update-withdrawn")[1])
+        assertTrue(bounds("update-withdrawn").top >= bounds("update-install").bottom)
     }
 }

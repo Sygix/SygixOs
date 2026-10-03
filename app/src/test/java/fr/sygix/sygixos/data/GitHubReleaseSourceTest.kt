@@ -14,6 +14,8 @@ import fr.sygix.sygixos.domain.release
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import javax.net.ssl.SSLException
+import javax.net.ssl.SSLHandshakeException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -27,7 +29,7 @@ class GitHubReleaseSourceTest {
 
     private val transport = FakeTransport()
     private val now = 1_000_000L
-    private val source = GitHubReleaseSource(transport, "SygixOs/0.0.1", clock = { now })
+    private val source = GitHubReleaseSource(transport, { "SygixOs/0.0.1" }, clock = { now })
     private val listUrl = "${GitHubReleaseSource.API_BASE}/releases?per_page=100"
     private fun tagUrl(tag: String) = "${GitHubReleaseSource.API_BASE}/releases/tags/$tag"
 
@@ -98,6 +100,12 @@ class GitHubReleaseSourceTest {
         assertEquals(UpdateError.NoNetwork, errorOf(list(Reply.Fail(UnknownHostException("api.github.com")))))
         assertEquals(UpdateError.NoNetwork, errorOf(list(Reply.Fail(IOException("unreachable")))))
         assertEquals(UpdateError.Timeout, errorOf(list(Reply.Fail(SocketTimeoutException("read")))))
+    }
+
+    @Test
+    fun `tls or certificate failure is not reported as a missing network`() {
+        assertEquals(UpdateError.SecureConnection, errorOf(list(Reply.Fail(SSLHandshakeException("certificate not yet valid")))))
+        assertEquals(UpdateError.SecureConnection, errorOf(list(Reply.Fail(SSLException("closed")))))
     }
 
     @Test

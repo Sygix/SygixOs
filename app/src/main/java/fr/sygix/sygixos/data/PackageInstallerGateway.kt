@@ -22,27 +22,30 @@ interface InstallSession {
 interface PackageInstallerGateway {
     fun create(size: Long): InstallSession
     fun abandon(sessionId: Int)
-    fun abandonAll()
+    fun abandonAll(): Int
+    fun isActive(sessionId: Int): Boolean
 }
 
 sealed interface InstallStatus {
-    data object Success : InstallStatus
-    data class PendingUserAction(val sessionId: Int, val intent: Intent?) : InstallStatus
-    data object Aborted : InstallStatus
-    data class Failed(val family: InstallFailure) : InstallStatus
+    val sessionId: Int
+
+    data class Success(override val sessionId: Int) : InstallStatus
+    data class PendingUserAction(override val sessionId: Int, val intent: Intent?) : InstallStatus
+    data class Aborted(override val sessionId: Int) : InstallStatus
+    data class Failed(override val sessionId: Int, val family: InstallFailure) : InstallStatus
 
     companion object {
         fun of(status: Int, sessionId: Int, intent: Intent?): InstallStatus = when (status) {
-            PackageInstaller.STATUS_SUCCESS -> Success
+            PackageInstaller.STATUS_SUCCESS -> Success(sessionId)
             PackageInstaller.STATUS_PENDING_USER_ACTION -> PendingUserAction(sessionId, intent)
-            PackageInstaller.STATUS_FAILURE_ABORTED -> Aborted
-            PackageInstaller.STATUS_FAILURE_BLOCKED -> Failed(InstallFailure.BLOCKED)
-            PackageInstaller.STATUS_FAILURE_CONFLICT -> Failed(InstallFailure.CONFLICT)
-            PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> Failed(InstallFailure.INCOMPATIBLE)
-            PackageInstaller.STATUS_FAILURE_INVALID -> Failed(InstallFailure.INVALID)
-            PackageInstaller.STATUS_FAILURE_STORAGE -> Failed(InstallFailure.STORAGE)
-            PackageInstaller.STATUS_FAILURE_TIMEOUT -> Failed(InstallFailure.TIMEOUT)
-            else -> Failed(InstallFailure.OTHER)
+            PackageInstaller.STATUS_FAILURE_ABORTED -> Aborted(sessionId)
+            PackageInstaller.STATUS_FAILURE_BLOCKED -> Failed(sessionId, InstallFailure.BLOCKED)
+            PackageInstaller.STATUS_FAILURE_CONFLICT -> Failed(sessionId, InstallFailure.CONFLICT)
+            PackageInstaller.STATUS_FAILURE_INCOMPATIBLE -> Failed(sessionId, InstallFailure.INCOMPATIBLE)
+            PackageInstaller.STATUS_FAILURE_INVALID -> Failed(sessionId, InstallFailure.INVALID)
+            PackageInstaller.STATUS_FAILURE_STORAGE -> Failed(sessionId, InstallFailure.STORAGE)
+            PackageInstaller.STATUS_FAILURE_TIMEOUT -> Failed(sessionId, InstallFailure.TIMEOUT)
+            else -> Failed(sessionId, InstallFailure.OTHER)
         }
     }
 }
@@ -65,9 +68,13 @@ class SystemPackageInstallerGateway(private val context: Context) : PackageInsta
         runCatching { installer.abandonSession(sessionId) }
     }
 
-    override fun abandonAll() {
-        installer.mySessions.forEach { abandon(it.sessionId) }
+    override fun abandonAll(): Int {
+        val sessions = installer.mySessions
+        sessions.forEach { abandon(it.sessionId) }
+        return sessions.size
     }
+
+    override fun isActive(sessionId: Int): Boolean = runCatching { installer.getSessionInfo(sessionId)?.isActive == true }.getOrDefault(false)
 
     private inner class SystemInstallSession(override val id: Int, private val session: PackageInstaller.Session) : InstallSession {
 

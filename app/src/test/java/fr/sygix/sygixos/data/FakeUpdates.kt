@@ -97,17 +97,17 @@ internal fun releaseJson(release: Release): JSONObject = JSONObject()
 
 internal class MemoryUpdateStore(initial: UpdatePersisted = UpdatePersisted()) : UpdateStore {
     val state = MutableStateFlow(initial)
-    var relaunch: Boolean? = null
+    var relaunch: Long? = null
     override val data: Flow<UpdatePersisted> = state
-    override suspend fun setIncludePrereleases(include: Boolean) = state.update { it.copy(includePrereleases = include) }
+    override suspend fun togglePrereleases() = state.update { it.copy(includePrereleases = !it.includePrereleases) }
     override suspend fun setLastCheckAt(at: Long) = state.update { it.copy(lastCheckAt = at) }
     override suspend fun setLastResult(result: CheckResult) = state.update { it.copy(lastResult = result) }
     override suspend fun setRetryAt(at: Long) = state.update { it.copy(retryAt = at) }
     override suspend fun setKnown(known: KnownUpdates) = state.update { it.copy(known = known) }
-    override suspend fun setRelaunch(relaunch: Boolean) {
-        this.relaunch = relaunch
+    override suspend fun setRelaunch(versionCode: Long?) {
+        relaunch = versionCode
     }
-    override suspend fun takeRelaunch(): Boolean = (relaunch ?: false).also { relaunch = null }
+    override suspend fun takeRelaunch(): Long? = relaunch.also { relaunch = null }
 }
 
 internal class FakeInspector(var installed: ApkIdentity?, private val packageName: String, private val certificate: String) : ApkInspector {
@@ -142,14 +142,18 @@ internal class FakeGateway : PackageInstallerGateway {
     val sessions = mutableListOf<FakeSession>()
     val abandonedIds = mutableListOf<Int>()
     var abandonAllCalls = 0
+    var openSessions = 0
+    var active = false
     var onCommit: (FakeSession) -> Unit = {}
     override fun create(size: Long): InstallSession = FakeSession(sessions.size + 1, this).also { sessions += it }
     override fun abandon(sessionId: Int) {
         abandonedIds += sessionId
     }
-    override fun abandonAll() {
+    override fun abandonAll(): Int {
         abandonAllCalls++
+        return openSessions.also { openSessions = 0 }
     }
+    override fun isActive(sessionId: Int): Boolean = active
 }
 
 internal class FakeForeground(override var isForeground: Boolean = true) : ForegroundState
@@ -180,8 +184,8 @@ internal class FakeUpdateController(initial: UpdateStatus = UpdateStatus()) : Up
     override fun startUpdate(tag: String) {
         installs += tag
     }
-    override fun setIncludePrereleases(include: Boolean) {
-        status.update { it.copy(includePrereleases = include) }
+    override fun togglePrereleases() {
+        status.update { it.copy(includePrereleases = !it.includePrereleases) }
     }
     override fun onHomeShown() {
         homeShown++

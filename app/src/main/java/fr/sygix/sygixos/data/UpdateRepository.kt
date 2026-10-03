@@ -26,14 +26,16 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 interface UpdateController {
     val status: StateFlow<UpdateStatus>
     val systemScreenReturns: StateFlow<Int>
     fun check()
     fun startUpdate(tag: String)
-    fun setIncludePrereleases(include: Boolean)
+    fun togglePrereleases()
     fun onHomeShown()
     fun onForeground()
 }
@@ -52,12 +54,12 @@ class UpdateRepository(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : UpdateController {
 
-    private data class Runtime(val checking: Boolean = false, val step: UpdateStep? = null)
+    private data class Runtime(val checking: Boolean = false, val step: UpdateStep? = null, val sessionId: Int? = null)
 
     private class PendingAction(val sessionId: Int, val intent: Intent)
 
     private val runtime = MutableStateFlow(Runtime())
-    private val installed: Long by lazy(installedVersionCode)
+    private var installed: Long? = null
     private var checkJob: Job? = null
     private var operationJob: Job? = null
     private var pendingAction: PendingAction? = null
@@ -74,7 +76,7 @@ class UpdateRepository(
         val proposed = if (step != null && step.inProgress) {
             step.candidate
         } else {
-            UpdateSelector.proposed(persisted.known, persisted.includePrereleases, installed)
+            UpdateSelector.proposed(persisted.known, persisted.includePrereleases, installedCode())
         }
         UpdateStatus(
             checking = current.checking,
@@ -85,24 +87,18 @@ class UpdateRepository(
         )
     }.stateIn(scope, SharingStarted.Eagerly, UpdateStatus())
 
+    private suspend fun installedCode(): Long =
+        installed ?: withContext(io) { installedVersionCode() }.also { installed = it }
+
     fun coldStart() {
         scope.launch(io) {
             installer.clean()
-            runCatching { gateway.abandonAll() }
+            val abandoned = runCatching { gateway.abandonAll() }.getOrDefault(0)
+            if (abandoned > 0) store.setRelaunch(null)
         }
     }
 
-    override fun check() {
-        if (checkJob?.isActive == true) return
-        runtime.update { it.copy(checking = true, step = it.step?.takeIf { step -> step.inProgress }) }
-        checkJob = scope.launch {
-            try {
-                performCheck()
-            } finally {
-                runtime.update { it.copy(checking = false) }
-            }
-        }
-    }
+    override fun check() = launchCheck(manual = true)
 
     override fun onHomeShown() {
         homeShown = true
@@ -110,46 +106,45 @@ class UpdateRepository(
     }
 
     override fun onForeground() {
-        pendingAction?.let { action ->
+        val action = pendingAction
+        if (action != null) {
             pendingAction = null
             showSystemScreen(action)
-        } ?: run {
-            if (systemScreenShown) {
-                systemScreenShown = false
-                screenReturns.update { it + 1 }
-            }
+        } else if (systemScreenShown) {
+            systemScreenShown = false
+            screenReturns.update { it + 1 }
+            abandonIfLeftWithoutStatus()
         }
         if (homeShown) autoCheck()
     }
 
-    override fun setIncludePrereleases(include: Boolean) {
-        scope.launch { store.setIncludePrereleases(include) }
+    override fun togglePrereleases() {
+        scope.launch { store.togglePrereleases() }
     }
 
     override fun startUpdate(tag: String) {
         if (operationJob?.isActive == true || runtime.value.step?.inProgress == true) return
         val candidate = status.value.proposed?.takeIf { it.tag == tag } ?: return
+        runtime.update { it.copy(step = UpdateStep.Downloading(candidate, 0), sessionId = null) }
         operationJob = scope.launch {
-            val retryAt = store.data.first().retryAt
-            if (!DailyCheckPolicy.canRequest(clock(), retryAt)) {
-                setStep(UpdateStep.Failed(candidate, UpdateError.RateLimited(retryAt ?: 0L)))
-                return@launch
-            }
-            setStep(UpdateStep.Downloading(candidate, 0))
             when (val outcome = installer.run(candidate, ::setStep)) {
-                is InstallOutcome.Committed -> setStep(UpdateStep.Installing(outcome.candidate))
+                is InstallOutcome.Committed -> runtime.update {
+                    it.copy(step = UpdateStep.Installing(outcome.candidate), sessionId = outcome.sessionId)
+                }
                 is InstallOutcome.Failure -> onFailure(outcome)
             }
         }
     }
 
     fun onInstallStatus(status: InstallStatus) {
-        val step = runtime.value.step ?: return
+        val current = runtime.value
+        val step = current.step ?: return
+        if (status.sessionId != current.sessionId) return
         when (status) {
-            InstallStatus.Success -> Unit
+            is InstallStatus.Success -> Unit
             is InstallStatus.PendingUserAction -> onPendingUserAction(step, status)
-            InstallStatus.Aborted -> setStep(UpdateStep.Failed(step.candidate, UpdateError.InstallAborted))
-            is InstallStatus.Failed -> setStep(UpdateStep.Failed(step.candidate, UpdateError.InstallFailed(status.family)))
+            is InstallStatus.Aborted -> failInstall(UpdateError.InstallAborted)
+            is InstallStatus.Failed -> failInstall(UpdateError.InstallFailed(status.family))
         }
     }
 
@@ -157,7 +152,7 @@ class UpdateRepository(
         val intent = status.intent
         if (intent == null) {
             gateway.abandon(status.sessionId)
-            setStep(UpdateStep.Failed(step.candidate, UpdateError.InstallFailed(InstallFailure.OTHER)))
+            failInstall(UpdateError.InstallFailed(InstallFailure.OTHER))
             return
         }
         val action = PendingAction(status.sessionId, intent)
@@ -165,12 +160,36 @@ class UpdateRepository(
     }
 
     private fun showSystemScreen(action: PendingAction) {
-        if (screens.launch(action.intent)) {
-            systemScreenShown = true
-            return
+        val target = runtime.value.step?.candidate?.versionCode ?: return
+        scope.launch {
+            store.setRelaunch(target)
+            if (screens.launch(action.intent)) {
+                systemScreenShown = true
+            } else {
+                gateway.abandon(action.sessionId)
+                failInstall(UpdateError.SystemScreenUnavailable)
+            }
         }
-        gateway.abandon(action.sessionId)
-        runtime.value.step?.let { setStep(UpdateStep.Failed(it.candidate, UpdateError.SystemScreenUnavailable)) }
+    }
+
+    private fun abandonIfLeftWithoutStatus() {
+        val sessionId = runtime.value.sessionId ?: return
+        scope.launch {
+            delay(RETURN_GRACE_MS)
+            val current = runtime.value
+            if (current.sessionId != sessionId || current.step !is UpdateStep.Installing) return@launch
+            if (withContext(io) { gateway.isActive(sessionId) }) return@launch
+            gateway.abandon(sessionId)
+            failInstall(UpdateError.InstallAborted)
+        }
+    }
+
+    private fun failInstall(error: UpdateError) {
+        val step = runtime.value.step ?: return
+        pendingAction = null
+        systemScreenShown = false
+        runtime.update { it.copy(step = UpdateStep.Failed(step.candidate, error), sessionId = null) }
+        scope.launch { store.setRelaunch(null) }
     }
 
     private suspend fun onFailure(outcome: InstallOutcome.Failure) {
@@ -186,24 +205,32 @@ class UpdateRepository(
         runtime.update { it.copy(step = step) }
     }
 
+    private fun launchCheck(manual: Boolean) {
+        if (checkJob?.isActive == true) return
+        runtime.update { current ->
+            current.copy(checking = true, step = if (manual) current.step?.takeIf { it.inProgress } else current.step)
+        }
+        checkJob = scope.launch {
+            try {
+                performCheck()
+            } finally {
+                runtime.update { it.copy(checking = false) }
+            }
+        }
+    }
+
     private fun autoCheck() {
         if (checkJob?.isActive == true) return
         scope.launch {
             val persisted = store.data.first()
             if (!DailyCheckPolicy.isDue(clock(), persisted.lastCheckAt, persisted.retryAt)) return@launch
-            if (!network.hasValidatedNetwork()) return@launch
-            check()
+            if (!withContext(io) { network.hasValidatedNetwork() }) return@launch
+            launchCheck(manual = false)
         }
     }
 
     private suspend fun performCheck() {
-        val now = clock()
-        val persisted = store.data.first()
-        if (!DailyCheckPolicy.canRequest(now, persisted.retryAt)) {
-            store.setLastResult(CheckResult.Error(UpdateError.RateLimited(persisted.retryAt ?: now)))
-            return
-        }
-        store.setLastCheckAt(now)
+        store.setLastCheckAt(clock())
         source.list()
             .onSuccess { releases ->
                 store.setKnown(UpdateSelector.known(releases))
@@ -214,5 +241,9 @@ class UpdateRepository(
                 if (error is UpdateError.RateLimited) store.setRetryAt(error.retryAt)
                 store.setLastResult(CheckResult.Error(error))
             }
+    }
+
+    private companion object {
+        const val RETURN_GRACE_MS = 1_500L
     }
 }

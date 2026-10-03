@@ -15,16 +15,16 @@ import fr.sygix.sygixos.domain.candidate
 import fr.sygix.sygixos.data.FakeTransport.Reply
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -52,13 +52,13 @@ class UpdatePrefsTest {
     fun `defaults are prereleases off and never checked`() = runBlocking {
         assertEquals(UpdatePersisted(), prefs.data.first())
         assertFalse(prefs.data.first().includePrereleases)
-        assertFalse(prefs.takeRelaunch())
+        assertNull(prefs.takeRelaunch())
     }
 
     @Test
     fun `every value survives a new instance`() = runBlocking {
         val known = KnownUpdates(bestFinal = candidate("v0.0.2"), bestAny = candidate("v0.0.3-rc.1"))
-        prefs.setIncludePrereleases(true)
+        prefs.togglePrereleases()
         prefs.setLastCheckAt(1234L)
         prefs.setRetryAt(5678L)
         prefs.setLastResult(CheckResult.Error(UpdateError.RateLimited(5678L)))
@@ -83,6 +83,7 @@ class UpdatePrefsTest {
             CheckResult.Ok,
             CheckResult.Error(UpdateError.NoNetwork),
             CheckResult.Error(UpdateError.Timeout),
+            CheckResult.Error(UpdateError.SecureConnection),
             CheckResult.Error(UpdateError.Unavailable(404)),
             CheckResult.Error(UpdateError.Unreadable),
         ).forEach { result ->
@@ -92,33 +93,55 @@ class UpdatePrefsTest {
     }
 
     @Test
-    fun `relaunch flag is read once then cleared`() = runBlocking {
-        prefs.setRelaunch(true)
-        assertTrue(UpdatePrefs(context).takeRelaunch())
-        assertFalse(UpdatePrefs(context).takeRelaunch())
-        prefs.setRelaunch(false)
-        assertFalse(prefs.takeRelaunch())
+    fun `relaunch target is read once then cleared`() = runBlocking {
+        prefs.setRelaunch(299L)
+        assertEquals(299L, UpdatePrefs(context).takeRelaunch())
+        assertNull(UpdatePrefs(context).takeRelaunch())
+        prefs.setRelaunch(299L)
+        prefs.setRelaunch(null)
+        assertNull(prefs.takeRelaunch())
     }
 
     @Test
-    fun `no request is sent before the persisted retry time, even by a new repository instance`() = runTest {
-        val first = UpdateHarness(CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)), StandardTestDispatcher(testScheduler), folder.root, UpdatePrefs(context))
+    fun `double toggle of prereleases loses nothing`() = runBlocking {
+        coroutineScope {
+            launch(Dispatchers.Default) { UpdatePrefs(context).togglePrereleases() }
+            launch(Dispatchers.Default) { UpdatePrefs(context).togglePrereleases() }
+        }
+        assertFalse(prefs.data.first().includePrereleases)
+        prefs.togglePrereleases()
+        assertTrue(prefs.data.first().includePrereleases)
+    }
+
+    private suspend fun Job.joinAllChildren() {
+        while (children.any { it.isActive }) children.toList().joinAll()
+    }
+
+    @Test
+    fun `automatic check sends nothing before the persisted retry time, even from a new repository instance`() = runBlocking {
+        val firstJob = SupervisorJob()
+        val first = UpdateHarness(CoroutineScope(firstJob + Dispatchers.Default), Dispatchers.IO, folder.root, UpdatePrefs(context))
         val reset = (first.now + UpdateHarness.HOUR) / 1000
         first.transport.on(UpdateHarness.LIST_URL, Reply.Body(status = 403, headers = mapOf("x-ratelimit-remaining" to "0", "x-ratelimit-reset" to "$reset")))
         first.repository.check()
-        val persisted = withContext(Dispatchers.Default) { withTimeout(20_000) { prefs.data.first { it.retryAt != null && it.lastResult != null } } }
+        firstJob.joinAllChildren()
+        val persisted = prefs.data.first()
         assertEquals(reset * 1000, persisted.retryAt)
+        assertEquals(CheckResult.Error(UpdateError.RateLimited(reset * 1000)), persisted.lastResult)
         assertEquals(1, first.listCalls())
 
-        val restarted = UpdateHarness(CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler)), StandardTestDispatcher(testScheduler), folder.root, UpdatePrefs(context))
+        val restartedJob = SupervisorJob()
+        val restarted = UpdateHarness(CoroutineScope(restartedJob + Dispatchers.Default), Dispatchers.IO, folder.root, UpdatePrefs(context))
         restarted.now = first.now + UpdateHarness.HOUR / 2
         restarted.publish("v0.0.2")
-        val finished = async { restarted.repository.status.first { it.checking }; restarted.repository.status.first { !it.checking } }
-        testScheduler.runCurrent()
-        restarted.repository.check()
-        val status = withContext(Dispatchers.Default) { withTimeout(20_000) { finished.await() } }
+        restarted.repository.onHomeShown()
+        restartedJob.joinAllChildren()
         assertEquals(0, restarted.listCalls())
-        assertEquals(CheckResult.Error(UpdateError.RateLimited(reset * 1000)), status.lastResult)
+
+        restarted.repository.check()
+        restartedJob.joinAllChildren()
+        assertEquals(1, restarted.listCalls())
+        assertEquals(CheckResult.Ok, prefs.data.first().lastResult)
     }
 
     @Test

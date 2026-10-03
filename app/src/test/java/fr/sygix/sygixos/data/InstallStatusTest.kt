@@ -16,9 +16,9 @@ class InstallStatusTest {
 
     @Test
     fun `success, user action and refusal are told apart`() {
-        assertEquals(InstallStatus.Success, of(PackageInstaller.STATUS_SUCCESS))
+        assertEquals(InstallStatus.Success(3), of(PackageInstaller.STATUS_SUCCESS))
         assertEquals(InstallStatus.PendingUserAction(3, null), of(PackageInstaller.STATUS_PENDING_USER_ACTION))
-        assertEquals(InstallStatus.Aborted, of(PackageInstaller.STATUS_FAILURE_ABORTED))
+        assertEquals(InstallStatus.Aborted(3), of(PackageInstaller.STATUS_FAILURE_ABORTED))
     }
 
     @Test
@@ -32,6 +32,6 @@ class InstallStatusTest {
             PackageInstaller.STATUS_FAILURE_TIMEOUT to InstallFailure.TIMEOUT,
             PackageInstaller.STATUS_FAILURE to InstallFailure.OTHER,
             12345 to InstallFailure.OTHER,
-        ).forEach { (status, family) -> assertEquals(InstallStatus.Failed(family), of(status)) }
+        ).forEach { (status, family) -> assertEquals(InstallStatus.Failed(3, family), of(status)) }
     }
 }

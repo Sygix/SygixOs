@@ -47,6 +47,7 @@ data class KnownUpdates(val bestFinal: UpdateCandidate? = null, val bestAny: Upd
 sealed interface UpdateError {
     data object NoNetwork : UpdateError
     data object Timeout : UpdateError
+    data object SecureConnection : UpdateError
     data class RateLimited(val retryAt: Long) : UpdateError
     data class Unavailable(val code: Int) : UpdateError
     data object Unreadable : UpdateError

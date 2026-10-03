@@ -8,6 +8,7 @@ package fr.sygix.sygixos.data
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import java.util.concurrent.atomic.AtomicInteger
 
 interface ForegroundState {
     val isForeground: Boolean
@@ -15,16 +16,16 @@ interface ForegroundState {
 
 class ForegroundTracker : ForegroundState, Application.ActivityLifecycleCallbacks {
 
-    private var started = 0
+    private val started = AtomicInteger(0)
 
-    override val isForeground: Boolean get() = started > 0
+    override val isForeground: Boolean get() = started.get() > 0
 
     override fun onActivityStarted(activity: Activity) {
-        started++
+        started.incrementAndGet()
     }
 
     override fun onActivityStopped(activity: Activity) {
-        started = (started - 1).coerceAtLeast(0)
+        started.updateAndGet { (it - 1).coerceAtLeast(0) }
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit

@@ -8,6 +8,7 @@ package fr.sygix.sygixos.domain
 object UpdateSelector {
 
     const val APK_NAME = "app-release.apk"
+    const val MAX_APK_BYTES = 200L * 1024 * 1024
     private const val UPLOADED = "uploaded"
     private val Sha256Digest = Regex("sha256:([0-9a-fA-F]{64})")
 
@@ -15,7 +16,7 @@ object UpdateSelector {
         if (release.draft) return null
         val version = ReleaseVersion.parse(release.tag) ?: return null
         val asset = release.assets.firstOrNull { it.name == APK_NAME } ?: return null
-        if (asset.state != UPLOADED || asset.size <= 0) return null
+        if (asset.state != UPLOADED || asset.size <= 0 || asset.size > MAX_APK_BYTES) return null
         val sha256 = asset.digest?.let { Sha256Digest.matchEntire(it) }?.groupValues?.get(1)?.lowercase() ?: return null
         if (!UpdateUrlPolicy.isAllowed(asset.downloadUrl)) return null
         return UpdateCandidate(

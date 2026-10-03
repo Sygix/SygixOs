@@ -24,6 +24,7 @@
     <string name="update_prereleases">Inclure les préversions</string>
     <string name="update_release_notes">Notes de version</string>
     <string name="update_error_no_network">Pas de connexion à Internet</string>
+    <string name="update_error_secure_connection">Connexion sécurisée impossible (vérifiez la date et l\'heure de la TV)</string>
     <string name="update_error_timeout">GitHub ne répond pas, réessayez plus tard</string>
     <string name="update_error_rate_limited">Trop de vérifications, réessayez après %1$s</string>
     <string name="update_error_unavailable">Releases inaccessibles</string>
