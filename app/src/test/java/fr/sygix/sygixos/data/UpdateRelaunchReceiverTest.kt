@@ -50,9 +50,9 @@ class UpdateRelaunchReceiverTest {
     }
 
     @Test
-    fun `relaunch flag starts the home in a new task and is cleared`() = runBlocking {
-        prefs.setRelaunch(true)
-        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context))
+    fun `relaunch flag for the installed version starts the home in a new task and is cleared`() = runBlocking {
+        prefs.setRelaunch(299L)
+        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context), installedVersionCode = 299L)
         val started = application.nextStartedActivity
         assertEquals(MainActivity::class.java.name, started?.component?.className)
         assertTrue(started!!.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
@@ -60,16 +60,21 @@ class UpdateRelaunchReceiverTest {
     }
 
     @Test
-    fun `no relaunch flag starts nothing and the flag is cleared`() = runBlocking {
-        prefs.setRelaunch(false)
-        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context))
+    fun `flag left for another version starts nothing and is cleared`() = runBlocking {
+        prefs.setRelaunch(299L)
+        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context), installedVersionCode = 399L)
         assertNull(application.nextStartedActivity)
         assertFalse(relaunchKeyPresent())
     }
 
     @Test
     fun `missing flag starts nothing`() = runBlocking {
-        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context))
+        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context), installedVersionCode = 299L)
         assertNull(application.nextStartedActivity)
+    }
+
+    @Test
+    fun `installed version code is read from the package manager`() {
+        assertEquals(context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode, UpdateRelaunchReceiver.installedVersionCode(context))
     }
 }

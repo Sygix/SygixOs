@@ -22,7 +22,7 @@ class UpdateRelaunchReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                relaunchIfRequested(app, app.updatePrefs)
+                relaunchIfRequested(app, app.updatePrefs, installedVersionCode(app))
             } finally {
                 pending.finish()
             }
@@ -30,8 +30,12 @@ class UpdateRelaunchReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        suspend fun relaunchIfRequested(context: Context, store: UpdateStore) {
-            if (store.takeRelaunch()) {
+        fun installedVersionCode(context: Context): Long? =
+            runCatching { context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode }.getOrNull()
+
+        suspend fun relaunchIfRequested(context: Context, store: UpdateStore, installedVersionCode: Long?) {
+            val target = store.takeRelaunch()
+            if (target != null && target == installedVersionCode) {
                 context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
