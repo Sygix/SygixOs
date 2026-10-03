@@ -6,7 +6,7 @@ Mise à jour du launcher depuis les releases GitHub publiques du dépôt Sygix/S
 ## ADDED Requirements
 
 ### Requirement: Source des versions
-Le launcher SHALL obtenir les versions publiées en une seule requête à l'API REST publique des releases du dépôt Sygix/SygixOs, en HTTPS, sans jeton ni authentification d'aucune sorte. Chaque requête SHALL avoir un délai de connexion et un délai de lecture bornés. La source SHALL distinguer pour l'appelant : liste obtenue (éventuellement vide), absence de réseau, délai dépassé, limite de requêtes atteinte (avec l'heure à partir de laquelle réessayer quand l'API la fournit), releases inaccessibles (dépôt introuvable ou privé, autre réponse HTTP d'erreur) et réponse illisible ; aucune erreur n'est avalée ni ne provoque de crash. Quand l'API signale la limite atteinte, l'heure de réessai SHALL être persistée et aucune requête à l'API, automatique ou manuelle, ne SHALL être envoyée avant cette heure, y compris après un redémarrage.
+Le launcher SHALL obtenir les versions publiées en une seule requête à l'API REST publique des releases du dépôt Sygix/SygixOs, en HTTPS, sans jeton ni authentification d'aucune sorte. Chaque requête SHALL avoir un délai de connexion, un délai de lecture et un délai total bornés. La source SHALL distinguer pour l'appelant : liste obtenue (éventuellement vide), absence de réseau, échec de la connexion sécurisée (TLS ou certificat), délai dépassé, limite de requêtes atteinte (avec l'heure à partir de laquelle réessayer quand l'API la fournit), releases inaccessibles (dépôt introuvable ou privé, autre réponse HTTP d'erreur) et réponse illisible ; aucune erreur n'est avalée ni ne provoque de crash. Quand l'API signale la limite atteinte, l'heure de réessai SHALL être persistée (une heure plus tard si l'API n'en fournit pas) et aucune vérification automatique ne SHALL envoyer de requête avant cette heure, y compris après un redémarrage. Une vérification lancée à la main et la relecture de « Mettre à jour vers X » SHALL toujours envoyer leur requête.
 
 #### Scenario: chargement
 - **WHEN** une vérification est lancée
@@ -24,9 +24,17 @@ Le launcher SHALL obtenir les versions publiées en une seule requête à l'API 
 - **WHEN** l'API refuse la requête parce que la limite de requêtes non authentifiées est atteinte, avec une heure de réessai
 - **THEN** la vérification aboutit à une erreur qui l'indique avec l'heure locale de réessai ; cette heure est persistée
 
-#### Scenario: vérification avant l'heure de réessai
-- **WHEN** une vérification, automatique ou manuelle, ou la relecture de « Mettre à jour vers X » est demandée avant l'heure de réessai persistée, même après un redémarrage
-- **THEN** aucune requête n'est envoyée ; l'état indique la limite atteinte et l'heure de réessai
+#### Scenario: vérification automatique avant l'heure de réessai
+- **WHEN** une vérification automatique est due avant l'heure de réessai persistée, même après un redémarrage
+- **THEN** aucune requête n'est envoyée ; l'état reste celui de la dernière vérification
+
+#### Scenario: vérification manuelle avant l'heure de réessai
+- **WHEN** l'utilisateur presse OK sur « Vérifier les mises à jour », ou sur « Mettre à jour vers X », avant l'heure de réessai persistée
+- **THEN** la requête est envoyée ; si l'API refuse encore, l'erreur de limite et la nouvelle heure de réessai sont affichées et persistées
+
+#### Scenario: connexion sécurisée impossible
+- **WHEN** la connexion TLS échoue ou le certificat est refusé (par exemple parce que la date de la TV est fausse)
+- **THEN** la vérification aboutit à une erreur « connexion sécurisée impossible » qui invite à vérifier la date et l'heure de la TV, distincte d'une absence de réseau
 
 #### Scenario: releases inaccessibles
 - **WHEN** l'API répond « introuvable » (dépôt privé ou supprimé) ou par une autre erreur HTTP
@@ -37,7 +45,7 @@ Le launcher SHALL obtenir les versions publiées en une seule requête à l'API 
 - **THEN** la vérification aboutit à une erreur « réponse illisible » ; les versions connues auparavant sont conservées
 
 ### Requirement: Versions comparées
-Seules les releases publiées (non brouillons) dont le tag suit exactement la forme des tags du dépôt — `vX.Y.Z` ou `vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N` (le point avant N facultatif), avec X ≤ 20, Y et Z ≤ 999, N ≤ 29 — et qui portent un asset `app-release.apk` complètement téléversé, avec une empreinte SHA-256 publiée et une URL de téléchargement HTTPS, SHALL être éligibles ; toute autre release SHALL être ignorée sans erreur. Une release SHALL être une préversion si son tag a un suffixe ou si l'API la marque comme préversion. Chaque tag éligible SHALL être converti en `versionCode` avec la formule du build : major × 10⁸ + minor × 10⁵ + patch × 10² + suffixe (alpha.N → N, beta.N → 30 + N, rc.N → 60 + N, version finale → 99). La version proposée SHALL être, parmi les releases éligibles autorisées par la préférence des préversions (« Préversions »), celle dont le `versionCode` est le plus grand, quelle que soit sa date de publication ; elle n'est proposée que si ce `versionCode` est strictement supérieur à celui de l'app installée. Une version inférieure ou égale à la version installée ne SHALL jamais être proposée.
+Seules les releases publiées (non brouillons) dont le tag suit exactement la forme des tags du dépôt — `vX.Y.Z` ou `vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N` (le point avant N facultatif), avec X ≤ 20, Y et Z ≤ 999, N ≤ 29 — et qui portent un asset `app-release.apk` complètement téléversé, d'une taille publiée d'au plus 200 Mo, avec une empreinte SHA-256 publiée et une URL de téléchargement HTTPS, SHALL être éligibles ; toute autre release SHALL être ignorée sans erreur. Une release SHALL être une préversion si son tag a un suffixe ou si l'API la marque comme préversion. Chaque tag éligible SHALL être converti en `versionCode` avec la formule du build : major × 10⁸ + minor × 10⁵ + patch × 10² + suffixe (alpha.N → N, beta.N → 30 + N, rc.N → 60 + N, version finale → 99). La version proposée SHALL être, parmi les releases éligibles autorisées par la préférence des préversions (« Préversions »), celle dont le `versionCode` est le plus grand, quelle que soit sa date de publication ; elle n'est proposée que si ce `versionCode` est strictement supérieur à celui de l'app installée. Une version inférieure ou égale à la version installée ne SHALL jamais être proposée.
 
 #### Scenario: version finale après une préversion
 - **WHEN** l'app installée est `0.0.1-rc.4` (`versionCode` 164) et la release `v0.0.1` (199) est publiée, préversions désactivées
@@ -68,7 +76,7 @@ Seules les releases publiées (non brouillons) dont le tag suit exactement la fo
 - **THEN** elles sont ignorées sans erreur, et le choix se fait parmi les autres releases
 
 #### Scenario: release sans APK vérifiable
-- **WHEN** la release la plus récente n'a pas d'asset `app-release.apk`, ou son asset n'est pas complètement téléversé, n'a pas d'empreinte SHA-256 publiée ou pas d'URL HTTPS
+- **WHEN** la release la plus récente n'a pas d'asset `app-release.apk`, ou son asset n'est pas complètement téléversé, dépasse 200 Mo, n'a pas d'empreinte SHA-256 publiée ou pas d'URL HTTPS
 - **THEN** elle est ignorée ; la version proposée est la meilleure des autres releases éligibles, s'il y en a une supérieure à la version installée
 
 #### Scenario: préversion selon l'API
@@ -99,7 +107,7 @@ La catégorie « À propos » SHALL contenir une ligne « Inclure les préversio
 - **THEN** l'opération en cours n'est pas modifiée ; la nouvelle préférence s'applique à la version proposée une fois l'opération terminée ou abandonnée
 
 ### Requirement: Vérification des mises à jour
-La catégorie « À propos » SHALL contenir une ligne « Vérifier les mises à jour » dont un texte secondaire indique l'état : vérification en cours, ou bien, à partir de ce qui est persisté (versions connues, résultat de la dernière vérification, heure de réessai), dans cet ordre de priorité : nouvelle version disponible (avec son numéro et, pour une préversion, la mention de préversion) si une version est proposée ; sinon le résultat de la dernière vérification, manuelle ou automatique (à jour, ou l'erreur avec sa cause, « Source des versions ») ; sinon « jamais vérifié » si aucune vérification n'a jamais abouti ni échoué. OK sur la ligne SHALL lancer une vérification ; un nouvel appui pendant une vérification en cours SHALL être sans effet. Toute vérification terminée SHALL persister son résultat et sa date. Quand une version est proposée, une ligne « Mettre à jour vers X » (X : numéro de la version proposée) SHALL être affichée juste sous « Vérifier les mises à jour » ; elle SHALL être absente sinon.
+La catégorie « À propos » SHALL contenir une ligne « Vérifier les mises à jour » dont un texte secondaire indique l'état : vérification en cours, ou bien, à partir de ce qui est persisté (versions connues, résultat de la dernière vérification, heure de réessai), dans cet ordre de priorité : nouvelle version disponible (avec son numéro et, pour une préversion, la mention de préversion) si une version est proposée ; sinon le résultat de la dernière vérification, manuelle ou automatique (à jour, ou l'erreur avec sa cause, « Source des versions ») ; sinon « jamais vérifié » si aucune vérification n'a jamais abouti ni échoué. OK sur la ligne SHALL lancer une vérification ; un nouvel appui pendant une vérification en cours SHALL être sans effet. Une vérification lancée à la main SHALL effacer la cause d'échec affichée sur « Mettre à jour vers X » et le message de version retirée ; une vérification automatique SHALL les laisser affichés. Toute vérification terminée SHALL persister son résultat et sa date. Quand une version est proposée, une ligne « Mettre à jour vers X » (X : numéro de la version proposée) SHALL être affichée juste sous « Vérifier les mises à jour » ; elle SHALL être absente sinon.
 
 #### Scenario: jamais vérifié
 - **WHEN** l'utilisateur ouvre « À propos » et qu'aucune vérification n'a jamais abouti ni échoué
@@ -119,7 +127,7 @@ La catégorie « À propos » SHALL contenir une ligne « Vérifier les mises à
 
 #### Scenario: erreur
 - **WHEN** la vérification échoue
-- **THEN** le texte secondaire donne la cause en français clair (pas de connexion, délai dépassé, limite atteinte avec l'heure, releases inaccessibles, réponse illisible), sauf si une version connue reste proposée : le texte nomme alors cette version et la ligne « Mettre à jour vers X » reste affichée ; OK relance une vérification
+- **THEN** le texte secondaire donne la cause en français clair (pas de connexion, connexion sécurisée impossible, délai dépassé, limite atteinte avec l'heure, releases inaccessibles, réponse illisible), sauf si une version connue reste proposée : le texte nomme alors cette version et la ligne « Mettre à jour vers X » reste affichée ; OK relance une vérification
 
 #### Scenario: état après un redémarrage
 - **WHEN** le launcher redémarre à froid et que l'utilisateur ouvre « À propos » sans nouvelle vérification
@@ -134,11 +142,11 @@ La catégorie « À propos » SHALL contenir une ligne « Vérifier les mises à
 - **THEN** cette version n'est plus proposée : plus de ligne « Mettre à jour vers X » ni de pastille, et le texte suit l'ordre de priorité
 
 ### Requirement: Notes de version
-Quand une version est proposée, « À propos » SHALL afficher, à droite de la ligne « Mettre à jour vers X », un code QR non focusable qui pointe vers la page de la release sur GitHub, avec la légende « Notes de version ». Le code QR SHALL être lisible par un téléphone depuis le canapé (modules sombres sur fond clair, marge de silence) et ne SHALL être affiché que si l'URL de la page de la release est une URL HTTPS de github.com.
+Quand une version est proposée, « À propos » SHALL afficher, dans une colonne à droite des lignes de mise à jour, aligné en haut sur la ligne « Mettre à jour vers X », un code QR non focusable qui pointe vers la page de la release sur GitHub, avec la légende « Notes de version ». Le code QR SHALL être lisible par un téléphone depuis le canapé (modules sombres sur fond clair, marge de silence) et ne SHALL être affiché que si l'URL de la page de la release est une URL HTTPS de github.com. La colonne du code QR SHALL ne changer ni la hauteur ni la position verticale des lignes de mise à jour, et ne SHALL recouvrir le texte d'aucune ligne, y compris quand une erreur est affichée.
 
 #### Scenario: version proposée
 - **WHEN** une version est proposée
-- **THEN** le code QR de la page de sa release et sa légende sont affichés à droite de la ligne « Mettre à jour vers X » ; le focus et la navigation D-pad sont les mêmes que sans code QR
+- **THEN** le code QR de la page de sa release et sa légende sont affichés à droite, alignés en haut sur la ligne « Mettre à jour vers X » ; « Inclure les préversions » reste juste sous les lignes qui le précèdent ; le focus et la navigation D-pad sont les mêmes que sans code QR
 
 #### Scenario: aucune version proposée
 - **WHEN** aucune version n'est proposée
@@ -203,7 +211,7 @@ Tant qu'une version est proposée (« Versions comparées », avec la préféren
 - **THEN** la pastille n'est plus affichée
 
 ### Requirement: Lignes de mise à jour dans À propos
-Les lignes « Vérifier les mises à jour », « Mettre à jour vers X » (si présente, juste dessous) et « Inclure les préversions » SHALL être des lignes focusables d'« À propos », dans cet ordre, placées avant la liste des licences, avec le focus et les pilules de toute ligne des réglages (« Page de réglages » de `settings`). Le premier élément focusable du volet droit d'« À propos » SHALL être « Vérifier les mises à jour » (focus initial de « Page de réglages »). Haut et bas SHALL parcourir les lignes dans l'ordre affiché puis la liste des licences, sans boucle aux bords ; gauche rend le focus à la catégorie « À propos » ; Retour ferme les réglages (« Page de réglages », scénario « retour »).
+Les lignes « Vérifier les mises à jour », « Mettre à jour vers X » (si présente, juste dessous), la ligne de version retirée (si présente, « Téléchargement vérifié ») et « Inclure les préversions » SHALL être des lignes focusables d'« À propos », dans cet ordre, placées avant la liste des licences, avec le focus et les pilules de toute ligne des réglages (« Page de réglages » de `settings`). Le premier élément focusable du volet droit d'« À propos » SHALL être « Vérifier les mises à jour » (focus initial de « Page de réglages »). Haut et bas SHALL parcourir les lignes dans l'ordre affiché puis la liste des licences, sans boucle aux bords ; gauche rend le focus à la catégorie « À propos » ; Retour ferme les réglages (« Page de réglages », scénario « retour »).
 
 #### Scenario: focus initial
 - **WHEN** l'utilisateur presse droite depuis la catégorie « À propos »
@@ -226,7 +234,7 @@ Les lignes « Vérifier les mises à jour », « Mettre à jour vers X » (si pr
 - **THEN** les réglages sont toujours ouverts sur « À propos » et le focus est sur « Mettre à jour vers X » si elle est encore affichée, sinon sur « Vérifier les mises à jour »
 
 ### Requirement: Téléchargement vérifié
-OK sur « Mettre à jour vers X » SHALL d'abord relire la release de cette version (une requête à l'API) pour obtenir son URL de téléchargement et son empreinte à jour, vérifier l'espace libre, puis télécharger l'asset `app-release.apk` en HTTPS dans le cache de l'application, en affichant la progression sur la ligne. Le téléchargement SHALL continuer si l'utilisateur ferme les réglages ou quitte SygixOs (touche Home, autre app), et l'installation SHALL suivre dès sa fin (« Installation de la mise à jour »). Le fichier téléchargé SHALL n'être installé que si toutes les vérifications réussissent, dans cet ordre : taille égale à celle publiée par l'API, empreinte SHA-256 égale à celle publiée par l'API, nom de paquet `fr.sygix.sygixos`, `versionCode` de l'APK égal à celui calculé depuis le tag et supérieur à celui de l'app installée, ensemble des certificats de signature de l'APK identique à celui de l'app installée. Un échec SHALL supprimer le fichier, n'exécuter ni installer rien, et afficher sa cause dans « À propos ». Un appui sur « Mettre à jour vers X » pendant une opération en cours SHALL être sans effet. Tout fichier temporaire de mise à jour SHALL être supprimé dès que son contenu a été transmis à l'installation, après un échec, et à chaque démarrage à froid.
+OK sur « Mettre à jour vers X » SHALL d'abord relire la release de cette version (une requête à l'API) pour obtenir son URL de téléchargement et son empreinte à jour, vérifier l'espace libre, puis télécharger l'asset `app-release.apk` en HTTPS dans le cache de l'application, en affichant la progression sur la ligne. Le téléchargement SHALL continuer si l'utilisateur ferme les réglages ou quitte SygixOs (touche Home, autre app), et l'installation SHALL suivre dès sa fin (« Installation de la mise à jour »). Le fichier téléchargé SHALL n'être installé que si toutes les vérifications réussissent, dans cet ordre : taille égale à celle publiée par l'API, empreinte SHA-256 égale à celle publiée par l'API, nom de paquet `fr.sygix.sygixos`, `versionCode` de l'APK égal à celui calculé depuis le tag et supérieur à celui de l'app installée, ensemble des certificats de signature de l'APK identique à celui de l'app installée. Un échec SHALL supprimer le fichier, n'exécuter ni installer rien, et afficher sa cause dans « À propos ». Un appui sur « Mettre à jour vers X » pendant une opération en cours SHALL être sans effet. Tout fichier temporaire de mise à jour SHALL être supprimé dès que son contenu a été transmis à l'installation, après un échec, et à chaque démarrage à froid. Chaque requête de téléchargement SHALL avoir un délai total borné.
 
 #### Scenario: téléchargement et progression
 - **WHEN** l'utilisateur presse OK sur « Mettre à jour vers X » avec assez d'espace
@@ -238,7 +246,7 @@ OK sur « Mettre à jour vers X » SHALL d'abord relire la release de cette vers
 
 #### Scenario: release retirée
 - **WHEN** la relecture de la release répond « introuvable », ou la release n'est plus éligible (« Versions comparées »)
-- **THEN** rien n'est téléchargé ; la ligne indique que la version n'est plus disponible ; cette version est retirée des versions connues, la version proposée et la pastille sont recalculées
+- **THEN** rien n'est téléchargé ; cette version est retirée des versions connues, la version proposée et la pastille sont recalculées ; une ligne « Mettre à jour vers X » propre à la version retirée affiche « Cette version n'est plus disponible » jusqu'à la vérification manuelle suivante, sans code QR ni pastille, et OK y est sans effet ; si une autre version Y est proposée, « Mettre à jour vers Y » est affichée aussi, juste sous « Vérifier les mises à jour »
 
 #### Scenario: relecture impossible
 - **WHEN** la relecture échoue (pas de réseau, délai, limite atteinte, réponse illisible)
@@ -281,7 +289,7 @@ OK sur « Mettre à jour vers X » SHALL d'abord relire la release de cette vers
 - **THEN** ce fichier est supprimé ; la version reste proposée
 
 ### Requirement: Installation de la mise à jour
-Une fois le fichier vérifié, le launcher SHALL l'installer comme mise à jour de lui-même par une session d'installation du système, en demandant qu'aucune action de l'utilisateur ne soit requise quand Android le permet. Le contenu transmis à la session SHALL être celui qui a été vérifié : l'empreinte SHA-256 SHALL être recalculée pendant la copie dans la session et comparée à l'empreinte publiée, et le fichier SHALL être supprimé avant la validation de la session. Si Android exige une action de l'utilisateur (confirmation, ou autorisation d'installer des applis inconnues), le launcher SHALL afficher l'écran du système quand SygixOs est au premier plan ; si SygixOs est en arrière-plan, il SHALL garder cette demande et l'afficher au prochain retour sur SygixOs, sans jamais surgir au-dessus d'une autre app. Le launcher SHALL distinguer : installation réussie, action refusée par l'utilisateur, échec (avec sa cause). Il SHALL n'installer qu'à la suite d'un appui de l'utilisateur sur « Mettre à jour vers X ».
+Une fois le fichier vérifié, le launcher SHALL l'installer comme mise à jour de lui-même par une session d'installation du système, en demandant qu'aucune action de l'utilisateur ne soit requise quand Android le permet. Le contenu transmis à la session SHALL être celui qui a été vérifié : l'empreinte SHA-256 SHALL être recalculée pendant la copie dans la session et comparée à l'empreinte publiée, et le fichier SHALL être supprimé avant la validation de la session. Si Android exige une action de l'utilisateur (confirmation, ou autorisation d'installer des applis inconnues), le launcher SHALL afficher l'écran du système quand SygixOs est au premier plan ; si SygixOs est en arrière-plan, il SHALL garder cette demande et l'afficher au prochain retour sur SygixOs, sans jamais surgir au-dessus d'une autre app. Le launcher SHALL distinguer : installation réussie, action refusée par l'utilisateur, échec (avec sa cause), et SHALL ignorer les statuts d'une autre session que celle en cours. Si l'utilisateur revient sur SygixOs depuis l'écran du système sans qu'Android ait rendu de statut et sans installation en cours, le launcher SHALL abandonner la session et traiter ce retour comme une action refusée. Il SHALL n'installer qu'à la suite d'un appui de l'utilisateur sur « Mettre à jour vers X ».
 
 #### Scenario: installation sans confirmation
 - **WHEN** Android permet la mise à jour sans action de l'utilisateur
@@ -300,7 +308,7 @@ Une fois le fichier vérifié, le launcher SHALL l'installer comme mise à jour 
 - **THEN** rien ne s'affiche par-dessus cette app ; au prochain retour sur SygixOs, l'écran du système s'affiche ; si le processus de SygixOs a été arrêté entre-temps, la demande est perdue, la session est abandonnée et la version reste proposée
 
 #### Scenario: action refusée
-- **WHEN** l'utilisateur refuse ou quitte l'écran du système
+- **WHEN** l'utilisateur refuse ou quitte l'écran du système, que le système rende un statut d'abandon ou qu'aucun statut n'arrive avant son retour sur SygixOs
 - **THEN** la ligne indique que l'installation a été annulée, la version reste proposée et « Mettre à jour vers X » peut être relancé
 
 #### Scenario: écran du système indisponible
@@ -312,7 +320,7 @@ Une fois le fichier vérifié, le launcher SHALL l'installer comme mise à jour 
 - **THEN** aucun fichier ne subsiste, la ligne indique l'échec et sa cause en français clair, sans crash ; la version reste proposée
 
 ### Requirement: Redémarrage après la mise à jour
-Après une installation réussie, si SygixOs était au premier plan au moment de l'installation, le launcher SHALL se rouvrir sur son accueil sans action de l'utilisateur, dans la nouvelle version, comme lors d'un démarrage à froid. Si SygixOs n'était pas au premier plan, il SHALL ne pas se rouvrir et ne rien afficher : la nouvelle version est simplement présente au prochain retour sur SygixOs. Le launcher SHALL déclarer son activité principale comme candidate au rôle d'écran d'accueil d'Android, pour que le système la relance quand SygixOs est le launcher par défaut, mais SHALL ne jamais demander ce rôle ni rien faire pour devenir launcher par défaut : ce choix reste celui de l'utilisateur.
+Après une installation réussie, si SygixOs était au premier plan au moment où l'installation a été validée (installation sans confirmation lancée au premier plan, ou écran de confirmation du système effectivement affiché), le launcher SHALL se rouvrir sur son accueil sans action de l'utilisateur, dans la nouvelle version, comme lors d'un démarrage à froid. La demande de relance SHALL porter sur la version visée, être effacée après un refus, un échec ou l'abandon de la session, et n'avoir aucun effet si la version installée n'est pas celle visée. Si SygixOs n'était pas au premier plan, il SHALL ne pas se rouvrir et ne rien afficher : la nouvelle version est simplement présente au prochain retour sur SygixOs. Le launcher SHALL déclarer son activité principale comme candidate au rôle d'écran d'accueil d'Android, pour que le système la relance quand SygixOs est le launcher par défaut, mais SHALL ne jamais demander ce rôle ni rien faire pour devenir launcher par défaut : ce choix reste celui de l'utilisateur.
 
 #### Scenario: installation au premier plan
 - **WHEN** l'installation réussit alors que SygixOs était au premier plan
@@ -322,12 +330,20 @@ Après une installation réussie, si SygixOs était au premier plan au moment de
 - **WHEN** l'installation réussit alors qu'une autre app est au premier plan
 - **THEN** SygixOs ne s'ouvre pas et rien ne s'affiche par-dessus l'app ; au prochain retour sur SygixOs, la nouvelle version est installée et c'est un démarrage à froid
 
+#### Scenario: confirmation acceptée au retour
+- **WHEN** l'utilisateur a pressé Home pendant le téléchargement, que la confirmation du système a été gardée puis affichée à son retour sur SygixOs, et qu'il l'accepte
+- **THEN** l'accueil de SygixOs s'affiche de nouveau après l'installation, dans la nouvelle version
+
+#### Scenario: remplacement venu d'ailleurs
+- **WHEN** une demande de relance a été effacée par un échec, ou vise une autre version, et que SygixOs est remplacé par un autre moyen
+- **THEN** SygixOs ne se rouvre pas
+
 #### Scenario: pas de prise de rôle
 - **WHEN** SygixOs est installé ou mis à jour sur une TV dont le launcher par défaut est un autre launcher
 - **THEN** SygixOs ne demande pas le rôle d'écran d'accueil et ne modifie aucun réglage ; Android peut proposer un choix de launcher au prochain appui sur Home, et la réponse appartient à l'utilisateur
 
 ### Requirement: Sécurité et confidentialité des mises à jour
-Toute requête de mise à jour SHALL utiliser HTTPS ; toute URL, y compris une redirection, qui n'est pas en HTTPS SHALL être refusée avant tout envoi ou abandonnée, et la configuration réseau de l'application SHALL interdire le trafic en clair vers les domaines de GitHub utilisés (API, pages et hébergement des assets). Les requêtes SHALL ne contenir aucune donnée personnelle ni identifiant de l'appareil : ni jeton, ni cookie, ni liste d'apps, ni compte ; seuls des en-têtes techniques (type de réponse attendu, version de l'API, nom et version de SygixOs comme agent) sont envoyés. Aucun jeton ni secret SHALL figurer dans l'APK. Le launcher SHALL respecter la limite de requêtes de l'API non authentifiée : une seule requête par vérification et par relecture, au plus une vérification automatique par 24 h, aucune requête avant l'heure de réessai persistée.
+Toute requête de mise à jour SHALL utiliser HTTPS ; toute URL, y compris une redirection, qui n'est pas en HTTPS SHALL être refusée avant tout envoi ou abandonnée, et la configuration réseau de l'application SHALL interdire le trafic en clair vers les domaines de GitHub utilisés (API, pages et hébergement des assets). Les requêtes SHALL ne contenir aucune donnée personnelle ni identifiant de l'appareil : ni jeton, ni cookie, ni liste d'apps, ni compte ; seuls des en-têtes techniques (type de réponse attendu, version de l'API, nom et version de SygixOs comme agent) sont envoyés. Aucun jeton ni secret SHALL figurer dans l'APK. Le launcher SHALL respecter la limite de requêtes de l'API non authentifiée : une seule requête par vérification et par relecture, au plus une vérification automatique par 24 h, aucune vérification automatique avant l'heure de réessai persistée.
 
 #### Scenario: redirection non HTTPS
 - **WHEN** le téléchargement est redirigé vers une URL en HTTP
@@ -342,7 +358,7 @@ Toute requête de mise à jour SHALL utiliser HTTPS ; toute URL, y compris une r
 - **THEN** la requête ne contient ni en-tête d'autorisation, ni cookie, ni identifiant de l'appareil ou de l'utilisateur
 
 ### Requirement: Couverture de test des mises à jour
-La logique de mise à jour SHALL être couverte sans accès au réseau réel ni au vrai installateur : conversion des tags, choix de la version proposée, échéance de la vérification automatique, heure de réessai, politique HTTPS, état affiché calculé depuis ce qui est persisté, enchaînement des vérifications du fichier et de la copie dans la session, conservation d'une action requise en arrière-plan, décision de relance, correspondance des statuts d'installation, par des tests JUnit avec des sources factices ; le transport HTTP réel SHALL être testé contre un serveur local lancé par le test.
+La logique de mise à jour SHALL être couverte sans accès au réseau réel ni au vrai installateur : conversion des tags, choix de la version proposée, échéance de la vérification automatique, heure de réessai, politique HTTPS, état affiché calculé depuis ce qui est persisté, enchaînement des vérifications du fichier et de la copie dans la session, conservation d'une action requise en arrière-plan, abandon au retour sans statut, décision de relance, correspondance des statuts d'installation, par des tests JUnit avec des sources factices ; le transport HTTP réel SHALL être testé contre un serveur local lancé par le test.
 
 #### Scenario: préversion contre version finale
 - **WHEN** les tests de conversion et de choix s'exécutent

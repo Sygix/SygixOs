@@ -42,7 +42,6 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 | P2c | Up Next row (all apps, deduplication) | 📝 spec done, implementation planned |
 | P2c | Search | planned |
 | P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
-| Self-update | Updates from Settings → About (GitHub releases) | 🚧 in progress |
 | P5 | Replacing the system launcher | ADB commands available (see Installation) |
 
 Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Specs and the user interface are written in French.

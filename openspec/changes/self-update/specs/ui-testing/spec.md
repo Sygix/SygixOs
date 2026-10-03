@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Couverture des mises à jour
-Les lignes de mise à jour d'« À propos », le code QR des notes de version et la pastille (`self-update`, « Pastille » de `launcher-shell`) SHALL être couverts par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), avec un état de mise à jour déterministe fourni par le test, les key events physiques du D-pad et des testTags stables : « update-check », « update-install », « update-release-notes-qr », « update-prereleases », « update-prereleases-switch », « update-badge-gear », « update-badge-about ». La logique et le transport sont couverts par « Couverture de test des mises à jour » de `self-update`.
+Les lignes de mise à jour d'« À propos », le code QR des notes de version et la pastille (`self-update`, « Pastille » de `launcher-shell`) SHALL être couverts par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), avec un état de mise à jour déterministe fourni par le test, les key events physiques du D-pad et des testTags stables : « update-check », « update-install », « update-withdrawn », « update-release-notes-qr », « update-prereleases », « update-prereleases-switch », « update-badge-gear », « update-badge-about ». La logique et le transport sont couverts par « Couverture de test des mises à jour » de `self-update`.
 
 #### Scenario: navigation dans À propos
 - **WHEN** le test ouvre « À propos » et presse droite, puis bas et haut
@@ -15,7 +15,11 @@ Les lignes de mise à jour d'« À propos », le code QR des notes de version et
 
 #### Scenario: code QR des notes de version
 - **WHEN** une version est proposée avec une URL de release HTTPS de github.com, puis avec une URL invalide
-- **THEN** « update-release-notes-qr » est affiché à droite de « update-install » et n'est jamais focusé dans le premier cas, absent dans le second
+- **THEN** « update-release-notes-qr » est affiché à droite, aligné en haut sur « update-install », sans chevaucher aucune ligne ni changer la hauteur ou la position de « update-prereleases », même avec une erreur affichée, et n'est jamais focusé dans le premier cas ; il est absent dans le second
+
+#### Scenario: version retirée
+- **WHEN** le test fournit une version retirée, seule puis avec une autre version proposée
+- **THEN** « update-withdrawn » affiche « Cette version n'est plus disponible », sans code QR ni pastille, OK y est sans effet ; avec une autre version, « update-install » est aussi affichée, au-dessus
 
 #### Scenario: états affichés
 - **WHEN** le test fournit successivement les états jamais vérifié, en cours, à jour, version disponible, erreur sans version connue, erreur avec version connue, téléchargement à 42 %
