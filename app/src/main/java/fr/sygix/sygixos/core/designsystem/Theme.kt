@@ -26,7 +26,6 @@ object SygixColors {
     val ButtonRim = Color.White.copy(alpha = 0.22f)
     val ButtonHighlight = Color.White.copy(alpha = 0.30f)
     val ButtonFocusRim = Color.White.copy(alpha = 0.9f)
-    val ButtonShadow = Color.Black.copy(alpha = 0.38f)
     val PillFocus = Color(0xFFF2F2F5)
     val OnPill = Color(0xFF0B0B0F)
     val OnPillSecondary = Color(0xFF4A4A52)
@@ -36,7 +35,6 @@ object SygixColors {
     val PillShadow = Color.Black.copy(alpha = 0.35f)
     val OnDark = Color.White
     val OnDarkSecondary = Color.White.copy(alpha = 0.6f)
-    val OnDarkRest = Color.White.copy(alpha = 0.9f)
     val GearRest = Color.White.copy(alpha = 0.10f)
     val TileShadow = Color.Black
     val TileSheen = Color.White

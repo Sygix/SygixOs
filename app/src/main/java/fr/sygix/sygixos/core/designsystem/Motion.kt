@@ -67,8 +67,6 @@ object Dimens {
     val PillShadowOffset = 5.dp
     val PillShadowRadius = 12.dp
     val ButtonHeight = 36.dp
-    val ButtonShadowOffset = 7.dp
-    val ButtonShadowRadius = 16.dp
     const val ButtonFocusScale = 1.05f
     val ButtonFocusElevation = 8.dp
     const val GearFocusScale = 1.08f

@@ -13,7 +13,9 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.RadialGradientShader
+import androidx.compose.ui.graphics.Shader
+import androidx.compose.ui.graphics.ShaderBrush
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.glassRim
@@ -322,19 +324,22 @@ private fun Modifier.heroVeils(): Modifier = drawWithCache {
     )
     val radiusX = CornerVeilWidth.toPx()
     val radiusY = CornerVeilHeight.toPx()
-    val corner = Offset(width, 0f)
-    val cornerVeil = Brush.radialGradient(
-        0f to SygixColors.Veil.copy(alpha = 0.5f),
-        0.7f to SygixColors.Veil.copy(alpha = 0f),
-        center = corner,
-        radius = radiusX,
-    )
+    val cornerVeil = EllipticalVeil(Offset(width, 0f), radiusX, radiusY)
     onDrawBehind {
         drawRect(bottomVeil, topLeft = Offset(0f, bottomTop), size = Size(width, height - bottomTop))
         drawRect(leftVeil, size = Size(leftReach, height))
-        withTransform({ scale(1f, radiusY / radiusX, pivot = corner) }) {
-            drawRect(cornerVeil, topLeft = Offset(width - radiusX, 0f), size = Size(radiusX, radiusX))
-        }
+        drawRect(cornerVeil, topLeft = Offset(width - radiusX, 0f), size = Size(radiusX, radiusY))
+    }
+}
+
+private class EllipticalVeil(private val center: Offset, private val radiusX: Float, private val radiusY: Float) : ShaderBrush() {
+    override fun createShader(size: Size): Shader = RadialGradientShader(
+        center = center,
+        radius = radiusX,
+        colors = listOf(SygixColors.Veil.copy(alpha = 0.5f), SygixColors.Veil.copy(alpha = 0f)),
+        colorStops = listOf(0f, 0.7f),
+    ).apply {
+        setLocalMatrix(android.graphics.Matrix().apply { setScale(1f, radiusY / radiusX, center.x, center.y) })
     }
 }
 
