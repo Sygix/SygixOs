@@ -91,6 +91,7 @@ dependencies {
     implementation(libs.haze)
     implementation(libs.haze.glass)
     implementation(libs.aboutlibraries.compose.m3)
+    implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.junit)
