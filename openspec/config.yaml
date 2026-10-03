@@ -16,7 +16,7 @@ context: |
   Uniflow : ViewModel -> StateFlow -> Compose, pas d'état dupliqué. Tests JUnit sur la logique métier (fusions, tri, mapping).
 
   Accueil (capability launcher-shell) : paliers plein écran héro -> dock -> grille ; la grille masque le héro.
-  Design system dans core/designsystem : Modifier.tvFocus / tvClickable, Motion.* + AppleEasing, Dimens.*, GlassSurface (aucune ombre noire).
+  Design system dans core/designsystem : Modifier.tvFocus / tvClickable, Motion.* + AppleEasing, Dimens.*, GlassSurface (verre sombre, ombre portée douce, aucun halo coloré).
   Sources de données TV : TV Provider (WatchNextPrograms / PreviewPrograms), lu sous READ_TV_LISTINGS ; les colonnes réellement remplies dépendent de l'app qui publie.
 
   Fluidité jugée uniquement sur assembleRelease, sur la TV réelle (adb).

@@ -22,8 +22,8 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
 
 ## Design (référence : tvOS)
 - Thème sombre uniquement en v1, noir pur, posters plein cadre
-- Focus : zoom ~1.1x, ombre douce, animations 250-400ms courbes Apple, jamais de saut sec
-- Liquid Glass : matériau verre réfractant (Haze 2), aucune ombre noire — le relief vient de halos clairs ou colorés
+- Focus : zoom ~1.08x, ombre douce, animations 250-400ms courbes Apple, jamais de saut sec
+- Liquid Glass : verre sombre réfractant (Haze 2), ombre portée douce autorisée, aucun halo coloré
 - Grille d'apps auto-détectée (LEANBACK_LAUNCHER), tuiles 16:9 (bannière Android TV)
 
 ## Git & packaging
