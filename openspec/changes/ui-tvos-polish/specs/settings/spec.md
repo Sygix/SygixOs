@@ -8,7 +8,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Capsule heure et réglages
-Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre sombre (« Thème » de `launcher-shell`) qui contient l'heure courante puis un engrenage ouvrant la page de réglages ; elle remplace l'engrenage seul. L'heure SHALL suivre le format 12 ou 24 h choisi dans le système, n'est jamais focusable et SHALL se mettre à jour au changement de minute sans recomposer le reste de l'écran. Seul l'engrenage SHALL prendre le focus. La capsule SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : elle n'a aucun fondu propre, sort par le haut avec le héro pendant le défilement vers la grille, revient avec lui, et n'est jamais visible en vue grille.
+Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre sombre (« Thème » de `launcher-shell`) qui contient l'heure courante puis un engrenage dessiné au trait ouvrant la page de réglages ; elle remplace l'engrenage seul. L'heure SHALL suivre le format 12 ou 24 h choisi dans le système, n'est jamais focusable et SHALL se mettre à jour au changement de minute sans recomposer le reste de l'écran. Seul l'engrenage SHALL prendre le focus. La capsule SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : elle n'a aucun fondu propre, sort par le haut avec le héro pendant le défilement vers la grille, revient avec lui, et n'est jamais visible en vue grille.
 
 #### Scenario: affichage
 - **WHEN** le héro est affiché
@@ -24,7 +24,7 @@ Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre som
 
 #### Scenario: accès DPAD
 - **WHEN** l'utilisateur presse haut depuis le héro
-- **THEN** l'engrenage prend le focus : pastille blanche, icône noire, léger zoom et ombre ; l'heure ne prend jamais le focus ; bas depuis l'engrenage rend le focus au héro ; gauche et droite laissent le focus sur l'engrenage
+- **THEN** l'engrenage prend le focus : pastille blanche, icône noire, léger zoom et ombre ; l'heure ne prend jamais le focus ; bas depuis l'engrenage rend le focus au héro ; Retour depuis l'engrenage rend le focus au bouton d'ouverture du héro (au héro s'il n'en a pas) ; gauche et droite laissent le focus sur l'engrenage
 
 #### Scenario: ouverture
 - **WHEN** l'utilisateur presse OK sur l'engrenage
