@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.domain
 
+import kotlin.math.roundToInt
+
 object HomePage {
 
     enum class Transition { SNAP, ZONE, SAME_ZONE }
@@ -17,4 +19,6 @@ object HomePage {
         gridActive -> Transition.SAME_ZONE
         else -> Transition.ZONE
     }
+
+    fun heroOnScreen(scroll: Int, heroHeight: Float): Boolean = scroll < heroHeight.roundToInt()
 }

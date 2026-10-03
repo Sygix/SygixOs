@@ -51,6 +51,7 @@ internal fun TestHome(
     onTogglePin: (TvApp) -> Unit = {},
     onHide: (TvApp) -> Unit = {},
     settings: SettingsState? = null,
+    glassBlur: Boolean = false,
 ) {
     val artwork = AppArtworkSource(LocalContext.current.packageManager)
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
@@ -60,7 +61,7 @@ internal fun TestHome(
                 hero = hero,
                 onTogglePin = onTogglePin,
                 initialZone = initialZone,
-                glassBlur = false,
+                glassBlur = glassBlur,
                 onHideApp = onHide,
                 settings = settings,
             )

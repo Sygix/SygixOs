@@ -16,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
@@ -28,6 +31,9 @@ val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 private val FallbackGlass = Color(0xCC17171E)
 private val GlassBackdrop = Color(0xFF0B0B10)
 
+val GlassActive = SemanticsPropertyKey<Boolean>("GlassActive")
+var SemanticsPropertyReceiver.glassActive by GlassActive
+
 @OptIn(ExperimentalHazeApi::class)
 @Composable
 fun GlassSurface(
@@ -37,33 +43,35 @@ fun GlassSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
-    if (haze != null && active) {
-        Box(
-            modifier = modifier.hazeGlass(
-                input = HazeInput.Sources(haze),
-                style = GlassStyle.regular.then {
-                    shape(shape)
-                    backgroundColor(GlassBackdrop)
-                    tint(Color.White.copy(alpha = 0.08f))
-                    specularIntensity(0.7f)
-                    edgeSoftness(2.dp)
-                    chromaticAberrationStrength(0.06f)
-                    alpha(0.96f)
+    val glass = haze != null && active
+    Box(
+        modifier = modifier
+            .semantics { glassActive = glass }
+            .then(
+                if (haze != null && active) {
+                    Modifier.hazeGlass(
+                        input = HazeInput.Sources(haze),
+                        style = GlassStyle.regular.then {
+                            shape(shape)
+                            backgroundColor(GlassBackdrop)
+                            tint(Color.White.copy(alpha = 0.08f))
+                            specularIntensity(0.7f)
+                            edgeSoftness(2.dp)
+                            chromaticAberrationStrength(0.06f)
+                            alpha(0.96f)
+                        },
+                    )
+                } else {
+                    Modifier
+                        .clip(shape)
+                        .background(FallbackGlass)
+                        .border(
+                            1.dp,
+                            Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.06f))),
+                            shape,
+                        )
                 },
             ),
-            content = content,
-        )
-    } else {
-        Box(
-            modifier = modifier
-                .clip(shape)
-                .background(FallbackGlass)
-                .border(
-                    1.dp,
-                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.06f))),
-                    shape,
-                ),
-            content = content,
-        )
-    }
+        content = content,
+    )
 }

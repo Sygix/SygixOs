@@ -151,4 +151,41 @@ class HomeGridTest {
         }
         settle()
     }
+
+    @Test
+    @Config(qualifiers = "w960dp-h540dp-xhdpi")
+    fun `closing the shelf on the first row brings the grid back to its start without showing the hero`() {
+        val apps = (0 until 8).map { app("com.a%02d".format(it), "App $it") }
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(
+                catalog = catalogOf(dock = emptyList(), grid = apps),
+                hero = heroStateOf(
+                    items = listOf(heroItem("h-a00", "Titre", imageUrl = "uri-a00", sourcePackage = "com.a00")),
+                    validated = setOf("uri-a00"),
+                ),
+                initialZone = Zone.GRID,
+            )
+        }
+        settle()
+        compose.onNodeWithTag("app-tile-com.a00").assertIsFocused()
+        compose.mainClock.advanceTimeBy(Motion.SHELF_OPEN_DELAY_MS + Motion.SHELF_EXPAND_MS + 200)
+        compose.waitForIdle()
+        compose.onNodeWithTag("shelf-panel").assertExists()
+        val gridTop = compose.span("zone-grid").top
+        assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+
+        compose.onRoot().performKeyInput {
+            keyDown(Key.DirectionRight)
+            keyUp(Key.DirectionRight)
+        }
+        repeat(Motion.SHELF_EXPAND_MS / 16 + 8) {
+            compose.mainClock.advanceTimeBy(16)
+            compose.waitForIdle()
+            assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+        }
+        compose.onNodeWithTag("app-tile-com.a01").assertIsFocused()
+        compose.onNodeWithTag("shelf-panel").assertDoesNotExist()
+        assertEquals(gridTop, compose.span("zone-grid").top, 1f)
+    }
 }

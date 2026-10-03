@@ -28,7 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,6 +66,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.flow.collectLatest
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -189,10 +191,6 @@ private fun gearPath(size: Size): Path {
 
 private const val GearTeeth = 8
 
-private class PageMemory {
-    var gridActive: Boolean? = null
-}
-
 private val NoAutoScroll = object : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
@@ -258,9 +256,7 @@ internal fun LauncherHome(
     }
 
     val heroVisible = zone != Zone.GRID
-    val gridActive = zone == Zone.GRID
     val pageScroll = rememberScrollState()
-    val pageMemory = remember { PageMemory() }
     var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val density = LocalDensity.current
 
@@ -308,15 +304,21 @@ internal fun LauncherHome(
     ) {
         val viewportHeight = maxHeight
         val viewport = with(density) { viewportHeight.toPx() }
-        val pageTarget = HomePage.target(gridActive, gridAnchor, viewport)
-        LaunchedEffect(gridActive, pageTarget) {
-            val transition = HomePage.transition(pageMemory.gridActive, gridActive)
-            pageMemory.gridActive = gridActive
-            val target = pageTarget.roundToInt()
-            when (transition) {
-                HomePage.Transition.SNAP -> pageScroll.scrollTo(target)
-                HomePage.Transition.ZONE -> pageScroll.animateScrollTo(target, tween(Motion.PAGE_SCROLL_MS, easing = AppleEasing))
-                HomePage.Transition.SAME_ZONE -> pageScroll.animateScrollTo(target, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
+        val heroOnScreen by remember(viewport) { derivedStateOf { HomePage.heroOnScreen(pageScroll.value, viewport) } }
+        LaunchedEffect(viewport) {
+            var previous: Boolean? = null
+            snapshotFlow {
+                val gridActive = zone == Zone.GRID
+                gridActive to HomePage.target(gridActive, gridAnchor, viewport)
+            }.collectLatest { (gridActive, target) ->
+                val transition = HomePage.transition(previous, gridActive)
+                previous = gridActive
+                val position = target.roundToInt()
+                when (transition) {
+                    HomePage.Transition.SNAP -> pageScroll.scrollTo(position)
+                    HomePage.Transition.ZONE -> pageScroll.animateScrollTo(position, tween(Motion.PAGE_SCROLL_MS, easing = AppleEasing))
+                    HomePage.Transition.SAME_ZONE -> pageScroll.animateScrollTo(position, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
+                }
             }
         }
         CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScroll) {
@@ -334,7 +336,7 @@ internal fun LauncherHome(
                     )
                     Dock(
                         apps = catalog.dock,
-                        active = heroVisible,
+                        active = heroOnScreen,
                         focusEnabled = zone == Zone.DOCK && !menuOpen,
                         focusRequester = dockFocus,
                         onTileClick = onOpenApp,
@@ -374,7 +376,7 @@ internal fun LauncherHome(
                         onTileLongClick = { menuApp = it },
                         origin = viewport,
                         viewport = viewport,
-                        anchor = gridAnchor,
+                        anchor = { gridAnchor },
                         onAnchor = { gridAnchor = it },
                         movingApp = movingApp,
                     )

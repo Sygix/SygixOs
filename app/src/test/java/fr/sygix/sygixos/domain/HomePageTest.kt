@@ -6,6 +6,8 @@
 package fr.sygix.sygixos.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HomePageTest {
@@ -37,5 +39,14 @@ class HomePageTest {
         assertEquals(HomePage.Transition.ZONE, HomePage.transition(true, false))
         assertEquals(HomePage.Transition.SAME_ZONE, HomePage.transition(true, true))
         assertEquals(HomePage.Transition.SAME_ZONE, HomePage.transition(false, false))
+    }
+
+    @Test
+    fun `the hero stays on screen until the page has scrolled past its full height`() {
+        assertTrue(HomePage.heroOnScreen(0, origin))
+        assertTrue(HomePage.heroOnScreen(1079, origin))
+        assertFalse(HomePage.heroOnScreen(1080, origin))
+        assertFalse(HomePage.heroOnScreen(2400, origin))
+        assertFalse(HomePage.heroOnScreen(1080, 1080.4f))
     }
 }

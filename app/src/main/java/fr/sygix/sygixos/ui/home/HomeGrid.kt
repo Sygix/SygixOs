@@ -66,7 +66,7 @@ internal fun HomeGrid(
     onTileLongClick: (TvApp) -> Unit,
     origin: Float,
     viewport: Float,
-    anchor: GridScroll.Anchor?,
+    anchor: () -> GridScroll.Anchor?,
     onAnchor: (GridScroll.Anchor) -> Unit,
     modifier: Modifier = Modifier,
     initialShelfApp: String? = null,
@@ -125,14 +125,12 @@ internal fun HomeGrid(
             )
         }
     }
-    val currentAnchor by rememberUpdatedState(anchor)
-
     fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focus.focusedApp } }
 
     LaunchedEffect(openRow, focusedApp, origin, viewport) {
         val row = focusedRow()
         if (row < 0 || viewport <= 0f) return@LaunchedEffect
-        onAnchor(geometry.next(currentAnchor, row, openRow, viewport, origin))
+        onAnchor(geometry.next(anchor(), row, openRow, viewport, origin))
     }
     LaunchedEffect(movingApp, rows) {
         if (movingApp == null) return@LaunchedEffect

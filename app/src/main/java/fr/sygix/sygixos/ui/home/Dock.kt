@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.GlassSurface
@@ -52,6 +53,7 @@ internal fun Dock(
         val dockWidth = DockLayout.dockWidth(tileWidth.value, apps.size, Dimens.GridSpacing.value, Dimens.DockPadding.value).dp
         GlassSurface(
             modifier = Modifier
+                .testTag("dock-glass")
                 .then(if (apps.isEmpty()) Modifier else Modifier.width(dockWidth))
                 .focusGroup(),
             active = active,

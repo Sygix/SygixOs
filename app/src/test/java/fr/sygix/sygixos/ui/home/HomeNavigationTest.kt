@@ -12,8 +12,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import fr.sygix.sygixos.core.designsystem.GlassActive
 import fr.sygix.sygixos.core.designsystem.Motion
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import kotlin.math.abs
@@ -217,5 +219,76 @@ class HomeNavigationTest {
         step(1_000)
         assertEquals(0f, compose.span("zone-hero").top, 1f)
         compose.onNodeWithTag("app-tile-com.dock").assertIsFocused()
+    }
+
+    private fun glass(): Boolean = compose.onNodeWithTag("dock-glass").fetchSemanticsNode().config[GlassActive]
+
+    @Test
+    fun `the dock keeps its glass while it is on screen and drops it only once the hero has left`() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TestHome(catalog = dockAndGrid, hero = heroStateOf(items = emptyList()), glassBlur = true) }
+        step(1_000)
+        assertTrue(glass())
+        send(Key.DirectionDown)
+        step(1_000)
+        compose.onNodeWithTag("app-tile-com.dock").assertIsFocused()
+        assertTrue(glass())
+
+        var movingFrames = 0
+        send(Key.DirectionDown)
+        repeat(Motion.PAGE_SCROLL_MS / 16 + 4) {
+            step()
+            val hero = compose.span("zone-hero")
+            if (hero.bottom > 0.5f) assertTrue(glass())
+            if (hero.top < -0.5f && compose.span("zone-dock").bottom > 0.5f) movingFrames++
+        }
+        assertTrue(movingFrames > 0)
+        assertTrue(compose.span("zone-hero").bottom <= 0.5f)
+        compose.onNodeWithTag("app-tile-com.grid").assertIsFocused()
+        assertFalse(glass())
+
+        send(Key.DirectionUp)
+        repeat(Motion.PAGE_SCROLL_MS / 16 + 4) {
+            step()
+            if (compose.span("zone-hero").bottom > 0.5f) assertTrue(glass())
+        }
+        compose.onNodeWithTag("app-tile-com.dock").assertIsFocused()
+        assertTrue(glass())
+    }
+
+    @Test
+    fun `coming back to the grid lands on the position left, not one screen below the hero`() {
+        val apps = (0 until 40).map { app("com.a%02d".format(it), "App $it") }
+        compose.mainClock.autoAdvance = false
+        compose.setContent { TestHome(catalog = catalogOf(dock = emptyList(), grid = apps), hero = heroStateOf(items = emptyList())) }
+        step(1_000)
+        send(Key.DirectionDown)
+        step(1_000)
+        repeat(5) {
+            send(Key.DirectionDown)
+            step(1_000)
+        }
+        repeat(2) {
+            send(Key.DirectionUp)
+            step(1_000)
+        }
+        compose.onNodeWithTag("app-tile-com.a15").assertIsFocused()
+        val left = compose.span("app-tile-com.a15")
+        val firstRowFromOrigin = compose.span("app-tile-com.a00")
+        assertTrue(firstRowFromOrigin.bottom < 0f)
+
+        send(Key.Back)
+        compose.waitForIdle()
+        step(1_000)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        send(Key.DirectionDown)
+        val tops = mutableListOf<Float>()
+        repeat(Motion.PAGE_SCROLL_MS / 16 + 4) {
+            step()
+            tops += compose.span("zone-hero").top
+        }
+        assertTrue(tops.zipWithNext().all { (a, b) -> b <= a })
+        compose.onNodeWithTag("app-tile-com.a15").assertIsFocused()
+        assertEquals(left.top, compose.span("app-tile-com.a15").top, 1f)
     }
 }
