@@ -81,10 +81,10 @@ internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
 private const val LeadingItems = 1
 
 internal val RowShape = RoundedCornerShape(Dimens.SettingsRowCorner)
-private val RowHeight = 48.dp
-private val RowVerticalPadding = 6.dp
-private val RowGap = 12.dp
-private val RowSpacing = 5.dp
+internal val RowHeight = 48.dp
+internal val RowVerticalPadding = 6.dp
+internal val RowGap = 12.dp
+internal val RowSpacing = 5.dp
 private val EntryButtonHeight = 42.dp
 private val ThumbWidth = 48.dp
 private val ThumbHeight = 27.dp

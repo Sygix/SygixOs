@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.AppIconCache
+import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.domain.SettingsOrdering
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.flow.Flow
@@ -38,6 +39,7 @@ data class SettingsState(
     val sources: List<SourceRow> = emptyList(),
     val hiddenRows: List<HiddenRow> = emptyList(),
     val version: String = "",
+    val update: AboutUpdateState = AboutUpdateState(),
 ) {
     fun canEnter(category: SettingsCategory): Boolean = when (category) {
         SettingsCategory.SOURCES -> sources.isNotEmpty()
@@ -51,6 +53,7 @@ class SettingsViewModel(
     programCounts: Flow<Map<String, Int>>,
     private val pm: PackageManager,
     private val selfPackage: String,
+    private val updates: UpdateController,
 ) : ViewModel() {
 
     val icons: AppIconCache = AppIconCache.forPackageManager(pm)
@@ -71,12 +74,23 @@ class SettingsViewModel(
 
     private val hiddenOrder = MutableStateFlow<List<String>?>(null)
 
+    private val updateMapper = AboutUpdateMapper()
+
+    private val aboutUpdate = combine(updates.status, updates.systemScreenReturns, updateMapper::map)
+
+    val updateActions = UpdateActions(
+        onCheck = updates::check,
+        onInstall = updates::startUpdate,
+        onTogglePrereleases = { updates.setIncludePrereleases(!updates.status.value.includePrereleases) },
+    )
+
     val state: StateFlow<SettingsState> = combine(
         apps.disabledSources,
         library,
         sourceCounts,
         hiddenOrder,
-    ) { disabled, current, frozenCounts, order ->
+        aboutUpdate,
+    ) { disabled, current, frozenCounts, order, update ->
         val installed = current?.apps.orEmpty()
         val dates = current?.hiddenDates.orEmpty()
         val byPackage = installed.associateBy { it.packageName }
@@ -88,6 +102,7 @@ class SettingsViewModel(
                 byPackage[pkg]?.let { HiddenRow(app = it, hidden = pkg in dates, hiddenAt = dates[pkg]) }
             },
             version = version,
+            update = update,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
@@ -138,6 +153,7 @@ class SettingsViewModel(
                 programCounts = app.tvProviderHeroSource.programCountsFlow(),
                 pm = app.packageManager,
                 selfPackage = app.packageName,
+                updates = app.updateRepository,
             ) as T
         }
     }

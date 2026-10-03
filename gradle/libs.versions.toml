@@ -11,6 +11,7 @@ robolectric = "4.17"
 haze = "2.0.0"
 aboutlibraries = "15.2.0"
 coroutines = "1.11.0"
+zxing = "3.5.4"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.13.0" }
@@ -33,6 +34,7 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 aboutlibraries-compose-m3 = { module = "com.mikepenz:aboutlibraries-compose-m3", version.ref = "aboutlibraries" }
 
 [plugins]

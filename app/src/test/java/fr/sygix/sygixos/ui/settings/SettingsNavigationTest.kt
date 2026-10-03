@@ -381,10 +381,14 @@ class SettingsNavigationTest {
     }
 
     @Test
-    fun `right on about focuses the first license and down reaches the next one`() {
+    fun `right on about focuses the update check and down reaches the licenses`() {
         setState()
         openAboutAndWaitForLicenses()
         press(Key.DirectionRight)
+        compose.onNodeWithTag("update-check").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("update-prereleases").assertIsFocused()
+        press(Key.DirectionDown)
         compose.onAllNodes(licenseRow)[0].assertIsFocused()
         press(Key.DirectionDown)
         compose.onAllNodes(licenseRow)[1].assertIsFocused()

@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.refresh()
+        viewModel.onForeground()
     }
 
     private fun requestTvListingsPermissionIfNeeded() {

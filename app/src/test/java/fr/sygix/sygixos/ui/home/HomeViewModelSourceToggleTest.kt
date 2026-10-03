@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import fr.sygix.sygixos.data.FakeUpdateController
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import coil.ComponentRegistry
@@ -91,6 +92,7 @@ class HomeViewModelSourceToggleTest {
                 override fun current() = ""
                 override fun time() = emptyFlow<String>()
             },
+            updates = FakeUpdateController(),
         )
         return vm to repo
     }

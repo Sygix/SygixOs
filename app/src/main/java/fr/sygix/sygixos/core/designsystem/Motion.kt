@@ -58,6 +58,7 @@ object Dimens {
     val GearButton = 28.dp
     val GearIcon = 15.dp
     val GearFocusElevation = 6.dp
+    val Badge = 6.dp
     val MenuWidth = 300.dp
     val MenuPadding = 14.dp
     val MenuCorner = 18.dp

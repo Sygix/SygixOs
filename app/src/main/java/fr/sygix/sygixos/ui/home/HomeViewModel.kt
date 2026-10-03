@@ -17,6 +17,7 @@ import fr.sygix.sygixos.data.ClockSource
 import fr.sygix.sygixos.data.HeroRepository
 import fr.sygix.sygixos.data.NatureFallbackProvider
 import fr.sygix.sygixos.data.SystemClockSource
+import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroFeed
 import fr.sygix.sygixos.domain.ShelfPosters
@@ -31,6 +32,8 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -53,10 +56,16 @@ class HomeViewModel(
     val artwork: AppArtworkSource,
     private val validator: VisualValidator,
     clockSource: ClockSource,
+    private val updates: UpdateController,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), clockSource.current())
+
+    val updateBadge: StateFlow<Boolean> = updates.status
+        .map { it.badge }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), updates.status.value.badge)
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
     private var fallbackItems: List<HeroItem> = emptyList()
@@ -110,6 +119,10 @@ class HomeViewModel(
         refreshApps()
         refreshHero()
     }
+
+    fun onForeground() = updates.onForeground()
+
+    fun onHomeShown() = updates.onHomeShown()
 
     fun refreshApps() {
         viewModelScope.launch { apps.refreshApps() }
@@ -172,6 +185,7 @@ class HomeViewModel(
                 artwork = AppArtworkSource(app.packageManager),
                 validator = VisualValidator(app),
                 clockSource = SystemClockSource(app),
+                updates = app.updateRepository,
             ) as T
         }
     }

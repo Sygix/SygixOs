@@ -7,6 +7,8 @@ package fr.sygix.sygixos.ui.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import fr.sygix.sygixos.core.designsystem.Badge
+import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
@@ -72,6 +74,7 @@ fun SettingsScreen(
     onToggleHidden: (String) -> Unit,
     onUnhideAll: () -> Unit,
     onCategoryEntered: (SettingsCategory) -> Unit = {},
+    update: UpdateActions = UpdateActions(),
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -146,6 +149,7 @@ fun SettingsScreen(
                 SettingsCategory.entries.forEachIndexed { index, entry ->
                     SettingsCategoryRow(
                         label = stringResource(entry.label),
+                        badgeTag = if (entry == SettingsCategory.ABOUT && state.update.badge) "update-badge-about" else null,
                         selected = index == categoryIndex,
                         focusEnabled = pane == SettingsPane.CATEGORIES,
                         focusRequester = categoryFocusers[index],
@@ -177,6 +181,8 @@ fun SettingsScreen(
                     )
                     SettingsCategory.ABOUT -> AboutContent(
                         version = state.version,
+                        update = state.update,
+                        actions = update,
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
@@ -189,6 +195,7 @@ fun SettingsScreen(
 @Composable
 private fun SettingsCategoryRow(
     label: String,
+    badgeTag: String?,
     selected: Boolean,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
@@ -217,6 +224,7 @@ private fun SettingsCategoryRow(
             color = colors.content,
             maxLines = 1,
         )
+        if (badgeTag != null) Badge(BadgePlacement.ROW_END, tag = badgeTag)
     }
 }
 

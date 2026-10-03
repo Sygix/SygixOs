@@ -2,4 +2,9 @@
 <!-- Posters servis en http par des serveurs LAN (Jellyfin, Plex…) -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="true" />
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">github.com</domain>
+        <domain includeSubdomains="true">githubusercontent.com</domain>
+        <domain includeSubdomains="true">api.github.com</domain>
+    </domain-config>
 </network-security-config>

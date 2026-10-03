@@ -87,6 +87,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
+import fr.sygix.sygixos.core.designsystem.Badge
+import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.LocalHazeState
@@ -106,6 +108,7 @@ import fr.sygix.sygixos.ui.settings.SettingsCategory
 import fr.sygix.sygixos.ui.settings.SettingsScreen
 import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.SettingsViewModel
+import fr.sygix.sygixos.ui.settings.UpdateActions
 import fr.sygix.sygixos.ui.settings.rememberSettingsViewModel
 
 @Composable
@@ -120,25 +123,30 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
     ) {
         when (val s = state) {
             HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize(), animated = true)
-            is HomeState.Ready -> LauncherHome(
-                catalog = s.catalog,
-                hero = s.hero,
-                onTogglePin = viewModel::togglePin,
-                onOpenApp = { AppLauncher.open(context, it) },
-                onOpenHero = { AppLauncher.open(context, it) },
-                onAppFocused = viewModel::prepareShelf,
-                onMoveInGrid = viewModel::moveInGrid,
-                onRestoreOrder = viewModel::setGridOrder,
-                onHideApp = viewModel::hideApp,
-                settings = settingsState,
-                counts = settingsViewModel.counts,
-                onToggleSource = settingsViewModel::toggleSource,
-                onToggleHidden = settingsViewModel::toggleHidden,
-                onUnhideAll = settingsViewModel::unhideAll,
-                onSettingsCategory = settingsViewModel::enterCategory,
-                glassBlur = glassBlur,
-                clock = viewModel.clock,
-            )
+            is HomeState.Ready -> {
+                LaunchedEffect(Unit) { viewModel.onHomeShown() }
+                LauncherHome(
+                    catalog = s.catalog,
+                    hero = s.hero,
+                    onTogglePin = viewModel::togglePin,
+                    onOpenApp = { AppLauncher.open(context, it) },
+                    onOpenHero = { AppLauncher.open(context, it) },
+                    onAppFocused = viewModel::prepareShelf,
+                    onMoveInGrid = viewModel::moveInGrid,
+                    onRestoreOrder = viewModel::setGridOrder,
+                    onHideApp = viewModel::hideApp,
+                    settings = settingsState,
+                    counts = settingsViewModel.counts,
+                    onToggleSource = settingsViewModel::toggleSource,
+                    onToggleHidden = settingsViewModel::toggleHidden,
+                    onUnhideAll = settingsViewModel::unhideAll,
+                    onSettingsCategory = settingsViewModel::enterCategory,
+                    glassBlur = glassBlur,
+                    clock = viewModel.clock,
+                    updateBadge = viewModel.updateBadge,
+                    update = settingsViewModel.updateActions,
+                )
+            }
         }
     }
 }
@@ -148,6 +156,7 @@ internal enum class Zone { HERO, DOCK, GRID }
 @Composable
 private fun HeroCapsule(
     clock: StateFlow<String>,
+    updateBadge: StateFlow<Boolean>,
     glassActive: Boolean,
     gearFocusEnabled: Boolean,
     gearFocus: FocusRequester,
@@ -173,6 +182,7 @@ private fun HeroCapsule(
         ) {
             ClockText(clock)
             SettingsGear(
+                updateBadge = updateBadge,
                 focusEnabled = gearFocusEnabled,
                 focusRequester = gearFocus,
                 onFocusedChange = onGearFocused,
@@ -190,12 +200,14 @@ private fun ClockText(clock: StateFlow<String>) {
 
 @Composable
 private fun SettingsGear(
+    updateBadge: StateFlow<Boolean>,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
     onFocusedChange: (Boolean) -> Unit,
     onOpen: () -> Unit,
 ) {
     val label = stringResource(R.string.settings_title)
+    val badge by updateBadge.collectAsStateWithLifecycle()
     var focused by remember { mutableStateOf(false) }
     val progress = animateFloatAsState(
         targetValue = if (focused) 1f else 0f,
@@ -229,6 +241,7 @@ private fun SettingsGear(
         contentAlignment = Alignment.Center,
     ) {
         GearIcon(Modifier.size(Dimens.GearIcon)) { lerp(SygixColors.OnDark, SygixColors.OnPill, progress.value) }
+        if (badge) Badge(BadgePlacement.CORNER, tag = "update-badge-gear")
     }
 }
 
@@ -291,6 +304,8 @@ private val NoCounts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap()
 
 private val NoClock: StateFlow<String> = MutableStateFlow("")
 
+private val NoBadge: StateFlow<Boolean> = MutableStateFlow(false)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LauncherHome(
@@ -312,6 +327,8 @@ internal fun LauncherHome(
     initialZone: Zone = Zone.HERO,
     glassBlur: Boolean = true,
     clock: StateFlow<String> = NoClock,
+    updateBadge: StateFlow<Boolean> = NoBadge,
+    update: UpdateActions = UpdateActions(),
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -444,6 +461,7 @@ internal fun LauncherHome(
                     if (!settingsOpen) {
                         HeroCapsule(
                             clock = clock,
+                            updateBadge = updateBadge,
                             glassActive = heroOnScreen,
                             gearFocusEnabled = zone == Zone.HERO && !menuOpen,
                             gearFocus = gearFocus,
@@ -509,6 +527,7 @@ internal fun LauncherHome(
                 onToggleHidden = onToggleHidden,
                 onUnhideAll = onUnhideAll,
                 onCategoryEntered = onSettingsCategory,
+                update = update,
                 onBack = { settingsOpen = false },
             )
         }

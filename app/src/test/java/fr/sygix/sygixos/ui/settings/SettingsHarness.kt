@@ -26,6 +26,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ApplicationProvider
 import fr.sygix.sygixos.data.AppCatalogRepository
+import fr.sygix.sygixos.data.FakeUpdateController
+import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
 import kotlinx.coroutines.flow.Flow
@@ -34,7 +36,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.robolectric.Shadows
 
-internal class SettingsHarness(private val counts: Flow<Map<String, Int>> = flowOf(emptyMap())) {
+internal class SettingsHarness(
+    private val counts: Flow<Map<String, Int>> = flowOf(emptyMap()),
+    val updates: UpdateController = FakeUpdateController(),
+) {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val leanback = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
     private val store = ViewModelStore()
@@ -65,6 +70,7 @@ internal class SettingsHarness(private val counts: Flow<Map<String, Int>> = flow
                 programCounts = counts,
                 pm = context.packageManager,
                 selfPackage = context.packageName,
+                updates = updates,
             ) as T
         }
         ViewModelProvider(store, factory)[SettingsViewModel::class.java]
@@ -126,6 +132,7 @@ internal class SettingsHarness(private val counts: Flow<Map<String, Int>> = flow
                 onToggleHidden = { toggled += it; viewModel.toggleHidden(it) },
                 onUnhideAll = { unhideAllCalls++; viewModel.unhideAll() },
                 onCategoryEntered = viewModel::enterCategory,
+                update = viewModel.updateActions,
                 onBack = { backs++; open = false },
             )
         }

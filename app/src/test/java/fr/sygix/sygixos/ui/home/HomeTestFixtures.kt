@@ -17,6 +17,7 @@ import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.settings.SettingsState
+import fr.sygix.sygixos.ui.settings.UpdateActions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -56,6 +57,8 @@ internal fun TestHome(
     glassBlur: Boolean = false,
     counts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap()),
     clock: StateFlow<String> = MutableStateFlow("21:47"),
+    updateBadge: StateFlow<Boolean> = MutableStateFlow(false),
+    update: UpdateActions = UpdateActions(),
 ) {
     val artwork = AppArtworkSource(LocalContext.current.packageManager)
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
@@ -70,6 +73,8 @@ internal fun TestHome(
                 settings = settings,
                 counts = counts,
                 clock = clock,
+                updateBadge = updateBadge,
+                update = update,
             )
         }
     }
