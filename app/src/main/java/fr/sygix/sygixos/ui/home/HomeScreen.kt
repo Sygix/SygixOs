@@ -114,6 +114,7 @@ import fr.sygix.sygixos.ui.settings.rememberSettingsViewModel
 @Composable
 fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val startup by viewModel.startup.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
@@ -121,32 +122,37 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
         LocalAppArtwork provides viewModel.artwork,
         LocalAppIcons provides settingsViewModel.icons,
     ) {
-        when (val s = state) {
-            HomeState.Loading -> AmbientGradient(Modifier.fillMaxSize(), animated = true)
-            is HomeState.Ready -> {
-                LaunchedEffect(Unit) { viewModel.onHomeShown() }
-                LauncherHome(
-                    catalog = s.catalog,
-                    hero = s.hero,
-                    onTogglePin = viewModel::togglePin,
-                    onOpenApp = { AppLauncher.open(context, it) },
-                    onOpenHero = { AppLauncher.open(context, it) },
-                    onAppFocused = viewModel::prepareShelf,
-                    onMoveInGrid = viewModel::moveInGrid,
-                    onRestoreOrder = viewModel::setGridOrder,
-                    onHideApp = viewModel::hideApp,
-                    settings = settingsState,
-                    counts = settingsViewModel.counts,
-                    onToggleSource = settingsViewModel::toggleSource,
-                    onToggleHidden = settingsViewModel::toggleHidden,
-                    onUnhideAll = settingsViewModel::unhideAll,
-                    onSettingsCategory = settingsViewModel::enterCategory,
-                    glassBlur = glassBlur,
-                    clock = viewModel.clock,
-                    updateBadge = viewModel.updateBadge,
-                    update = settingsViewModel.updateActions,
-                )
-            }
+        StartupHost(
+            state = state,
+            phase = startup,
+            animated = viewModel.startupAnimated,
+            mascot = viewModel.mascot,
+            onSplashShown = viewModel::onSplashShown,
+        ) { s, interactive ->
+            LaunchedEffect(Unit) { viewModel.onHomeShown() }
+            LauncherHome(
+                catalog = s.catalog,
+                hero = s.hero,
+                onTogglePin = viewModel::togglePin,
+                onOpenApp = { AppLauncher.open(context, it) },
+                onOpenHero = { AppLauncher.open(context, it) },
+                onAppFocused = viewModel::prepareShelf,
+                onMoveInGrid = viewModel::moveInGrid,
+                onRestoreOrder = viewModel::setGridOrder,
+                onHideApp = viewModel::hideApp,
+                settings = settingsState,
+                counts = settingsViewModel.counts,
+                onToggleSource = settingsViewModel::toggleSource,
+                onToggleHidden = settingsViewModel::toggleHidden,
+                onUnhideAll = settingsViewModel::unhideAll,
+                onSettingsCategory = settingsViewModel::enterCategory,
+                glassBlur = glassBlur,
+                clock = viewModel.clock,
+                updateBadge = viewModel.updateBadge,
+                update = settingsViewModel.updateActions,
+                interactive = interactive,
+                onHeroVisualReady = viewModel::onHeroVisualReady,
+            )
         }
     }
 }
@@ -329,6 +335,8 @@ internal fun LauncherHome(
     clock: StateFlow<String> = NoClock,
     updateBadge: StateFlow<Boolean> = NoBadge,
     update: UpdateActions = UpdateActions(),
+    interactive: Boolean = true,
+    onHeroVisualReady: () -> Unit = {},
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -352,8 +360,8 @@ internal fun LauncherHome(
     LaunchedEffect(gridAvailable) {
         if (zone == Zone.GRID && !gridAvailable) zone = Zone.HERO
     }
-    LaunchedEffect(zone, menuOpen, settingsOpen) {
-        if (menuOpen || settingsOpen) return@LaunchedEffect
+    LaunchedEffect(zone, menuOpen, settingsOpen, interactive) {
+        if (!interactive || menuOpen || settingsOpen) return@LaunchedEffect
         val target = when (zone) {
             Zone.HERO -> heroFocus
             Zone.DOCK -> dockFocus
@@ -442,17 +450,18 @@ internal fun LauncherHome(
                     HeroStage(
                         items = hero.items,
                         validatedVisuals = hero.validated,
-                        active = zone == Zone.HERO && !menuOpen && !settingsOpen,
+                        active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen,
                         visible = heroVisible && !settingsOpen,
                         focusRequester = heroFocus,
                         claimFocus = !gearFocused,
                         onOpen = onOpenHero,
+                        onVisualReady = onHeroVisualReady,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
                     Dock(
                         apps = catalog.dock,
                         active = heroOnScreen,
-                        focusEnabled = zone == Zone.DOCK && !menuOpen,
+                        focusEnabled = interactive && zone == Zone.DOCK && !menuOpen,
                         focusRequester = dockFocus,
                         onTileClick = onOpenApp,
                         onTileLongClick = { menuApp = it },
@@ -463,7 +472,7 @@ internal fun LauncherHome(
                             clock = clock,
                             updateBadge = updateBadge,
                             glassActive = heroOnScreen,
-                            gearFocusEnabled = zone == Zone.HERO && !menuOpen,
+                            gearFocusEnabled = interactive && zone == Zone.HERO && !menuOpen,
                             gearFocus = gearFocus,
                             onGearFocused = { gearFocused = it },
                             onOpenSettings = {
@@ -486,7 +495,7 @@ internal fun LauncherHome(
                     AmbientGradient(Modifier.matchParentSize())
                     HomeGrid(
                         catalog = catalog,
-                        focusEnabled = zone == Zone.GRID && !menuOpen,
+                        focusEnabled = interactive && zone == Zone.GRID && !menuOpen,
                         focusRequester = gridFocus,
                         shelfPrograms = if (hero.fromApps) hero.items else emptyList(),
                         validatedVisuals = hero.validated,

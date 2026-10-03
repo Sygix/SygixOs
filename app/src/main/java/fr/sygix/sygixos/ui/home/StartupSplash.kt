@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2026 Sygix
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package fr.sygix.sygixos.ui.home
+
+import android.graphics.drawable.Animatable
+import android.graphics.drawable.Drawable
+import android.widget.ImageView
+import androidx.compose.animation.core.Animatable as FloatAnimatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.viewinterop.AndroidView
+import fr.sygix.sygixos.R
+import fr.sygix.sygixos.core.designsystem.AppleEasing
+import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.Motion
+import fr.sygix.sygixos.data.MascotAnimationSource
+import fr.sygix.sygixos.domain.StartupPhase
+
+val StartupHomeAlpha = SemanticsPropertyKey<Float>("StartupHomeAlpha")
+var SemanticsPropertyReceiver.startupHomeAlpha by StartupHomeAlpha
+
+@Composable
+internal fun StartupHost(
+    state: HomeState,
+    phase: StartupPhase,
+    animated: Boolean,
+    mascot: MascotAnimationSource,
+    onSplashShown: () -> Unit,
+    home: @Composable (HomeState.Ready, interactive: Boolean) -> Unit,
+) {
+    val interactive = phase != StartupPhase.Splash
+    val reveal = animateFloatAsState(
+        targetValue = if (interactive) 1f else 0f,
+        animationSpec = if (animated) tween(Motion.SPLASH_FADE_MS, easing = AppleEasing) else snap(),
+        label = "startupReveal",
+    )
+    Box(Modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = reveal.value }
+                .semantics { startupHomeAlpha = reveal.value }
+                .focusProperties { if (!interactive) canFocus = false },
+        ) {
+            when (state) {
+                HomeState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+                is HomeState.Ready -> home(state, interactive)
+            }
+        }
+        if (phase != StartupPhase.Done) {
+            StartupSplash(
+                animated = animated,
+                mascot = mascot,
+                onShown = onSplashShown,
+                modifier = Modifier.graphicsLayer { alpha = 1f - reveal.value },
+            )
+        }
+    }
+}
+
+@Composable
+internal fun StartupSplash(
+    animated: Boolean,
+    mascot: MascotAnimationSource,
+    onShown: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val drawable by produceState<Drawable?>(null, mascot) { value = mascot.load().getOrNull() }
+    val currentOnShown by rememberUpdatedState(onShown)
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        currentOnShown()
+    }
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .testTag("startup-splash"),
+        contentAlignment = Alignment.Center,
+    ) {
+        drawable?.let { MascotView(it, animated) }
+    }
+}
+
+@Composable
+private fun MascotView(drawable: Drawable, animated: Boolean) {
+    val description = stringResource(R.string.startup_mascot_description)
+    val appear = remember { FloatAnimatable(if (animated) 0f else 1f) }
+    LaunchedEffect(Unit) { appear.animateTo(1f, tween(Motion.SPLASH_APPEAR_MS, easing = AppleEasing)) }
+    DisposableEffect(drawable, animated) {
+        val animation = drawable as? Animatable
+        if (animated) animation?.start()
+        onDispose { animation?.stop() }
+    }
+    AndroidView(
+        factory = { ImageView(it) },
+        update = { it.setImageDrawable(drawable) },
+        onRelease = { it.setImageDrawable(null) },
+        modifier = Modifier
+            .size(Dimens.SplashMascot)
+            .graphicsLayer { alpha = appear.value }
+            .testTag("startup-splash-mascot")
+            .semantics { contentDescription = description },
+    )
+}

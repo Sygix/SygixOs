@@ -26,6 +26,7 @@ import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroContentProvider
+import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.data.ClockSource
 import kotlinx.coroutines.flow.emptyFlow
@@ -93,6 +94,9 @@ class HomeViewModelSourceToggleTest {
                 override fun time() = emptyFlow<String>()
             },
             updates = FakeUpdateController(),
+            session = StartupSession(),
+            motion = FakeMotionSource(),
+            mascot = FakeMascotSource(),
         )
         return vm to repo
     }

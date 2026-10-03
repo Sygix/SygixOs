@@ -51,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,6 +84,7 @@ import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 
 private const val TAG = "HeroStage"
 
@@ -96,6 +98,7 @@ fun HeroStage(
     onOpen: (HeroItem) -> Unit,
     modifier: Modifier = Modifier,
     claimFocus: Boolean = true,
+    onVisualReady: () -> Unit = {},
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -146,6 +149,10 @@ fun HeroStage(
         )
     }
     DisposableEffect(player) { onDispose { player.release() } }
+    val onVisualReadyState = rememberUpdatedState(onVisualReady)
+    LaunchedEffect(player) {
+        snapshotFlow { player.firstFrameRendered }.filter { it }.collect { onVisualReadyState.value() }
+    }
 
     LaunchedEffect(current?.id, showVideo, visible, items.size) {
         val item = current
@@ -201,7 +208,12 @@ fun HeroStage(
             label = "heroPoster",
         ) { item ->
             item?.imageUrl?.let { url ->
-                KenBurnsPoster(url, running = visible, onError = { onImageError(item) })
+                KenBurnsPoster(
+                    url,
+                    running = visible,
+                    onReady = { onVisualReadyState.value() },
+                    onError = { onImageError(item) },
+                )
             }
         }
         HeroOverlay(
@@ -242,7 +254,7 @@ private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
 }
 
 @Composable
-private fun KenBurnsPoster(url: String, running: Boolean, onError: () -> Unit) {
+private fun KenBurnsPoster(url: String, running: Boolean, onReady: () -> Unit, onError: () -> Unit) {
     var ready by remember(url) { mutableStateOf(false) }
     val scale = remember(url) { Animatable(1f) }
     LaunchedEffect(ready, running) {
@@ -255,7 +267,10 @@ private fun KenBurnsPoster(url: String, running: Boolean, onError: () -> Unit) {
         model = ImageRequest.Builder(LocalContext.current).data(url).size(1920, 1080).crossfade(false).build(),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        onSuccess = { ready = true },
+        onSuccess = {
+            ready = true
+            onReady()
+        },
         onError = { onError() },
         modifier = Modifier
             .testTag("hero-poster")

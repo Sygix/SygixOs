@@ -28,6 +28,7 @@ import fr.sygix.sygixos.data.UpdateInstaller
 import fr.sygix.sygixos.data.UpdatePrefs
 import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
+import fr.sygix.sygixos.domain.StartupSession
 
 class SygixOsApp : Application(), ImageLoaderFactory {
 
@@ -36,6 +37,7 @@ class SygixOsApp : Application(), ImageLoaderFactory {
     val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
     val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
     val tvProviderHeroSource: TvProviderHeroSource by lazy { TvProviderHeroSource(this) }
+    val startupSession = StartupSession()
     val foregroundTracker = ForegroundTracker()
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }

@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.ui.home
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -15,16 +16,26 @@ import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.data.ClockSource
 import fr.sygix.sygixos.data.HeroRepository
+import fr.sygix.sygixos.data.MascotAnimationSource
+import fr.sygix.sygixos.data.AnimatorMotionSource
 import fr.sygix.sygixos.data.NatureFallbackProvider
+import fr.sygix.sygixos.data.RawMascotAnimationSource
 import fr.sygix.sygixos.data.SystemClockSource
 import fr.sygix.sygixos.data.UpdateController
+import fr.sygix.sygixos.data.SystemMotionSource
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroFeed
+import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.domain.ShelfPosters
+import fr.sygix.sygixos.domain.StartupGate
+import fr.sygix.sygixos.domain.StartupPhase
+import fr.sygix.sygixos.domain.StartupSession
+import fr.sygix.sygixos.domain.StartupTimings
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.domain.withSources
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +45,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -57,6 +69,11 @@ class HomeViewModel(
     private val validator: VisualValidator,
     clockSource: ClockSource,
     private val updates: UpdateController,
+    session: StartupSession,
+    motion: SystemMotionSource,
+    val mascot: MascotAnimationSource,
+    startupClock: () -> Long = SystemClock::uptimeMillis,
+    startupDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -97,6 +114,32 @@ class HomeViewModel(
         if (disabled != lastDisabled) onSourcesChanged(disabled, shown.items)
         HomeState.Ready(catalog, hero) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
+
+    private val coldStart = session.claimColdStart()
+
+    val startupAnimated: Boolean = coldStart && motion.animationsEnabled()
+
+    private val startupController = StartupController(
+        coldStart = coldStart,
+        gate = StartupGate(SplashTimings, startupAnimated, startupClock),
+        scope = viewModelScope,
+        dispatcher = startupDispatcher,
+    )
+
+    val startup: StateFlow<StartupPhase> = startupController.phase
+
+    init {
+        if (coldStart) {
+            viewModelScope.launch(startupDispatcher) {
+                state.first { it is HomeState.Ready }
+                startupController.catalogReady()
+            }
+        }
+    }
+
+    fun onSplashShown() = startupController.splashShown()
+
+    fun onHeroVisualReady() = startupController.heroVisualReady()
 
     private fun launchHeroValidationIfNeeded(uris: List<String>) {
         if (uris == lastHeroUris) return
@@ -186,7 +229,17 @@ class HomeViewModel(
                 validator = VisualValidator(app),
                 clockSource = SystemClockSource(app),
                 updates = app.updateRepository,
+                session = app.startupSession,
+                motion = AnimatorMotionSource(),
+                mascot = RawMascotAnimationSource(app.resources),
             ) as T
         }
     }
 }
+
+private val SplashTimings = StartupTimings(
+    minMs = Motion.SPLASH_MIN_MS,
+    visualCapMs = Motion.SPLASH_VISUAL_CAP_MS,
+    capMs = Motion.SPLASH_CAP_MS,
+    fadeMs = Motion.SPLASH_FADE_MS.toLong(),
+)

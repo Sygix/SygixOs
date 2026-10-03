@@ -10,6 +10,7 @@
     <string name="hidden_empty">Aucune application cachée</string>
     <string name="hidden_state_hidden">Cachée</string>
     <string name="hidden_state_visible">Visible</string>
+    <string name="startup_mascot_description">SygixOs démarre</string>
     <string name="menu_dock_full">Dock plein (%1$d apps maximum)</string>
     <string name="update_check_title">Vérifier les mises à jour</string>
     <string name="update_never_checked">Jamais vérifié</string>

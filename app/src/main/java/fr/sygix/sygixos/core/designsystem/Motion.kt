@@ -26,6 +26,11 @@ object Motion {
     const val SHELF_EXPAND_MS = 420
     const val SHELF_FADE_MS = 350
     const val SHELF_KEN_BURNS_MS = 16_000
+    const val SPLASH_MIN_MS = 600L
+    const val SPLASH_VISUAL_CAP_MS = 2_000L
+    const val SPLASH_CAP_MS = 5_000L
+    const val SPLASH_APPEAR_MS = 300
+    const val SPLASH_FADE_MS = 400
 }
 
 object Dimens {
@@ -76,4 +81,5 @@ object Dimens {
     val HeroTextWidth = 450.dp
     val HeroTextSpacing = 10.dp
     val SettingsRowCorner = 8.dp
+    val SplashMascot = 180.dp
 }

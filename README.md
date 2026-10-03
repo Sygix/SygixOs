@@ -10,6 +10,7 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 
 ## Features
 
+- **Startup screen**: on a cold start, the SygixOs ghost mascot floats and blinks alone on a black background (no icon or second screen from the system before it), for at least 0.6 s and until the home screen is ready (app catalog loaded and first hero picture ready, at most 5 s), then crossfades into the hero. It never shows when you come back to the launcher. With animations turned off in the system, the mascot stays still and the home screen appears without a fade.
 - **Full-screen hero**: a muted slideshow (crossfade, one slow zoom per picture, then still) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Soft dark veils keep the title and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
 - **Clock and settings capsule**: a small dark glass capsule at the top right of the hero shows the time (12 or 24-hour, as set on the TV) and the settings gear.
 - **Dock and app grid**:

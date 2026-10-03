@@ -59,6 +59,7 @@ internal fun TestHome(
     clock: StateFlow<String> = MutableStateFlow("21:47"),
     updateBadge: StateFlow<Boolean> = MutableStateFlow(false),
     update: UpdateActions = UpdateActions(),
+    onHeroVisualReady: () -> Unit = {},
 ) {
     val artwork = AppArtworkSource(LocalContext.current.packageManager)
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
@@ -75,6 +76,7 @@ internal fun TestHome(
                 clock = clock,
                 updateBadge = updateBadge,
                 update = update,
+                onHeroVisualReady = onHeroVisualReady,
             )
         }
     }
