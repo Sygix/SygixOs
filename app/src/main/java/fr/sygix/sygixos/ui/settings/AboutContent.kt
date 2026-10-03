@@ -34,7 +34,10 @@ import androidx.compose.ui.unit.dp
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
 import fr.sygix.sygixos.R
-import fr.sygix.sygixos.core.designsystem.tvFocus
+import fr.sygix.sygixos.core.designsystem.TextStyles
+import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.focusPill
+import fr.sygix.sygixos.core.designsystem.tvFocusable
 
 @Composable
 internal fun AboutContent(
@@ -112,26 +115,26 @@ private fun LicenseRow(
     focusRequester: FocusRequester?,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused)
     val licenses = library.licenses.joinToString { it.name }
     Column(
         Modifier
             .testTag("license-row-${library.uniqueId}")
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (focused) Color.White.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.06f))
-            .tvFocus(focusRequester = focusRequester, enabled = focusEnabled, onFocused = { focused = it })
+            .tvFocusable(focusRequester = focusRequester, enabled = focusEnabled, onFocused = { focused = it })
             .focusable()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .focusPill(colors, RowShape)
+            .padding(horizontal = RowPadding, vertical = 8.dp),
     ) {
         Text(
             listOfNotNull(library.name, library.artifactVersion).joinToString(" "),
-            style = MaterialTheme.typography.titleSmall,
-            color = Color.White,
+            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
+            color = colors.content,
         )
         Text(
             licenses.ifEmpty { "Licence non renseignée" },
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.55f),
+            style = TextStyles.RowSecondary,
+            color = colors.secondary,
         )
     }
 }

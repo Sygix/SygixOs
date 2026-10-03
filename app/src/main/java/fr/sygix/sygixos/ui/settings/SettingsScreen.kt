@@ -6,14 +6,17 @@
 package fr.sygix.sygixos.ui.settings
 
 import androidx.annotation.StringRes
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Arrangement
+import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.SygixColors
+import fr.sygix.sygixos.core.designsystem.TextStyles
+import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.focusPill
+import fr.sygix.sygixos.core.designsystem.tvFocusable
+import fr.sygix.sygixos.ui.hero.AmbientGradient
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,7 +25,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,10 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -48,9 +47,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import fr.sygix.sygixos.core.designsystem.AppleEasing
-import fr.sygix.sygixos.core.designsystem.Motion
-import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
@@ -110,13 +106,11 @@ fun SettingsScreen(
         }
     }
 
-    val backdrop = Color(0xFF101014)
     Box(
         modifier
             .testTag("settings-screen")
             .fillMaxSize()
             .zIndex(20f)
-            .background(backdrop)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
@@ -134,19 +128,24 @@ fun SettingsScreen(
                 }
             },
     ) {
+        AmbientGradient(Modifier.matchParentSize())
         Row(Modifier.fillMaxSize()) {
             Column(
                 Modifier
-                    .width(420.dp)
+                    .width(CategoryPaneWidth)
                     .fillMaxHeight()
-                    .padding(start = 64.dp, top = 64.dp),
+                    .padding(start = Dimens.ScreenMarginH, top = PaneTop, end = PaneGap),
+                verticalArrangement = Arrangement.spacedBy(CategoryGap),
             ) {
-                Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.headlineMedium, color = Color.White)
-                Spacer(Modifier.height(32.dp))
+                Text(
+                    stringResource(R.string.settings_title),
+                    style = TextStyles.SettingsTitle,
+                    color = SygixColors.OnDark,
+                    modifier = Modifier.padding(bottom = TitleGap),
+                )
                 SettingsCategory.entries.forEachIndexed { index, entry ->
                     SettingsCategoryRow(
                         label = stringResource(entry.label),
-                        // État « sélectionné » visible même quand le focus est dans le volet droit.
                         selected = index == categoryIndex,
                         focusEnabled = pane == SettingsPane.CATEGORIES,
                         focusRequester = categoryFocusers[index],
@@ -156,11 +155,9 @@ fun SettingsScreen(
                         },
                         modifier = Modifier.testTag("settings-category-${entry.name}"),
                     )
-                    // Espacement constant : la sélection ne décale plus la mise en page.
-                    if (index < SettingsCategory.entries.lastIndex) Spacer(Modifier.height(8.dp))
                 }
             }
-            Box(Modifier.weight(1f).fillMaxHeight().padding(end = 64.dp, top = 64.dp)) {
+            Box(Modifier.weight(1f).fillMaxHeight().padding(start = PaneGap, end = ContentEnd, top = PaneTop)) {
                 when (category) {
                     SettingsCategory.SOURCES -> SourcesContent(
                         rows = state.sources,
@@ -199,36 +196,35 @@ private fun SettingsCategoryRow(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.04f else 1f, tween(Motion.FOCUS_MS, easing = AppleEasing), label = "categoryScale")
+    val colors = animatedPillColors(focused, selected)
     Box(
         modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .tvFocus(
+            .tvFocusable(
                 focusRequester = focusRequester,
                 enabled = focusEnabled,
                 onFocused = { focused = it },
             )
-            .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                when {
-                    focused -> Color.White.copy(alpha = 0.14f)
-                    // Catégorie active : visible même quand le focus est à droite.
-                    selected -> Color.White.copy(alpha = 0.08f)
-                    else -> Color.Transparent
-                },
-            )
             .tvClickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .focusPill(colors, RoundedCornerShape(Dimens.SettingsRowCorner))
+            .height(CategoryHeight)
+            .padding(horizontal = RowPadding),
+        contentAlignment = Alignment.CenterStart,
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.titleMedium,
-            color = when {
-                focused || selected -> Color.White
-                else -> Color.White.copy(alpha = 0.75f)
-            },
+            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
+            color = colors.content,
+            maxLines = 1,
         )
     }
 }
+
+private val CategoryPaneWidth = 340.dp
+private val PaneTop = 48.dp
+private val PaneGap = 24.dp
+private val ContentEnd = 60.dp
+private val CategoryGap = 6.dp
+private val TitleGap = 14.dp
+private val CategoryHeight = 38.dp
+internal val RowPadding = 14.dp
