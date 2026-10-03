@@ -28,7 +28,7 @@
 
 ## 4. Manifeste et redémarrage
 - [x] 4.1 Permissions `REQUEST_INSTALL_PACKAGES` et `UPDATE_PACKAGES_WITHOUT_USER_ACTION`, filtre `MAIN` + `HOME` + `DEFAULT` sur `MainActivity`, récepteur `MY_PACKAGE_REPLACED` (D8) ; aucun appel à `RoleManager` (grep vide) ; test Robolectric : la diffusion démarre `MainActivity` si `update_relaunch` vaut vrai, ne démarre rien sinon, et efface le drapeau dans les deux cas. Robolectric ne simule pas les restrictions de démarrage d'activité en arrière-plan : leur effet réel est vérifié sur la TV (1.1, 9.2, 9.3)
-  - Vérifié par `UpdateManifestTest` (filtre HOME, permissions, récepteur de statut non exporté) et `UpdateRelaunchReceiverTest` ; l'effet réel de la relance reste à constater sur la TV (1.1, 9.2, 9.3).
+  - Vérifié par `UpdateManifestTest` (filtre HOME, permissions, récepteur de statut non exporté) et `UpdateRelaunchReceiverTest` (déclaration du récepteur, puis sa logique appelée directement : une version qui passait par une vraie diffusion sous Robolectric a dépassé son délai d'attente en CI) ; l'effet réel de la relance reste à constater sur la TV (1.1, 9.2, 9.3).
 
 ## 5. Interface
 - [x] 5.1 Composant `Badge` dans `core/designsystem` (« Pastille » de `launcher-shell`), jeton `SygixColors.Badge` ; test Compose à la taille TV : même rectangle et même focus d'un élément avec et sans pastille, aucune recomposition au repos
@@ -45,7 +45,7 @@
 ## 6. Documentation et vérification
 - [x] 6.1 README : mise à jour depuis Réglages > À propos, autorisation « applis inconnues », section Installation (première installation par `adb`, puis mises à jour depuis l'app) ; effet de `CATEGORY_HOME` (Android peut proposer un choix de launcher au prochain appui sur Home, SygixOs ne demande jamais à le devenir) et lien avec P5 dans la section sur le remplacement du launcher
 - [x] 6.2 `./gradlew test` vert, `./gradlew assembleRelease` vert, `openspec validate --all --strict` vert
-  - `./gradlew test` : 363 tests verts (140 nouveaux) ; `assembleRelease` vert avec une clé éphémère ; `openspec validate --all --strict` vert.
+  - `./gradlew test` : 364 tests verts (141 nouveaux) ; `assembleRelease` vert avec une clé éphémère ; `openspec validate --all --strict` vert.
 - [x] 6.3 Aucun commentaire ajouté dans le code ni dans les tests (diff vérifié), en-tête de licence sur chaque nouveau fichier `.kt` ; aucun jeton ni secret dans le diff (`git diff origin/main... | grep -niE 'ghp_|github_pat|bearer '` vide)
 
 ## 7. Validation sur la TV tant que le dépôt est privé (pré-release signée par la CI, `assembleRelease`)

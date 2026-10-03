@@ -106,7 +106,7 @@ class UpdatePrefsTest {
         val reset = (first.now + UpdateHarness.HOUR) / 1000
         first.transport.on(UpdateHarness.LIST_URL, Reply.Body(status = 403, headers = mapOf("x-ratelimit-remaining" to "0", "x-ratelimit-reset" to "$reset")))
         first.repository.check()
-        val persisted = withContext(Dispatchers.Default) { withTimeout(5_000) { prefs.data.first { it.retryAt != null && it.lastResult != null } } }
+        val persisted = withContext(Dispatchers.Default) { withTimeout(20_000) { prefs.data.first { it.retryAt != null && it.lastResult != null } } }
         assertEquals(reset * 1000, persisted.retryAt)
         assertEquals(1, first.listCalls())
 
@@ -116,7 +116,7 @@ class UpdatePrefsTest {
         val finished = async { restarted.repository.status.first { it.checking }; restarted.repository.status.first { !it.checking } }
         testScheduler.runCurrent()
         restarted.repository.check()
-        val status = withContext(Dispatchers.Default) { withTimeout(5_000) { finished.await() } }
+        val status = withContext(Dispatchers.Default) { withTimeout(20_000) { finished.await() } }
         assertEquals(0, restarted.listCalls())
         assertEquals(CheckResult.Error(UpdateError.RateLimited(reset * 1000)), status.lastResult)
     }

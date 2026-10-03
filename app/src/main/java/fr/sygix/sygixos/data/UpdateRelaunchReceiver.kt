@@ -22,11 +22,17 @@ class UpdateRelaunchReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                if (app.updatePrefs.takeRelaunch()) {
-                    app.startActivity(Intent(app, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
+                relaunchIfRequested(app, app.updatePrefs)
             } finally {
                 pending.finish()
+            }
+        }
+    }
+
+    companion object {
+        suspend fun relaunchIfRequested(context: Context, store: UpdateStore) {
+            if (store.takeRelaunch()) {
+                context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             }
         }
     }

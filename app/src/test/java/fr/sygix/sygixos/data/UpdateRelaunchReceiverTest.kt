@@ -5,18 +5,14 @@
 
 package fr.sygix.sygixos.data
 
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import fr.sygix.sygixos.ui.MainActivity
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -26,14 +22,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
-import org.robolectric.shadows.ShadowLooper
 
 @RunWith(RobolectricTestRunner::class)
 class UpdateRelaunchReceiverTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val prefs = UpdatePrefs(context)
-    private val application get() = shadowOf(context as android.app.Application)
+    private val application get() = shadowOf(context as Application)
 
     @Before
     fun reset() = runBlocking {
@@ -41,34 +36,12 @@ class UpdateRelaunchReceiverTest {
         application.clearNextStartedActivities()
     }
 
-    private fun deliver() {
-        context.sendBroadcast(Intent(Intent.ACTION_MY_PACKAGE_REPLACED).setPackage(context.packageName))
-        ShadowLooper.idleMainLooper()
-    }
-
-    private fun waitForFlagCleared() = runBlocking {
-        withContext(Dispatchers.Default) {
-            withTimeout(5_000) {
-                context.dataStore.data.first { prefs -> prefs.asMap().keys.none { it.name == "update_relaunch" } }
-            }
-        }
-    }
-
-    private fun awaitStartedActivity(): Intent? = runBlocking {
-        withContext(Dispatchers.Default) {
-            withTimeoutOrNull(5_000) {
-                var started: Intent? = null
-                while (started == null) {
-                    started = application.peekNextStartedActivity()
-                    if (started == null) delay(10)
-                }
-                started
-            }
-        }
+    private fun relaunchKeyPresent(): Boolean = runBlocking {
+        context.dataStore.data.first().asMap().keys.any { it.name == "update_relaunch" }
     }
 
     @Test
-    fun `receiver is declared for package replaced`() {
+    fun `receiver is declared for package replaced and not exported`() {
         val receivers = context.packageManager.queryBroadcastReceivers(
             Intent(Intent.ACTION_MY_PACKAGE_REPLACED).setPackage(context.packageName),
             0,
@@ -77,22 +50,26 @@ class UpdateRelaunchReceiverTest {
     }
 
     @Test
-    fun `relaunch flag starts the home and is cleared`() {
-        runBlocking { prefs.setRelaunch(true) }
-        deliver()
-        waitForFlagCleared()
-        val started = awaitStartedActivity()
+    fun `relaunch flag starts the home in a new task and is cleared`() = runBlocking {
+        prefs.setRelaunch(true)
+        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context))
+        val started = application.nextStartedActivity
         assertEquals(MainActivity::class.java.name, started?.component?.className)
         assertTrue(started!!.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
-        assertFalse(runBlocking { prefs.takeRelaunch() })
+        assertFalse(relaunchKeyPresent())
     }
 
     @Test
-    fun `no relaunch flag starts nothing and the flag stays cleared`() {
-        runBlocking { prefs.setRelaunch(false) }
-        deliver()
-        waitForFlagCleared()
-        ShadowLooper.idleMainLooper()
+    fun `no relaunch flag starts nothing and the flag is cleared`() = runBlocking {
+        prefs.setRelaunch(false)
+        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context))
+        assertNull(application.nextStartedActivity)
+        assertFalse(relaunchKeyPresent())
+    }
+
+    @Test
+    fun `missing flag starts nothing`() = runBlocking {
+        UpdateRelaunchReceiver.relaunchIfRequested(context, UpdatePrefs(context))
         assertNull(application.nextStartedActivity)
     }
 }

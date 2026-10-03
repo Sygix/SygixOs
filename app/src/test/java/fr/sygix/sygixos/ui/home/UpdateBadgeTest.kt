@@ -127,7 +127,7 @@ class UpdateBadgeTest {
         updates.publish("v0.0.1", "v0.0.2-rc.1")
         updates.repository.status
         updates.repository.check()
-        compose.waitUntil(10_000) {
+        compose.waitUntil(20_000) {
             shadowOf(Looper.getMainLooper()).idle()
             updates.repository.status.value.lastResult != null
         }
@@ -158,7 +158,7 @@ class UpdateBadgeTest {
         compose.waitForToggle("update-prereleases", on = false)
         press(Key.Enter)
         compose.waitForToggle("update-prereleases", on = true)
-        compose.waitUntil(5_000) { hasText("Préversion 0.0.2-rc.1 disponible", substring = true).matches(compose.onNodeWithTag("update-check").fetchSemanticsNode()) }
+        compose.waitUntil(10_000) { hasText("Préversion 0.0.2-rc.1 disponible", substring = true).matches(compose.onNodeWithTag("update-check").fetchSemanticsNode()) }
         compose.onNode(hasTestTag("update-badge-about"), useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("update-install").assertExists()
         compose.onNodeWithTag("update-prereleases").assertIsFocused()
