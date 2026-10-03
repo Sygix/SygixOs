@@ -6,11 +6,13 @@
 package fr.sygix.sygixos.data
 
 import java.io.IOException
+import java.io.InputStream
 import java.io.OutputStream
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
 
-data class HttpTimeouts(val connectMs: Int, val readMs: Int)
+data class HttpTimeouts(val connectMs: Int, val readMs: Int, val totalMs: Long)
 
 data class HttpResponse(
     val status: Int,
@@ -42,6 +44,7 @@ class HttpsUrlTransport : HttpTransport {
         sink: OutputStream,
         onBytes: (Long) -> Unit,
     ): HttpResponse {
+        val deadline = System.nanoTime() + timeouts.totalMs * 1_000_000
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.instanceFollowRedirects = true
@@ -56,17 +59,18 @@ class HttpsUrlTransport : HttpTransport {
             if (status !in 200..299) {
                 return HttpResponse(status, useful, finalUrl, bodyBytes = 0, exceeded = false)
             }
-            val (written, exceeded) = connection.inputStream.use { input -> copy(input, sink, maxBytes, onBytes) }
+            val (written, exceeded) = connection.inputStream.use { input -> copy(input, sink, maxBytes, deadline, onBytes) }
             return HttpResponse(status, useful, finalUrl, written, exceeded)
         } finally {
             connection.disconnect()
         }
     }
 
-    private fun copy(input: java.io.InputStream, sink: OutputStream, maxBytes: Long, onBytes: (Long) -> Unit): Pair<Long, Boolean> {
+    private fun copy(input: InputStream, sink: OutputStream, maxBytes: Long, deadline: Long, onBytes: (Long) -> Unit): Pair<Long, Boolean> {
         val buffer = ByteArray(BUFFER_SIZE)
         var total = 0L
         while (true) {
+            if (System.nanoTime() > deadline) throw SocketTimeoutException("total time exceeded")
             val room = maxBytes - total
             if (room <= 0) return total to (input.read() != -1)
             val read = input.read(buffer, 0, minOf(buffer.size.toLong(), room).toInt())

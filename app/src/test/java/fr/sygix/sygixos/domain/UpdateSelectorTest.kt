@@ -60,8 +60,10 @@ class UpdateSelectorTest {
         val otherDigest = release("v0.0.7", assets = listOf(asset(digest = "md5:" + "a".repeat(32))))
         val httpUrl = release("v0.0.8", assets = listOf(asset(url = "http://github.com/x/app-release.apk")))
         val emptyAsset = release("v0.0.9", assets = listOf(asset(size = 0)))
-        assertEquals("0.0.3", proposed(199, true, noApk, notUploaded, noDigest, otherDigest, httpUrl, emptyAsset, release("v0.0.3")))
-        assertNull(proposed(199, true, noApk, notUploaded, noDigest, otherDigest, httpUrl, emptyAsset))
+        val tooBig = release("v0.0.10", assets = listOf(asset(size = UpdateSelector.MAX_APK_BYTES + 1)))
+        assertEquals("0.0.3", proposed(199, true, noApk, notUploaded, noDigest, otherDigest, httpUrl, emptyAsset, tooBig, release("v0.0.3")))
+        assertNull(proposed(199, true, noApk, notUploaded, noDigest, otherDigest, httpUrl, emptyAsset, tooBig))
+        assertEquals("0.0.11", proposed(199, true, release("v0.0.11", assets = listOf(asset(size = UpdateSelector.MAX_APK_BYTES)))))
     }
 
     @Test

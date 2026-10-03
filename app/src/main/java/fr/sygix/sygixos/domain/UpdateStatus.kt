@@ -62,13 +62,14 @@ object UpdateStatusText {
         val proposed = status.proposed
         return when {
             step != null && step.inProgress -> InstallLine(step.candidate, detailOf(step))
-            step is UpdateStep.Failed && step.error == UpdateError.Withdrawn && proposed == null ->
-                InstallLine(step.candidate, InstallDetail.Failed(step.error))
             proposed == null -> null
             step != null && step.candidate.tag == proposed.tag -> InstallLine(proposed, detailOf(step))
             else -> InstallLine(proposed, null)
         }
     }
+
+    fun withdrawn(status: UpdateStatus): UpdateCandidate? =
+        (status.step as? UpdateStep.Failed)?.takeIf { it.error == UpdateError.Withdrawn }?.candidate
 
     private fun detailOf(step: UpdateStep): InstallDetail = when (step) {
         is UpdateStep.Downloading -> InstallDetail.Downloading(step.percent)

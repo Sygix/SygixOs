@@ -26,6 +26,7 @@ import fr.sygix.sygixos.data.SystemPackageInstallerGateway
 import fr.sygix.sygixos.data.TvProviderHeroSource
 import fr.sygix.sygixos.data.UpdateInstaller
 import fr.sygix.sygixos.data.UpdatePrefs
+import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
 
 class SygixOsApp : Application(), ImageLoaderFactory {
@@ -49,7 +50,10 @@ class SygixOsApp : Application(), ImageLoaderFactory {
         val transport = HttpsUrlTransport()
         val inspector = PackageManagerApkInspector(packageManager, packageName)
         val gateway = SystemPackageInstallerGateway(this)
-        val userAgent = "SygixOs/${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()}"
+        val userAgentValue by lazy {
+            "SygixOs/${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()}"
+        }
+        val userAgent = { userAgentValue }
         val source = GitHubReleaseSource(transport, userAgent)
         val updatesDir = cacheDir.resolve("updates")
         return UpdateRepository(
@@ -71,7 +75,7 @@ class SygixOsApp : Application(), ImageLoaderFactory {
             network = ConnectivityNetworkStatus(this),
             foreground = foregroundTracker,
             screens = ContextSystemScreenLauncher(this),
-            installedVersionCode = { inspector.installed()?.versionCode ?: 0L },
+            installedVersionCode = { UpdateRelaunchReceiver.installedVersionCode(this) ?: 0L },
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
         )
     }

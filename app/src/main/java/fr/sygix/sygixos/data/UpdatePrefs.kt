@@ -30,13 +30,13 @@ data class UpdatePersisted(
 
 interface UpdateStore {
     val data: Flow<UpdatePersisted>
-    suspend fun setIncludePrereleases(include: Boolean)
+    suspend fun togglePrereleases()
     suspend fun setLastCheckAt(at: Long)
     suspend fun setLastResult(result: CheckResult)
     suspend fun setRetryAt(at: Long)
     suspend fun setKnown(known: KnownUpdates)
-    suspend fun setRelaunch(relaunch: Boolean)
-    suspend fun takeRelaunch(): Boolean
+    suspend fun setRelaunch(versionCode: Long?)
+    suspend fun takeRelaunch(): Long?
 }
 
 class UpdatePrefs(private val context: Context) : UpdateStore {
@@ -47,6 +47,7 @@ class UpdatePrefs(private val context: Context) : UpdateStore {
     private val retryKey = longPreferencesKey("update_retry_at")
     private val knownKey = stringPreferencesKey("update_known")
     private val relaunchKey = booleanPreferencesKey("update_relaunch")
+    private val relaunchVersionKey = longPreferencesKey("update_relaunch_version")
 
     override val data: Flow<UpdatePersisted> = context.dataStore.data.map(::read)
 
@@ -61,8 +62,8 @@ class UpdatePrefs(private val context: Context) : UpdateStore {
         )
     }
 
-    override suspend fun setIncludePrereleases(include: Boolean) {
-        context.dataStore.edit { it[includeKey] = include }
+    override suspend fun togglePrereleases() {
+        context.dataStore.edit { it[includeKey] = !(it[includeKey] ?: false) }
     }
 
     override suspend fun setLastCheckAt(at: Long) {
@@ -81,23 +82,33 @@ class UpdatePrefs(private val context: Context) : UpdateStore {
         context.dataStore.edit { it[knownKey] = encodeKnown(known) }
     }
 
-    override suspend fun setRelaunch(relaunch: Boolean) {
-        context.dataStore.edit { it[relaunchKey] = relaunch }
+    override suspend fun setRelaunch(versionCode: Long?) {
+        context.dataStore.edit {
+            if (versionCode == null) {
+                it.remove(relaunchKey)
+                it.remove(relaunchVersionKey)
+            } else {
+                it[relaunchKey] = true
+                it[relaunchVersionKey] = versionCode
+            }
+        }
     }
 
-    override suspend fun takeRelaunch(): Boolean {
-        var relaunch = false
+    override suspend fun takeRelaunch(): Long? {
+        var target: Long? = null
         context.dataStore.edit {
-            relaunch = it[relaunchKey] ?: false
+            target = it[relaunchVersionKey]?.takeIf { _ -> it[relaunchKey] == true }
             it.remove(relaunchKey)
+            it.remove(relaunchVersionKey)
         }
-        return relaunch
+        return target
     }
 
     internal companion object {
         private const val OK = "ok"
         private const val NO_NETWORK = "no_network"
         private const val TIMEOUT = "timeout"
+        private const val SECURE_CONNECTION = "tls"
         private const val RATE_LIMITED = "rate_limited"
         private const val UNAVAILABLE = "unavailable"
         private const val UNREADABLE = "unreadable"
@@ -109,6 +120,7 @@ class UpdatePrefs(private val context: Context) : UpdateStore {
             is CheckResult.Error -> when (val error = result.error) {
                 UpdateError.NoNetwork -> NO_NETWORK
                 UpdateError.Timeout -> TIMEOUT
+                UpdateError.SecureConnection -> SECURE_CONNECTION
                 is UpdateError.RateLimited -> RATE_LIMITED
                 is UpdateError.Unavailable -> "$UNAVAILABLE:${error.code}"
                 else -> UNREADABLE
@@ -119,6 +131,7 @@ class UpdatePrefs(private val context: Context) : UpdateStore {
             value == OK -> CheckResult.Ok
             value == NO_NETWORK -> CheckResult.Error(UpdateError.NoNetwork)
             value == TIMEOUT -> CheckResult.Error(UpdateError.Timeout)
+            value == SECURE_CONNECTION -> CheckResult.Error(UpdateError.SecureConnection)
             value == RATE_LIMITED -> CheckResult.Error(UpdateError.RateLimited(retryAt ?: 0L))
             value.startsWith(UNAVAILABLE) -> CheckResult.Error(UpdateError.Unavailable(value.substringAfter(':', "0").toIntOrNull() ?: 0))
             value == UNREADABLE -> CheckResult.Error(UpdateError.Unreadable)

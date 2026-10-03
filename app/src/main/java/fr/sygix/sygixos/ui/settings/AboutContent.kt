@@ -36,6 +36,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -59,6 +61,7 @@ import fr.sygix.sygixos.domain.QrCode
 
 private val QrSize = 120.dp
 private val QrGap = 16.dp
+private const val INSTALL_ROW = 1
 
 @Composable
 internal fun AboutContent(
@@ -88,42 +91,42 @@ internal fun AboutContent(
             .fillMaxHeight(),
     ) {
         item(key = "about-header") { AboutHeader(version) }
-        item(key = "update-check") {
-            AboutActionRow(
-                title = stringResource(R.string.update_check_title),
-                detail = checkLineText(update.checkLine),
-                focusEnabled = focusEnabled,
-                focusRequester = contentFocus,
-                onClick = actions.onCheck,
-                modifier = Modifier.testTag("update-check"),
-            )
-            Spacer(Modifier.height(RowSpacing))
-        }
-        if (installLine != null) {
-            item(key = "update-install") {
-                Row(verticalAlignment = Alignment.Top) {
+        item(key = "update-block") {
+            UpdateBlock(qr = update.releaseNotesQr.takeIf { installLine != null }) {
+                AboutActionRow(
+                    title = stringResource(R.string.update_check_title),
+                    detail = checkLineText(update.checkLine),
+                    focusEnabled = focusEnabled,
+                    focusRequester = contentFocus,
+                    onClick = actions.onCheck,
+                    modifier = Modifier.testTag("update-check"),
+                )
+                if (installLine != null) {
                     AboutActionRow(
                         title = stringResource(R.string.update_install_title, installLine.candidate.versionName),
                         detail = installLine.detail?.let { installDetailText(it) },
                         focusEnabled = focusEnabled,
                         focusRequester = installFocus,
                         onClick = { actions.onInstall(installLine.candidate.tag) },
-                        modifier = Modifier.weight(1f).testTag("update-install"),
+                        modifier = Modifier.testTag("update-install"),
                     )
-                    update.releaseNotesQr?.let { qr ->
-                        Spacer(Modifier.width(QrGap))
-                        ReleaseNotesQr(qr)
-                    }
                 }
-                Spacer(Modifier.height(RowSpacing))
+                update.withdrawn?.let { withdrawn ->
+                    AboutActionRow(
+                        title = stringResource(R.string.update_install_title, withdrawn.versionName),
+                        detail = stringResource(R.string.update_error_withdrawn),
+                        focusEnabled = focusEnabled,
+                        focusRequester = null,
+                        onClick = {},
+                        modifier = Modifier.testTag("update-withdrawn"),
+                    )
+                }
+                PrereleasesRow(
+                    checked = update.includePrereleases,
+                    focusEnabled = focusEnabled,
+                    onToggle = actions.onTogglePrereleases,
+                )
             }
-        }
-        item(key = "update-prereleases") {
-            PrereleasesRow(
-                checked = update.includePrereleases,
-                focusEnabled = focusEnabled,
-                onToggle = actions.onTogglePrereleases,
-            )
             Spacer(Modifier.height(24.dp))
         }
         item(key = "about-licenses-title") {
@@ -145,6 +148,31 @@ internal fun AboutContent(
                     )
                 Spacer(Modifier.height(8.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun UpdateBlock(qr: QrCode?, rows: @Composable () -> Unit) {
+    Layout(
+        content = {
+            rows()
+            if (qr != null) ReleaseNotesQr(qr)
+        },
+    ) { measurables, constraints ->
+        val qrPlaceable = if (qr != null) measurables.last().measure(Constraints()) else null
+        val rowMeasurables = if (qr != null) measurables.dropLast(1) else measurables
+        val reserved = qrPlaceable?.let { it.width + QrGap.roundToPx() } ?: 0
+        val rowWidth = (constraints.maxWidth - reserved).coerceAtLeast(0)
+        val rowPlaceables = rowMeasurables.map { it.measure(Constraints.fixedWidth(rowWidth)) }
+        val gap = RowSpacing.roundToPx()
+        val tops = rowPlaceables.runningFold(0) { top, placeable -> top + placeable.height + gap }
+        val rowsBottom = (tops.last() - gap).coerceAtLeast(0)
+        val qrTop = tops.getOrElse(INSTALL_ROW) { 0 }
+        val height = maxOf(rowsBottom, qrPlaceable?.let { qrTop + it.height } ?: 0)
+        layout(constraints.maxWidth, height) {
+            rowPlaceables.forEachIndexed { index, placeable -> placeable.place(0, tops[index]) }
+            qrPlaceable?.place(constraints.maxWidth - qrPlaceable.width, qrTop)
         }
     }
 }
@@ -181,7 +209,7 @@ private fun AboutActionRow(
     title: String,
     detail: String?,
     focusEnabled: Boolean,
-    focusRequester: FocusRequester,
+    focusRequester: FocusRequester?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

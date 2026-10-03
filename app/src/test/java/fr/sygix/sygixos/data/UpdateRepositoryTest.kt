@@ -5,7 +5,10 @@
 
 package fr.sygix.sygixos.data
 
+import android.app.Application
+import android.content.Context
 import android.content.Intent
+import androidx.test.core.app.ApplicationProvider
 import fr.sygix.sygixos.data.FakeTransport.Reply
 import fr.sygix.sygixos.data.UpdateHarness.Companion.HOUR
 import fr.sygix.sygixos.data.UpdateHarness.Companion.LIST_URL
@@ -19,6 +22,8 @@ import fr.sygix.sygixos.domain.UpdateStep
 import fr.sygix.sygixos.domain.asset
 import fr.sygix.sygixos.domain.release
 import java.io.IOException
+import javax.net.ssl.SSLHandshakeException
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
@@ -35,6 +40,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.RobolectricTestRunner
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -105,7 +111,7 @@ class UpdateRepositoryTest {
         assertEquals(1, h.apkCalls("v0.0.2"))
         assertTrue(h.step() is UpdateStep.Installing)
         assertTrue(h.residualFiles().isEmpty())
-        assertEquals(true, (h.store as MemoryUpdateStore).relaunch)
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
     }
 
     @Test
@@ -114,7 +120,7 @@ class UpdateRepositoryTest {
         h.foreground.isForeground = false
         update(h, "v0.0.2")
         assertTrue(h.gateway.sessions.single().committed)
-        assertEquals(false, (h.store as MemoryUpdateStore).relaunch)
+        assertNull((h.store as MemoryUpdateStore).relaunch)
     }
 
     @Test
@@ -252,7 +258,8 @@ class UpdateRepositoryTest {
         assertNull(status.proposed)
         assertFalse(status.badge)
         assertEquals(0, h.apkCalls("v0.0.2"))
-        assertEquals(InstallDetail.Failed(UpdateError.Withdrawn), UpdateStatusText.installLine(status)?.detail)
+        assertNull(UpdateStatusText.installLine(status))
+        assertEquals("v0.0.2", UpdateStatusText.withdrawn(status)?.tag)
         assertNull((h.store as MemoryUpdateStore).state.value.known.bestAny)
     }
 
@@ -288,8 +295,10 @@ class UpdateRepositoryTest {
         assertEquals(h.now + HOUR, (h.store as MemoryUpdateStore).state.value.retryAt)
         assertEquals("v0.0.2", h.repository.status.value.proposed?.tag)
         assertEquals(0, h.apkCalls("v0.0.2"))
+        h.transport.on(tagUrl("v0.0.2"), Reply.Body(body = releaseJson(h.releaseOf("v0.0.2")).toString().toByteArray()))
         update(h, "v0.0.2")
-        assertEquals(1, h.transport.calls.count { it.first == tagUrl("v0.0.2") })
+        assertEquals(2, h.transport.calls.count { it.first == tagUrl("v0.0.2") })
+        assertTrue(h.gateway.sessions.single().committed)
     }
 
     @Test
@@ -329,6 +338,7 @@ class UpdateRepositoryTest {
         update(h, "v0.0.2")
         val screen = Intent("android.content.pm.action.CONFIRM_INSTALL")
         h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, screen))
+        advanceUntilIdle()
         assertEquals(listOf(screen.action), h.screens.launched.map { it.action })
     }
 
@@ -341,8 +351,10 @@ class UpdateRepositoryTest {
         assertTrue(h.screens.launched.isEmpty())
         h.foreground.isForeground = true
         h.repository.onForeground()
+        advanceUntilIdle()
         assertEquals(listOf("confirm"), h.screens.launched.map { it.action })
         h.repository.onForeground()
+        advanceUntilIdle()
         assertEquals(1, h.screens.launched.size)
     }
 
@@ -351,6 +363,7 @@ class UpdateRepositoryTest {
         val h = checked(harness().apply { publish("v0.0.2") })
         update(h, "v0.0.2")
         h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
+        advanceUntilIdle()
         assertEquals(0, h.repository.systemScreenReturns.value)
         h.repository.onForeground()
         assertEquals(1, h.repository.systemScreenReturns.value)
@@ -363,22 +376,24 @@ class UpdateRepositoryTest {
         val h = checked(harness().apply { publish("v0.0.2") })
         update(h, "v0.0.2")
         h.screens.available = false
-        h.repository.onInstallStatus(InstallStatus.PendingUserAction(7, Intent("confirm")))
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
         advanceUntilIdle()
-        assertEquals(listOf(7), h.gateway.abandonedIds)
+        assertEquals(listOf(1), h.gateway.abandonedIds)
         assertEquals(UpdateError.SystemScreenUnavailable, h.failure())
+        assertNull((h.store as MemoryUpdateStore).relaunch)
     }
 
     @Test
     fun `refused or failed installation keeps the version proposed`() = runTest {
         val h = checked(harness().apply { publish("v0.0.2") })
         update(h, "v0.0.2")
-        h.repository.onInstallStatus(InstallStatus.Aborted)
+        h.repository.onInstallStatus(InstallStatus.Aborted(1))
         advanceUntilIdle()
         assertEquals(UpdateError.InstallAborted, h.failure())
+        assertNull((h.store as MemoryUpdateStore).relaunch)
         assertEquals("v0.0.2", h.repository.status.value.proposed?.tag)
         update(h, "v0.0.2")
-        h.repository.onInstallStatus(InstallStatus.Failed(InstallFailure.STORAGE))
+        h.repository.onInstallStatus(InstallStatus.Failed(2, InstallFailure.STORAGE))
         advanceUntilIdle()
         assertEquals(UpdateError.InstallFailed(InstallFailure.STORAGE), h.failure())
         assertTrue(h.repository.status.value.badge)
@@ -390,13 +405,13 @@ class UpdateRepositoryTest {
         val h = checked(harness().apply { publish("v0.0.2", "v0.0.3-rc.1") })
         h.repository.startUpdate("v0.0.2")
         testScheduler.runCurrent()
-        h.repository.setIncludePrereleases(true)
+        h.repository.togglePrereleases()
         testScheduler.runCurrent()
         assertEquals("v0.0.2", h.repository.status.value.proposed?.tag)
         advanceUntilIdle()
         assertEquals("v0.0.2", h.repository.status.value.proposed?.tag)
         assertTrue(h.apkBytes("v0.0.2").contentEquals(h.gateway.sessions.single().written.toByteArray()))
-        h.repository.onInstallStatus(InstallStatus.Aborted)
+        h.repository.onInstallStatus(InstallStatus.Aborted(1))
         advanceUntilIdle()
         assertEquals("v0.0.3-rc.1", h.repository.status.value.proposed?.tag)
     }
@@ -418,11 +433,11 @@ class UpdateRepositoryTest {
         assertNull(h.repository.status.value.proposed)
         assertFalse(h.repository.status.value.badge)
         val calls = h.transport.calls.size
-        h.repository.setIncludePrereleases(true)
+        h.repository.togglePrereleases()
         advanceUntilIdle()
         assertEquals("v0.0.2-rc.1", h.repository.status.value.proposed?.tag)
         assertTrue(h.repository.status.value.badge)
-        h.repository.setIncludePrereleases(false)
+        h.repository.togglePrereleases()
         advanceUntilIdle()
         assertNull(h.repository.status.value.proposed)
         assertEquals(calls, h.transport.calls.size)
@@ -460,21 +475,23 @@ class UpdateRepositoryTest {
     }
 
     @Test
-    fun `rate limit is persisted and no request is sent before the retry time`() = runTest {
+    fun `rate limit is persisted, the automatic check waits for it and a manual check always asks`() = runTest {
         val h = harness()
         h.transport.on(LIST_URL, Reply.Body(status = 403, headers = mapOf("x-ratelimit-remaining" to "0", "x-ratelimit-reset" to "${(h.now + HOUR) / 1000}")))
         checked(h)
         val limited = CheckResult.Error(UpdateError.RateLimited(h.now + HOUR))
         assertEquals(limited, h.repository.status.value.lastResult)
         assertEquals(h.now + HOUR, (h.store as MemoryUpdateStore).state.value.retryAt)
-        h.now += HOUR / 2
-        checked(h)
+        h.now = (h.store as MemoryUpdateStore).state.value.retryAt!! - 1
+        (h.store as MemoryUpdateStore).state.value = h.store.state.value.copy(lastCheckAt = h.now - 25 * HOUR)
+        h.repository.onHomeShown()
+        advanceUntilIdle()
         assertEquals(1, h.listCalls())
-        assertEquals(limited, h.repository.status.value.lastResult)
-        h.now += HOUR
         h.publish("v0.0.2")
         checked(h)
         assertEquals(2, h.listCalls())
+        assertEquals(CheckResult.Ok, h.repository.status.value.lastResult)
+        assertEquals("v0.0.2", h.repository.status.value.proposed?.tag)
     }
 
     @Test
@@ -561,5 +578,147 @@ class UpdateRepositoryTest {
         assertEquals(h.now, persisted.lastCheckAt)
         assertEquals("v0.0.2", persisted.known.bestFinal?.tag)
         assertTrue(h.screens.launched.isEmpty())
+    }
+
+    private fun relaunchAfterReplace(h: UpdateHarness, installed: Long): Boolean = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val app = shadowOf(context as Application)
+        app.clearNextStartedActivities()
+        UpdateRelaunchReceiver.relaunchIfRequested(context, h.store, installed)
+        app.nextStartedActivity != null
+    }
+
+    @Test
+    fun `home pressed during the download, then confirmation accepted in the foreground relaunches`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        h.repository.startUpdate("v0.0.2")
+        h.foreground.isForeground = false
+        advanceUntilIdle()
+        assertTrue(h.gateway.sessions.single().committed)
+        assertNull((h.store as MemoryUpdateStore).relaunch)
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
+        advanceUntilIdle()
+        assertTrue(h.screens.launched.isEmpty())
+        h.foreground.isForeground = true
+        h.repository.onForeground()
+        advanceUntilIdle()
+        assertEquals(listOf("confirm"), h.screens.launched.map { it.action })
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+        assertTrue(relaunchAfterReplace(h, installed = 299L))
+    }
+
+    @Test
+    fun `flag cleared by a failure, then a package replaced from elsewhere relaunches nothing`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        update(h, "v0.0.2")
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
+        advanceUntilIdle()
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+        h.repository.onInstallStatus(InstallStatus.Failed(1, InstallFailure.CONFLICT))
+        advanceUntilIdle()
+        assertNull((h.store as MemoryUpdateStore).relaunch)
+        assertFalse(relaunchAfterReplace(h, installed = 299L))
+    }
+
+    @Test
+    fun `flag left behind relaunches nothing when another version gets installed`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        update(h, "v0.0.2")
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+        assertFalse(relaunchAfterReplace(h, installed = 399L))
+    }
+
+    @Test
+    fun `leaving the system screen without any status abandons the session and allows a new try`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        update(h, "v0.0.2")
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
+        advanceUntilIdle()
+        h.repository.onForeground()
+        advanceUntilIdle()
+        assertEquals(listOf(1), h.gateway.abandonedIds)
+        assertEquals(UpdateError.InstallAborted, h.failure())
+        assertNull((h.store as MemoryUpdateStore).relaunch)
+        update(h, "v0.0.2")
+        assertEquals(2, h.gateway.sessions.size)
+        assertTrue(h.step() is UpdateStep.Installing)
+    }
+
+    @Test
+    fun `returning while the accepted installation is running keeps the session`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        update(h, "v0.0.2")
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(1, Intent("confirm")))
+        advanceUntilIdle()
+        h.gateway.active = true
+        h.repository.onForeground()
+        advanceUntilIdle()
+        assertTrue(h.gateway.abandonedIds.isEmpty())
+        assertTrue(h.step() is UpdateStep.Installing)
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+    }
+
+    @Test
+    fun `status of another session is ignored`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        update(h, "v0.0.2")
+        h.repository.onInstallStatus(InstallStatus.Aborted(42))
+        h.repository.onInstallStatus(InstallStatus.PendingUserAction(42, Intent("other")))
+        advanceUntilIdle()
+        assertTrue(h.step() is UpdateStep.Installing)
+        assertTrue(h.screens.launched.isEmpty())
+    }
+
+    @Test
+    fun `automatic check keeps an unseen failure and a manual check clears it`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        h.transport.on(h.apkUrl("v0.0.2"), Reply.Body(status = 404))
+        update(h, "v0.0.2")
+        assertEquals(UpdateError.AssetNotFound, h.failure())
+        h.now += 25 * HOUR
+        h.repository.onHomeShown()
+        advanceUntilIdle()
+        assertEquals(2, h.listCalls())
+        assertEquals(UpdateError.AssetNotFound, h.failure())
+        checked(h)
+        assertNull(h.step())
+    }
+
+    @Test
+    fun `withdrawn notice stays next to another proposed version until the next manual check`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2", "v0.0.3-rc.1") })
+        h.repository.togglePrereleases()
+        advanceUntilIdle()
+        h.transport.on(tagUrl("v0.0.3-rc.1"), Reply.Body(status = 404))
+        update(h, "v0.0.3-rc.1")
+        val status = h.repository.status.value
+        assertEquals("v0.0.3-rc.1", UpdateStatusText.withdrawn(status)?.tag)
+        assertEquals("v0.0.2", UpdateStatusText.installLine(status)?.candidate?.tag)
+        assertTrue(status.badge)
+        h.publish("v0.0.2")
+        checked(h)
+        assertNull(UpdateStatusText.withdrawn(h.repository.status.value))
+    }
+
+    @Test
+    fun `tls failure during the download is told apart from a cut connection`() = runTest {
+        val h = checked(harness().apply { publish("v0.0.2") })
+        h.transport.on(h.apkUrl("v0.0.2"), Reply.Fail(SSLHandshakeException("bad certificate")))
+        update(h, "v0.0.2")
+        assertEquals(UpdateError.SecureConnection, h.failure())
+        assertTrue(h.residualFiles().isEmpty())
+    }
+
+    @Test
+    fun `cold start clears the relaunch flag only when it abandons a session`() = runTest {
+        val store = MemoryUpdateStore().apply { relaunch = 299L }
+        val h = harness(store = store)
+        h.repository.coldStart()
+        advanceUntilIdle()
+        assertEquals(299L, store.relaunch)
+        h.gateway.openSessions = 1
+        h.repository.coldStart()
+        advanceUntilIdle()
+        assertNull(store.relaunch)
     }
 }

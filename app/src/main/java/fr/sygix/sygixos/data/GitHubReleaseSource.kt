@@ -16,6 +16,7 @@ import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import java.net.URLEncoder
+import javax.net.ssl.SSLException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +31,7 @@ interface ReleaseSource {
 
 class GitHubReleaseSource(
     private val transport: HttpTransport,
-    private val userAgent: String,
+    private val userAgent: () -> String,
     private val clock: () -> Long = System::currentTimeMillis,
     private val apiBase: String = API_BASE,
     private val io: CoroutineDispatcher = Dispatchers.IO,
@@ -49,9 +50,11 @@ class GitHubReleaseSource(
         if (!UpdateUrlPolicy.isAllowed(url)) throw UpdateException(UpdateError.Unavailable(0))
         val body = ByteArrayOutputStream()
         val response = try {
-            transport.get(url, apiHeaders(userAgent), MAX_BODY_BYTES, ApiTimeouts, body)
+            transport.get(url, apiHeaders(userAgent()), MAX_BODY_BYTES, ApiTimeouts, body)
         } catch (e: UnknownHostException) {
             throw UpdateException(UpdateError.NoNetwork)
+        } catch (e: SSLException) {
+            throw UpdateException(UpdateError.SecureConnection)
         } catch (e: SocketTimeoutException) {
             throw UpdateException(UpdateError.Timeout)
         } catch (e: InterruptedIOException) {
@@ -115,7 +118,7 @@ class GitHubReleaseSource(
     companion object {
         const val API_BASE = "https://api.github.com/repos/Sygix/SygixOs"
         const val MAX_BODY_BYTES = 2L * 1024 * 1024
-        val ApiTimeouts = HttpTimeouts(connectMs = 10_000, readMs = 15_000)
+        val ApiTimeouts = HttpTimeouts(connectMs = 10_000, readMs = 15_000, totalMs = 30_000)
         private const val NOT_FOUND = 404
         private const val FORBIDDEN = 403
         private const val TOO_MANY = 429

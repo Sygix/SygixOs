@@ -76,12 +76,12 @@ class SettingsViewModel(
 
     private val updateMapper = AboutUpdateMapper()
 
-    private val aboutUpdate = combine(updates.status, updates.systemScreenReturns, updateMapper::map)
+    private val aboutUpdate = combine(updates.status, updates.systemScreenReturns) { status, returns -> updateMapper.map(status, returns) }
 
     val updateActions = UpdateActions(
         onCheck = updates::check,
         onInstall = updates::startUpdate,
-        onTogglePrereleases = { updates.setIncludePrereleases(!updates.status.value.includePrereleases) },
+        onTogglePrereleases = updates::togglePrereleases,
     )
 
     val state: StateFlow<SettingsState> = combine(

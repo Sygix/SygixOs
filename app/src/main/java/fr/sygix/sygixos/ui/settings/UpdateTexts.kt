@@ -40,6 +40,7 @@ internal fun installDetailText(detail: InstallDetail): String = when (detail) {
 internal fun updateErrorText(error: UpdateError): String = when (error) {
     UpdateError.NoNetwork -> stringResource(R.string.update_error_no_network)
     UpdateError.Timeout -> stringResource(R.string.update_error_timeout)
+    UpdateError.SecureConnection -> stringResource(R.string.update_error_secure_connection)
     is UpdateError.RateLimited -> stringResource(R.string.update_error_rate_limited, localTime(error.retryAt))
     is UpdateError.Unavailable -> stringResource(R.string.update_error_unavailable)
     UpdateError.Unreadable -> stringResource(R.string.update_error_unreadable)

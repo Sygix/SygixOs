@@ -31,7 +31,7 @@ internal class UpdateHarness(
     val network = FakeNetwork()
     val screens = FakeScreens()
     private val apks = mutableMapOf<String, ByteArray>()
-    private val source = GitHubReleaseSource(transport, "SygixOs/test", clock = { now }, io = dispatcher)
+    private val source = GitHubReleaseSource(transport, { "SygixOs/test" }, clock = { now }, io = dispatcher)
     val installer = UpdateInstaller(
         source = source,
         transport = transport,
@@ -42,7 +42,7 @@ internal class UpdateHarness(
         updatesDir = updatesDir,
         freeSpace = { freeSpace },
         selfPackage = PACKAGE,
-        userAgent = "SygixOs/test",
+        userAgent = { "SygixOs/test" },
         io = dispatcher,
     )
     val repository = UpdateRepository(
