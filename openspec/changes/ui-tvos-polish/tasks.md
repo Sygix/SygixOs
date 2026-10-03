@@ -62,5 +62,13 @@
 - [x] 11.12 `@OptIn(ExperimentalHazeApi::class)` remis dans `GlassSurface.kt` (plus d'avertissement Haze à la compilation)
 - [ ] 11.13 Alignements maquette : vignette 16:9 de 48 × 27 dp dans les réglages, 13 dp avant le bouton du héro (couvert par `HeroLayoutTest`), icône lecture 13 dp, engrenage focusé blanc, reflet du menu .28 sans reflet bas, catégories au repos en blanc .9 ; implémentés, rendu à valider sur la TV (9.2)
 - [x] 11.14 `AGENTS.md` et `openspec/config.yaml` alignés sur les décisions (zoom ~1,08, ombre portée douce autorisée, aucun halo coloré)
-- [ ] 11.15 Réponses de Sygix aux nouvelles questions ouvertes de `proposal.md` (1 à 6)
+- [x] 11.15 Réponses de Sygix aux questions de la deuxième version reportées dans `proposal.md` et `design.md` (section 12)
+
+## 12. Réponses de Sygix (deuxième version)
+- [x] 12.1 Dock plein et épinglages au-delà de 6 : comportements confirmés, mentions « à confirmer » retirées de `proposal.md` et `design.md`
+- [x] 12.2 Ken Burns du héro à 10 s (`Motion.HERO_KEN_BURNS_MS`) ; test `IdleFrameTest` : aucune écriture d'état entre la fin du passage et le changement de visuel à 12 s, reprise sur le visuel suivant
+- [x] 12.3 Dégradé du repli en un seul passage (`Motion.AMBIENT_PASS_MS`) puis figé ; spec « Écran initial du home » ; test `IdleFrameTest` : écritures pendant le passage, aucune après (échoue avec l'ancienne transition infinie)
+- [x] 12.4 Vignette 16:9 des lignes d'apps avec la bannière TV, icône centrée en repli ; test `SettingsThumbnailTest`
+- [x] 12.5 Police Figtree (google/fonts `a60a77e`, blob `579e2ab`, version 2.002, police variable 62 712 octets) dans `res/font`, typographie du design system sur Figtree, licence OFL 1.1 dans « À propos » via la configuration AboutLibraries (`app/config/`) ; vérifié dans le JSON généré ; suite de tests verte
+- [x] 12.6 `IdleFrameTest` : après une touche, les écritures d'état sont appliquées avant d'avancer l'horloge (sans animation en cours, l'horloge de test arrêtée ne les applique pas)
 

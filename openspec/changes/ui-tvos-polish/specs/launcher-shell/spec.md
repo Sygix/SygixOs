@@ -41,7 +41,7 @@ Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et 
 ### Requirement: Thème
 L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Glass façon tvOS 26 : verre sombre transparent (teinte sombre translucide sur l'arrière-plan flouté), fine bordure claire, fin reflet clair sur le bord haut et ombre légère sous la surface. Le flou SHALL être calculé en direct, à partir d'une image réduite de l'arrière-plan, et seulement sous les surfaces verre (dock, capsule heure et réglages, menu contextuel, bandeau du mode déplacement) ; aucun autre élément n'est flouté.
 
-- Toujours sombre, noir pur, posters plein cadre, police type Inter
+- Toujours sombre, noir pur, posters plein cadre, police Figtree (SIL Open Font License 1.1, listée dans « À propos »)
 - Relief par une ombre portée douce et un reflet clair, jamais par un halo coloré
 
 #### Scenario: comportement
@@ -59,6 +59,17 @@ L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Gl
 #### Scenario: coût du flou
 - **WHEN** une surface verre est affichée
 - **THEN** son flou n'est calculé que sur la zone qu'elle couvre, à partir d'une image réduite de l'arrière-plan ; une surface verre hors écran n'est plus calculée (« Préchargement et mémoire »)
+
+### Requirement: Écran initial du home
+Le home SHALL s'ouvrir sur un héro plein écran sans cadre : visuel d'un programme publié par les apps installées ou, à défaut, vidéo nature en boucle, avec le dock en overlay bas.
+
+#### Scenario: état initial
+- **WHEN** le launcher démarre
+- **THEN** le héro occupe tout l'écran (aucune carte, aucun aperçu du suivant), il détient le focus dès son affichage, et le dock est visible en overlay bas semi-transparent
+
+#### Scenario: fallback sans contenu
+- **WHEN** aucune app ne publie de programme, ou la permission est refusée
+- **THEN** le héro joue les vidéos nature en boucle ; tant qu'aucune vidéo ne joue, un dégradé sombre animé est affiché (un seul passage lent, puis figé sur sa dernière position, comme le Ken Burns), jamais d'écran noir ni de crash
 
 ### Requirement: Navigation 3 paliers
 Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la grille suit en dessous ; passer du dock à la grille et de la grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »). Au retour dans la zone grille, la page SHALL redescendre jusqu'à la position de la grille laissée à la sortie, et non d'un écran exactement (décision de Sygix) ; à la toute première entrée, elle descend d'un écran, au début de la grille.
@@ -204,7 +215,7 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
-- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple), le visuel courant zoome lentement une seule fois (Ken Burns, un seul passage) puis reste immobile sur sa dernière position, le zoom repartant du début à chaque nouveau visuel, sans son, sans aperçu de l'élément suivant
+- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple), le visuel courant zoome lentement une seule fois (Ken Burns, un seul passage d'environ 10 s, achevé avant le changement de visuel : au moins 2 s d'image immobile par cycle) puis reste immobile sur sa dernière position, le zoom repartant du début à chaque nouveau visuel, sans son, sans aperçu de l'élément suivant
 
 #### Scenario: navigation manuelle
 - **WHEN** l'utilisateur presse gauche/droite sur le héro
@@ -243,5 +254,5 @@ Le launcher SHALL valider les visuels avant de les afficher, en bornant ce trava
 
 #### Scenario: écran au repos
 - **WHEN** aucune touche n'est pressée et aucune transition n'est en cours
-- **THEN** seules les animations spécifiées encore visibles redessinent l'écran (vidéo d'aperçu, dégradé animé du repli, passage unique du Ken Burns d'un nouveau visuel du héro ou du panneau Top Shelf, changement de visuel du défilement automatique) ; une fois le passage du Ken Burns terminé, l'image est immobile ; aucune animation d'un élément hors écran ne tourne, et une animation continue ne provoque aucune recomposition à chaque image
+- **THEN** seules les animations spécifiées encore visibles redessinent l'écran (vidéo d'aperçu, passage unique du dégradé animé du repli, passage unique du Ken Burns d'un nouveau visuel du héro ou du panneau Top Shelf, changement de visuel du défilement automatique) ; une fois ces passages terminés, l'image est immobile ; aucune animation d'un élément hors écran ne tourne, et une animation continue ne provoque aucune recomposition à chaque image
 
