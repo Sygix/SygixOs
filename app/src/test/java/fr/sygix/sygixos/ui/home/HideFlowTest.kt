@@ -66,15 +66,14 @@ class HideFlowTest {
     fun `context menu offers cacher which hides the app without confirmation`() {
         openMenu()
 
-        repeat(3) {
+        repeat(2) {
             compose.onRoot().performKeyInput {
-                keyDown(Key.DirectionRight)
-                keyUp(Key.DirectionRight)
+                keyDown(Key.DirectionDown)
+                keyUp(Key.DirectionDown)
             }
             compose.waitForIdle()
         }
-        // Ne pas supposer l'ordre du menu : vérifier que « Cacher » a le focus avant OK.
-        compose.onNodeWithTag("menu-hide").assertIsFocused()
+        compose.onNodeWithTag("menu-action-hide").assertIsFocused()
         compose.onRoot().performKeyInput {
             keyDown(Key.Enter)
             keyUp(Key.Enter)
