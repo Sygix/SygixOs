@@ -1,4 +1,4 @@
-# SygixOs
+<h1 align="center"><img src=".github/assets/readme-logo.png" alt="SygixOs" width="640"></h1>
 
 [![test](https://github.com/Sygix/SygixOs/actions/workflows/test.yml/badge.svg)](https://github.com/Sygix/SygixOs/actions/workflows/test.yml)
 [![release](https://img.shields.io/github/v/release/Sygix/SygixOs?include_prereleases&sort=semver)](https://github.com/Sygix/SygixOs/releases)
