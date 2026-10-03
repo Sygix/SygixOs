@@ -34,12 +34,12 @@ Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et 
 - **WHEN** une tuile de la grille ou du dock a le focus
 - **THEN** la tuile agrandie ne recouvre aucune tuile voisine, l'espacement entre tuiles et entre rangées absorbant le zoom, et elle reste entière : ni la rangée, ni la grille, ni le dock ne la coupent
 
-#### Scenario: nom de l'app sous la tuile
-- **WHEN** une tuile de la grille a le focus
-- **THEN** le nom de l'app s'affiche centré sous la tuile, dans l'espace entre les rangées, sans déplacer aucune tuile ; il disparaît quand la tuile perd le focus
+#### Scenario: aucun nom sur les tuiles
+- **WHEN** une tuile de la grille ou du dock est affichée, avec ou sans le focus
+- **THEN** aucun nom d'app n'est écrit sur la tuile ni sous elle ; une app sans bannière garde le repli de « Grille d'apps » (icône entière centrée sur fond sombre)
 
 ### Requirement: Thème
-L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Glass façon tvOS 26 : verre sombre transparent (teinte sombre translucide sur l'arrière-plan flouté), fine bordure claire, fin reflet clair sur le bord haut et ombre légère sous la surface. Le flou SHALL être calculé en direct, à partir d'une image réduite de l'arrière-plan, et seulement sous les surfaces verre (dock, capsule heure et réglages, menu contextuel) ; aucun autre élément n'est flouté.
+L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Glass façon tvOS 26 : verre sombre transparent (teinte sombre translucide sur l'arrière-plan flouté), fine bordure claire, fin reflet clair sur le bord haut et ombre légère sous la surface. Le flou SHALL être calculé en direct, à partir d'une image réduite de l'arrière-plan, et seulement sous les surfaces verre (dock, capsule heure et réglages, menu contextuel, bandeau du mode déplacement) ; aucun autre élément n'est flouté.
 
 - Toujours sombre, noir pur, posters plein cadre, police type Inter
 - Relief par une ombre portée douce et un reflet clair, jamais par un halo coloré
@@ -49,7 +49,7 @@ L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Gl
 - **THEN** les exigences listées ci-dessus s'appliquent
 
 #### Scenario: surfaces verre
-- **WHEN** le dock, la capsule heure et réglages (« Capsule heure et réglages » de `settings`) ou le menu contextuel sont affichés
+- **WHEN** le dock, la capsule heure et réglages (« Capsule heure et réglages » de `settings`), le menu contextuel ou le bandeau du mode déplacement sont affichés
 - **THEN** ils utilisent le matériau verre sombre (arrière-plan flouté en direct, teinte sombre translucide, fine bordure claire, reflet sur le bord haut, ombre légère) ; le panneau du menu contextuel est nettement plus foncé que le dock et la capsule ; si l'appareil ne supporte pas l'effet, la surface reste sombre et translucide, sans flou et sans crash
 
 #### Scenario: bouton sans flou
@@ -96,7 +96,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 - **THEN** aucun de ses éléments ne peut prendre le focus ; gauche et droite restent dans la zone active
 
 ### Requirement: Dock d'apps épinglées
-Le home SHALL afficher un dock en verre sombre (« Thème », rail overlay bas) contenant les apps épinglées, qui restent également présentes dans la grille. Le dock overlay le héro et SHALL se déplacer avec lui : il n'est visible que lorsque le héro l'est. Son matériau verre SHALL rester actif tant qu'une partie du héro est à l'écran, y compris pendant le défilement, et n'être coupé qu'une fois le héro entièrement sorti de l'écran (décision de Sygix) : le dock ne change pas d'aspect au début de la descente, et la bascule du verre ne recrée pas son contenu.
+Le home SHALL afficher un dock en verre sombre (« Thème », rail overlay bas) contenant au plus 6 apps épinglées (comme tvOS), qui restent également présentes dans la grille. Le dock overlay le héro et SHALL se déplacer avec lui : il n'est visible que lorsque le héro l'est. Son matériau verre SHALL rester actif tant qu'une partie du héro est à l'écran, y compris pendant le défilement, et n'être coupé qu'une fois le héro entièrement sorti de l'écran (décision de Sygix) : le dock ne change pas d'aspect au début de la descente, et la bascule du verre ne recrée pas son contenu.
 
 #### Scenario: état initial
 - **WHEN** le home s'ouvre
@@ -107,8 +107,16 @@ Le home SHALL afficher un dock en verre sombre (« Thème », rail overlay bas) 
 - **THEN** toutes ses tuiles ont la même taille fixe, plus petite que celle des tuiles de la grille (environ 80 %), quel que soit le nombre d'apps, et le dock, centré, s'ajuste à leur nombre
 
 #### Scenario: tuiles adaptatives
-- **WHEN** le dock contient plus de 5 apps
-- **THEN** ses tuiles ne réduisent pas leur taille : elles gardent la taille fixe du scénario « taille tvOS », et le dock reste centré tant qu'il tient dans la largeur de l'écran
+- **WHEN** le dock contient 6 apps, son maximum
+- **THEN** ses tuiles gardent la taille fixe du scénario « taille tvOS », sans réduction, et le dock reste centré et entièrement dans la largeur de l'écran
+
+#### Scenario: dock plein
+- **WHEN** le dock contient déjà 6 apps et l'utilisateur ouvre le menu contextuel d'une app qui n'y est pas
+- **THEN** l'action « Épingler au dock » est indisponible : grisée, accompagnée d'un message court indiquant que le dock est plein, et OK n'y fait rien ; elle redevient disponible dès qu'une app est retirée du dock
+
+#### Scenario: épinglages au-delà du maximum
+- **WHEN** le launcher démarre avec plus de 6 apps épinglées enregistrées (version antérieure)
+- **THEN** le dock n'en affiche que 6 et aucun épinglage enregistré n'est effacé
 
 #### Scenario: épinglage
 - **WHEN** l'utilisateur épingle ou retire une app via le menu contextuel (appui long, OK valide directement)
@@ -123,7 +131,7 @@ Le home SHALL afficher un dock en verre sombre (« Thème », rail overlay bas) 
 - **THEN** à la descente, le verre du dock reste actif et identique tant que le héro est au moins en partie à l'écran, et n'est coupé qu'une fois le héro entièrement sorti ; à la remontée, il redevient actif dès que le héro réapparaît ; à aucune de ces bascules les tuiles du dock ne sont recréées (le focus et l'état des tuiles sont conservés)
 
 ### Requirement: Panneau Top Shelf au focus
-Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focusée, et se refermer quand l'app focusée n'a rien à montrer ; aucune place n'est réservée quand il est fermé. Le défilement de la grille SHALL suivre une règle de placement unique, appliquée au bloc focusé (la rangée focusée, plus le panneau quand il est ouvert au-dessus d'elle) : le bloc reste entre la marge haute de la grille (40 dp sous le haut de l'écran) et la marge basse (32 dp au-dessus du bas de l'écran, l'espacement entre rangées, qui laisse la place au nom de l'app sous la tuile focusée). La grille ne défile que pour y ramener le bloc, et ce défilement est animé avec la durée et la courbe de l'expansion du panneau. Tant que la zone grille est active, la page ne remonte jamais au-dessus du début de la grille : le héro reste hors écran.
+Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focusée, et se refermer quand l'app focusée n'a rien à montrer ; aucune place n'est réservée quand il est fermé. Le défilement de la grille SHALL suivre une règle de placement unique, appliquée au bloc focusé (la rangée focusée, plus le panneau quand il est ouvert au-dessus d'elle) : le bloc reste entre la marge haute de la grille (40 dp sous le haut de l'écran) et la marge basse (32 dp au-dessus du bas de l'écran, l'espacement entre rangées). La grille ne défile que pour y ramener le bloc, et ce défilement est animé avec la durée et la courbe de l'expansion du panneau. Tant que la zone grille est active, la page ne remonte jamais au-dessus du début de la grille : le héro reste hors écran.
 
 #### Scenario: arrivée dans la grille
 - **WHEN** l'utilisateur descend du dock vers la grille
@@ -165,6 +173,17 @@ Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focus�
 - **WHEN** l'utilisateur quitte la zone grille (Retour, ou remontée vers le dock ou le héro) puis y revient
 - **THEN** la page défile jusqu'au héro (« Navigation 3 paliers »), mais la position de la grille n'est pas remise à zéro : au retour, la page redescend jusqu'à la position de la grille laissée à la sortie, la rangée focusée à la même place à l'écran (le panneau éventuellement ouvert s'est refermé à la sortie), le focus va à la dernière tuile visitée (« Navigation 3 paliers »), et la grille ne défile davantage que si cette tuile est hors des marges
 
+### Requirement: Contenu du panneau
+Le panneau SHALL n'afficher que des visuels validés et chargés de l'app focus, et ne pas s'ouvrir sinon.
+
+#### Scenario: contenu disponible
+- **WHEN** l'app focusée a des visuels validés (preview programs / watch next)
+- **THEN** chaque affiche apparaît en fondu (300-400ms easing Apple) une fois chargée, puis défile lentement une seule fois (Ken Burns, un seul passage) et reste ensuite immobile sur sa dernière position ; le défilement repart du début à chaque nouvelle affiche
+
+#### Scenario: pas de contenu
+- **WHEN** l'app focusée n'a aucun visuel validé
+- **THEN** aucun panneau n'est ouvert (ni cadre, ni logo de repli) et la grille occupe tout l'écran
+
 ### Requirement: Fond de la zone grille
 Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro étant complètement masqué parce qu'il est sorti de l'écran par le haut.
 
@@ -185,7 +204,7 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
-- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple), le visuel courant zoome lentement (Ken Burns), sans son, sans aperçu de l'élément suivant
+- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple), le visuel courant zoome lentement une seule fois (Ken Burns, un seul passage) puis reste immobile sur sa dernière position, le zoom repartant du début à chaque nouveau visuel, sans son, sans aperçu de l'élément suivant
 
 #### Scenario: navigation manuelle
 - **WHEN** l'utilisateur presse gauche/droite sur le héro
@@ -224,5 +243,5 @@ Le launcher SHALL valider les visuels avant de les afficher, en bornant ce trava
 
 #### Scenario: écran au repos
 - **WHEN** aucune touche n'est pressée et aucune transition n'est en cours
-- **THEN** seules les animations spécifiées encore visibles redessinent l'écran (vidéo d'aperçu, Ken Burns du héro et du panneau Top Shelf, dégradé animé du repli, défilement automatique du héro) ; aucune animation d'un élément hors écran ne tourne, et une animation continue ne provoque aucune recomposition à chaque image
+- **THEN** seules les animations spécifiées encore visibles redessinent l'écran (vidéo d'aperçu, dégradé animé du repli, passage unique du Ken Burns d'un nouveau visuel du héro ou du panneau Top Shelf, changement de visuel du défilement automatique) ; une fois le passage du Ken Burns terminé, l'image est immobile ; aucune animation d'un élément hors écran ne tourne, et une animation continue ne provoque aucune recomposition à chaque image
 

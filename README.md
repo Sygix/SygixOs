@@ -10,16 +10,16 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 
 ## Features
 
-- **Full-screen hero**: a muted slideshow (crossfade, slow zoom) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Soft dark veils keep the title and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
+- **Full-screen hero**: a muted slideshow (crossfade, one slow zoom per picture, then still) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Soft dark veils keep the title and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
 - **Clock and settings capsule**: a small dark glass capsule at the top right of the hero shows the time (12 or 24-hour, as set on the TV) and the settings gear.
 - **Dock and app grid**:
   - apps are detected automatically;
   - 16:9 tiles show the Android TV banner;
-  - the focused tile lifts like on tvOS (zoom, soft shadow, light sheen), and the grid shows the app name below it;
-  - apps can be pinned to the dock, a dark glass bar whose tiles keep one fixed size;
+  - the focused tile lifts like on tvOS (zoom, soft shadow, light sheen), with no app name on the tiles;
+  - up to 6 apps can be pinned to the dock, a dark glass bar whose tiles keep one fixed size;
   - the grid can be reordered with the arrow keys.
-- **Dark glass**: the dock, the capsule and the context menu use a dark translucent glass with a live blur computed at reduced resolution, only under these surfaces.
-- **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row.
+- **Dark glass**: the dock, the capsule, the context menu and the move-mode banner use a dark translucent glass with a live blur computed at reduced resolution, only under these surfaces.
+- **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row and pans slowly once.
 - **Settings** (gear in the capsule, same background as the grid, light focus pills):
   - choose which apps feed the hero and the preview; apps that publish content come first, by number of programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
   - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list that restores the listed apps. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
@@ -73,7 +73,7 @@ Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bot
 
 - **Down / Up**: switch tiers; only the active zone takes focus.
 - **Left / Right**: stay within the zone (previous or next program on the hero).
-- **Up from the hero**: settings gear (the clock never takes the focus).
+- **Up from the hero**: settings gear (the clock never takes the focus); Back from the gear returns to the hero button.
 - **Back**: returns to the hero.
 - **Long press OK** on a tile opens a dark menu (Up / Down to choose, Back to close):
   - pin to or unpin from the dock;

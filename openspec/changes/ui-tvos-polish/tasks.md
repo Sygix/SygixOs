@@ -9,8 +9,8 @@
 
 ## 2. Grille et dock
 - [x] 2.1 Espacement de la grille 24 / 32 dp et rayon des tuiles 9 dp (D4) ; `GridScrollTest` et `HomeGridScrollTest` restent verts
-- [x] 2.2 Nom de l'app sous la tuile focusée de la grille (`app-tile-name-<package>`), sans décaler la grille ; test Compose `TvFocusStyleTest`
-- [x] 2.3 `DockLayout` à taille fixe (D5) et `Dock` centré, verre sombre (au-delà de la capacité : comportement provisoire, question ouverte 1 de `proposal.md`) ; `DockLayoutTest` adapté ; test Compose `TvFocusStyleTest` : 1, 3 et 6 apps à la même taille, plus petite que la grille, dock centré
+- [x] 2.2 ~~Nom de l'app sous la tuile focusée~~ retiré sur décision de Sygix (11.2)
+- [x] 2.3 `DockLayout` à taille fixe (D5) et `Dock` centré, verre sombre ; `DockLayoutTest` adapté ; test Compose `TvFocusStyleTest` : 1, 3 et 6 apps à la même taille, plus petite que la grille, dock centré
 - [x] 2.4 Test Compose `TvFocusStyleTest` : tuile focusée de la grille et du dock sans recouvrement des voisines et entière dans l'écran et dans `dock-glass`
 
 ## 3. Capsule heure et réglages
@@ -46,3 +46,21 @@
 
 ## 10. Clôture
 - [ ] 10.1 `openspec archive ui-tvos-polish` après merge et validation sur la TV, avant l'archivage de `p2c-upnext` ; `openspec validate --all --strict` vert après fusion
+
+## 11. Décisions de Sygix et corrections après relecture
+- [x] 11.1 Dock limité à 6 apps (`AppCatalog.MAX_DOCK`, `pinState`, `togglePinned` refusant un 7e épinglage, aucun épinglage enregistré effacé), défilement provisoire du dock supprimé, « Épingler au dock » grisé avec « Dock plein (6 apps maximum) » ; tests `AppCatalogTest` (maximum, conservation, refus, état) et `ContextMenuTest` (dock plein : action désactivée, message, OK sans effet ; dock à 5 : épinglage)
+- [x] 11.2 Aucun nom d'app sur ou sous les tuiles ; test `TvFocusStyleTest` « aucun nom » (aucun nœud n'affiche le nom d'une app de la grille)
+- [x] 11.3 « Fermer » retiré du menu ; `ContextMenuTest` vérifie trois actions et l'absence de `menu-action-close`
+- [x] 11.4 Ken Burns du héro et du panneau en un seul passage, reprise au changement de visuel ; tests `IdleFrameTest` (héro et panneau immobiles après le passage, reprise au changement) ; le cas du panneau échoue sur `main`
+- [x] 11.5 Retour depuis l'engrenage vers le bouton du héro ; test `HeroCapsuleTest`
+- [ ] 11.6 Engrenage au trait ; implémenté (rendu vérifié localement), sans test automatisé possible sans capture d'image : à valider sur la TV (9.2)
+- [x] 11.7 Bandeau du mode déplacement dans la liste des surfaces floutées de « Thème » et du README (code inchangé : déjà une `GlassSurface`)
+- [x] 11.8 « Tuiles adaptatives » réécrit pour le maximum de 6 ; scénarios « dock plein » et « épinglages au-delà du maximum »
+- [x] 11.9 `TvFocusStyleTest` : tuiles des quatre coins de la grille et des deux bouts d'un dock de 6 apps entières (rectangle visible égal au rectangle complet)
+- [x] 11.10 `HeroCapsuleTest` « seule l'heure est recomposée » (observateur de composition : 1 état lu, au plus 5 scopes ; 15 scopes si l'accueil lit l'heure, vérifié en modifiant le code)
+- [x] 11.11 `HomeGridScrollTest` en dp littéraux
+- [x] 11.12 `@OptIn(ExperimentalHazeApi::class)` remis dans `GlassSurface.kt` (plus d'avertissement Haze à la compilation)
+- [ ] 11.13 Alignements maquette : vignette 16:9 de 48 × 27 dp dans les réglages, 13 dp avant le bouton du héro (couvert par `HeroLayoutTest`), icône lecture 13 dp, engrenage focusé blanc, reflet du menu .28 sans reflet bas, catégories au repos en blanc .9 ; implémentés, rendu à valider sur la TV (9.2)
+- [x] 11.14 `AGENTS.md` et `openspec/config.yaml` alignés sur les décisions (zoom ~1,08, ombre portée douce autorisée, aucun halo coloré)
+- [ ] 11.15 Réponses de Sygix aux nouvelles questions ouvertes de `proposal.md` (1 à 6)
+
