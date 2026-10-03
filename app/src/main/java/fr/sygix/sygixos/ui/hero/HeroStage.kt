@@ -7,6 +7,16 @@ package fr.sygix.sygixos.ui.hero
 
 import android.util.Log
 import android.view.TextureView
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.drawscope.withTransform
+import fr.sygix.sygixos.core.designsystem.SygixColors
+import fr.sygix.sygixos.core.designsystem.TextStyles
+import fr.sygix.sygixos.core.designsystem.glassRim
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
@@ -43,7 +53,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -67,7 +76,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
-import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
@@ -191,7 +199,7 @@ fun HeroStage(
             label = "heroPoster",
         ) { item ->
             item?.imageUrl?.let { url ->
-                KenBurnsPoster(url, onError = { onImageError(item) })
+                KenBurnsPoster(url, running = visible, onError = { onImageError(item) })
             }
         }
         HeroOverlay(
@@ -232,14 +240,15 @@ private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
 }
 
 @Composable
-private fun KenBurnsPoster(url: String, onError: () -> Unit) {
+private fun KenBurnsPoster(url: String, running: Boolean, onError: () -> Unit) {
     var ready by remember(url) { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (ready) 1.08f else 1f,
-        animationSpec = tween(Motion.HERO_KEN_BURNS_MS, easing = LinearEasing),
-        label = "kenBurns",
-    )
-    val alpha by animateFloatAsState(if (ready) 1f else 0f, tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing), label = "posterAlpha")
+    val scale = remember(url) { Animatable(1f) }
+    LaunchedEffect(ready, running) {
+        if (!ready || !running) return@LaunchedEffect
+        val remaining = (KenBurnsScale - scale.value) / (KenBurnsScale - 1f)
+        scale.animateTo(KenBurnsScale, tween((Motion.HERO_KEN_BURNS_MS * remaining).toInt(), easing = LinearEasing))
+    }
+    val alpha = animateFloatAsState(if (ready) 1f else 0f, tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing), label = "posterAlpha")
     AsyncImage(
         model = ImageRequest.Builder(LocalContext.current).data(url).size(1920, 1080).crossfade(false).build(),
         contentDescription = null,
@@ -247,11 +256,12 @@ private fun KenBurnsPoster(url: String, onError: () -> Unit) {
         onSuccess = { ready = true },
         onError = { onError() },
         modifier = Modifier
+            .testTag("hero-poster")
             .fillMaxSize()
             .graphicsLayer {
-                this.alpha = alpha
-                scaleX = scale
-                scaleY = scale
+                this.alpha = alpha.value
+                scaleX = scale.value
+                scaleY = scale.value
             },
     )
 }
@@ -264,19 +274,13 @@ private fun HeroOverlay(
     focusEnabled: Boolean,
     onOpen: () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.55f)
-                .align(Alignment.BottomStart)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)))),
-        )
+    Box(Modifier.fillMaxSize().heroVeils()) {
         Column(
             Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = Dimens.ScreenMarginH + 8.dp, bottom = 172.dp)
-                .widthIn(max = 560.dp),
+                .padding(start = Dimens.ScreenMarginH, bottom = Dimens.HeroTextBottom)
+                .widthIn(max = Dimens.HeroTextWidth),
+            verticalArrangement = Arrangement.spacedBy(Dimens.HeroTextSpacing),
         ) {
             Crossfade(
                 targetState = current,
@@ -286,7 +290,6 @@ private fun HeroOverlay(
                 if (item != null) HeroMetadata(item)
             }
             if (launchable && current != null) {
-                Spacer(Modifier.height(14.dp))
                 HeroOpenButton(
                     label = if (current.progress != null) "Reprendre" else "Ouvrir",
                     focusRequester = buttonFocusRequester,
@@ -298,38 +301,73 @@ private fun HeroOverlay(
     }
 }
 
+private fun Modifier.heroVeils(): Modifier = drawWithCache {
+    val width = size.width
+    val height = size.height
+    val bottomTop = height * (1f - BottomVeilReach)
+    val bottomVeil = Brush.verticalGradient(
+        0f to SygixColors.Veil.copy(alpha = 0f),
+        (BottomVeilReach - 0.26f) / BottomVeilReach to SygixColors.Veil.copy(alpha = 0.55f),
+        1f to SygixColors.Veil.copy(alpha = 0.82f),
+        startY = bottomTop,
+        endY = height,
+    )
+    val leftReach = width * LeftVeilReach
+    val leftVeil = Brush.horizontalGradient(
+        0f to SygixColors.Veil.copy(alpha = 0.62f),
+        0.38f / LeftVeilReach to SygixColors.Veil.copy(alpha = 0.28f),
+        1f to SygixColors.Veil.copy(alpha = 0f),
+        startX = 0f,
+        endX = leftReach,
+    )
+    val radiusX = CornerVeilWidth.toPx()
+    val radiusY = CornerVeilHeight.toPx()
+    val corner = Offset(width, 0f)
+    val cornerVeil = Brush.radialGradient(
+        0f to SygixColors.Veil.copy(alpha = 0.5f),
+        0.7f to SygixColors.Veil.copy(alpha = 0f),
+        center = corner,
+        radius = radiusX,
+    )
+    onDrawBehind {
+        drawRect(bottomVeil, topLeft = Offset(0f, bottomTop), size = Size(width, height - bottomTop))
+        drawRect(leftVeil, size = Size(leftReach, height))
+        withTransform({ scale(1f, radiusY / radiusX, pivot = corner) }) {
+            drawRect(cornerVeil, topLeft = Offset(width - radiusX, 0f), size = Size(radiusX, radiusX))
+        }
+    }
+}
+
 @Composable
 private fun HeroMetadata(item: HeroItem) {
-    Column {
-        Text(
-            item.sourceLabel?.uppercase() ?: " ",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.7f),
-        )
-        Spacer(Modifier.height(6.dp))
+    Column(
+        Modifier.testTag("hero-metadata"),
+        verticalArrangement = Arrangement.spacedBy(Dimens.HeroTextSpacing),
+    ) {
+        item.sourceLabel?.let { source ->
+            Text(source, style = TextStyles.HeroSource.copy(shadow = SmallTextShadow), color = SourceColor, maxLines = 1)
+        }
         Text(
             item.title,
-            style = MaterialTheme.typography.headlineLarge,
-            color = Color.White,
-            minLines = 2,
+            style = TextStyles.HeroTitle.copy(shadow = TitleShadow),
+            color = SygixColors.OnDark,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
-        Box(
-            Modifier
-                .padding(top = 12.dp)
-                .width(220.dp)
-                .height(3.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Color.White.copy(alpha = if (item.progress != null) 0.3f else 0f)),
-        ) {
-            item.progress?.let { progress ->
+        item.progress?.let { progress ->
+            Box(
+                Modifier
+                    .width(ProgressWidth)
+                    .height(ProgressHeight)
+                    .clip(RoundedCornerShape(ProgressHeight / 2))
+                    .background(ProgressTrack)
+                    .testTag("hero-progress"),
+            ) {
                 Box(
                     Modifier
                         .fillMaxWidth(progress)
                         .fillMaxHeight()
-                        .background(Color.White)
-                        .testTag("hero-progress"),
+                        .background(SygixColors.OnDark),
                 )
             }
         }
@@ -339,42 +377,49 @@ private fun HeroMetadata(item: HeroItem) {
 @Composable
 private fun HeroOpenButton(label: String, focusRequester: FocusRequester, enabled: Boolean, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val pill = RoundedCornerShape(50)
+    val pill = RoundedCornerShape(percent = 50)
+    val progress = animateFloatAsState(
+        if (focused) 1f else 0f,
+        tween(Motion.FOCUS_MS, easing = AppleEasing),
+        label = "heroButtonFocus",
+    )
     val content by animateColorAsState(
-        if (focused) Color(0xFF15151A) else Color.White,
+        if (focused) SygixColors.OnPill else SygixColors.OnDark,
         tween(Motion.FOCUS_MS, easing = AppleEasing),
         label = "heroButtonContent",
     )
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, tween(Motion.FOCUS_MS, easing = AppleEasing), label = "heroButtonScale")
-    val focusModifier = Modifier
-        .testTag("hero-open")
-        .scale(scale)
-        .focusRequester(focusRequester)
-        .focusProperties { canFocus = enabled }
-        .onFocusChanged { focused = it.isFocused }
-        .tvClickable(onClick = onClick)
-    val labelRow: @Composable () -> Unit = {
-        Row(
-            Modifier.padding(start = 18.dp, end = 22.dp, top = 9.dp, bottom = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-                PlayGlyph(content)
-            Spacer(Modifier.width(8.dp))
-            Text(label, style = MaterialTheme.typography.titleMedium, color = content)
-        }
-    }
-    Box(focusModifier) {
-        if (focused) {
-            Box(Modifier.clip(pill).background(Color.White)) { labelRow() }
-        } else {
-            GlassSurface(shape = pill) { labelRow() }
+    Box(
+        Modifier
+            .testTag("hero-open")
+            .graphicsLayer {
+                val p = progress.value
+                val scale = 1f + (Dimens.ButtonFocusScale - 1f) * p
+                scaleX = scale
+                scaleY = scale
+                shadowElevation = Dimens.ButtonFocusElevation.toPx() * p
+                shape = pill
+                clip = false
+            }
+            .focusRequester(focusRequester)
+            .focusProperties { canFocus = enabled }
+            .onFocusChanged { focused = it.isFocused }
+            .tvClickable(onClick = onClick)
+            .glassRim(pill) { progress.value }
+            .height(Dimens.ButtonHeight)
+            .padding(start = ButtonPaddingStart, end = ButtonPaddingEnd),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PlayGlyph(content)
+            Spacer(Modifier.width(ButtonGap))
+            Text(label, style = TextStyles.Button, color = content, maxLines = 1)
         }
     }
 }
 
 @Composable
 private fun PlayGlyph(color: Color) {
-    Canvas(Modifier.size(14.dp)) {
+    Canvas(Modifier.size(PlayGlyphSize)) {
         val path = Path().apply {
             moveTo(0f, 0f)
             lineTo(size.width, size.height / 2f)
@@ -384,3 +429,19 @@ private fun PlayGlyph(color: Color) {
         drawPath(path, color)
     }
 }
+
+private const val KenBurnsScale = 1.08f
+private const val BottomVeilReach = 0.55f
+private const val LeftVeilReach = 0.62f
+private val CornerVeilWidth = 320.dp
+private val CornerVeilHeight = 150.dp
+private val ProgressWidth = 160.dp
+private val ProgressHeight = 3.dp
+private val ProgressTrack = Color.White.copy(alpha = 0.28f)
+private val SourceColor = Color.White.copy(alpha = 0.86f)
+private val ButtonPaddingStart = 16.dp
+private val ButtonPaddingEnd = 20.dp
+private val ButtonGap = 7.dp
+private val PlayGlyphSize = 11.dp
+private val TitleShadow = Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), 12f)
+private val SmallTextShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 1f), 3f)

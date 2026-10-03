@@ -70,6 +70,7 @@ object Dimens {
     val ButtonShadowOffset = 7.dp
     val ButtonShadowRadius = 16.dp
     const val ButtonFocusScale = 1.05f
+    val ButtonFocusElevation = 8.dp
     const val GearFocusScale = 1.08f
     val HeroTextBottom = 148.dp
     val HeroTextWidth = 450.dp
