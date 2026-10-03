@@ -1,0 +1,16 @@
+{
+  "uniqueId": "com.github.erikdkennedy:figtree",
+  "artifactVersion": "2.002",
+  "name": "Figtree",
+  "description": "Police Figtree (Google Fonts, google/fonts a60a77e14f28abd4ef243a1b5dfc48df0cec5205)",
+  "website": "https://github.com/erikdkennedy/figtree",
+  "developers": [
+    {
+      "name": "Erik Kennedy",
+      "organisationUrl": "https://github.com/erikdkennedy"
+    }
+  ],
+  "licenses": [
+    "OFL-1.1"
+  ]
+}

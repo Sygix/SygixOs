@@ -70,6 +70,12 @@ android {
     testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 
+aboutLibraries {
+    collect {
+        configPath = file("config")
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
