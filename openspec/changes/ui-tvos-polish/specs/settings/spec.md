@@ -64,3 +64,7 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 #### Scenario: catégorie active, focus à droite
 - **WHEN** le focus est dans le volet droit
 - **THEN** la catégorie active est une pilule grise discrète à texte blanc et les autres catégories n'ont pas de fond
+
+#### Scenario: vignette des lignes d'apps
+- **WHEN** une ligne d'app est affichée (« Apps sources », « Applications cachées »)
+- **THEN** l'icône de l'app est présentée dans une vignette 16:9 : la bannière TV de l'app quand elle en a une, sinon son icône entière centrée, comme le repli des tuiles de l'accueil

@@ -48,7 +48,7 @@ La transition en défilement entre le héro et la grille SHALL être couverte pa
 ## ADDED Requirements
 
 ### Requirement: Couverture du style tvOS
-Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couvert par des tests exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), par assertions sémantiques, de position et de couleur calculée, sans capture d'image, avec des testTags stables : « hero-capsule », « hero-clock », « settings-gear », « dock-glass », « hero-open », « hero-metadata », « hero-progress », « hero-poster », « app-menu », « menu-dock-full », préfixes « app-tile-<package> », « app-tile-art-<package> » (visuel de la tuile, transformations du focus comprises), « menu-action-<action> », « settings-category-<CATEGORY> », « source-row-<package> », « hidden-row-<package> », et « unhide-all ».
+Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couvert par des tests exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), par assertions sémantiques, de position et de couleur calculée, sans capture d'image, avec des testTags stables : « hero-capsule », « hero-clock », « settings-gear », « dock-glass », « hero-open », « hero-metadata », « hero-progress », « hero-poster », « app-menu », « menu-dock-full », préfixes « app-banner-<package> », « app-icon-<package> », « app-tile-<package> », « app-tile-art-<package> » (visuel de la tuile, transformations du focus comprises), « menu-action-<action> », « settings-category-<CATEGORY> », « source-row-<package> », « hidden-row-<package> », et « unhide-all ».
 
 #### Scenario: tuile focusée sans débordement
 - **WHEN** une tuile de la grille, puis une tuile du dock prend le focus et l'animation se termine
@@ -91,9 +91,13 @@ Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couv
 - **THEN** le contraste du texte blanc sur le panneau et celui du texte sombre sur la pilule atteignent chacun au moins 4,5:1 ; et dans l'accueil, à l'ouverture du menu, la première action « menu-action-<action> » a le focus, bas passe à l'action suivante, placée sous la première ; le menu n'a que les actions épingler, déplacer (grille) et cacher, sans « Fermer »
 
 #### Scenario: écran au repos
-- **WHEN** l'accueil est laissé sans touche, l'horloge de test avancée de plusieurs secondes, après chacune de ces situations : héro sur le dégradé animé du repli, dock focusé sur ce héro, grille focusée après la descente, grille atteinte depuis un héro dont le poster était affiché, poster du héro après la fin de son Ken Burns, panneau Top Shelf à une affiche après la fin de son Ken Burns
-- **THEN** dans les deux premières, aucune recomposition n'a lieu (le dégradé ne modifie que le dessin) ; dans les autres, aucun état Compose n'est modifié : le Ken Burns s'arrête à la sortie du héro et après son unique passage
+- **WHEN** l'accueil est laissé sans touche, l'horloge de test avancée de plusieurs secondes, après chacune de ces situations : héro sur le dégradé animé du repli, dock focusé sur ce héro, grille focusée après la descente, grille atteinte depuis un héro dont le poster était affiché, poster du héro après la fin de son Ken Burns, panneau Top Shelf à une affiche après la fin de son Ken Burns, dégradé du repli après son passage, héro à deux programmes entre la fin du Ken Burns (10 s) et le changement de visuel (12 s)
+- **THEN** dans les deux premières, aucune recomposition n'a lieu (le dégradé ne modifie que le dessin) ; dans les autres, aucun état Compose n'est modifié : le Ken Burns et le dégradé s'arrêtent à la sortie du héro et après leur unique passage
 
 #### Scenario: reprise du Ken Burns
 - **WHEN** le visuel du héro, puis l'affiche du panneau Top Shelf, change après la fin du passage du visuel précédent
 - **THEN** le Ken Burns repart sur le nouveau visuel (des états Compose sont de nouveau modifiés)
+
+#### Scenario: vignette des réglages
+- **WHEN** la vignette d'une ligne d'app des réglages est composée pour une app avec bannière TV, puis pour une app sans bannière
+- **THEN** la première montre « app-banner-<package> » sans icône, la seconde « app-icon-<package> » sans bannière
