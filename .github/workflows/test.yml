@@ -26,7 +26,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         with:
           packages: 'platforms;android-37.0 build-tools;37.0.0'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
@@ -34,7 +34,7 @@ jobs:
       - name: Test results in PR
         if: github.event_name == 'pull_request'
         continue-on-error: true
-        uses: mikepenz/action-junit-report@3585e9575db828022551b4231f165eb59a0e74e3
+        uses: mikepenz/action-junit-report@a9170d5795813c01ab4901ffb045b52bab4ab09d
         with:
           report_paths: 'app/build/test-results/testDebugUnitTest/TEST-*.xml'
           require_tests: true
