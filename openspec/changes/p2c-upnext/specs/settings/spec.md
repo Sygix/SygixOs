@@ -1,6 +1,6 @@
 # Delta settings
 
-La capability `settings` vient de l'archivage de `p2b-settings`. Ce delta y ajoute « Position d'Up Next » (catégorie « Écran d'accueil ») et modifie « Page de réglages », « Apps sources » et « Cacher une application » pour couvrir la rangée Up Next. Les trois blocs MODIFIED partent du texte courant de `openspec/specs/settings/spec.md`, après l'archivage de `home-settings-polish`, et n'y ajoutent que la catégorie « Écran d'accueil » et la rangée Up Next.
+La capability `settings` vient de l'archivage de `p2b-settings`. Ce delta y ajoute « Position d'Up Next » (catégorie « Écran d'accueil ») et modifie « Page de réglages », « Apps sources » et « Cacher une application » pour couvrir la rangée Up Next. Les trois blocs MODIFIED partent du texte courant de `openspec/specs/settings/spec.md`, après l'archivage de `home-settings-polish`, et n'y ajoutent que la catégorie « Écran d'accueil » et la rangée Up Next ; « Page de réglages » reprend aussi le fond et les pilules de focus du change `ui-tvos-polish`, archivé avant celui-ci.
 
 ## ADDED Requirements
 
@@ -22,7 +22,7 @@ La catégorie « Écran d'accueil » des réglages SHALL proposer un contrôle �
 ## MODIFIED Requirements
 
 ### Requirement: Page de réglages
-Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, fond sombre neutre, navigable au DPAD uniquement.
+Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », bouton « Tout réactiver », contrôle « Position d'Up Next », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit.
 
 #### Scenario: structure
 - **WHEN** la page de réglages s'ouvre
@@ -35,6 +35,18 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 #### Scenario: retour
 - **WHEN** l'utilisateur presse Retour depuis la page de réglages
 - **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend
+
+#### Scenario: fond
+- **WHEN** la page de réglages s'ouvre
+- **THEN** son fond est identique à celui de la zone grille de l'accueil
+
+#### Scenario: focus d'une ligne
+- **WHEN** une ligne de la page prend le focus
+- **THEN** elle devient une pilule claire à texte et icônes sombres, à la même taille et à la même place qu'au repos (aucun zoom), sans halo ni verre ; au repos les lignes n'ont pas de fond, sauf « Tout réactiver » qui garde un fond discret
+
+#### Scenario: catégorie active, focus à droite
+- **WHEN** le focus est dans le volet droit
+- **THEN** la catégorie active est une pilule grise discrète à texte blanc et les autres catégories n'ont pas de fond
 
 ### Requirement: Apps sources
 La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf et à la rangée Up Next ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture). Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
