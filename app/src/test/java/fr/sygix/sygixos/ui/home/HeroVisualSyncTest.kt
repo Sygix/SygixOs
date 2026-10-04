@@ -121,6 +121,8 @@ class HeroVisualSyncTest {
         compose.onAllNodesWithText(first.title, useUnmergedTree = true).assertCountEquals(0)
         press(Key.DirectionCenter)
         assertEquals(listOf("h1", "h3"), opened)
+        advance(Motion.HERO_VISUAL_TIMEOUT_MS * 2)
+        assertEquals(1, loader.requests(slow.imageUrl!!))
 
         loader.gate.complete(Unit)
         advance(500)
@@ -129,7 +131,6 @@ class HeroVisualSyncTest {
         compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
         press(Key.DirectionCenter)
         assertEquals(listOf("h1", "h3", "h2"), opened)
-        assertEquals(2, loader.requests(slow.imageUrl!!))
     }
 
     @Test

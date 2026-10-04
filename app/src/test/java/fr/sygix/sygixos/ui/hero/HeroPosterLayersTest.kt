@@ -73,7 +73,7 @@ class HeroPosterLayersTest {
     private fun poster(id: String, title: String = "") =
         HeroItem(id = id, title = title, imageUrl = "https://example.invalid/$id.jpg", sourcePackage = "com.source")
 
-    private fun show(vararg items: HeroItem) {
+    private fun show(vararg items: HeroItem, motion: Boolean = true) {
         Coil.setImageLoader(TransformingImageLoader())
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -85,6 +85,7 @@ class HeroPosterLayersTest {
                 focusRequester = FocusRequester(),
                 onOpen = {},
                 backdrop = backdrop,
+                motion = motion,
             )
         }
     }
@@ -111,6 +112,22 @@ class HeroPosterLayersTest {
         assertEquals(1.08f, backdrop.layers.single().zoom.value, 0.001f)
         val late = cornerLuma()
         assertTrue("début $early, fin $late", late <= early + 2)
+    }
+
+    @Test
+    fun `without motion, as under the startup screen, the first picture appears without a fade`() {
+        show(poster("h1"), motion = false)
+        advance(50)
+        assertEquals(1f, backdrop.layers.single().fade.value, 0.001f)
+        assertEquals(1f, backdrop.layers.single().zoom.value, 0.001f)
+    }
+
+    @Test
+    fun `with motion, the first picture fades in`() {
+        show(poster("h1"))
+        advance(50)
+        val fade = backdrop.layers.single().fade.value
+        assertTrue("fondu $fade", fade < 0.5f)
     }
 
     @Test
