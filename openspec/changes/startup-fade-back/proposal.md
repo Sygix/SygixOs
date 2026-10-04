@@ -5,7 +5,7 @@ Au test de la rc.7 sur la TV de référence, la touche Retour pressée pendant l
 
 ## What Changes
 - **Le fondu de sortie appartient à l'écran de démarrage** (décision de Sygix, actée) : Retour pressé entre le début et la fin du fondu de sortie suit le comportement normal du système — SygixOs quitte le premier plan, sans crash — au lieu d'être traité par l'accueil. La touche Retour reste non interceptée pendant tout l'écran de démarrage, fondu de sortie compris.
-- Le scénario « Retour pendant l'écran de démarrage » de « Écran de démarrage » couvre désormais explicitement le fondu de sortie, sans changer son comportement hors fondu ; les autres scénarios de l'exigence et les exigences « Écran de démarrage sans animation » et « Couverture de l'écran de démarrage » sont reprises sans changement de comportement.
+- « Écran de démarrage » gagne un scénario dédié « Retour pendant le fondu de sortie » qui spécifie ce comportement ; le scénario existant « Retour pendant l'écran de démarrage » est repris sans changement de comportement hors fondu ; les autres scénarios de l'exigence et les exigences « Écran de démarrage sans animation » et « Couverture de l'écran de démarrage » sont reprises sans changement de comportement.
 
 ## Capabilities
 
@@ -25,7 +25,7 @@ Aucune.
 ## Impact
 - `ui/home/StartupSplash.kt` : le fondu de sortie en cours est transmis à l'accueil composé sous l'écran de démarrage.
 - `ui/home/HomeScreen.kt` : le traitement de la touche Retour par l'accueil (retour au héro) ne s'applique qu'après la fin du fondu de sortie ; les autres touches restent traitées comme aujourd'hui pendant le fondu (héro focusable, D-pad actif).
-- `app/src/test/java/fr/sygix/sygixos/ui/home/` : tests Compose existants (`StartupMascotTest` et apparentés) complétés pour le scénario « Retour pendant le fondu de sortie » et la variante sans animation ; aucun nouveau fichier de production.
+- `app/src/test/java/fr/sygix/sygixos/ui/home/` : tests Compose existants (`StartupSplashTest` et apparentés) complétés pour le scénario « Retour pendant le fondu de sortie » et la variante sans animation ; aucun nouveau fichier de production.
 - Le sujet n° 3 du suivi post-release (`openspec/backlog.md`) est traité ; sa piste est retirée du suivi au moment de l'archivage.
 
 ## Non-goals

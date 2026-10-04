@@ -59,7 +59,7 @@ L'accueil SHALL être composé seulement après le fondu d'entrée de la mascott
 
 #### Scenario: Retour pendant le fondu de sortie
 - **WHEN** l'utilisateur presse Retour pendant le fondu de sortie, entre son début et sa fin
-- **THEN** le comportement normal du système s'applique comme pendant le reste de l'écran de démarrage : SygixOs quitte le premier plan, sans crash ; le fondu n'est pas intercepté par l'accueil et aucune action n'est déclenchée sur lui
+- **THEN** le comportement normal du système s'applique comme pendant le reste de l'écran de démarrage : SygixOs quitte le premier plan, sans crash ; la touche n'est pas interceptée par l'accueil et aucune action n'est déclenchée sur lui
 
 #### Scenario: retour sur le launcher
 - **WHEN** le launcher revient au premier plan (touche Home, fin d'une autre app) alors que l'accueil a déjà été créé dans le processus

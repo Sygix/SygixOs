@@ -4,7 +4,7 @@
 Sujet n° 3 du suivi post-release : au test de la rc.7, Retour pressé pendant le fondu de sortie de l'écran de démarrage est absorbé par l'accueil. Dans le code actuel :
 
 - `StartupHost` (`ui/home/StartupSplash.kt`) rend l'accueil interactif dès le début du fondu de sortie : `interactive = phase != StartupPhase.Splash`, donc `true` pendant `FadingOut` ;
-- l'accueil composé (`ui/home/HomeScreen.kt`) traite alors `Key.Back` dans son `onPreviewKeyEvent` racin : Retour ramène le focus au héro (« Navigation 3 paliers ») et la touche n'atteint jamais le système, donc SygixOs reste au premier plan ;
+- l'accueil composé (`ui/home/HomeScreen.kt`) traite alors `Key.Back` dans son `onPreviewKeyEvent` racine : Retour ramène le focus au héro (« Navigation 3 paliers ») et la touche n'atteint jamais le système, donc SygixOs reste au premier plan ;
 - sans animation, `StartupGate` passe de `Splash` directement à `Done` (phase `FadingOut` sautée quand les animations sont désactivées) : l'accueil est interactif dès le remplacement instantané, sans période intermédiaire.
 
 Sygix a tranché (décision actée) : le fondu de sortie appartient à l'écran de démarrage ; Retour suit le comportement normal du système (SygixOs quitte le premier plan) sur toute la durée de l'écran de démarrage, fondu de sortie compris.
