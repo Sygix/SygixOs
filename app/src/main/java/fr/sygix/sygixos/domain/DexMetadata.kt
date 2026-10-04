@@ -5,25 +5,21 @@
 
 package fr.sygix.sygixos.domain
 
-import java.io.ByteArrayInputStream
-import java.util.zip.ZipInputStream
+import java.io.File
+import java.util.zip.ZipFile
 
 object DexMetadata {
 
     const val PROFILE_ENTRY = "primary.prof"
     const val METADATA_ENTRY = "primary.profm"
-    private val Allowed = setOf(PROFILE_ENTRY, METADATA_ENTRY)
+    private val Expected = setOf(PROFILE_ENTRY, METADATA_ENTRY)
 
-    fun isValid(bytes: ByteArray): Boolean = runCatching {
-        val names = mutableListOf<String>()
-        ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->
-            while (true) {
-                val entry = zip.nextEntry ?: break
-                if (entry.isDirectory || entry.name !in Allowed || entry.name in names) return false
-                if (zip.readBytes().isEmpty()) return false
-                names += entry.name
-            }
+    fun isValid(file: File): Boolean = runCatching {
+        ZipFile(file).use { zip ->
+            val entries = zip.entries().toList()
+            entries.size == Expected.size &&
+                entries.map { it.name }.toSet() == Expected &&
+                entries.all { !it.isDirectory && it.size > 0 }
         }
-        PROFILE_ENTRY in names
     }.getOrDefault(false)
 }

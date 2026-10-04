@@ -6,17 +6,23 @@
 package fr.sygix.sygixos.domain
 
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class DexMetadataTest {
 
-    private fun zip(vararg entries: Pair<String, Int>): ByteArray {
+    @get:Rule
+    val folder = TemporaryFolder()
+
+    private fun zip(vararg entries: Pair<String, Int>): File {
         val out = ByteArrayOutputStream()
         ZipOutputStream(out).use { zip ->
             entries.forEach { (name, size) ->
@@ -25,24 +31,26 @@ class DexMetadataTest {
                 zip.closeEntry()
             }
         }
-        return out.toByteArray()
+        return raw(out.toByteArray())
     }
 
+    private fun raw(bytes: ByteArray): File = folder.newFile().apply { writeBytes(bytes) }
+
     @Test
-    fun `profile with or without its metadata is a dex metadata archive`() {
+    fun `profile and its metadata make a dex metadata archive, as built by the android gradle plugin`() {
         assertTrue(DexMetadata.isValid(zip("primary.prof" to 16, "primary.profm" to 16)))
-        assertTrue(DexMetadata.isValid(zip("primary.prof" to 16)))
     }
 
     @Test
     fun `anything else is refused`() {
-        assertFalse(DexMetadata.isValid(ByteArray(0)))
-        assertFalse(DexMetadata.isValid("not a zip".toByteArray()))
+        assertFalse(DexMetadata.isValid(raw(ByteArray(0))))
+        assertFalse(DexMetadata.isValid(raw("not a zip".toByteArray())))
+        assertFalse(DexMetadata.isValid(zip("primary.prof" to 16)))
         assertFalse(DexMetadata.isValid(zip("primary.profm" to 16)))
-        assertFalse(DexMetadata.isValid(zip("primary.prof" to 16, "classes.dex" to 16)))
-        assertFalse(DexMetadata.isValid(zip("primary.prof" to 0)))
-        assertFalse(DexMetadata.isValid(zip("../primary.prof" to 16)))
-        assertFalse(DexMetadata.isValid(zip("primary.prof" to 16, "primary.prof/" to 0)))
+        assertFalse(DexMetadata.isValid(zip("primary.prof" to 16, "primary.profm" to 16, "classes.dex" to 16)))
+        assertFalse(DexMetadata.isValid(zip("primary.prof" to 0, "primary.profm" to 16)))
+        assertFalse(DexMetadata.isValid(zip("../primary.prof" to 16, "primary.profm" to 16)))
+        assertFalse(DexMetadata.isValid(File(folder.root, "missing.dm")))
     }
 
     @Test

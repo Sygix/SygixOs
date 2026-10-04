@@ -9,6 +9,7 @@ import android.content.Intent
 import fr.sygix.sygixos.domain.CheckResult
 import fr.sygix.sygixos.domain.DailyCheckPolicy
 import fr.sygix.sygixos.domain.InstallFailure
+import fr.sygix.sygixos.domain.UpdateCandidate
 import fr.sygix.sygixos.domain.UpdateError
 import fr.sygix.sygixos.domain.UpdateException
 import fr.sygix.sygixos.domain.UpdateSelector
@@ -54,7 +55,12 @@ class UpdateRepository(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : UpdateController {
 
-    private data class Runtime(val checking: Boolean = false, val step: UpdateStep? = null, val sessionId: Int? = null)
+    private data class Runtime(
+        val checking: Boolean = false,
+        val step: UpdateStep? = null,
+        val sessionId: Int? = null,
+        val withProfile: Boolean = false,
+    )
 
     private class PendingAction(val sessionId: Int, val intent: Intent)
 
@@ -125,11 +131,19 @@ class UpdateRepository(
     override fun startUpdate(tag: String) {
         if (operationJob?.isActive == true || runtime.value.step?.inProgress == true) return
         val candidate = status.value.proposed?.takeIf { it.tag == tag } ?: return
-        runtime.update { it.copy(step = UpdateStep.Downloading(candidate, 0), sessionId = null) }
+        launchOperation(candidate, withProfile = true)
+    }
+
+    private fun launchOperation(candidate: UpdateCandidate, withProfile: Boolean) {
+        runtime.update { it.copy(step = UpdateStep.Downloading(candidate, 0), sessionId = null, withProfile = false) }
         operationJob = scope.launch {
-            when (val outcome = installer.run(candidate, ::setStep)) {
+            when (val outcome = installer.run(candidate, withProfile, ::setStep)) {
                 is InstallOutcome.Committed -> runtime.update {
-                    it.copy(step = UpdateStep.Installing(outcome.candidate), sessionId = outcome.sessionId)
+                    it.copy(
+                        step = UpdateStep.Installing(outcome.candidate),
+                        sessionId = outcome.sessionId,
+                        withProfile = outcome.withProfile,
+                    )
                 }
                 is InstallOutcome.Failure -> onFailure(outcome)
             }
@@ -148,8 +162,14 @@ class UpdateRepository(
             is InstallStatus.Success -> Unit
             is InstallStatus.PendingUserAction -> onPendingUserAction(step, status)
             is InstallStatus.Aborted -> failInstall(UpdateError.InstallAborted)
-            is InstallStatus.Failed -> failInstall(UpdateError.InstallFailed(status.family))
+            is InstallStatus.Failed -> if (current.withProfile) retryWithoutProfile(step) else failInstall(UpdateError.InstallFailed(status.family))
         }
+    }
+
+    private fun retryWithoutProfile(step: UpdateStep) {
+        pendingAction = null
+        systemScreenShown = false
+        launchOperation(step.candidate, withProfile = false)
     }
 
     private fun onPendingUserAction(step: UpdateStep, status: InstallStatus.PendingUserAction) {

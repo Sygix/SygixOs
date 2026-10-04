@@ -8,6 +8,8 @@ package fr.sygix.sygixos.data
 import fr.sygix.sygixos.data.FakeTransport.Reply
 import fr.sygix.sygixos.data.UpdateHarness.Companion.sha256
 import fr.sygix.sygixos.domain.DexMetadata
+import fr.sygix.sygixos.domain.InstallFailure
+import fr.sygix.sygixos.domain.UpdateError
 import fr.sygix.sygixos.domain.Release
 import fr.sygix.sygixos.domain.UpdateSelector
 import fr.sygix.sygixos.domain.UpdateStep
@@ -67,6 +69,7 @@ class UpdateProfileTest {
         size: Long = profile.size.toLong(),
         reply: Reply = Reply.Body(body = served),
         url: String = profileUrl,
+        state: String = "uploaded",
     ) {
         val apk = releaseOf(tag)
         val release = Release(
@@ -74,7 +77,7 @@ class UpdateProfileTest {
             draft = false,
             prerelease = false,
             htmlUrl = apk.htmlUrl,
-            assets = apk.assets + asset(name = UpdateSelector.PROFILE_NAME, size = size, digest = digest, url = url),
+            assets = apk.assets + asset(name = UpdateSelector.PROFILE_NAME, state = state, size = size, digest = digest, url = url),
         )
         publishReleases(release)
         transport.on(url, reply)
@@ -152,11 +155,77 @@ class UpdateProfileTest {
 
     @Test
     fun `profile that is not a dex metadata archive is dropped`() = runTest {
-        val bad = dexMetadata(3, entries = listOf(DexMetadata.PROFILE_ENTRY, "classes.dex"))
-        val h = harness().apply { publishWithProfile(served = bad, digest = "sha256:" + sha256(bad), size = bad.size.toLong()) }
+        listOf(
+            dexMetadata(3, entries = listOf(DexMetadata.PROFILE_ENTRY, "classes.dex")),
+            dexMetadata(4, entries = listOf(DexMetadata.PROFILE_ENTRY)),
+            "not a zip".toByteArray(),
+        ).forEach { bad ->
+            val h = harness().apply { publishWithProfile(served = bad, digest = "sha256:" + sha256(bad), size = bad.size.toLong()) }
+            install(h)
+            assertNull(h.gateway.sessions.single().profile)
+            assertTrue(h.gateway.sessions.single().committed)
+            assertTrue(h.residualFiles().isEmpty())
+        }
+    }
+
+    @Test
+    fun `profile over 16 MiB or not completely uploaded is never downloaded`() = runTest {
+        listOf(
+            { h: UpdateHarness -> h.publishWithProfile(size = UpdateSelector.MAX_PROFILE_BYTES + 1) },
+            { h: UpdateHarness -> h.publishWithProfile(state = "starter") },
+        ).forEach { publish ->
+            val h = harness().apply(publish)
+            install(h)
+            assertEquals(0, h.profileCalls())
+            assertNull(h.gateway.sessions.single().profile)
+            assertTrue(h.gateway.sessions.single().committed)
+        }
+    }
+
+    @Test
+    fun `session failing with the profile is installed again once without it`() = runTest {
+        val h = harness().apply { publishWithProfile() }
         install(h)
-        assertNull(h.gateway.sessions.single().profile)
-        assertTrue(h.gateway.sessions.single().committed)
+        val first = h.gateway.sessions.single()
+        assertTrue(profile.contentEquals(first.profile))
+        h.repository.onInstallStatus(InstallStatus.Failed(first.id, InstallFailure.INVALID))
+        advanceUntilIdle()
+        val second = h.gateway.sessions.last()
+        assertEquals(2, h.gateway.sessions.size)
+        assertTrue(second.committed)
+        assertNull(second.profile)
+        assertTrue(h.apkBytes(tag).contentEquals(second.written.toByteArray()))
+        assertEquals(2, h.apkCalls(tag))
+        assertEquals(1, h.profileCalls())
+        assertTrue(h.repository.status.value.step is UpdateStep.Installing)
+        assertTrue(h.residualFiles().isEmpty())
+        h.repository.onInstallStatus(InstallStatus.Success(second.id))
+        advanceUntilIdle()
+        assertTrue(h.repository.status.value.step is UpdateStep.Installing)
+    }
+
+    @Test
+    fun `session failing again without the profile ends in the usual error without a loop`() = runTest {
+        val h = harness().apply { publishWithProfile() }
+        install(h)
+        h.repository.onInstallStatus(InstallStatus.Failed(1, InstallFailure.INVALID))
+        advanceUntilIdle()
+        h.repository.onInstallStatus(InstallStatus.Failed(2, InstallFailure.INVALID))
+        advanceUntilIdle()
+        assertEquals(2, h.gateway.sessions.size)
+        assertEquals(UpdateError.InstallFailed(InstallFailure.INVALID), (h.repository.status.value.step as? UpdateStep.Failed)?.error)
+        assertNull((h.store as MemoryUpdateStore).relaunch)
+        assertEquals(tag, h.repository.status.value.proposed?.tag)
+    }
+
+    @Test
+    fun `failed session without profile is not installed again`() = runTest {
+        val h = harness().apply { publish(tag) }
+        install(h)
+        h.repository.onInstallStatus(InstallStatus.Failed(1, InstallFailure.STORAGE))
+        advanceUntilIdle()
+        assertEquals(1, h.gateway.sessions.size)
+        assertEquals(UpdateError.InstallFailed(InstallFailure.STORAGE), (h.repository.status.value.step as? UpdateStep.Failed)?.error)
     }
 
     @Test

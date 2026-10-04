@@ -14,7 +14,6 @@ import fr.sygix.sygixos.domain.UpdateException
 import fr.sygix.sygixos.domain.UpdateSelector
 import fr.sygix.sygixos.domain.UpdateStep
 import fr.sygix.sygixos.domain.UpdateUrlPolicy
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.OutputStream
@@ -28,7 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 sealed interface InstallOutcome {
-    data class Committed(val candidate: UpdateCandidate, val sessionId: Int) : InstallOutcome
+    data class Committed(val candidate: UpdateCandidate, val sessionId: Int, val withProfile: Boolean = false) : InstallOutcome
     data class Failure(val candidate: UpdateCandidate, val error: UpdateError) : InstallOutcome
 }
 
@@ -46,7 +45,7 @@ class UpdateInstaller(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
-    suspend fun run(known: UpdateCandidate, onStep: (UpdateStep) -> Unit): InstallOutcome = withContext(io) {
+    suspend fun run(known: UpdateCandidate, withProfile: Boolean = true, onStep: (UpdateStep) -> Unit): InstallOutcome = withContext(io) {
         val candidate = try {
             reread(known)
         } catch (e: UpdateException) {
@@ -58,9 +57,9 @@ class UpdateInstaller(
             val apk = download(candidate) { percent -> onStep(UpdateStep.Downloading(candidate, percent)) }
             onStep(UpdateStep.Verifying(candidate))
             verify(apk, candidate)
-            val profile = candidate.profile?.let(::downloadProfile)
+            val profile = candidate.profile?.takeIf { withProfile }?.let { downloadProfile(candidate.tag, it) }
             onStep(UpdateStep.Installing(candidate))
-            InstallOutcome.Committed(candidate, install(apk, candidate, profile))
+            install(apk, candidate, profile)
         } catch (e: UpdateException) {
             clean()
             InstallOutcome.Failure(candidate, e.error)
@@ -135,25 +134,37 @@ class UpdateInstaller(
         }
     }
 
-    private fun downloadProfile(profile: ProfileAsset): ByteArray? = runCatching {
-        if (!UpdateUrlPolicy.isAllowed(profile.url)) return@runCatching null
-        val body = ByteArrayOutputStream()
-        val response = transport.get(profile.url, mapOf("User-Agent" to userAgent()), profile.size, ProfileTimeouts, body)
-        val bytes = body.toByteArray()
-        val valid = response.status in 200..299 &&
-            UpdateUrlPolicy.isAllowed(response.finalUrl) &&
-            !response.exceeded &&
-            bytes.size.toLong() == profile.size &&
-            sha256(bytes) == profile.sha256 &&
-            DexMetadata.isValid(bytes)
-        bytes.takeIf { valid }
-    }.getOrNull()
+    private fun downloadProfile(tag: String, profile: ProfileAsset): ByteArray? {
+        val file = File(updatesDir, "$tag.dm")
+        return try {
+            if (!UpdateUrlPolicy.isAllowed(profile.url)) return null
+            val digest = MessageDigest.getInstance("SHA-256")
+            val response = DigestOutputStream(file.outputStream().buffered(), digest).use { out ->
+                transport.get(profile.url, mapOf("User-Agent" to userAgent()), profile.size, ProfileTimeouts, out)
+            }
+            val valid = response.status in 200..299 &&
+                UpdateUrlPolicy.isAllowed(response.finalUrl) &&
+                !response.exceeded &&
+                response.bodyBytes == profile.size &&
+                file.length() == profile.size &&
+                hex(digest.digest()) == profile.sha256 &&
+                DexMetadata.isValid(file)
+            if (valid) file.readBytes() else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        } finally {
+            file.delete()
+        }
+    }
 
-    private suspend fun install(apk: File, candidate: UpdateCandidate, profile: ByteArray?): Int =
-        profile?.let { installWithProfile(apk, candidate, it) } ?: installSession(apk, candidate, null)
+    private suspend fun install(apk: File, candidate: UpdateCandidate, profile: ByteArray?): InstallOutcome.Committed =
+        profile?.let { installWithProfile(apk, candidate, it) }
+            ?: InstallOutcome.Committed(candidate, installSession(apk, candidate, null), withProfile = false)
 
-    private suspend fun installWithProfile(apk: File, candidate: UpdateCandidate, profile: ByteArray): Int? = try {
-        installSession(apk, candidate, profile)
+    private suspend fun installWithProfile(apk: File, candidate: UpdateCandidate, profile: ByteArray): InstallOutcome.Committed? = try {
+        InstallOutcome.Committed(candidate, installSession(apk, candidate, profile), withProfile = true)
     } catch (e: ProfileRejected) {
         null
     }
@@ -215,7 +226,7 @@ class UpdateInstaller(
 
     companion object {
         val DownloadTimeouts = HttpTimeouts(connectMs = 10_000, readMs = 30_000, totalMs = 10L * 60 * 1000)
-        val ProfileTimeouts = HttpTimeouts(connectMs = 10_000, readMs = 15_000, totalMs = 60_000)
+        val ProfileTimeouts = HttpTimeouts(connectMs = 5_000, readMs = 5_000, totalMs = 10_000)
 
         fun sha256(bytes: ByteArray): String = hex(MessageDigest.getInstance("SHA-256").digest(bytes))
 
