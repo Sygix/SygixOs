@@ -76,7 +76,7 @@ fun SettingsScreen(
     onCategoryEntered: (SettingsCategory) -> Unit = {},
     update: UpdateActions = UpdateActions(),
     onBack: () -> Unit = {},
-    backEnabled: Boolean = true,
+    homeHandlesBack: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
@@ -127,7 +127,7 @@ fun SettingsScreen(
                     }
                     Key.DirectionRight -> if (pane == SettingsPane.CATEGORIES) { enterContent(); true } else false
                     Key.DirectionLeft -> if (pane == SettingsPane.CONTENT) { pane = SettingsPane.CATEGORIES; true } else false
-                    Key.Back -> if (backEnabled) { onBack(); true } else false
+                    Key.Back -> if (homeHandlesBack) { onBack(); true } else false
                     else -> false
                 }
             },

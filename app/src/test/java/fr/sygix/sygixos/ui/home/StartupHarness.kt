@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -124,7 +125,7 @@ abstract class StartupHostTest(motionScale: Float) {
                             controller.mascotUnavailable()
                         },
                         windowFocused = windowFocused.value,
-                    ) { s, interactive, backEnabled ->
+                    ) { s, interactive, homeHandlesBack ->
                         if (solidHome != null) {
                             Box(Modifier.fillMaxSize().background(solidHome))
                         } else {
@@ -136,7 +137,7 @@ abstract class StartupHostTest(motionScale: Float) {
                                 onOpenHero = { reactions++ },
                                 glassBlur = false,
                                 interactive = interactive,
-                                backEnabled = backEnabled,
+                                homeHandlesBack = homeHandlesBack,
                                 onHeroVisualReady = controller::heroVisualReady,
                             )
                         }
@@ -177,8 +178,8 @@ abstract class StartupHostTest(motionScale: Float) {
     protected fun pressBackThroughActivity() {
         compose.activityRule.scenario.onActivity { activity ->
             val now = android.os.SystemClock.uptimeMillis()
-            activity.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BACK, 0))
-            activity.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BACK, 0))
+            activity.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK, 0))
+            activity.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK, 0))
         }
         frames(1)
     }

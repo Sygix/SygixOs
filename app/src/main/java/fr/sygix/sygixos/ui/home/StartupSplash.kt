@@ -54,10 +54,10 @@ internal fun StartupHost(
     onMascotShown: () -> Unit = {},
     onMascotUnavailable: () -> Unit = {},
     windowFocused: Boolean = true,
-    home: @Composable (HomeState.Ready, interactive: Boolean, backEnabled: Boolean) -> Unit,
+    home: @Composable (HomeState.Ready, interactive: Boolean, homeHandlesBack: Boolean) -> Unit,
 ) {
     val interactive = phase != StartupPhase.Splash
-    val backEnabled = phase == StartupPhase.Done
+    val homeHandlesBack = phase == StartupPhase.Done
     val fadingOut = phase == StartupPhase.FadingOut
     var mascotSettled by remember { mutableStateOf(false) }
     var focusWaitOver by remember { mutableStateOf(false) }
@@ -78,7 +78,7 @@ internal fun StartupHost(
         Box(Modifier.fillMaxSize()) {
             when (state) {
                 HomeState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
-                is HomeState.Ready -> if (homeComposed) home(state, interactive, backEnabled)
+                is HomeState.Ready -> if (homeComposed) home(state, interactive, homeHandlesBack)
             }
         }
         if (phase != StartupPhase.Done) {
