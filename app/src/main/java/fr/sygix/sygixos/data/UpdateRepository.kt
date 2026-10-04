@@ -222,6 +222,7 @@ class UpdateRepository(
     }
 
     private suspend fun onFailure(outcome: InstallOutcome.Failure) {
+        store.setRelaunch(null)
         val error = outcome.error
         if (error is UpdateError.RateLimited) store.setRetryAt(error.retryAt)
         if (error == UpdateError.Withdrawn) {

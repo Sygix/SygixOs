@@ -205,6 +205,20 @@ class UpdateProfileTest {
     }
 
     @Test
+    fun `retry without the profile failing before its commit clears the relaunch request`() = runTest {
+        val h = harness().apply { publishWithProfile() }
+        install(h)
+        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+        h.transport.on(h.apkUrl(tag), Reply.Body(status = 404))
+        h.repository.onInstallStatus(InstallStatus.Failed(1, InstallFailure.INVALID))
+        advanceUntilIdle()
+        assertEquals(1, h.gateway.sessions.size)
+        assertEquals(UpdateError.AssetNotFound, (h.repository.status.value.step as? UpdateStep.Failed)?.error)
+        assertNull((h.store as MemoryUpdateStore).relaunch)
+        assertTrue(h.residualFiles().isEmpty())
+    }
+
+    @Test
     fun `session failing again without the profile ends in the usual error without a loop`() = runTest {
         val h = harness().apply { publishWithProfile() }
         install(h)
