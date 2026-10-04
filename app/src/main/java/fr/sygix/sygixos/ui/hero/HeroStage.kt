@@ -133,6 +133,7 @@ fun HeroStage(
     onVisualReady: () -> Unit = {},
     motion: Boolean = true,
     backdrop: GlassBackdrop = remember { GlassBackdrop() },
+    stillActive: () -> Boolean = { true },
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -235,12 +236,13 @@ fun HeroStage(
         }
     }
     val shown = items.firstOrNull { it.id == shownId }
+    var buttonFocused by remember { mutableStateOf(false) }
     val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null)
     val hasVisual = current != null && (showVideo || (current.imageUrl != null && current.imageUrl in validatedVisuals))
     LaunchedEffect(launchable, active, claimFocus) {
         if (!active || !claimFocus) return@LaunchedEffect
         withFrameNanos { }
-        focusRequester.tryRequestFocus()
+        if (stillActive()) focusRequester.tryRequestFocus()
     }
 
     Box(
@@ -248,7 +250,7 @@ fun HeroStage(
             .fillMaxSize()
             .glassBackdropOrigin(backdrop)
             .then(if (launchable) Modifier else Modifier.focusRequester(focusRequester))
-            .focusProperties { canFocus = active && !launchable }
+            .focusProperties { canFocus = active && !(launchable && buttonFocused) }
             .onKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                 when (e.key) {
@@ -300,6 +302,7 @@ fun HeroStage(
             buttonFocusRequester = focusRequester,
             focusEnabled = active && launchable,
             onOpen = { shown?.let(onOpen) },
+            onButtonFocused = { buttonFocused = it },
         )
     }
 }
@@ -451,6 +454,7 @@ private fun HeroOverlay(
     buttonFocusRequester: FocusRequester,
     focusEnabled: Boolean,
     onOpen: () -> Unit,
+    onButtonFocused: (Boolean) -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -469,6 +473,7 @@ private fun HeroOverlay(
                     focusRequester = buttonFocusRequester,
                     enabled = focusEnabled,
                     onClick = onOpen,
+                    onFocused = onButtonFocused,
                     modifier = Modifier.padding(top = ButtonExtraGap),
                 )
             }
@@ -614,6 +619,7 @@ private fun HeroOpenButton(
     focusRequester: FocusRequester,
     enabled: Boolean,
     onClick: () -> Unit,
+    onFocused: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -642,7 +648,10 @@ private fun HeroOpenButton(
             }
             .focusRequester(focusRequester)
             .focusProperties { canFocus = enabled }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged {
+                focused = it.isFocused
+                onFocused(it.isFocused)
+            }
             .tvClickable(onClick = onClick)
             .glassRim(pill) { progress.value }
             .height(Dimens.ButtonHeight)

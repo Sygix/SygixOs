@@ -15,6 +15,9 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Motion
 import org.junit.Assert.assertEquals
+import coil.Coil
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,6 +29,12 @@ class HomeGridScrollTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    @Before
+    fun offlineImages() = Coil.setImageLoader(UnreachableImageLoader())
+
+    @After
+    fun resetImages() = Coil.reset()
 
     private val apps = (0 until 40).map { app("com.a%02d".format(it), "App $it") }
     private val withPosters = listOf("com.a05", "com.a25")
