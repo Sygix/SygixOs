@@ -534,6 +534,7 @@ internal fun LauncherHome(
                         anchor = { gridAnchor },
                         onAnchor = { gridAnchor = it },
                         movingApp = movingApp,
+                        modifier = Modifier.testTag("home-grid"),
                     )
                 }
             }

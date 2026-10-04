@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertCountEquals
@@ -173,9 +172,6 @@ abstract class StartupHostTest(motionScale: Float) {
             frames(1)
         }
     }
-
-    protected fun homeAlpha(): Float =
-        compose.onNode(SemanticsMatcher.keyIsDefined(StartupHomeAlpha)).fetchSemanticsNode().config[StartupHomeAlpha]
 
     protected fun assertNothingFocused() = compose.onAllNodes(isFocused()).assertCountEquals(0)
 

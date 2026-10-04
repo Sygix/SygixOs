@@ -148,7 +148,7 @@ class StartupSplashTest : StartupHostTest(motionScale = 1f) {
     }
 
     @Test
-    fun `home is composed but transparent and unfocusable before the fade`() {
+    fun `home is composed but unfocusable before the fade`() {
         launch()
         advanceTo(100)
         catalogReady()
@@ -156,32 +156,31 @@ class StartupSplashTest : StartupHostTest(motionScale = 1f) {
         advanceTo(Motion.SPLASH_APPEAR_MS + 100L)
         compose.onNodeWithTag("zone-hero").assertExists()
         compose.onNodeWithTag("settings-gear").assertExists()
-        assertEquals(0f, homeAlpha())
         compose.onNodeWithTag("zone-hero").performSemanticsAction(SemanticsActions.RequestFocus)
         compose.onNodeWithTag("settings-gear").performSemanticsAction(SemanticsActions.RequestFocus)
         frames()
         compose.onNodeWithTag("zone-hero").assertIsNotFocused()
         assertNothingFocused()
         advanceTo(590)
-        assertEquals(0f, homeAlpha())
         advanceTo(610)
         assertSplash(true)
-        assertEquals(1f, homeAlpha())
         advanceTo(600 + Motion.SPLASH_FADE_MS.toLong())
         frames()
-        assertEquals(1f, homeAlpha())
     }
 
     @Test
     @GraphicsMode(GraphicsMode.Mode.NATIVE)
-    fun `splash fades linearly over a fully drawn home`() {
+    fun `opaque splash hides the drawn home until the fade, which then reveals it linearly`() {
         val green = Color(0xFF00C800)
         launch(mascot = FakeMascotSource(null), solidHome = green)
         advanceTo(100)
         catalogReady()
         controller.heroVisualReady()
-        advanceTo(300)
-        assertBlack(true)
+        listOf(300L, 450L, 590L).forEach { elapsed ->
+            advanceTo(elapsed)
+            assertSplash(true)
+            assertBlack(true)
+        }
         advanceTo(600 + Motion.SPLASH_FADE_MS / 2L)
         val middle = pixels()
         assertEquals(1, middle.distinct().size)
@@ -271,11 +270,9 @@ class StartupSplashTest : StartupHostTest(motionScale = 1f) {
         assertFalse(mascot.isRunning)
         assertEquals(0, mascot.starts)
         assertSplash(true)
-        assertEquals(0f, homeAlpha())
         advanceTo(600)
         assertSplash(false)
         frames(1)
-        assertEquals(1f, homeAlpha())
         frames()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
     }

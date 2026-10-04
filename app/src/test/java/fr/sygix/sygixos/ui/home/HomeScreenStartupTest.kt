@@ -135,7 +135,7 @@ class HomeScreenStartupTest {
     }
 
     @Test
-    fun `home screen keeps the home unfocusable under the splash and ends it on the first hero visual`() {
+    fun `home screen keeps the home unfocusable under the splash, ends it on the first hero visual and composes the grid after the fade`() {
         val vm = readyViewModel()
         compose.mainClock.autoAdvance = false
         compose.setContent { SygixOsTheme { HomeScreen(vm, glassBlur = false) } }
@@ -148,9 +148,11 @@ class HomeScreenStartupTest {
         advanceTo(500)
         compose.onAllNodes(isFocused()).assertCountEquals(0)
         compose.onNodeWithTag("startup-splash").assertExists()
+        compose.onAllNodesWithTag("home-grid").assertCountEquals(0)
         advanceTo(700 + Motion.SPLASH_FADE_MS.toLong())
         frames()
         compose.onAllNodesWithTag("startup-splash").assertCountEquals(0)
         compose.onNodeWithTag("zone-hero").assertIsFocused()
+        compose.onNodeWithTag("home-grid").assertExists()
     }
 }
