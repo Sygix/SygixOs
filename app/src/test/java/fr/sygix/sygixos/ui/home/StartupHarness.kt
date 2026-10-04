@@ -124,7 +124,7 @@ abstract class StartupHostTest(motionScale: Float) {
                             controller.mascotUnavailable()
                         },
                         windowFocused = windowFocused.value,
-                    ) { s, interactive ->
+                    ) { s, interactive, backEnabled ->
                         if (solidHome != null) {
                             Box(Modifier.fillMaxSize().background(solidHome))
                         } else {
@@ -136,6 +136,7 @@ abstract class StartupHostTest(motionScale: Float) {
                                 onOpenHero = { reactions++ },
                                 glassBlur = false,
                                 interactive = interactive,
+                                backEnabled = backEnabled,
                                 onHeroVisualReady = controller::heroVisualReady,
                             )
                         }
@@ -171,6 +172,21 @@ abstract class StartupHostTest(motionScale: Float) {
             }
             frames(1)
         }
+    }
+
+    protected fun pressBackThroughActivity() {
+        compose.activityRule.scenario.onActivity { activity ->
+            val now = android.os.SystemClock.uptimeMillis()
+            activity.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_BACK, 0))
+            activity.dispatchKeyEvent(android.view.KeyEvent(now, now, android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_BACK, 0))
+        }
+        frames(1)
+    }
+
+    protected fun isActivityFinishing(): Boolean {
+        var finishing = false
+        compose.activityRule.scenario.onActivity { finishing = it.isFinishing }
+        return finishing
     }
 
     protected fun assertNothingFocused() = compose.onAllNodes(isFocused()).assertCountEquals(0)

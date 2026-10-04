@@ -278,6 +278,73 @@ class StartupSplashTest : StartupHostTest(motionScale = 1f) {
     }
 
     @Test
+    fun `back during the exit fade leaves the app without a home action`() {
+        launch()
+        advanceTo(100)
+        catalogReady()
+        controller.heroVisualReady()
+        advanceTo(600)
+        frames()
+        assertSplash(true)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        press(listOf(Key.DirectionUp))
+        compose.onNodeWithTag("settings-gear").assertIsFocused()
+        pressBackThroughActivity()
+        frames()
+        assertTrue(isActivityFinishing())
+        assertEquals(0, reactions)
+    }
+
+    @Test
+    fun `the same fade without back keeps the home in the foreground`() {
+        launch()
+        advanceTo(100)
+        catalogReady()
+        controller.heroVisualReady()
+        advanceTo(600)
+        frames()
+        assertSplash(true)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        press(listOf(Key.DirectionUp))
+        compose.onNodeWithTag("settings-gear").assertIsFocused()
+        assertFalse(isActivityFinishing())
+        assertEquals(Lifecycle.State.RESUMED, compose.activityRule.scenario.state)
+    }
+
+    @Test
+    fun `back during the splash without animation leaves the app`() {
+        launch(animated = false)
+        advanceTo(100)
+        catalogReady()
+        controller.heroVisualReady()
+        advanceTo(300)
+        assertSplash(true)
+        pressBackThroughActivity()
+        frames()
+        assertTrue(isActivityFinishing())
+        assertEquals(0, reactions)
+    }
+
+    @Test
+    fun `back after the instant replacement returns to the hero`() {
+        launch(animated = false)
+        advanceTo(100)
+        catalogReady()
+        controller.heroVisualReady()
+        advanceTo(600)
+        frames()
+        assertSplash(false)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        press(listOf(Key.DirectionUp))
+        compose.onNodeWithTag("settings-gear").assertIsFocused()
+        pressBackThroughActivity()
+        frames()
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        assertFalse(isActivityFinishing())
+        assertEquals(Lifecycle.State.RESUMED, compose.activityRule.scenario.state)
+    }
+
+    @Test
     fun `unreadable animation keeps the plain splash and the same timing`() {
         launch(mascot = FakeMascotSource(null))
         frames(10)

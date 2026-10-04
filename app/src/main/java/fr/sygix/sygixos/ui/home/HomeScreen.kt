@@ -138,7 +138,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
             onMascotShown = viewModel::onMascotShown,
             onMascotUnavailable = viewModel::onMascotUnavailable,
             windowFocused = LocalWindowInfo.current.isWindowFocused,
-        ) { s, interactive ->
+        ) { s, interactive, backEnabled ->
             LaunchedEffect(Unit) { viewModel.onHomeShown() }
             LauncherHome(
                 catalog = s.catalog,
@@ -161,6 +161,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 updateBadge = viewModel.updateBadge,
                 update = settingsViewModel.updateActions,
                 interactive = interactive,
+                backEnabled = backEnabled,
                 onHeroVisualReady = viewModel::onHeroVisualReady,
                 gridReady = startup == StartupPhase.Done,
             )
@@ -351,6 +352,7 @@ internal fun LauncherHome(
     updateBadge: StateFlow<Boolean> = NoBadge,
     update: UpdateActions = UpdateActions(),
     interactive: Boolean = true,
+    backEnabled: Boolean = true,
     onHeroVisualReady: () -> Unit = {},
     gridReady: Boolean = true,
 ) {
@@ -407,6 +409,7 @@ internal fun LauncherHome(
             .fillMaxSize()
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (!backEnabled && e.key == Key.Back) return@onPreviewKeyEvent false
                 if (settingsOpen) return@onPreviewKeyEvent false
                 if (menuOpen) {
                     return@onPreviewKeyEvent if (e.key == Key.Back) { menuApp = null; true } else false
