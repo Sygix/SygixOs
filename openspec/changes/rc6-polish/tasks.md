@@ -18,7 +18,7 @@
 ## 3. Profil de démarrage
 - [x] 3.1 Tâches `dexMetadataRelease` et `dexMetadataPerf` (copie du `.dm` produit par AGP pour `minSdk`) ; `./gradlew assembleRelease dexMetadataRelease` produit `app-release.dm` (`primary.prof`, `primary.profm`)
 - [x] 3.2 `release.yml` : vérification du `.dm`, publication avec l'APK dans le brouillon avant la publication ; `actionlint` et `zizmor` verts
-- [x] 3.3 Mise à jour intégrée : sélection de l'asset (empreinte obligatoire, 16 Mo, état téléversé), téléchargement vérifié dans un fichier temporaire (10 s au plus, archive ouverte avec `ZipFile`), écriture `base.dm` dans la session de l'APK, repli sur l'APK seul, relance unique sans profil après un échec de la session ; tests `UpdateProfileTest` (faux serveur) et `DexMetadataTest`
+- [x] 3.3 Mise à jour intégrée (demande de relance effacée si la relance sans profil échoue avant sa validation) : sélection de l'asset (empreinte obligatoire, 16 Mo, état téléversé), téléchargement vérifié dans un fichier temporaire (10 s au plus, archive ouverte avec `ZipFile`), écriture `base.dm` dans la session de l'APK, repli sur l'APK seul, relance unique sans profil après un échec de la session ; tests `UpdateProfileTest` (faux serveur) et `DexMetadataTest`
 - [x] 3.4 README : installation `adb install-multiple app-release.apk app-release.dm`, profil de la variante `perf`, release
 - [x] 3.5 Sur la TV : `adb install-multiple` de la variante `perf` avec son `.dm` (compilée `speed-profile`, raison `install-dm`, dès l'installation) et sans (`verify`)
 - [ ] 3.6 Sur la TV : mise à jour intégrée d'une release qui publie le `.dm` (après le passage public), état de compilation lu juste après
@@ -29,10 +29,12 @@
 - [x] 4.3 En-tête avec icône carrée (hauteur réservée), ligne d'infos et temps restant dans `HeroStage`, chaînes en ressources ; tests Compose `HeroInfoTest` (chaque type, données manquantes, sans espace vide), `IdleFrameTest` (aucune recomposition pendant le Ken Burns), `HeroLayoutTest` reste vert
 - [x] 4.4 README : infos du héro
 - [x] 4.5 Textes et bouton avec le visuel affiché, visuel lent (1 s) remplacé par le programme suivant et chargé en arrière-plan sans nouvelle requête ; test Compose `HeroVisualSyncTest`
+- [x] 4.6 Même règle pour la première image d'une vidéo d'aperçu (vidéo lente gardée préparée en pause), vidéo préparée sans être lue sous l'écran de démarrage ; lecteur derrière `HeroVideo` ; test Compose `HeroVideoTest`
+- [x] 4.7 Chargement d'image terminé après l'annulation de son effet : résultat non gardé ; `HeroVisualSyncTest`
 
 ## 5. Écran de démarrage
-- [x] 5.1 Accueil dessiné sous l'écran de démarrage opaque, visuel du héro sans fondu pendant l'écran de démarrage, grille composée à la fin du fondu ; `StartupSplashTest`, `StartupMascotTest`, `HomeScreenStartupTest` restent verts
-- [x] 5.2 Vérification des visuels suivants du héro retenue jusqu'à la fin de l'écran de démarrage, bannières décodées sur un fil de basse priorité
+- [x] 5.1 Accueil dessiné sous l'écran de démarrage opaque, visuel du héro sans fondu pendant l'écran de démarrage, grille composée à la fin du fondu ; tests `StartupSplashTest` (pixels en rendu natif : accueil invisible jusqu'au fondu), `HeroPosterLayersTest` (visuel sans fondu), `HomeScreenStartupTest` (grille après le fondu)
+- [x] 5.2 Vérification des visuels suivants du héro retenue jusqu'à la fin de l'écran de démarrage, bannières décodées sur un fil de basse priorité ; test `StartupValidationTest`
 - [x] 5.3 Mesures Perfetto et vidéo de démarrages à froid avant/après avec la variante `perf` (voir la PR)
 
 ## 6. Réconciliation et validation

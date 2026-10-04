@@ -16,7 +16,7 @@ Retours de Sygix et du test de la pré-release v0.0.1-rc.6 sur la TV de référe
 - **Infos du programme dans le héro** (décision de Sygix, maquette validée) : en-tête au-dessus du titre (icône de l'app source, libellé selon le type du programme : « Continuer dans X », « Épisode suivant dans X », « Nouveau dans X », « À regarder dans X », « X » seul pour un programme mis en avant), ligne d'infos (saison, épisode, durée, seulement ce que l'app publie), « Reste X min » à côté de la barre de progression quand la position et la durée sont connues ; lecture des colonnes `watch_next_type`, `season_display_number`, `episode_display_number`, `duration_millis` et `last_playback_position_millis`.
 
 - **Écran de démarrage** : l'accueil, composé après le fondu d'entrée de la mascotte comme avant, est dessiné sous l'écran de démarrage opaque au lieu d'être transparent, sans animation (visuel du héro sans fondu) ; la grille hors écran n'est composée qu'après le fondu ; pendant la mascotte, la vérification des visuels suivants du héro attend, et les bannières sont décodées sur un fil de basse priorité.
-- **Synchronisation du héro** : titre, infos et bouton changent avec le visuel ; un visuel qui n'est pas prêt 1 s après le changement fait passer au programme suivant sans changer les textes, continue de charger en arrière-plan sans être redemandé, et revient dans la rotation une fois chargé.
+- **Synchronisation du héro** : titre, infos et bouton changent avec le visuel ; un visuel (image ou première image d'une vidéo d'aperçu) qui n'est pas prêt 1 s après le changement fait passer au programme suivant sans changer les textes, continue de se préparer en arrière-plan sans nouvelle requête, et revient dans la rotation une fois prêt. Sous l'écran de démarrage, une vidéo d'aperçu est préparée sans être lue.
 
 ## Capabilities
 
@@ -26,7 +26,7 @@ Aucune.
 ### Modified Capabilities
 - `launcher-shell` : MODIFIED « Thème », « Diaporama héro », « Préchargement et mémoire », « Écran de démarrage » (versions de `rc5-tv-fixes`), « Contenu héro TV Provider » (version de `openspec/specs/`) ; ADDED « Profil de démarrage livré avec l'application ».
 - `self-update` : MODIFIED « Téléchargement vérifié », « Installation de la mise à jour », « Couverture de test des mises à jour » (versions de `self-update`).
-- `ui-testing` : MODIFIED « Couverture du style tvOS » (version de `ui-tvos-polish`) ; ADDED « Couverture des infos du héro ».
+- `ui-testing` : MODIFIED « Couverture du style tvOS » (version de `ui-tvos-polish`), « Couverture de l'écran de démarrage » (version de `rc5-tv-fixes`) ; ADDED « Couverture des infos du héro ».
 - `settings` : non touchée (la règle des rayons des lignes et du code QR est portée par « Thème »).
 
 ## Dépendances et chevauchements
