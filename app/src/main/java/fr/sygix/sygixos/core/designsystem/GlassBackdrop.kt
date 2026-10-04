@@ -22,6 +22,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -56,23 +60,19 @@ class GlassBackdrop {
     val layers = mutableStateListOf<BackdropLayer>()
     internal var origin: LayoutCoordinates? = null
 
-    val hasPoster: Boolean
-        get() = layers.any { it.image != null }
+    var overlay: (DrawScope.(Size) -> Unit)? = null
+
+    val ready: Boolean
+        get() = layers.any { it.image != null } && layers.all { it.image == null || it.blurred != null }
 
     val covered: Boolean
         get() = layers.any { it.image != null && it.fade.value >= 1f }
 
     fun layer(key: String): BackdropLayer {
-        val existing = layers.firstOrNull { it.key == key }
-        if (existing != null) {
-            if (layers.last() !== existing) {
-                layers.remove(existing)
-                layers.add(existing)
-            }
-            return existing
-        }
-        return BackdropLayer(key).also { layers.add(it) }
+        return layers.firstOrNull { it.key == key } ?: BackdropLayer(key).also { layers.add(it) }
     }
+
+    fun above(layer: BackdropLayer): List<BackdropLayer> = layers.drop(layers.indexOf(layer) + 1)
 
     fun keepOnly(layer: BackdropLayer) {
         layers.removeAll { it !== layer }
@@ -98,10 +98,11 @@ internal fun Modifier.backdropGlass(
     .onPlaced { anchor.coordinates = it }
     .drawWithCache {
         val outline = shape.createOutline(size, layoutDirection, this)
+        val clip = Path().apply { addOutline(outline) }
         onDrawBehind {
             val offset = backdropOffset(backdrop.origin, anchor.coordinates)
             if (offset == null || !backdrop.covered) drawOutline(outline, fallback)
-            if (offset != null) drawLayers(backdrop, outline, offset, anchor.matrix)
+            if (offset != null) drawLayers(backdrop, outline, clip, offset, anchor.matrix)
             drawOutline(outline, tint)
         }
     }
@@ -111,7 +112,7 @@ private fun backdropOffset(origin: LayoutCoordinates?, anchor: LayoutCoordinates
     return origin.localPositionOf(anchor, Offset.Zero)
 }
 
-private fun DrawScope.drawLayers(backdrop: GlassBackdrop, outline: Outline, offset: Offset, matrix: Matrix) {
+private fun DrawScope.drawLayers(backdrop: GlassBackdrop, outline: Outline, clip: Path, offset: Offset, matrix: Matrix) {
     val origin = backdrop.origin ?: return
     val width = origin.size.width.toFloat()
     val height = origin.size.height.toFloat()
@@ -126,5 +127,9 @@ private fun DrawScope.drawLayers(backdrop: GlassBackdrop, outline: Outline, offs
         matrix.postTranslate(-offset.x, -offset.y)
         brush.createShader(size).setLocalMatrix(matrix)
         drawOutline(outline, brush, alpha = alpha)
+    }
+    val overlay = backdrop.overlay ?: return
+    clipPath(clip) {
+        translate(-offset.x, -offset.y) { overlay(Size(width, height)) }
     }
 }

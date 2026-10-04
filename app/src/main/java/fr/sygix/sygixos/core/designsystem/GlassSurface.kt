@@ -43,6 +43,9 @@ val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 val GlassActive = SemanticsPropertyKey<Boolean>("GlassActive")
 var SemanticsPropertyReceiver.glassActive by GlassActive
 
+val GlassPrecomputed = SemanticsPropertyKey<Boolean>("GlassPrecomputed")
+var SemanticsPropertyReceiver.glassPrecomputed by GlassPrecomputed
+
 @Immutable
 data class GlassLook(
     val tint: Color,
@@ -70,7 +73,7 @@ fun GlassSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
-    val backdrop = LocalGlassBackdrop.current?.takeIf { it.hasPoster }
+    val backdrop = LocalGlassBackdrop.current?.takeIf { it.ready }
     val anchor = remember { GlassAnchor() }
     val glass = (haze != null || backdrop != null) && active
     val style = remember(shape, look.tint) {
@@ -81,7 +84,10 @@ fun GlassSurface(
     }
     Box(
         modifier = modifier
-            .semantics { glassActive = glass }
+            .semantics {
+                glassActive = glass
+                glassPrecomputed = backdrop != null && active
+            }
             .dropShadow(shape, Shadow(radius = look.shadowRadius, color = look.shadow, offset = DpOffset(0.dp, look.shadowOffset)))
             .border(Dimens.Hairline, SygixColors.GlassBorder, shape)
             .then(

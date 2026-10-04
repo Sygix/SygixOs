@@ -71,6 +71,11 @@ internal class HeroVeils(private val cornerWidth: Float, private val cornerHeigh
         canvas.drawRect(0f, bottomTop, width, height, paint)
         paint.shader = left
         canvas.drawRect(0f, 0f, width * LEFT_REACH, height, paint)
+        paint.shader = null
+    }
+
+    fun drawCorner(canvas: Canvas, width: Float, height: Float) {
+        prepare(width, height)
         paint.shader = corner
         canvas.drawRect(width - cornerWidth, 0f, width, cornerHeight, paint)
         paint.shader = null

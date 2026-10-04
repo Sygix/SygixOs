@@ -26,6 +26,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -108,5 +110,66 @@ class GlassBackdropTest {
         assertEquals(0.36f, SygixColors.GlassTint.alpha, 0.01f)
         assertEquals(0.16f, SygixColors.GlassBorder.alpha, 0.01f)
         assertEquals(0.32f, SygixColors.GlassHighlight.alpha, 0.01f)
+    }
+
+    private fun quadrants(): Bitmap = Bitmap.createBitmap(400, 224, Bitmap.Config.ARGB_8888).apply {
+        eraseColor(android.graphics.Color.BLACK)
+        val bright = IntArray(300 * 168) { android.graphics.Color.WHITE }
+        setPixels(bright, 0, 300, 100, 56, 300, 168)
+    }
+
+    @Test
+    fun `glass follows the zoom and the fade of the poster under it`() {
+        val gray = android.graphics.Color.rgb(128, 128, 128)
+        val backdrop = backdropOf(gray)
+        val top = backdrop.layer("next")
+        top.image = Bitmap.createBitmap(64, 36, Bitmap.Config.ARGB_8888).asImageBitmap()
+        top.blurred = quadrants().asImageBitmap()
+        runBlocking {
+            top.fade.snapTo(0.5f)
+            top.zoom.snapTo(1.08f)
+        }
+        compose.setContent {
+            Box(Modifier.fillMaxSize().background(Color.Red).glassBackdropOrigin(backdrop)) {
+                CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+                    GlassSurface(Modifier.offset(150.dp, 60.dp).size(160.dp, 130.dp), look = GlassLook.Dock) {}
+                }
+            }
+        }
+        compose.waitForIdle()
+        val edgeX = 480f - 0.27f * 960f
+        val edgeY = 270f - 0.27f * 540f
+        val dark = expectedOver(android.graphics.Color.rgb(64, 64, 64))
+        val bright = expectedOver(android.graphics.Color.rgb(191, 191, 191))
+        fun assertLevel(expected: Int, xDp: Float, yDp: Float) {
+            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+            val density = compose.density.density
+            val actual = bitmap.getPixel((xDp * density).roundToInt(), (yDp * density).roundToInt())
+            assertEquals("($xDp, $yDp)", android.graphics.Color.green(expected).toFloat(), android.graphics.Color.green(actual).toFloat(), 8f)
+        }
+        assertLevel(dark, edgeX - 8f, edgeY + 20f)
+        assertLevel(bright, edgeX + 8f, edgeY + 20f)
+        assertLevel(dark, edgeX + 20f, edgeY - 8f)
+        assertLevel(bright, edgeX + 20f, edgeY + 8f)
+    }
+
+    @Test
+    fun `missing blurred copy falls back to the live glass`() {
+        val backdrop = GlassBackdrop()
+        val layer = backdrop.layer("poster")
+        layer.image = Bitmap.createBitmap(64, 36, Bitmap.Config.ARGB_8888).asImageBitmap()
+        runBlocking { layer.fade.snapTo(1f) }
+        compose.setContent {
+            val haze = rememberHazeState()
+            CompositionLocalProvider(LocalHazeState provides haze, LocalGlassBackdrop provides backdrop) {
+                Box(Modifier.fillMaxSize().hazeSource(haze).glassBackdropOrigin(backdrop)) {
+                    GlassSurface(Modifier.testTag("glass").size(100.dp)) {}
+                }
+            }
+        }
+        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassActive, true))
+        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassPrecomputed, false))
+        compose.runOnIdle { layer.blurred = Bitmap.createBitmap(8, 4, Bitmap.Config.ARGB_8888).asImageBitmap() }
+        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassPrecomputed, true))
     }
 }

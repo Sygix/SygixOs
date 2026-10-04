@@ -221,13 +221,24 @@ fun HeroStage(
         if (showVideo) {
             HeroVideoLayer(player, visible = player.firstFrameRendered)
         }
-        HeroVeilLayer(covered = { backdrop.covered })
+        val density = LocalDensity.current
+        val veils = remember(density) { with(density) { HeroVeils(CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) } }
+        DisposableEffect(backdrop, veils) {
+            backdrop.overlay = { area -> drawIntoCanvas { veils.drawCorner(it.nativeCanvas, area.width, area.height) } }
+            onDispose { backdrop.overlay = null }
+        }
+        HeroVeilLayer(veils, covered = { backdrop.covered })
         HeroPosterLayers(
             backdrop = backdrop,
             url = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals }?.imageUrl,
             running = visible && motion,
             onReady = { onVisualReadyState.value() },
             onError = { url -> items.firstOrNull { it.imageUrl == url }?.let(onImageError) },
+        )
+        Spacer(
+            Modifier
+                .fillMaxSize()
+                .drawBehind { drawIntoCanvas { veils.drawCorner(it.nativeCanvas, size.width, size.height) } },
         )
         HeroOverlay(
             current = current?.takeIf { it.title.isNotEmpty() },
@@ -267,9 +278,7 @@ private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
 }
 
 @Composable
-private fun HeroVeilLayer(covered: () -> Boolean) {
-    val density = LocalDensity.current
-    val veils = remember(density) { with(density) { HeroVeils(CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) } }
+private fun HeroVeilLayer(veils: HeroVeils, covered: () -> Boolean) {
     Spacer(
         Modifier
             .fillMaxSize()
@@ -305,7 +314,7 @@ private fun HeroPosterLayers(
                 backdrop.clear()
                 return@LaunchedEffect
             }
-            val first = backdrop.layers.none { it.image != null && it.key != url }
+            val first = backdrop.layers.none { it.image != null && it.fade.value > 0f && it.key != url }
             val layer = backdrop.layer(url)
             if (layer.image == null) {
                 val images = HeroPosterLoader.load(context, url, spec)
@@ -319,7 +328,14 @@ private fun HeroPosterLayers(
             }
             currentOnReady()
             val duration = if (first) Motion.HERO_VIDEO_FADE_MS else Motion.HERO_CROSSFADE_MS
-            layer.fade.animateTo(1f, tween(duration, easing = AppleEasing))
+            coroutineScope {
+                launch {
+                    layer.fade.animateTo(1f, tween((duration * (1f - layer.fade.value)).toInt(), easing = AppleEasing))
+                }
+                backdrop.above(layer).forEach { upper ->
+                    launch { upper.fade.animateTo(0f, tween((duration * upper.fade.value).toInt(), easing = AppleEasing)) }
+                }
+            }
             backdrop.keepOnly(layer)
         }
         backdrop.layers.forEach { layer ->

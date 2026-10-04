@@ -44,14 +44,14 @@ class HeroPosterPipelineTest {
     }
 
     @Test
-    fun `a 4K poster is turned into an opaque 1080p image with its veils drawn once`() = runBlocking {
+    fun `a 4K poster is turned into an opaque 1080p image with its bottom and left veils drawn once`() = runBlocking {
         val output = VeiledPosterTransformation(spec).transform(solid(3840, 2160, Color.WHITE), Size.ORIGINAL).software()
         assertEquals(1920, output.width)
         assertEquals(1080, output.height)
         assertFalse(output.hasAlpha())
         assertEquals(255, luma(output.getPixel(1400, 300)))
         assertTrue(luma(output.getPixel(20, 1070)) < 40)
-        assertTrue(luma(output.getPixel(1900, 4)) < 160)
+        assertEquals(255, luma(output.getPixel(1900, 4)))
         assertTrue(luma(output.getPixel(960, 1070)) < 70)
     }
 
