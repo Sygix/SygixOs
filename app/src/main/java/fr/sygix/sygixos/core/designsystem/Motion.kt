@@ -21,6 +21,7 @@ object Motion {
     const val HERO_KEN_BURNS_MS = 10_000
     const val AMBIENT_PASS_MS = 24_000
     const val HERO_VIDEO_START_TIMEOUT_MS = 12_000L
+    const val HERO_VISUAL_TIMEOUT_MS = 1_000L
     const val LONG_PRESS_MS = 450L
     const val SHELF_SCROLL_MS = 400
     const val SHELF_OPEN_DELAY_MS = 3_000L

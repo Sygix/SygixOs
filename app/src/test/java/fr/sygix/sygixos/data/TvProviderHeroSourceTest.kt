@@ -152,7 +152,7 @@ class TvProviderHeroSourceTest {
     fun `ordering puts in-progress items first then by most recent engagement`() {
         val items = listOf(
             HeroItem("a", "récent", engagement = 900L),
-            HeroItem("b", "en cours", progress = 0.4f, engagement = 100L),
+            HeroItem("b", "en cours", engagement = 100L, durationMillis = 100L, positionMillis = 40L),
             HeroItem("c", "ancien", engagement = 300L),
         )
         val sorted = HeroOrdering.sort(items)

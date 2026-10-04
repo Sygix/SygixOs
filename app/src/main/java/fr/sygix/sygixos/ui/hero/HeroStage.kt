@@ -38,6 +38,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
@@ -96,7 +97,11 @@ import fr.sygix.sygixos.model.ProgramKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Deferred
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
@@ -132,13 +137,14 @@ fun HeroStage(
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
     var failedImages by remember { mutableStateOf(emptySet<String>()) }
+    var slowImages by remember { mutableStateOf(emptySet<String>()) }
     val index = items.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
     val current = items.getOrNull(index)
     val showVideo = current?.videoUrl != null && current.id !in failedVideos
 
     fun viable(item: HeroItem): Boolean =
         (item.videoUrl != null && item.id !in failedVideos) ||
-            (item.imageUrl != null && item.imageUrl in validatedVisuals && item.id !in failedImages)
+            (item.imageUrl != null && item.imageUrl in validatedVisuals && item.id !in failedImages && item.id !in slowImages)
 
     val step: (Int) -> Unit = { delta ->
         var i = index
@@ -205,7 +211,31 @@ fun HeroStage(
         stepState.value(1)
     }
 
-    val launchable = current != null && current.title.isNotEmpty() && (current.launchUri != null || current.sourcePackage != null)
+    val posterUrl = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals && it.id !in failedImages }?.imageUrl
+    var shownId by remember { mutableStateOf<String?>(null) }
+    val targetId = current?.id
+    val currentPoster by rememberUpdatedState(targetId to posterUrl)
+    LaunchedEffect(targetId, showVideo, posterUrl) {
+        when {
+            targetId == null -> shownId = null
+            showVideo -> {
+                snapshotFlow { player.renderedItem }.first { it == targetId }
+                shownId = targetId
+            }
+            posterUrl == null -> shownId = targetId
+        }
+    }
+    LaunchedEffect(targetId, posterUrl) {
+        val id = targetId ?: return@LaunchedEffect
+        if (posterUrl == null || shownId == id) return@LaunchedEffect
+        delay(Motion.HERO_VISUAL_TIMEOUT_MS)
+        if (shownId != id) {
+            slowImages = slowImages + id
+            stepState.value(1)
+        }
+    }
+    val shown = items.firstOrNull { it.id == shownId }
+    val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null)
     val hasVisual = current != null && (showVideo || (current.imageUrl != null && current.imageUrl in validatedVisuals))
     LaunchedEffect(launchable, active, claimFocus) {
         if (!active || !claimFocus) return@LaunchedEffect
@@ -224,7 +254,7 @@ fun HeroStage(
                 when (e.key) {
                     Key.DirectionLeft -> { step(-1); true }
                     Key.DirectionRight -> { step(1); true }
-                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> if (!launchable) { current?.let(onOpen); true } else false
+                    Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> if (!launchable) { shown?.let(onOpen); true } else false
                     else -> false
                 }
             }
@@ -247,10 +277,16 @@ fun HeroStage(
         HeroVeilLayer(veils, covered = { backdrop.covered })
         HeroPosterLayers(
             backdrop = backdrop,
-            url = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals }?.imageUrl,
+            url = posterUrl,
             running = visible && motion,
-            onReady = { onVisualReadyState.value() },
+            animated = motion,
+            onReady = { url ->
+                onVisualReadyState.value()
+                val (id, poster) = currentPoster
+                if (url == poster) shownId = id
+            },
             onError = { url -> items.firstOrNull { it.imageUrl == url }?.let(onImageError) },
+            onLoaded = { url -> slowImages = slowImages - items.filter { it.imageUrl == url }.map { it.id }.toSet() },
         )
         Spacer(
             Modifier
@@ -258,12 +294,12 @@ fun HeroStage(
                 .drawBehind { drawIntoCanvas { veils.drawCorner(it.nativeCanvas, size.width, size.height) } },
         )
         HeroOverlay(
-            current = current?.takeIf { it.title.isNotEmpty() },
+            current = shown?.takeIf { it.title.isNotEmpty() },
             icons = icons,
             launchable = launchable,
             buttonFocusRequester = focusRequester,
             focusEnabled = active && launchable,
-            onOpen = { current?.let(onOpen) },
+            onOpen = { shown?.let(onOpen) },
         )
     }
 }
@@ -311,13 +347,19 @@ private fun HeroPosterLayers(
     backdrop: GlassBackdrop,
     url: String?,
     running: Boolean,
-    onReady: () -> Unit,
+    onReady: (String) -> Unit,
     onError: (String) -> Unit,
+    animated: Boolean = true,
+    onLoaded: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val currentOnReady by rememberUpdatedState(onReady)
     val currentOnError by rememberUpdatedState(onError)
+    val fades by rememberUpdatedState(animated)
+    val currentOnLoaded by rememberUpdatedState(onLoaded)
+    val loadScope = rememberCoroutineScope()
+    val loads = remember { LinkedHashMap<String, Deferred<HeroPosterImages?>>() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val spec = remember(constraints.maxWidth, constraints.maxHeight, density) {
             with(density) { PosterSpec.of(constraints.maxWidth, constraints.maxHeight, CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) }
@@ -335,7 +377,17 @@ private fun HeroPosterLayers(
             val first = backdrop.layers.none { it.image != null && it.fade.value > 0f && it.key != url }
             val layer = backdrop.layer(url)
             if (layer.image == null) {
-                val images = HeroPosterLoader.load(context, url, spec)
+                val pending = loads.getOrPut(url) {
+                    loadScope.async { HeroPosterLoader.load(context, url, spec) }.also { load ->
+                        load.invokeOnCompletion { cause -> if (cause == null) currentOnLoaded(url) }
+                    }
+                }
+                while (loads.size > MaxPendingPosters) {
+                    val oldest = loads.keys.first()
+                    loads.remove(oldest)?.cancel()
+                }
+                val images = pending.await()
+                loads.remove(url)
                 if (images == null) {
                     backdrop.layers.remove(layer)
                     currentOnError(url)
@@ -344,9 +396,12 @@ private fun HeroPosterLayers(
                 layer.image = images.poster
                 layer.blurred = images.backdrop
             }
-            currentOnReady()
+            currentOnReady(url)
             val duration = if (first) Motion.HERO_VIDEO_FADE_MS else Motion.HERO_CROSSFADE_MS
-            coroutineScope {
+            if (!fades) {
+                layer.fade.snapTo(1f)
+                backdrop.above(layer).forEach { it.fade.snapTo(0f) }
+            } else coroutineScope {
                 launch {
                     layer.fade.animateTo(1f, tween((duration * (1f - layer.fade.value)).toInt(), easing = AppleEasing))
                 }
@@ -490,7 +545,9 @@ private fun HeroHeaderRow(item: HeroItem, icons: AppIconCache) {
     val bitmap = icon
     if (label == null && bitmap == null) return
     Row(
-        Modifier.testTag("hero-header"),
+        Modifier
+            .testTag("hero-header")
+            .heightIn(min = Dimens.HeroSourceIcon),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HeaderGap),
     ) {
@@ -614,6 +671,7 @@ private fun PlayGlyph(color: Color) {
 }
 
 private const val KenBurnsScale = 1.08f
+private const val MaxPendingPosters = 4
 private val CornerVeilWidth = 320.dp
 private val CornerVeilHeight = 150.dp
 private val ProgressWidth = 160.dp

@@ -54,7 +54,8 @@ class HeroLayoutTest {
         title = "Titre court",
         sourcePackage = "com.source",
         sourceLabel = "Source",
-        progress = progress,
+        durationMillis = progress?.let { 1_000_000L },
+        positionMillis = progress?.let { (it * 1_000_000L).toLong() },
     )
 
     @Test
