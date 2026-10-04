@@ -21,7 +21,7 @@
 - [x] 3.3 Mise à jour intégrée (demande de relance effacée si la relance sans profil échoue avant sa validation) : sélection de l'asset (empreinte obligatoire, 16 Mo, état téléversé), téléchargement vérifié dans un fichier temporaire (10 s au plus, archive ouverte avec `ZipFile`), écriture `base.dm` dans la session de l'APK, repli sur l'APK seul, relance unique sans profil après un échec de la session ; tests `UpdateProfileTest` (faux serveur) et `DexMetadataTest`
 - [x] 3.4 README : installation `adb install-multiple app-release.apk app-release.dm`, profil de la variante `perf`, release
 - [x] 3.5 Sur la TV : `adb install-multiple` de la variante `perf` avec son `.dm` (compilée `speed-profile`, raison `install-dm`, dès l'installation) et sans (`verify`)
-- [ ] 3.6 Sur la TV : mise à jour intégrée d'une release qui publie le `.dm` (après le passage public), état de compilation lu juste après
+- [x] 3.6 Sur la TV : mise à jour intégrée d'une release qui publie le `.dm` (après le passage public), état de compilation lu juste après
 
 ## 4. Infos du programme dans le héro
 - [x] 4.1 `HeroItem` (type, saison, épisode, durée, position ; progression dérivée de la position et de la durée) et lecture des colonnes dans `TvProviderHeroSource` ; test Robolectric `TvProviderCaptionColumnsTest`

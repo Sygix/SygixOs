@@ -54,7 +54,7 @@
 - [ ] 7.2 Sans réseau : « Pas de connexion à Internet » ; aucun fichier dans le cache de mise à jour
 
 ## 8. Passage du dépôt en public (Sygix)
-- [ ] 8.1 Une requête sans jeton à l'API des releases du dépôt répond 200 avec les champs du tableau de `design.md` (`tag_name`, `draft`, `prerelease`, `html_url`, `assets[].name`, `state`, `size`, `digest`, `browser_download_url`)
+- [x] 8.1 Une requête sans jeton à l'API des releases du dépôt répond 200 avec les champs du tableau de `design.md` (`tag_name`, `draft`, `prerelease`, `html_url`, `assets[].name`, `state`, `size`, `digest`, `browser_download_url`)
 
 ## 9. Validation sur la TV après le passage en public (pré-releases signées par la CI, `assembleRelease`)
 - [ ] 9.1 Préversions désactivées puis activées, avec deux pré-releases publiées : états « à jour » puis « préversion disponible », pastille sur l'engrenage et sur « À propos », code QR lisible par un téléphone depuis le canapé

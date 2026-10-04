@@ -73,3 +73,41 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 - étaler ces démarrages sur les premières images du fondu, ou en préparer une partie avant son début, sous l'écran de démarrage.
 
 **À trancher** : ce qui peut être décalé sans contredire « Écran de démarrage » (Ken Burns et lecture qui ne commencent qu'au fondu de sortie, focus du héro dès son début), et le lien avec le sujet 2 (cadence de la mascotte), qui touche au même ordre de composition.
+
+## 9. Relance de SygixOs après la mise à jour intégrée bloquée par le constructeur
+
+**Constat** : au test réel de la mise à jour intégrée (v0.0.1-rc.7 vers v0.0.1) sur la TV TCL de référence, l'installation aboutit (profil `.dm` appliqué, données conservées), mais SygixOs ne se relance pas : le gestionnaire d'auto-démarrage du constructeur ignore la diffusion `MY_PACKAGE_REPLACED` vers les récepteurs statiques (journal « Skipping delivery of static … for auto run »), y compris le récepteur de statut d'installation. L'utilisateur reste sur l'écran système « Installation d'applis inconnues ». Le scénario « installation au premier plan » de « Redémarrage après la mise à jour » (`self-update`) n'est donc pas tenu sur cette TV.
+
+**Pistes** :
+- relance assurée par le système quand SygixOs est le launcher par défaut (phase de remplacement du launcher système) ;
+- statut de la session d'installation transmis à une activité plutôt qu'à un récepteur.
+
+**À trancher** : le propriétaire a choisi d'attendre la phase de remplacement du launcher système avant de traiter ce point ; reformuler le scénario de relance dans `self-update` en conséquence lors de l'archivage.
+
+## 10. Guidage vers l'autorisation « Installer des applis inconnues »
+
+**Constat** : sur la TV TCL de référence, l'écran système ouvert par `MANAGE_UNKNOWN_APP_SOURCES` affiche la liste générale des apps et non la page de SygixOs ; la liste paraît vide une à quatre secondes, puis le focus tombe sur l'interrupteur d'une autre app (une pression réflexe sur OK change l'autorisation de cette autre app).
+
+**Pistes** :
+- adapter le texte provisoire d'aide (D7/D9 de `self-update`) avec le chemin réel des réglages de la TV ;
+- signaler à l'utilisateur de chercher SygixOs dans la liste.
+
+**À trancher** : texte final et emplacement de l'aide.
+
+## 11. Liserés dans le code QR des notes de version
+
+**Constat** : le QR de « À propos » se lit sans erreur, mais des liserés clairs séparent les modules noirs adjacents (anticrénelage de chaque module dessiné séparément).
+
+**Piste** : dessiner les modules sans anticrénelage ou en un seul chemin fusionné.
+
+**À trancher** : rien, correctif cosmétique.
+
+## 12. Suites de documentation après v0.0.1
+
+**Constat** : v0.0.1 est publiée (même commit que v0.0.1-rc.7). Les changes livrés ne sont pas encore archivés, et la roadmap du README garde l'ancienne numérotation (P2c, P4, P5).
+
+**Pistes** :
+- archiver dans cet ordre, après vérification de leurs tâches TV : `ui-tvos-polish`, `startup-splash`, `self-update`, `rc5-tv-fixes`, `rc6-polish` (puis `p2c-upnext` quand il sera implémenté) ;
+- renuméroter la roadmap : P3 logo et écran de démarrage (livré), P4 mises à jour intégrées (livré), P5 remplacement du launcher système, P6 Up Next (ex-P2c, change `p2c-upnext` à renommer `up-next`), P7 recherche (ex-P2c), P8 BetaSeries (ex-P4), en mettant à jour les mentions dans les specs, `AGENTS.md` et `openspec/config.yaml`.
+
+**À trancher** : rien, décisions déjà prises par le propriétaire.
