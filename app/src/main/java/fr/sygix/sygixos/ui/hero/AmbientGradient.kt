@@ -25,7 +25,12 @@ private const val RestingPhase = 0.35f
 private val Colors = listOf(Color(0xFF0E1A33), Color(0xFF101014), Color(0xFF1B1030))
 
 @Composable
-fun AmbientGradient(modifier: Modifier = Modifier, animated: Boolean = false, deferred: Boolean = false) {
+fun AmbientGradient(
+    modifier: Modifier = Modifier,
+    animated: Boolean = false,
+    deferred: Boolean = false,
+    covered: () -> Boolean = { false },
+) {
     val phase = remember { Animatable(if (animated || deferred) 0f else RestingPhase) }
     LaunchedEffect(animated) {
         if (animated) {
@@ -37,6 +42,7 @@ fun AmbientGradient(modifier: Modifier = Modifier, animated: Boolean = false, de
         modifier
             .fillMaxSize()
             .drawBehind {
+                if (covered()) return@drawBehind
                 val p = phase.value
                 drawRect(
                     Brush.linearGradient(

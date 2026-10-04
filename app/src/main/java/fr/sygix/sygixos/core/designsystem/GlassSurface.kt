@@ -70,7 +70,9 @@ fun GlassSurface(
     content: @Composable BoxScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
-    val glass = haze != null && active
+    val backdrop = LocalGlassBackdrop.current?.takeIf { it.hasPoster }
+    val anchor = remember { GlassAnchor() }
+    val glass = (haze != null || backdrop != null) && active
     val style = remember(shape, look.tint) {
         GlassStyle.regular.then {
             shape(shape)
@@ -83,7 +85,9 @@ fun GlassSurface(
             .dropShadow(shape, Shadow(radius = look.shadowRadius, color = look.shadow, offset = DpOffset(0.dp, look.shadowOffset)))
             .border(Dimens.Hairline, SygixColors.GlassBorder, shape)
             .then(
-                if (haze != null && active) {
+                if (backdrop != null && active) {
+                    Modifier.backdropGlass(backdrop, anchor, shape, look.tint, look.fallback)
+                } else if (haze != null && active) {
                     Modifier.hazeGlass(
                         input = HazeInput.Sources(haze),
                         style = style,

@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.ShaderBrush
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.glassRim
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -86,6 +85,19 @@ import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.runtime.key
+import fr.sygix.sygixos.core.designsystem.GlassBackdrop
+import fr.sygix.sygixos.core.designsystem.glassBackdropOrigin
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
+
 private const val TAG = "HeroStage"
 
 @Composable
@@ -100,6 +112,7 @@ fun HeroStage(
     claimFocus: Boolean = true,
     onVisualReady: () -> Unit = {},
     motion: Boolean = true,
+    backdrop: GlassBackdrop = remember { GlassBackdrop() },
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -186,6 +199,7 @@ fun HeroStage(
     Box(
         modifier
             .fillMaxSize()
+            .glassBackdropOrigin(backdrop)
             .then(if (launchable) Modifier else Modifier.focusRequester(focusRequester))
             .focusProperties { canFocus = active && !launchable }
             .onKeyEvent { e ->
@@ -199,24 +213,22 @@ fun HeroStage(
             }
             .focusable(),
     ) {
-        AmbientGradient(animated = visible && !hasVisual && motion, deferred = !motion)
+        AmbientGradient(
+            animated = visible && !hasVisual && motion,
+            deferred = !motion,
+            covered = { backdrop.covered },
+        )
         if (showVideo) {
             HeroVideoLayer(player, visible = player.firstFrameRendered)
         }
-        Crossfade(
-            targetState = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals },
-            animationSpec = tween(Motion.HERO_CROSSFADE_MS, easing = AppleEasing),
-            label = "heroPoster",
-        ) { item ->
-            item?.imageUrl?.let { url ->
-                KenBurnsPoster(
-                    url,
-                    running = visible && motion,
-                    onReady = { onVisualReadyState.value() },
-                    onError = { onImageError(item) },
-                )
-            }
-        }
+        HeroVeilLayer(covered = { backdrop.covered })
+        HeroPosterLayers(
+            backdrop = backdrop,
+            url = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals }?.imageUrl,
+            running = visible && motion,
+            onReady = { onVisualReadyState.value() },
+            onError = { url -> items.firstOrNull { it.imageUrl == url }?.let(onImageError) },
+        )
         HeroOverlay(
             current = current?.takeIf { it.title.isNotEmpty() },
             launchable = launchable,
@@ -255,33 +267,91 @@ private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
 }
 
 @Composable
-private fun KenBurnsPoster(url: String, running: Boolean, onReady: () -> Unit, onError: () -> Unit) {
-    var ready by remember(url) { mutableStateOf(false) }
-    val scale = remember(url) { Animatable(1f) }
-    LaunchedEffect(ready, running) {
-        if (!ready || !running) return@LaunchedEffect
-        val remaining = (KenBurnsScale - scale.value) / (KenBurnsScale - 1f)
-        scale.animateTo(KenBurnsScale, tween((Motion.HERO_KEN_BURNS_MS * remaining).toInt(), easing = LinearEasing))
-    }
-    val alpha = animateFloatAsState(if (ready) 1f else 0f, tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing), label = "posterAlpha")
-    AsyncImage(
-        model = ImageRequest.Builder(LocalContext.current).data(url).size(1920, 1080).crossfade(false).build(),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        onSuccess = {
-            ready = true
-            onReady()
-        },
-        onError = { onError() },
-        modifier = Modifier
-            .testTag("hero-poster")
+private fun HeroVeilLayer(covered: () -> Boolean) {
+    val density = LocalDensity.current
+    val veils = remember(density) { with(density) { HeroVeils(CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) } }
+    Spacer(
+        Modifier
             .fillMaxSize()
-            .graphicsLayer {
-                this.alpha = alpha.value
-                scaleX = scale.value
-                scaleY = scale.value
+            .drawBehind {
+                if (!covered()) drawIntoCanvas { veils.draw(it.nativeCanvas, size.width, size.height) }
             },
     )
+}
+
+@Composable
+private fun HeroPosterLayers(
+    backdrop: GlassBackdrop,
+    url: String?,
+    running: Boolean,
+    onReady: () -> Unit,
+    onError: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val currentOnReady by rememberUpdatedState(onReady)
+    val currentOnError by rememberUpdatedState(onError)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val spec = remember(constraints.maxWidth, constraints.maxHeight, density) {
+            with(density) { PosterSpec.of(constraints.maxWidth, constraints.maxHeight, CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) }
+        }
+        LaunchedEffect(url, spec) {
+            if (url == null) {
+                coroutineScope {
+                    backdrop.layers.toList().forEach { layer ->
+                        launch { layer.fade.animateTo(0f, tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing)) }
+                    }
+                }
+                backdrop.clear()
+                return@LaunchedEffect
+            }
+            val first = backdrop.layers.none { it.image != null && it.key != url }
+            val layer = backdrop.layer(url)
+            if (layer.image == null) {
+                val images = HeroPosterLoader.load(context, url, spec)
+                if (images == null) {
+                    backdrop.layers.remove(layer)
+                    currentOnError(url)
+                    return@LaunchedEffect
+                }
+                layer.image = images.poster
+                layer.blurred = images.backdrop
+            }
+            currentOnReady()
+            val duration = if (first) Motion.HERO_VIDEO_FADE_MS else Motion.HERO_CROSSFADE_MS
+            layer.fade.animateTo(1f, tween(duration, easing = AppleEasing))
+            backdrop.keepOnly(layer)
+        }
+        backdrop.layers.forEach { layer ->
+            key(layer.key) {
+                val ready = layer.image != null
+                LaunchedEffect(ready, running) {
+                    if (!ready || !running) return@LaunchedEffect
+                    val remaining = (KenBurnsScale - layer.zoom.value) / (KenBurnsScale - 1f)
+                    layer.zoom.animateTo(KenBurnsScale, tween((Motion.HERO_KEN_BURNS_MS * remaining).toInt(), easing = LinearEasing))
+                }
+            }
+        }
+        if (backdrop.layers.any { it.image != null }) {
+            Spacer(
+                Modifier
+                    .testTag("hero-poster")
+                    .fillMaxSize()
+                    .drawBehind {
+                        val target = IntSize(size.width.roundToInt(), size.height.roundToInt())
+                        backdrop.layers.forEach { layer ->
+                            val image = layer.image ?: return@forEach
+                            val alpha = layer.fade.value
+                            if (alpha <= 0f) return@forEach
+                            val zoom = layer.zoom.value
+                            scale(zoom, zoom, pivot = center) {
+                                drawImage(image, dstSize = target, alpha = alpha)
+                            }
+                        }
+                    },
+            )
+        }
+    }
 }
 
 @Composable
@@ -292,7 +362,7 @@ private fun HeroOverlay(
     focusEnabled: Boolean,
     onOpen: () -> Unit,
 ) {
-    Box(Modifier.fillMaxSize().heroVeils()) {
+    Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .align(Alignment.BottomStart)
@@ -300,12 +370,8 @@ private fun HeroOverlay(
                 .widthIn(max = Dimens.HeroTextWidth),
             verticalArrangement = Arrangement.spacedBy(Dimens.HeroTextSpacing),
         ) {
-            Crossfade(
-                targetState = current,
-                animationSpec = tween(Motion.HERO_CROSSFADE_MS, easing = AppleEasing),
-                label = "heroMetadata",
-            ) { item ->
-                if (item != null) HeroMetadata(item)
+            SequentialFade(target = current, durationMillis = Motion.HERO_CROSSFADE_MS) { item ->
+                HeroMetadata(item)
             }
             if (launchable && current != null) {
                 HeroOpenButton(
@@ -317,46 +383,6 @@ private fun HeroOverlay(
                 )
             }
         }
-    }
-}
-
-private fun Modifier.heroVeils(): Modifier = drawWithCache {
-    val width = size.width
-    val height = size.height
-    val bottomTop = height * (1f - BottomVeilReach)
-    val bottomVeil = Brush.verticalGradient(
-        0f to SygixColors.Veil.copy(alpha = 0f),
-        (BottomVeilReach - 0.26f) / BottomVeilReach to SygixColors.Veil.copy(alpha = 0.55f),
-        1f to SygixColors.Veil.copy(alpha = 0.82f),
-        startY = bottomTop,
-        endY = height,
-    )
-    val leftReach = width * LeftVeilReach
-    val leftVeil = Brush.horizontalGradient(
-        0f to SygixColors.Veil.copy(alpha = 0.62f),
-        0.38f / LeftVeilReach to SygixColors.Veil.copy(alpha = 0.28f),
-        1f to SygixColors.Veil.copy(alpha = 0f),
-        startX = 0f,
-        endX = leftReach,
-    )
-    val radiusX = CornerVeilWidth.toPx()
-    val radiusY = CornerVeilHeight.toPx()
-    val cornerVeil = EllipticalVeil(Offset(width, 0f), radiusX, radiusY)
-    onDrawBehind {
-        drawRect(bottomVeil, topLeft = Offset(0f, bottomTop), size = Size(width, height - bottomTop))
-        drawRect(leftVeil, size = Size(leftReach, height))
-        drawRect(cornerVeil, topLeft = Offset(width - radiusX, 0f), size = Size(radiusX, radiusY))
-    }
-}
-
-private class EllipticalVeil(private val center: Offset, private val radiusX: Float, private val radiusY: Float) : ShaderBrush() {
-    override fun createShader(size: Size): Shader = RadialGradientShader(
-        center = center,
-        radius = radiusX,
-        colors = listOf(SygixColors.Veil.copy(alpha = 0.5f), SygixColors.Veil.copy(alpha = 0f)),
-        colorStops = listOf(0f, 0.7f),
-    ).apply {
-        setLocalMatrix(android.graphics.Matrix().apply { setScale(1f, radiusY / radiusX, center.x, center.y) })
     }
 }
 
@@ -459,8 +485,6 @@ private fun PlayGlyph(color: Color) {
 }
 
 private const val KenBurnsScale = 1.08f
-private const val BottomVeilReach = 0.55f
-private const val LeftVeilReach = 0.62f
 private val CornerVeilWidth = 320.dp
 private val CornerVeilHeight = 150.dp
 private val ProgressWidth = 160.dp

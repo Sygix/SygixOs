@@ -6,9 +6,13 @@
 package fr.sygix.sygixos.data
 
 import android.content.ComponentName
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.graphics.drawable.Drawable
 import androidx.core.graphics.drawable.toBitmap
+import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.model.TvApp
 
 data class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean, val blurred: Bitmap)
@@ -26,7 +30,7 @@ class AppArtworkSource(private val pm: PackageManager) {
 
     private fun resolve(app: TvApp): AppArtwork? {
         val banner = banner(app)
-        val bitmap = banner ?: runCatching { pm.getApplicationIcon(app.packageName).toBitmap() }.getOrNull() ?: return null
+        val bitmap = banner ?: runCatching { bounded(pm.getApplicationIcon(app.packageName)) }.getOrNull() ?: return null
         return AppArtwork(
             bitmap = bitmap,
             isBanner = banner != null,
@@ -35,9 +39,27 @@ class AppArtworkSource(private val pm: PackageManager) {
     }
 
     private fun banner(app: TvApp): Bitmap? = runCatching {
-        val drawable = app.activityName
-            ?.let { pm.getActivityInfo(ComponentName(app.packageName, it), 0).loadBanner(pm) }
-            ?: pm.getApplicationInfo(app.packageName, 0).loadBanner(pm)
-        drawable?.takeIf { it.intrinsicWidth > 0 && it.intrinsicHeight > 0 }?.toBitmap()
+        val activity = app.activityName?.let { pm.getActivityInfo(ComponentName(app.packageName, it), 0) }
+        val owner = activity?.applicationInfo ?: pm.getApplicationInfo(app.packageName, 0)
+        val resource = activity?.bannerResource?.takeIf { it != 0 } ?: owner.banner
+        if (resource == 0) null else decodeBounded(owner, resource)
     }.getOrNull()
+
+    private fun decodeBounded(owner: ApplicationInfo, resource: Int): Bitmap? {
+        val resources = pm.getResourcesForApplication(owner)
+        val sampled = runCatching {
+            ImageDecoder.decodeBitmap(ImageDecoder.createSource(resources, resource)) { decoder, info, _ ->
+                val target = ImageBounds.artwork(info.size.width, info.size.height)
+                decoder.setTargetSize(target.width, target.height)
+                decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+        }.getOrNull()
+        return sampled ?: pm.getDrawable(owner.packageName, resource, owner)?.let(::bounded)
+    }
+
+    private fun bounded(drawable: Drawable): Bitmap? {
+        if (drawable.intrinsicWidth <= 0 || drawable.intrinsicHeight <= 0) return null
+        val target = ImageBounds.artwork(drawable.intrinsicWidth, drawable.intrinsicHeight)
+        return drawable.toBitmap(target.width, target.height)
+    }
 }

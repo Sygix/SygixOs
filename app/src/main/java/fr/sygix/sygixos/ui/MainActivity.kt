@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
                 HomeScreen(viewModel, glassBlur = glassBlur)
             }
         }
+        window.setBackgroundDrawable(null)
         requestTvListingsPermissionIfNeeded()
     }
 

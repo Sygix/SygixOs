@@ -92,6 +92,8 @@ import fr.sygix.sygixos.core.designsystem.Badge
 import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.GlassSurface
+import fr.sygix.sygixos.core.designsystem.GlassBackdrop
+import fr.sygix.sygixos.core.designsystem.LocalGlassBackdrop
 import fr.sygix.sygixos.core.designsystem.LocalHazeState
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
@@ -348,6 +350,7 @@ internal fun LauncherHome(
     var movingApp by remember { mutableStateOf<String?>(null) }
     var orderBeforeMove by remember { mutableStateOf<List<String>>(emptyList()) }
     val haze = rememberHazeState()
+    val backdrop = remember { GlassBackdrop() }
     var gridRow by remember { mutableIntStateOf(0) }
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
     val heroFocus = remember { FocusRequester() }
@@ -389,7 +392,6 @@ internal fun LauncherHome(
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .background(Color.Black)
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 if (settingsOpen) return@onPreviewKeyEvent false
@@ -462,33 +464,36 @@ internal fun LauncherHome(
                         onOpen = onOpenHero,
                         onVisualReady = onHeroVisualReady,
                         motion = interactive,
+                        backdrop = backdrop,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
-                    Dock(
-                        apps = catalog.dock,
-                        active = heroOnScreen,
-                        focusEnabled = interactive && zone == Zone.DOCK && !menuOpen,
-                        focusRequester = dockFocus,
-                        onTileClick = onOpenApp,
-                        onTileLongClick = { menuApp = it },
-                        modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
-                    )
-                    if (!settingsOpen) {
-                        HeroCapsule(
-                            clock = clock,
-                            updateBadge = updateBadge,
-                            glassActive = heroOnScreen,
-                            gearFocusEnabled = interactive && zone == Zone.HERO && !menuOpen,
-                            gearFocus = gearFocus,
-                            onGearFocused = { gearFocused = it },
-                            onOpenSettings = {
-                                onSettingsCategory(SettingsCategory.Initial)
-                                settingsOpen = true
-                            },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = Dimens.CapsuleTop, end = Dimens.CapsuleEnd),
+                    CompositionLocalProvider(LocalGlassBackdrop provides backdrop.takeIf { glassBlur }) {
+                        Dock(
+                            apps = catalog.dock,
+                            active = heroOnScreen,
+                            focusEnabled = interactive && zone == Zone.DOCK && !menuOpen,
+                            focusRequester = dockFocus,
+                            onTileClick = onOpenApp,
+                            onTileLongClick = { menuApp = it },
+                            modifier = Modifier.testTag("zone-dock").align(Alignment.BottomCenter),
                         )
+                        if (!settingsOpen) {
+                            HeroCapsule(
+                                clock = clock,
+                                updateBadge = updateBadge,
+                                glassActive = heroOnScreen,
+                                gearFocusEnabled = interactive && zone == Zone.HERO && !menuOpen,
+                                gearFocus = gearFocus,
+                                onGearFocused = { gearFocused = it },
+                                onOpenSettings = {
+                                    onSettingsCategory(SettingsCategory.Initial)
+                                    settingsOpen = true
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = Dimens.CapsuleTop, end = Dimens.CapsuleEnd),
+                            )
+                        }
                     }
                 }
                 Box(
