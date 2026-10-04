@@ -8,6 +8,7 @@ package fr.sygix.sygixos.ui.home
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -62,7 +63,8 @@ internal fun TestHome(
     onHeroVisualReady: () -> Unit = {},
     interactive: Boolean = true,
 ) {
-    val artwork = AppArtworkSource(LocalContext.current.packageManager)
+    val packageManager = LocalContext.current.packageManager
+    val artwork = remember(packageManager) { AppArtworkSource(packageManager) }
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
         MaterialTheme {
             LauncherHome(

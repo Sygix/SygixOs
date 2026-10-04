@@ -11,11 +11,15 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.graphics.drawable.Drawable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.model.TvApp
 
-data class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean, val blurred: Bitmap)
+class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean) {
+    val image: ImageBitmap = bitmap.asImageBitmap()
+}
 
 class AppArtworkSource(private val pm: PackageManager) {
 
@@ -31,11 +35,8 @@ class AppArtworkSource(private val pm: PackageManager) {
     private fun resolve(app: TvApp): AppArtwork? {
         val banner = banner(app)
         val bitmap = banner ?: runCatching { bounded(pm.getApplicationIcon(app.packageName)) }.getOrNull() ?: return null
-        return AppArtwork(
-            bitmap = bitmap,
-            isBanner = banner != null,
-            blurred = Bitmap.createScaledBitmap(bitmap, 24, 14, true),
-        )
+        bitmap.prepareToDraw()
+        return AppArtwork(bitmap = bitmap, isBanner = banner != null)
     }
 
     private fun banner(app: TvApp): Bitmap? = runCatching {

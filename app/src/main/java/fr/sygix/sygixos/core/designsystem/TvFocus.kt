@@ -5,7 +5,7 @@
 
 package fr.sygix.sygixos.core.designsystem
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,7 +17,23 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.focus.FocusEventModifierNode
+import androidx.compose.ui.focus.FocusState
+import androidx.compose.ui.graphics.GraphicsLayerScope
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.LayoutModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.TraversableNode
+import androidx.compose.ui.node.findNearestAncestor
+import androidx.compose.ui.node.invalidateDraw
+import androidx.compose.ui.node.invalidateLayer
+import androidx.compose.ui.platform.InspectorInfo
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -28,7 +44,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -53,37 +68,107 @@ fun Modifier.tvFocus(
     onFocused: (Boolean) -> Unit = {},
     focusRequester: FocusRequester? = null,
     enabled: Boolean = true,
-    shape: Shape = RoundedCornerShape(Dimens.TileCorner),
-): Modifier = composed {
-    var focused by remember { mutableStateOf(false) }
-    val progress = animateFloatAsState(
-        targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(Motion.FOCUS_MS, easing = AppleEasing),
-        label = "focusProgress",
-    )
-    this
-        .tvFocusable(onFocused = { focused = it; onFocused(it) }, focusRequester = focusRequester, enabled = enabled)
-        .graphicsLayer {
-            val p = progress.value
-            val scale = 1f + (Dimens.TileFocusScale - 1f) * p
-            scaleX = scale
-            scaleY = scale
-            translationY = -Dimens.TileFocusLift.toPx() * p
-            shadowElevation = Dimens.TileFocusElevation.toPx() * p
-            this.shape = shape
-            clip = false
-            ambientShadowColor = SygixColors.TileShadow
-            spotShadowColor = SygixColors.TileShadow
+    shape: Shape = TileShape,
+): Modifier = this
+    .tvFocusable(onFocused = onFocused, focusRequester = focusRequester, enabled = enabled)
+    .then(TvLiftElement(shape))
+    .then(TvSheenElement(shape))
+
+val TileShape: Shape = RoundedCornerShape(Dimens.TileCorner)
+
+private object TvLiftKey
+
+private data class TvLiftElement(val shape: Shape) : ModifierNodeElement<TvLiftNode>() {
+    override fun create(): TvLiftNode = TvLiftNode(shape)
+    override fun update(node: TvLiftNode) = node.update(shape)
+    override fun InspectorInfo.inspectableProperties() {
+        name = "tvLift"
+    }
+}
+
+private class TvLiftNode(private var shape: Shape) :
+    Modifier.Node(),
+    FocusEventModifierNode,
+    LayoutModifierNode,
+    TraversableNode {
+
+    override val traverseKey: Any = TvLiftKey
+    val progress = Animatable(0f)
+    private var focused = false
+
+    private val layerBlock: GraphicsLayerScope.() -> Unit = {
+        val p = progress.value
+        val scale = 1f + (Dimens.TileFocusScale - 1f) * p
+        scaleX = scale
+        scaleY = scale
+        translationY = -Dimens.TileFocusLift.toPx() * p
+        shadowElevation = Dimens.TileFocusElevation.toPx() * p
+        shape = this@TvLiftNode.shape
+        clip = false
+        ambientShadowColor = SygixColors.TileShadow
+        spotShadowColor = SygixColors.TileShadow
+    }
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (focusState.isFocused == focused) return
+        focused = focusState.isFocused
+        if (!isAttached) return
+        val target = if (focused) 1f else 0f
+        coroutineScope.launch { progress.animateTo(target, tween(Motion.FOCUS_MS, easing = AppleEasing)) }
+    }
+
+    override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {
+        val placeable = measurable.measure(constraints)
+        return layout(placeable.width, placeable.height) { placeable.placeWithLayer(0, 0, layerBlock = layerBlock) }
+    }
+
+    fun update(shape: Shape) {
+        if (shape == this.shape) return
+        this.shape = shape
+        invalidateLayer()
+    }
+}
+
+private data class TvSheenElement(val shape: Shape) : ModifierNodeElement<TvSheenNode>() {
+    override fun create(): TvSheenNode = TvSheenNode(shape)
+    override fun update(node: TvSheenNode) = node.update(shape)
+    override fun InspectorInfo.inspectableProperties() {
+        name = "tvSheen"
+    }
+}
+
+private class TvSheenNode(private var shape: Shape) : Modifier.Node(), DrawModifierNode {
+    private var lift: TvLiftNode? = null
+    private var cachedSize = Size.Unspecified
+    private var outline: Outline? = null
+    private var sheen: Brush? = null
+
+    override fun onAttach() {
+        lift = findNearestAncestor(TvLiftKey) as? TvLiftNode
+    }
+
+    override fun onDetach() {
+        lift = null
+    }
+
+    override fun ContentDrawScope.draw() {
+        drawContent()
+        val p = lift?.progress?.value ?: 0f
+        if (p <= 0f) return
+        if (size != cachedSize || outline == null) {
+            outline = shape.createOutline(size, layoutDirection, this)
+            sheen = sheenBrush(size)
+            cachedSize = size
         }
-        .drawWithCache {
-            val outline = shape.createOutline(size, layoutDirection, this)
-            val sheen = sheenBrush(size)
-            onDrawWithContent {
-                drawContent()
-                val p = progress.value
-                if (p > 0f) drawOutline(outline, sheen, alpha = p)
-            }
-        }
+        drawOutline(outline ?: return, sheen ?: return, alpha = p)
+    }
+
+    fun update(shape: Shape) {
+        if (shape == this.shape) return
+        this.shape = shape
+        cachedSize = Size.Unspecified
+        invalidateDraw()
+    }
 }
 
 private fun sheenBrush(size: Size): Brush {

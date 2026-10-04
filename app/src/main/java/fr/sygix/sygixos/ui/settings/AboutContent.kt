@@ -47,6 +47,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
+import fr.sygix.sygixos.core.designsystem.Dimens
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
 import fr.sygix.sygixos.R
@@ -59,7 +63,6 @@ import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.domain.QrCode
 
-private val QrSize = 120.dp
 private val QrGap = 16.dp
 private const val INSTALL_ROW = 1
 
@@ -278,7 +281,12 @@ private fun ReleaseNotesQr(qr: QrCode) {
         Modifier.testTag("update-release-notes-qr"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Canvas(Modifier.size(QrSize)) {
+        Canvas(
+            Modifier
+                .size(Dimens.QrSize)
+                .clip(RoundedCornerShape(qrCorner(qr)))
+                .testTag("update-release-notes-qr-code"),
+        ) {
             drawRect(SygixColors.QrLight)
             val module = size.width / qr.size
             for (y in 0 until qr.size) {
@@ -331,3 +339,5 @@ private fun LicenseRow(
         )
     }
 }
+
+internal fun qrCorner(qr: QrCode): Dp = Dimens.QrSize * QrCode.QUIET_ZONE / qr.size

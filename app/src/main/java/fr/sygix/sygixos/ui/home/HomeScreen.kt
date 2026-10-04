@@ -46,6 +46,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -179,12 +180,14 @@ private fun HeroCapsule(
 ) {
     GlassSurface(
         modifier = modifier.testTag("hero-capsule"),
-        shape = RoundedCornerShape(percent = 50),
+        shape = CapsuleShape,
         active = glassActive,
         look = GlassLook.Capsule,
     ) {
         Row(
-            Modifier.padding(
+            Modifier
+                .height(Dimens.CapsuleHeight)
+                .padding(
                 start = Dimens.CapsulePaddingStart,
                 top = Dimens.CapsulePadding,
                 end = Dimens.CapsulePadding,
@@ -309,6 +312,10 @@ private const val GearStroke = 1.8f / 24f
 private const val GearHub = 0.25f
 private const val GearTeeth = 8
 
+private val CapsuleShape = RoundedCornerShape(percent = 50)
+
+private class HeldValue<T>(var value: T)
+
 private val NoAutoScroll = object : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
@@ -383,6 +390,9 @@ internal fun LauncherHome(
     }
 
     val heroVisible = zone != Zone.GRID
+    val heroNow = rememberUpdatedState(hero)
+    val heldVisuals = remember { HeldValue(hero.validated) }
+    val heroVisuals = if (heroVisible) hero.validated.also { heldVisuals.value = it } else heldVisuals.value
     val pageScroll = rememberScrollState()
     var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val density = LocalDensity.current
@@ -456,7 +466,7 @@ internal fun LauncherHome(
                 Box(Modifier.fillMaxWidth().height(viewportHeight)) {
                     HeroStage(
                         items = hero.items,
-                        validatedVisuals = hero.validated,
+                        validatedVisuals = heroVisuals,
                         active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen,
                         visible = heroVisible && !settingsOpen,
                         focusRequester = heroFocus,
@@ -508,9 +518,9 @@ internal fun LauncherHome(
                         catalog = catalog,
                         focusEnabled = interactive && zone == Zone.GRID && !menuOpen,
                         focusRequester = gridFocus,
-                        shelfPrograms = if (hero.fromApps) hero.items else emptyList(),
-                        validatedVisuals = hero.validated,
-                        checkedVisuals = hero.checked,
+                        shelfPrograms = { heroNow.value.let { if (it.fromApps) it.items else emptyList() } },
+                        validatedVisuals = { heroNow.value.validated },
+                        checkedVisuals = { heroNow.value.checked },
                         onAppFocused = onAppFocused,
                         onTileFocus = { gridRow = it },
                         onTileClick = onOpenApp,
@@ -527,9 +537,11 @@ internal fun LauncherHome(
         if (movingApp != null) {
             GlassSurface(
                 Modifier
+                    .testTag("move-banner")
                     .align(Alignment.BottomCenter)
                     .padding(bottom = Dimens.DockBottomMargin)
                     .zIndex(5f),
+                shape = CapsuleShape,
             ) {
                 Text(
                     "Flèches : déplacer  ·  OK : valider  ·  Retour : annuler",

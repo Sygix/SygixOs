@@ -235,4 +235,4 @@ private val ContentEnd = 60.dp
 private val CategoryGap = 6.dp
 private val TitleGap = 14.dp
 private val CategoryHeight = 38.dp
-internal val RowPadding = 14.dp
+internal val RowPadding = Dimens.SettingsRowPadding

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,12 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.TileShape
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.data.AppArtwork
@@ -84,8 +83,13 @@ internal fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
 }
 
 @Composable
-internal fun TileBox(artwork: AppArtwork?, label: String, lifted: Boolean = false, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(Dimens.TileCorner)
+internal fun TileBox(
+    artwork: AppArtwork?,
+    label: String,
+    lifted: Boolean = false,
+    shape: Shape = TileShape,
+    modifier: Modifier = Modifier,
+) {
     val border = if (lifted) Modifier.border(2.dp, Color.White, shape) else Modifier
     Box(
         modifier = modifier
@@ -102,14 +106,14 @@ internal fun TileBox(artwork: AppArtwork?, label: String, lifted: Boolean = fals
                     Text(label.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = Color.White.copy(alpha = 0.85f))
                 }
                 art.isBanner -> Image(
-                    bitmap = art.bitmap.asImageBitmap(),
+                    bitmap = art.image,
                     contentDescription = label,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                 )
                 else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Image(
-                        bitmap = art.bitmap.asImageBitmap(),
+                        bitmap = art.image,
                         contentDescription = label,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxHeight(0.56f).aspectRatio(1f),

@@ -24,6 +24,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +48,8 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.GridScroll
+import fr.sygix.sygixos.domain.ImageBounds
+import fr.sygix.sygixos.domain.PixelSize
 import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
@@ -57,9 +61,9 @@ internal fun HomeGrid(
     catalog: Catalog,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
-    shelfPrograms: List<HeroItem>,
-    validatedVisuals: Set<String>,
-    checkedVisuals: Set<String>,
+    shelfPrograms: () -> List<HeroItem>,
+    validatedVisuals: () -> Set<String>,
+    checkedVisuals: () -> Set<String>,
     onAppFocused: (String) -> Unit,
     onTileFocus: (rowIndex: Int) -> Unit,
     onTileClick: (TvApp) -> Unit,
@@ -79,15 +83,15 @@ internal fun HomeGrid(
     val entryApp = focus.entry(packages)
     var openApp by remember { mutableStateOf<String?>(null) }
 
+    val programs by rememberUpdatedState(shelfPrograms)
     val visuals by rememberUpdatedState(validatedVisuals)
     val settled by rememberUpdatedState(checkedVisuals)
-    val programs by rememberUpdatedState(shelfPrograms)
     fun postersOf(packageName: String?): List<String> =
-        packageName?.let { ShelfPosters.forPackage(programs, visuals, it) }.orEmpty()
+        packageName?.let { ShelfPosters.forPackage(programs(), visuals(), it) }.orEmpty()
 
     fun pendingFor(packageName: String?): Boolean = packageName
-        ?.let { ShelfPosters.candidates(programs, it, VisualQuality.SHELF_VALIDATED_PER_APP) }
-        ?.any { it !in settled } ?: false
+        ?.let { ShelfPosters.candidates(programs(), it, VisualQuality.SHELF_VALIDATED_PER_APP) }
+        ?.any { it !in settled() } ?: false
 
     LaunchedEffect(focusedApp, movingApp) {
         val target = focus.focusedApp
@@ -107,13 +111,16 @@ internal fun HomeGrid(
     }
 
     val openRow = remember(rows, openApp) { rows.indexOfFirst { row -> row.any { it.packageName == openApp } } }
-    val shelfUris = postersOf(openApp)
+    val shelfUris by remember(openApp) { derivedStateOf(structuralEqualityPolicy()) { postersOf(openApp) } }
 
     val density = LocalDensity.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val contentWidth = screenWidth - Dimens.ScreenMarginH * 2
     val rowHeight = (contentWidth - Dimens.GridSpacing * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
     val panelBlock = contentWidth / Dimens.ShelfAspectRatio + Dimens.GridRowSpacing
+    val posterSize = remember(density, screenWidth) {
+        with(density) { ImageBounds.screen(contentWidth.roundToPx(), (contentWidth / Dimens.ShelfAspectRatio).roundToPx()) }
+    }
     val geometry = remember(density, screenWidth) {
         with(density) {
             GridScroll(
@@ -140,6 +147,13 @@ internal fun HomeGrid(
     LaunchedEffect(focusEnabled) {
         if (!focusEnabled) openApp = null
     }
+    val appFocused by rememberUpdatedState(onAppFocused)
+    LaunchedEffect(focusedApp, focusEnabled) {
+        val target = focusedApp ?: return@LaunchedEffect
+        if (!focusEnabled) return@LaunchedEffect
+        delay(Motion.SHELF_PREPARE_DELAY_MS)
+        appFocused(target)
+    }
 
     if (catalog.grid.isEmpty()) {
         Box(modifier.fillMaxWidth().height(with(density) { viewport.toDp() }), contentAlignment = Alignment.Center) {
@@ -156,46 +170,78 @@ internal fun HomeGrid(
         verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
     ) {
         rows.forEachIndexed { rowIndex, rowApps ->
-            Column {
-                AnimatedVisibility(
-                    visible = rowIndex == openRow && shelfUris.isNotEmpty(),
-                    enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                        fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
-                    exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
-                        fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
-                ) {
-                    ShelfPanel(shelfUris, Modifier.padding(bottom = Dimens.GridRowSpacing))
+            GridRow(
+                rowIndex = rowIndex,
+                apps = rowApps,
+                focus = focus,
+                focusEnabled = focusEnabled,
+                focusRequester = focusRequester,
+                entryApp = entryApp?.takeIf { entry -> rowApps.any { it.packageName == entry } },
+                movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
+                shelfUris = if (rowIndex == openRow) shelfUris else NoShelf,
+                posterSize = posterSize,
+                onTileFocus = onTileFocus,
+                onTileClick = onTileClick,
+                onTileLongClick = onTileLongClick,
+            )
+        }
+    }
+}
+
+private val NoShelf: List<String> = emptyList()
+
+@Composable
+private fun GridRow(
+    rowIndex: Int,
+    apps: List<TvApp>,
+    focus: TileFocus,
+    focusEnabled: Boolean,
+    focusRequester: FocusRequester,
+    entryApp: String?,
+    movingApp: String?,
+    shelfUris: List<String>,
+    posterSize: PixelSize,
+    onTileFocus: (rowIndex: Int) -> Unit,
+    onTileClick: (TvApp) -> Unit,
+    onTileLongClick: (TvApp) -> Unit,
+) {
+    Column {
+        AnimatedVisibility(
+            visible = shelfUris.isNotEmpty(),
+            enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
+                fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
+            exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
+                fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
+        ) {
+            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing))
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            apps.forEachIndexed { column, app ->
+                key(app.packageName) {
+                    AppTile(
+                        app = app,
+                        focusEnabled = focusEnabled,
+                        onClick = { onTileClick(app) },
+                        onLongClick = { onTileLongClick(app) },
+                        onFocusChanged = { focused ->
+                            if (focused) {
+                                onTileFocus(rowIndex)
+                                focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
+                            }
+                        },
+                        focusRequester = focus.requesterFor(app.packageName),
+                        lifted = app.packageName == movingApp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
+                    )
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    rowApps.forEachIndexed { column, app ->
-                        key(app.packageName) {
-                            AppTile(
-                                app = app,
-                                focusEnabled = focusEnabled,
-                                onClick = { onTileClick(app) },
-                                onLongClick = { onTileLongClick(app) },
-                                onFocusChanged = { focused ->
-                                    if (focused) {
-                                        onTileFocus(rowIndex)
-                                        focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
-                                        onAppFocused(app.packageName)
-                                    }
-                                },
-                                focusRequester = focus.requesterFor(app.packageName),
-                                lifted = app.packageName == movingApp,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
-                            )
-                        }
-                    }
-                    repeat(Dimens.GridColumns - rowApps.size) {
-                        Spacer(Modifier.weight(1f))
-                    }
-                }
+            }
+            repeat(Dimens.GridColumns - apps.size) {
+                Spacer(Modifier.weight(1f))
             }
         }
     }

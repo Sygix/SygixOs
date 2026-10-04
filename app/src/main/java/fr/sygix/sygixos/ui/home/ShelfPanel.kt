@@ -34,16 +34,18 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import coil.size.Scale
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
+import fr.sygix.sygixos.domain.PixelSize
 import kotlinx.coroutines.delay
 
 private const val PanStart = -12f
 private const val PanEnd = 12f
 
 @Composable
-internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
+internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier) {
     var failed by remember(uris) { mutableStateOf(emptySet<String>()) }
     val loadable = remember(uris, failed) { uris.filter { it !in failed } }
     var index by remember { mutableIntStateOf(0) }
@@ -56,7 +58,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             }
         }
     }
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(Dimens.ShelfCorner)
     Box(
         modifier
             .testTag("shelf-panel")
@@ -71,7 +73,7 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
             label = "shelfCrossfade",
         ) { uri ->
             if (uri != null) {
-                LoadedPoster(uri, onError = {
+                LoadedPoster(uri, posterSize, onError = {
                     Log.w("ShelfPanel", "poster illisible: $uri")
                     failed = failed + uri
                 })
@@ -81,9 +83,9 @@ internal fun ShelfPanel(uris: List<String>, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun LoadedPoster(uri: String, onError: () -> Unit) {
+private fun LoadedPoster(uri: String, size: PixelSize, onError: () -> Unit) {
     val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current).data(uri).size(1920, 1080).build(),
+        model = ImageRequest.Builder(LocalContext.current).data(uri).size(size.width, size.height).scale(Scale.FILL).build(),
         onState = { if (it is AsyncImagePainter.State.Error) onError() },
     )
     val ready = painter.state is AsyncImagePainter.State.Success

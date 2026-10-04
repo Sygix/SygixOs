@@ -51,8 +51,10 @@ import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.model.TvApp
 
 private val PackageColor = Color(235, 235, 245).copy(alpha = 0.7f)
-private val ThumbnailWidth = 56.dp
 private val HeaderGap = 10.dp
+private val MenuThumbnailShape = RoundedCornerShape(Dimens.MenuThumbnailCorner)
+private val MenuShape = RoundedCornerShape(Dimens.MenuCorner)
+private val PillShape = RoundedCornerShape(Dimens.PillCorner)
 private val ActionGap = 4.dp
 private val UnavailablePadding = 4.dp
 
@@ -78,8 +80,8 @@ internal fun AppContextMenu(
         contentAlignment = Alignment.Center,
     ) {
         GlassSurface(
-            modifier = Modifier.width(Dimens.MenuWidth),
-            shape = RoundedCornerShape(Dimens.MenuCorner),
+            modifier = Modifier.testTag("menu-glass").width(Dimens.MenuWidth),
+            shape = MenuShape,
             look = GlassLook.Menu,
         ) {
             Column(
@@ -111,11 +113,13 @@ internal fun AppContextMenu(
 private fun MenuHeader(app: TvApp) {
     val artwork by rememberAppArtwork(app)
     Row(
-        Modifier.padding(start = 6.dp, end = 6.dp, top = 2.dp, bottom = HeaderGap),
+        Modifier.padding(start = Dimens.MenuHeaderInsetStart, end = Dimens.MenuHeaderInsetStart, top = Dimens.MenuHeaderInsetTop, bottom = HeaderGap),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HeaderGap),
     ) {
-        Box(Modifier.width(ThumbnailWidth)) { TileBox(artwork, app.label) }
+        Box(Modifier.align(Alignment.Top).width(Dimens.MenuThumbnailWidth)) {
+            TileBox(artwork, app.label, shape = MenuThumbnailShape, modifier = Modifier.testTag("menu-thumbnail"))
+        }
         Column {
             Text(app.label, style = TextStyles.MenuTitle, color = SygixColors.OnDark, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(app.packageName, style = TextStyles.MenuSubtitle, color = PackageColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -140,7 +144,7 @@ private fun MenuAction(
             .tvFocusable(onFocused = { focused = it }, focusRequester = focusRequester)
             .tvClickable(onClick = { if (unavailable == null) onClick() })
             .semantics { if (unavailable != null) disabled() }
-            .focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
+            .focusPill(colors, PillShape)
             .heightIn(min = Dimens.MenuActionHeight)
             .padding(horizontal = Dimens.MenuPadding, vertical = UnavailablePadding),
         verticalArrangement = Arrangement.Center,

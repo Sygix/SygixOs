@@ -81,14 +81,11 @@ internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
 private const val LeadingItems = 1
 
 internal val RowShape = RoundedCornerShape(Dimens.SettingsRowCorner)
-internal val RowHeight = 48.dp
+internal val RowHeight = Dimens.SettingsRowHeight
 internal val RowVerticalPadding = 6.dp
 internal val RowGap = 12.dp
 internal val RowSpacing = 5.dp
 private val EntryButtonHeight = 42.dp
-private val ThumbWidth = 48.dp
-private val ThumbHeight = 27.dp
-private val ThumbCorner = 5.dp
 private const val IconHeightFraction = 0.8f
 
 internal fun programCountLabel(count: Int): String = when (count) {
@@ -267,7 +264,7 @@ internal fun HiddenContent(
 }
 
 @Composable
-private fun HiddenRowLine(
+internal fun HiddenRowLine(
     row: HiddenRow,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
@@ -354,14 +351,15 @@ internal fun AppThumbnail(app: TvApp, modifier: Modifier = Modifier) {
     val banner = artwork?.takeIf { it.isBanner }
     Box(
         modifier
-            .size(ThumbWidth, ThumbHeight)
-            .clip(RoundedCornerShape(ThumbCorner))
+            .testTag("app-thumbnail-${app.packageName}")
+            .size(Dimens.SettingsThumbWidth, Dimens.SettingsThumbHeight)
+            .clip(RoundedCornerShape(Dimens.SettingsThumbCorner))
             .background(Color.White.copy(alpha = 0.10f)),
         contentAlignment = Alignment.Center,
     ) {
         if (banner != null) {
             Image(
-                bitmap = banner.bitmap.asImageBitmap(),
+                bitmap = banner.image,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().testTag("app-banner-${app.packageName}"),
