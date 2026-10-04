@@ -66,8 +66,12 @@ Le style tvOS de l'accueil, du menu contextuel et des réglages SHALL être couv
 - **THEN** l'écart mesuré entre le bord de la surface extérieure et celui de la surface intérieure (« dock-glass » et « app-tile-<package> », « hero-capsule » et « settings-gear », « menu-glass » et « menu-action-<action> » ou « menu-thumbnail », « hidden-row-<package> » et « app-thumbnail-<package> ») est la marge déclarée du couple, et la capsule mesure 36 dp de haut
 
 #### Scenario: navigation dans la grille
-- **WHEN** le focus passe d'une tuile à sa voisine de droite, puis à la rangée suivante, dans une grille de 20 apps, ou qu'un visuel d'une autre app devient vérifié (observateur de composition)
-- **THEN** un déplacement recompose au plus 30 scopes et la vérification d'un visuel au plus 40, plafonds que dépassait l'implémentation précédente (43 et 95)
+- **WHEN** dans une grille de 25 apps, le focus passe d'une tuile à sa voisine de droite, puis à la rangée suivante, ou qu'un visuel d'une autre app devient vérifié (chaque recomposition d'une tuile est comptée par une source de bannières de test)
+- **THEN** seules des tuiles des rangées qui contiennent la tuile qui perd ou prend le focus sont recomposées, et aucune tuile ne l'est quand un visuel devient vérifié
+
+#### Scenario: focus qui passe
+- **WHEN** le focus traverse trois tuiles en moins de 0,5 s chacune, puis reste sur la dernière
+- **THEN** la préparation du panneau Top Shelf n'est demandée que pour la dernière tuile, 0,5 s après que le focus s'y est posé
 
 ## ADDED Requirements
 
@@ -81,6 +85,10 @@ Les infos du programme dans le héro (« Diaporama héro » de `launcher-shell`)
 #### Scenario: données manquantes
 - **WHEN** le nom de l'app, son icône, la saison, l'épisode, la durée ou la position manquent
 - **THEN** seuls les éléments disponibles existent (« hero-source-icon », « hero-header-label », « hero-details », « hero-progress-bar », « hero-remaining »), « hero-header » n'existe pas sans icône ni libellé, et sans ligne d'infos le bas du titre est le bas de « hero-metadata »
+
+#### Scenario: textes avec le visuel
+- **WHEN** le visuel du programme suivant est retenu par un chargeur d'images de test, puis libéré
+- **THEN** tant qu'il est retenu, le titre et la cible de « hero-open » restent ceux du programme affiché ; après 1 s, le héro passe au programme suivant dont le visuel est prêt ; une fois libéré, le visuel lent est affiché sans nouvelle requête quand on y revient ; un programme sans visuel montre ses textes aussitôt
 
 #### Scenario: héro immobile
 - **WHEN** un programme avec en-tête, ligne d'infos et temps restant est affiché pendant le Ken Burns
