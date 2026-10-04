@@ -16,26 +16,29 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.model.TvApp
+import kotlinx.coroutines.CoroutineDispatcher
 
 class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean) {
     val image: ImageBitmap = bitmap.asImageBitmap()
 }
 
-class AppArtworkSource(private val pm: PackageManager) {
+open class AppArtworkSource(
+    private val pm: PackageManager,
+    val dispatcher: CoroutineDispatcher = BackgroundDecoding,
+) {
 
     private val cache = java.util.concurrent.ConcurrentHashMap<String, java.util.Optional<AppArtwork>>()
 
     fun load(app: TvApp): AppArtwork? =
         cache.getOrPut(app.packageName) { java.util.Optional.ofNullable(resolve(app)) }.orElse(null)
 
-    fun cached(app: TvApp): AppArtwork? = cache[app.packageName]?.orElse(null)
+    open fun cached(app: TvApp): AppArtwork? = cache[app.packageName]?.orElse(null)
 
     fun preload(apps: List<TvApp>) = apps.forEach { load(it) }
 
     private fun resolve(app: TvApp): AppArtwork? {
         val banner = banner(app)
         val bitmap = banner ?: runCatching { bounded(pm.getApplicationIcon(app.packageName)) }.getOrNull() ?: return null
-        bitmap.prepareToDraw()
         return AppArtwork(bitmap = bitmap, isBanner = banner != null)
     }
 

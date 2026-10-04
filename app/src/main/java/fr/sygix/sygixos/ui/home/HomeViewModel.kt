@@ -155,7 +155,7 @@ class HomeViewModel(
         if (uris == lastHeroUris) return
         lastHeroUris = uris
         heroValidationJob?.cancel()
-        heroValidationJob = launchValidation(uris, VisualQuality.HERO_IN_MEMORY)
+        heroValidationJob = launchValidation(uris, VisualQuality.HERO_IN_MEMORY, holdAfterFirstDuringStartup = true)
     }
 
     private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
@@ -165,7 +165,7 @@ class HomeViewModel(
     }
 
     private fun preloadArtwork(catalog: Catalog) {
-        viewModelScope.launch(Dispatchers.IO) { artwork.preload(catalog.dock + catalog.grid) }
+        viewModelScope.launch(artwork.dispatcher) { artwork.preload(catalog.dock + catalog.grid) }
     }
 
     fun refresh() {
@@ -201,13 +201,14 @@ class HomeViewModel(
         shelfValidationJob = launchValidation(uris, keepInMemory = 0)
     }
 
-    private fun launchValidation(uris: List<String>, keepInMemory: Int): Job? {
+    private fun launchValidation(uris: List<String>, keepInMemory: Int, holdAfterFirstDuringStartup: Boolean = false): Job? {
         val pending = uris.filter { it !in validated.value }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
             validator.validate(pending, keepInMemory).collect { check ->
                 checked.update { it + check.uri }
                 if (check.usable) validated.update { it + check.uri }
+                if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
             }
         }
     }

@@ -37,7 +37,7 @@ class AppIconCache(private val load: (String) -> Bitmap?) {
         internal fun fullBleed(drawable: Drawable, size: Int): Bitmap? {
             if (drawable !is AdaptiveIconDrawable) {
                 if (drawable.intrinsicWidth <= 0 || drawable.intrinsicHeight <= 0) return null
-                return drawable.toBitmap(size, size).also { it.prepareToDraw() }
+                return drawable.toBitmap(size, size)
             }
             val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -48,7 +48,6 @@ class AppIconCache(private val load: (String) -> Bitmap?) {
                 layer.setBounds(offset, offset, offset + extent, offset + extent)
                 layer.draw(canvas)
             }
-            bitmap.prepareToDraw()
             return bitmap
         }
     }

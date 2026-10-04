@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
@@ -103,6 +104,7 @@ import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.AppCatalog
 import fr.sygix.sygixos.domain.GridScroll
 import fr.sygix.sygixos.domain.HomePage
+import fr.sygix.sygixos.domain.StartupPhase
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.hero.AmbientGradient
@@ -160,6 +162,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 update = settingsViewModel.updateActions,
                 interactive = interactive,
                 onHeroVisualReady = viewModel::onHeroVisualReady,
+                gridReady = startup == StartupPhase.Done,
             )
         }
     }
@@ -314,8 +317,6 @@ private const val GearTeeth = 8
 
 private val CapsuleShape = RoundedCornerShape(percent = 50)
 
-private class HeldValue<T>(var value: T)
-
 private val NoAutoScroll = object : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
@@ -351,6 +352,7 @@ internal fun LauncherHome(
     update: UpdateActions = UpdateActions(),
     interactive: Boolean = true,
     onHeroVisualReady: () -> Unit = {},
+    gridReady: Boolean = true,
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -391,8 +393,9 @@ internal fun LauncherHome(
 
     val heroVisible = zone != Zone.GRID
     val heroNow = rememberUpdatedState(hero)
-    val heldVisuals = remember { HeldValue(hero.validated) }
-    val heroVisuals = if (heroVisible) hero.validated.also { heldVisuals.value = it } else heldVisuals.value
+    var hiddenHeroVisuals by remember { mutableStateOf(hero.validated) }
+    SideEffect { if (heroVisible) hiddenHeroVisuals = hero.validated }
+    val heroVisuals = if (heroVisible) hero.validated else hiddenHeroVisuals
     val pageScroll = rememberScrollState()
     var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val density = LocalDensity.current
@@ -514,7 +517,7 @@ internal fun LauncherHome(
                         .hazeSource(haze, zIndex = 1f),
                 ) {
                     AmbientGradient(Modifier.matchParentSize())
-                    HomeGrid(
+                    if (gridReady) HomeGrid(
                         catalog = catalog,
                         focusEnabled = interactive && zone == Zone.GRID && !menuOpen,
                         focusRequester = gridFocus,

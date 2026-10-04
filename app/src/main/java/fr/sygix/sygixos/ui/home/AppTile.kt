@@ -39,7 +39,6 @@ import fr.sygix.sygixos.core.designsystem.tvFocus
 import fr.sygix.sygixos.data.AppArtwork
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.model.TvApp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource?> { null }
@@ -78,7 +77,7 @@ internal fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
     val provided = LocalAppArtwork.current
     val source = remember(provided) { provided ?: AppArtworkSource(context.packageManager) }
     return produceState<AppArtwork?>(initialValue = source.cached(app), app.packageName, source) {
-        value = source.cached(app) ?: withContext(Dispatchers.IO) { runCatching { source.load(app) }.getOrNull() }
+        value = source.cached(app) ?: withContext(source.dispatcher) { runCatching { source.load(app) }.getOrNull() }
     }
 }
 

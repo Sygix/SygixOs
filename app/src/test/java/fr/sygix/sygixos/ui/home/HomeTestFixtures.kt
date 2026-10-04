@@ -19,6 +19,7 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.UpdateActions
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -35,8 +36,11 @@ internal fun heroItem(
     title = title,
     imageUrl = imageUrl,
     sourcePackage = sourcePackage,
-    progress = progress,
+    durationMillis = progress?.let { PROGRESS_SCALE },
+    positionMillis = progress?.let { (it * PROGRESS_SCALE).toLong() },
 )
+
+private const val PROGRESS_SCALE = 1_000_000L
 
 internal fun catalogOf(dock: List<TvApp>, grid: List<TvApp>) = Catalog(dock = dock, grid = grid)
 
@@ -62,9 +66,12 @@ internal fun TestHome(
     update: UpdateActions = UpdateActions(),
     onHeroVisualReady: () -> Unit = {},
     interactive: Boolean = true,
+    onAppFocused: (String) -> Unit = {},
+    onOpenHero: (HeroItem) -> Unit = {},
+    artworkSource: AppArtworkSource? = null,
 ) {
     val packageManager = LocalContext.current.packageManager
-    val artwork = remember(packageManager) { AppArtworkSource(packageManager) }
+    val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
     CompositionLocalProvider(LocalAppArtwork provides artwork) {
         MaterialTheme {
             LauncherHome(
@@ -81,6 +88,8 @@ internal fun TestHome(
                 update = update,
                 onHeroVisualReady = onHeroVisualReady,
                 interactive = interactive,
+                onAppFocused = onAppFocused,
+                onOpenHero = onOpenHero,
             )
         }
     }
