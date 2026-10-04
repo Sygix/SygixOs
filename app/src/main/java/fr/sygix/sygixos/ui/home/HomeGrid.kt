@@ -119,7 +119,10 @@ internal fun HomeGrid(
     val rowHeight = (contentWidth - Dimens.GridSpacing * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
     val panelBlock = contentWidth / Dimens.ShelfAspectRatio + Dimens.GridRowSpacing
     val posterSize = remember(density, screenWidth) {
-        with(density) { ImageBounds.screen(contentWidth.roundToPx(), (contentWidth / Dimens.ShelfAspectRatio).roundToPx()) }
+        with(density) {
+            val zoomed = contentWidth * ShelfPosterZoom
+            ImageBounds.screen(zoomed.roundToPx(), (zoomed / Dimens.ShelfAspectRatio).roundToPx())
+        }
     }
     val geometry = remember(density, screenWidth) {
         with(density) {

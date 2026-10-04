@@ -61,7 +61,6 @@ class HeroInfoTest {
         episode: String? = null,
         duration: Long? = null,
         position: Long? = null,
-        progress: Float? = null,
     ) = HeroItem(
         id = "p",
         title = "Titre fictif",
@@ -73,7 +72,6 @@ class HeroInfoTest {
         episode = episode,
         durationMillis = duration,
         positionMillis = position,
-        progress = progress,
     )
 
     private fun label() = compose.onNodeWithTag("hero-header-label", useUnmergedTree = true)
@@ -89,7 +87,6 @@ class HeroInfoTest {
                 episode = "5",
                 duration = 42 * MINUTE,
                 position = 17 * MINUTE,
-                progress = 17f / 42f,
             ),
         )
         label().assertTextEquals("Continuer dans Appli fictive")
@@ -161,9 +158,12 @@ class HeroInfoTest {
     }
 
     @Test
-    fun `progress without position or duration shows the bar without remaining time`() {
-        show(program(ProgramKind.CONTINUE, progress = 0.5f))
-        compose.onNodeWithTag("hero-progress-bar", useUnmergedTree = true).assertExists()
+    fun `position without duration or duration without position shows neither bar nor remaining time`() {
+        show(program(ProgramKind.CONTINUE, position = 17 * MINUTE))
+        compose.onNodeWithTag("hero-progress", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithTag("hero-remaining", useUnmergedTree = true).assertDoesNotExist()
+        show(program(ProgramKind.CONTINUE, duration = 42 * MINUTE))
+        compose.onNodeWithTag("hero-progress", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("hero-remaining", useUnmergedTree = true).assertDoesNotExist()
     }
 
@@ -177,7 +177,7 @@ class HeroInfoTest {
 
     @Test
     fun `remaining time over an hour shows hours and minutes`() {
-        show(program(ProgramKind.CONTINUE, duration = 130 * MINUTE, position = 58 * MINUTE, progress = 58f / 130f))
+        show(program(ProgramKind.CONTINUE, duration = 130 * MINUTE, position = 58 * MINUTE))
         compose.onNodeWithTag("hero-remaining", useUnmergedTree = true).assertTextEquals("Reste 1 h 12 min")
     }
 

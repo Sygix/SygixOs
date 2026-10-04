@@ -41,6 +41,7 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.domain.PixelSize
 import kotlinx.coroutines.delay
 
+internal const val ShelfPosterZoom = 1.06f
 private const val PanStart = -12f
 private const val PanEnd = 12f
 
@@ -104,8 +105,8 @@ private fun LoadedPoster(uri: String, size: PixelSize, onError: () -> Unit) {
                 .graphicsLayer {
                     this.alpha = alpha
                     translationX = pan.value
-                    scaleX = 1.06f
-                    scaleY = 1.06f
+                    scaleX = ShelfPosterZoom
+                    scaleY = ShelfPosterZoom
                 },
         )
     }

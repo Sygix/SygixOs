@@ -25,6 +25,8 @@ internal class HeroPlayer(
 ) {
     var firstFrameRendered by mutableStateOf(false)
         private set
+    var renderedItem by mutableStateOf<String?>(null)
+        private set
     var videoAspect by mutableFloatStateOf(16f / 9f)
         private set
 
@@ -35,6 +37,7 @@ internal class HeroPlayer(
     private val listener = object : Player.Listener {
         override fun onRenderedFirstFrame() {
             firstFrameRendered = true
+            renderedItem = itemId
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -61,6 +64,7 @@ internal class HeroPlayer(
         if (id != itemId) {
             itemId = id
             firstFrameRendered = false
+            renderedItem = null
             player.setMediaItem(MediaItem.fromUri(url))
             player.prepare()
         }
@@ -70,6 +74,7 @@ internal class HeroPlayer(
     fun clear() {
         itemId = null
         firstFrameRendered = false
+        renderedItem = null
         exo?.apply { stop(); clearMediaItems() }
     }
 

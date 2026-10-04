@@ -20,7 +20,6 @@ class HeroCaptionTest {
         episode: String? = null,
         duration: Long? = null,
         position: Long? = null,
-        progress: Float? = null,
     ) = HeroItem(
         id = "i",
         title = "Titre fictif",
@@ -30,7 +29,6 @@ class HeroCaptionTest {
         episode = episode,
         durationMillis = duration,
         positionMillis = position,
-        progress = progress,
     )
 
     @Test
@@ -75,13 +73,14 @@ class HeroCaptionTest {
     }
 
     @Test
-    fun `remaining time needs the progress, the position and the duration`() {
+    fun `remaining time needs the position and the duration`() {
         val duration = 42 * 60_000L
-        assertEquals(25, HeroCaption.remainingMinutes(item(duration = duration, position = 17 * 60_000L, progress = 0.4f)))
-        assertEquals(1, HeroCaption.remainingMinutes(item(duration = duration, position = duration - 5_000, progress = 0.99f)))
-        assertEquals(25, HeroCaption.remainingMinutes(item(duration = duration, position = 17 * 60_000L + 30_000, progress = 0.4f)))
-        assertNull(HeroCaption.remainingMinutes(item(duration = duration, position = 17 * 60_000L, progress = null)))
-        assertNull(HeroCaption.remainingMinutes(item(duration = null, position = 17 * 60_000L, progress = 0.4f)))
-        assertNull(HeroCaption.remainingMinutes(item(duration = duration, position = null, progress = 0.4f)))
+        assertEquals(25, HeroCaption.remainingMinutes(item(duration = duration, position = 17 * 60_000L)))
+        assertEquals(1, HeroCaption.remainingMinutes(item(duration = duration, position = duration - 5_000)))
+        assertEquals(25, HeroCaption.remainingMinutes(item(duration = duration, position = 17 * 60_000L + 30_000)))
+        assertNull(HeroCaption.remainingMinutes(item(duration = duration, position = duration)))
+        assertNull(HeroCaption.remainingMinutes(item(duration = duration, position = 0)))
+        assertNull(HeroCaption.remainingMinutes(item(duration = null, position = 17 * 60_000L)))
+        assertNull(HeroCaption.remainingMinutes(item(duration = duration, position = null)))
     }
 }

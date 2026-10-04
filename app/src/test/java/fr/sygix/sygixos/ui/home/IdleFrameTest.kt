@@ -177,7 +177,6 @@ class IdleFrameTest {
             episode = "5",
             durationMillis = 42 * 60_000L,
             positionMillis = 17 * 60_000L,
-            progress = 17f / 42f,
         )
         showPosters(program)
         advance(2_000)

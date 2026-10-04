@@ -106,10 +106,6 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             videoUrl = video,
             imageUrl = image,
             sourcePackage = c.optString(TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME),
-            progress = HeroOrdering.progressRatio(
-                c.optLong(TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS),
-                c.optLong(TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS),
-            ),
             launchUri = intentUri,
             kind = ProgramKind.FEATURED,
             season = c.optString(TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER),
@@ -131,10 +127,6 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             videoUrl = video,
             imageUrl = image,
             sourcePackage = c.optString(TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME),
-            progress = HeroOrdering.progressRatio(
-                c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS),
-                c.optLong(TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS),
-            ),
             launchUri = intentUri,
             engagement = c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
             kind = watchNextKind(c.optInt(TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE, -1)),

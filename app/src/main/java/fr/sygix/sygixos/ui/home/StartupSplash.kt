@@ -47,8 +47,7 @@ import kotlinx.coroutines.delay
 internal val StartupHomeAlpha = SemanticsPropertyKey<Float>("StartupHomeAlpha")
 private var SemanticsPropertyReceiver.startupHomeAlpha by StartupHomeAlpha
 
-private fun Modifier.startupOpacity(alpha: Float): Modifier =
-    graphicsLayer { this.alpha = alpha }.semantics { startupHomeAlpha = alpha }
+private fun Modifier.startupOpacity(alpha: Float): Modifier = semantics { startupHomeAlpha = alpha }
 
 @Composable
 internal fun StartupHost(

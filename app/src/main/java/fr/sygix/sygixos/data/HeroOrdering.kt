@@ -6,15 +6,11 @@
 package fr.sygix.sygixos.data
 
 import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.model.playbackRatio
 
 internal object HeroOrdering {
 
-    fun progressRatio(positionMillis: Long, durationMillis: Long): Float? =
-        if (durationMillis > 0 && positionMillis in 1 until durationMillis) {
-            (positionMillis.toFloat() / durationMillis).coerceIn(0f, 1f)
-        } else {
-            null
-        }
+    fun progressRatio(positionMillis: Long, durationMillis: Long): Float? = playbackRatio(positionMillis, durationMillis)
 
     fun sort(items: List<HeroItem>): List<HeroItem> =
         items.sortedWith(
