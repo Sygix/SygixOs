@@ -42,6 +42,7 @@ import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.data.MascotAnimationSource
 import fr.sygix.sygixos.domain.StartupPhase
+import kotlinx.coroutines.delay
 
 internal val StartupHomeAlpha = SemanticsPropertyKey<Float>("StartupHomeAlpha")
 private var SemanticsPropertyReceiver.startupHomeAlpha by StartupHomeAlpha
@@ -65,7 +66,13 @@ internal fun StartupHost(
     val interactive = phase != StartupPhase.Splash
     val fadingOut = phase == StartupPhase.FadingOut
     var mascotSettled by remember { mutableStateOf(false) }
-    val homeComposed = interactive || (mascotSettled && windowFocused)
+    var focusWaitOver by remember { mutableStateOf(false) }
+    LaunchedEffect(mascotSettled) {
+        if (!mascotSettled) return@LaunchedEffect
+        delay(Motion.SPLASH_FOCUS_WAIT_MS)
+        focusWaitOver = true
+    }
+    val homeComposed = interactive || (mascotSettled && (windowFocused || focusWaitOver))
     val splashAlpha = remember { FloatAnimatable(1f) }
     val currentOnFadeFinished by rememberUpdatedState(onFadeFinished)
     LaunchedEffect(fadingOut) {

@@ -31,6 +31,7 @@ object Motion {
     const val SPLASH_CAP_MS = 5_000L
     const val SPLASH_APPEAR_MS = 300
     const val SPLASH_FADE_MS = 400
+    const val SPLASH_FOCUS_WAIT_MS = 400L
 }
 
 object Dimens {

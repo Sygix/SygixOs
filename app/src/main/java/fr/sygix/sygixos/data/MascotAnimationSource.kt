@@ -25,19 +25,35 @@ interface MascotAnimationSource {
 }
 
 class RawMascotAnimationSource(
-    private val resources: Resources,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val decoder: () -> Drawable,
 ) : MascotAnimationSource {
 
+    constructor(resources: Resources) : this(decoder = { decodeMascot(resources) })
+
     private var pending: Deferred<Result<Drawable>>? = null
+    private var requested = false
+
+    val prefetched: Boolean
+        @Synchronized get() = pending != null
 
     @Synchronized
     fun prefetch(scope: CoroutineScope) {
-        if (pending == null) pending = scope.async(io) { decode() }
+        if (pending == null && !requested) pending = scope.async(io) { decode() }
     }
 
-    override suspend fun load(): Result<Drawable> =
-        synchronized(this) { pending }?.await() ?: withContext(io) { decode() }
+    override suspend fun load(): Result<Drawable> {
+        val prefetch = synchronized(this) {
+            requested = true
+            pending
+        }
+        return prefetch?.await() ?: withContext(io) { decode() }
+    }
+
+    @Synchronized
+    fun trimMemory() {
+        if (!requested) release()
+    }
 
     @Synchronized
     override fun release() {
@@ -45,13 +61,16 @@ class RawMascotAnimationSource(
         pending = null
     }
 
-    private fun decode(): Result<Drawable> = runCatching {
-        val drawable = ImageDecoder.decodeDrawable(ImageDecoder.createSource(resources, R.raw.splash_mascot))
-        if (drawable is AnimatedImageDrawable) drawable.repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
-        drawable
-    }.onFailure { Log.w(TAG, "animation de la mascotte illisible", it) }
+    private fun decode(): Result<Drawable> = runCatching(decoder)
+        .onFailure { Log.w(TAG, "animation de la mascotte illisible", it) }
 
     private companion object {
         const val TAG = "MascotAnimationSource"
+
+        fun decodeMascot(resources: Resources): Drawable {
+            val drawable = ImageDecoder.decodeDrawable(ImageDecoder.createSource(resources, R.raw.splash_mascot))
+            if (drawable is AnimatedImageDrawable) drawable.repeatCount = AnimatedImageDrawable.REPEAT_INFINITE
+            return drawable
+        }
     }
 }

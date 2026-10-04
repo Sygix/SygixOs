@@ -46,16 +46,32 @@ class StartupMascotTest : StartupHostTest(motionScale = 1f) {
     }
 
     @Test
-    fun `home waits for the window focus before being composed`() {
+    fun `home waits a short while for the window focus before being composed`() {
         windowFocused.value = false
         launch()
         catalogReady()
-        advanceTo(500)
+        advanceTo(Motion.SPLASH_APPEAR_MS + 100L)
         compose.onAllNodesWithTag("zone-hero").assertCountEquals(0)
         windowFocused.value = true
         Snapshot.sendApplyNotifications()
         frames()
         compose.onAllNodesWithTag("zone-hero").assertCountEquals(1)
+    }
+
+    @Test
+    fun `permission dialog holding the window focus does not block the home`() {
+        windowFocused.value = false
+        launch()
+        catalogReady()
+        advanceTo(Motion.SPLASH_APPEAR_MS + Motion.SPLASH_FOCUS_WAIT_MS - 60L)
+        compose.onAllNodesWithTag("zone-hero").assertCountEquals(0)
+        advanceTo(Motion.SPLASH_APPEAR_MS + Motion.SPLASH_FOCUS_WAIT_MS + 60L)
+        compose.onAllNodesWithTag("zone-hero").assertCountEquals(1)
+        controller.heroVisualReady()
+        advanceTo(Motion.SPLASH_APPEAR_MS + Motion.SPLASH_FOCUS_WAIT_MS + 100L + Motion.SPLASH_FADE_MS)
+        frames(8)
+        assertSplash(false)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
     }
 
     @Test

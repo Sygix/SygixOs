@@ -31,7 +31,7 @@ import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
 import fr.sygix.sygixos.domain.StartupSession
 
-class SygixOsApp : Application(), ImageLoaderFactory {
+open class SygixOsApp : Application(), ImageLoaderFactory {
 
     // Conteneur app-scope : une seule instance partagée par les deux ViewModel Factories.
     val installedAppsSource: InstalledAppsSource by lazy { InstalledAppsSource(this) }
@@ -46,9 +46,18 @@ class SygixOsApp : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
-        mascotAnimation.prefetch(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        if (prefetchesMascot && Application.getProcessName() == packageName) {
+            mascotAnimation.prefetch(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        }
         registerActivityLifecycleCallbacks(foregroundTracker)
         updateRepository.coldStart()
+    }
+
+    protected open val prefetchesMascot: Boolean get() = true
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        mascotAnimation.trimMemory()
     }
 
     private fun createUpdateRepository(): UpdateRepository {
