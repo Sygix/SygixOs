@@ -1,0 +1,4 @@
+HSPLfr/sygix/sygixos/**->**(**)**
+Lfr/sygix/sygixos/**;
+HSPLcoil/**->**(**)**
+Lcoil/**;
