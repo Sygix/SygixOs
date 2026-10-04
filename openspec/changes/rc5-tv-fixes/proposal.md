@@ -41,10 +41,9 @@ Aucune.
 - Aucune nouvelle dépendance. L'APK release ne change que par le code ci-dessus et le profil de référence.
 
 ## Non-goals
-- Navigation dans la grille (10,9 % d'images en retard mesurés sur la TV avec ce change) : hors de l'objectif fixé par Sygix (héro et dock), à reprendre dans un prochain lot si besoin.
-- Profil appliqué dès l'installation (fichier de métadonnées `.dm` livré avec l'APK et passé au `PackageInstaller` de la mise à jour intégrée) : demande de modifier la publication et `self-update` ; reporté (voir Questions ouvertes).
+- Navigation dans la grille (10,9 % d'images en retard mesurés sur la TV avec ce change) : hors de l'objectif fixé par Sygix (héro et dock), reprise par `rc6-polish`.
+- Profil appliqué dès l'installation (fichier de métadonnées `.dm` livré avec l'APK et passé au `PackageInstaller` de la mise à jour intégrée) : demande de modifier la publication et `self-update` ; traité par `rc6-polish`.
 - Refaire l'asset de la mascotte : son flottement mesure 15 px d'amplitude sur 360 px, visible en moins d'une seconde.
 
 ## Questions ouvertes
 - Ken Burns : gardé, mesuré à 60 images par seconde pendant le zoom et le fondu sur la TV avec la variante `perf` ; la décision finale (garder ou retirer) reste à prendre à la mesure TV de la rc.6 (objectif ≥ 55 i/s et < 10 % d'images en retard).
-- Profil appliqué dès l'installation ou la mise à jour : livrer un `.dm` avec la release et l'ajouter à la session d'installation de la mise à jour intégrée, ou accepter la compilation de fond du système.

@@ -45,7 +45,7 @@ Deltas écrits sur `main` (`d5579cf`), après l'archivage de `home-settings-poli
 
 ## Non-goals
 - Mesure de la fluidité sur la TV : faite ensuite sur une pré-release (tâches TV de `tasks.md`).
-- Lignes de la maquette qui demandent des données absentes du modèle (« Continuer dans … », saison et épisode, « Reste 25 min », date de masquage sous le nom d'une app cachée) : hors périmètre, à reprendre avec Up Next (p2c) ou un change dédié.
+- Lignes de la maquette qui demandent des données absentes du modèle (« Continuer dans … », saison et épisode, « Reste 25 min », date de masquage sous le nom d'une app cachée) : hors périmètre ; « Continuer dans … », saison et épisode et « Reste 25 min » sont repris par `rc6-polish`, la date de masquage reste à reprendre avec Up Next (p2c) ou un change dédié.
 
 ## Décisions de Sygix après la première version de la PR
 Dock limité à 6 apps (plus de défilement) ; aucun nom sur les tuiles ; menu : maquette confirmée (repos transparent, pilule claire sans zoom), « Fermer » retiré ; Ken Burns du héro et du panneau en un seul passage puis immobile, reprise au changement d'image ; Retour depuis l'engrenage vers le bouton du héro ; engrenage au trait ; bandeau du mode déplacement flouté. `AGENTS.md` et `openspec/config.yaml` sont alignés (zoom ~1,08, ombre portée douce autorisée, aucun halo coloré).
