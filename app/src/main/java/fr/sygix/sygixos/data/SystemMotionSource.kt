@@ -5,12 +5,14 @@
 
 package fr.sygix.sygixos.data
 
-import android.animation.ValueAnimator
+import android.content.ContentResolver
+import android.provider.Settings
 
 interface SystemMotionSource {
     fun animationsEnabled(): Boolean
 }
 
-class AnimatorMotionSource : SystemMotionSource {
-    override fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
+class SettingsMotionSource(private val resolver: ContentResolver) : SystemMotionSource {
+    override fun animationsEnabled(): Boolean =
+        Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
 }

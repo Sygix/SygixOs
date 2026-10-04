@@ -82,6 +82,9 @@ abstract class StartupHostTest(motionScale: Float) {
     protected val homeState = mutableStateOf<HomeState>(HomeState.Loading)
     protected lateinit var controller: StartupController
     protected var shownAt: Long? = null
+    protected var mascotAt: Long? = null
+    protected var unavailable = 0
+    protected val windowFocused = mutableStateOf(true)
     protected var shownCount = 0
     protected var reactions = 0
 
@@ -113,6 +116,15 @@ abstract class StartupHostTest(motionScale: Float) {
                             controller.splashShown()
                         },
                         onFadeFinished = controller::fadeFinished,
+                        onMascotShown = {
+                            mascotAt = scheduler.currentTime
+                            controller.mascotShown()
+                        },
+                        onMascotUnavailable = {
+                            unavailable++
+                            controller.mascotUnavailable()
+                        },
+                        windowFocused = windowFocused.value,
                     ) { s, interactive ->
                         if (solidHome != null) {
                             Box(Modifier.fillMaxSize().background(solidHome))
@@ -133,13 +145,14 @@ abstract class StartupHostTest(motionScale: Float) {
             }
         }
         repeat(10) { if (shownAt == null && coldStart) frames(1) }
+        repeat(10) { if (mascotAt == null && unavailable == 0 && coldStart) frames(1) }
         frames(1)
     }
 
     protected fun frames(count: Int = 3) = repeat(count) { compose.mainClock.advanceTimeByFrame() }
 
     protected fun advanceTo(elapsed: Long) {
-        val delta = checkNotNull(shownAt) + elapsed - scheduler.currentTime
+        val delta = checkNotNull(mascotAt ?: shownAt) + elapsed - scheduler.currentTime
         if (delta > 0) compose.mainClock.advanceTimeBy(delta, ignoreFrameDuration = true)
         frames(1)
     }

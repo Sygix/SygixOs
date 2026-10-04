@@ -17,7 +17,7 @@ import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.data.ClockSource
 import fr.sygix.sygixos.data.HeroRepository
 import fr.sygix.sygixos.data.MascotAnimationSource
-import fr.sygix.sygixos.data.AnimatorMotionSource
+import fr.sygix.sygixos.data.SettingsMotionSource
 import fr.sygix.sygixos.data.NatureFallbackProvider
 import fr.sygix.sygixos.data.RawMascotAnimationSource
 import fr.sygix.sygixos.data.SystemClockSource
@@ -129,6 +129,10 @@ class HomeViewModel(
     val startup: StateFlow<StartupPhase> = startupController.phase
 
     init {
+        viewModelScope.launch(startupDispatcher) {
+            startup.first { it == StartupPhase.Done }
+            mascot.release()
+        }
         if (coldStart) {
             viewModelScope.launch(startupDispatcher) {
                 state.first { it is HomeState.Ready }
@@ -138,6 +142,10 @@ class HomeViewModel(
     }
 
     fun onSplashShown() = startupController.splashShown()
+
+    fun onMascotShown() = startupController.mascotShown()
+
+    fun onMascotUnavailable() = startupController.mascotUnavailable()
 
     fun onHeroVisualReady() = startupController.heroVisualReady()
 
@@ -232,8 +240,8 @@ class HomeViewModel(
                 clockSource = SystemClockSource(app),
                 updates = app.updateRepository,
                 session = app.startupSession,
-                motion = AnimatorMotionSource(),
-                mascot = RawMascotAnimationSource(app.resources),
+                motion = SettingsMotionSource(app.contentResolver),
+                mascot = app.mascotAnimation,
             ) as T
         }
     }

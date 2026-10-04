@@ -128,6 +128,7 @@ class HomeViewModelStartupTest {
         vm.state.first { it is HomeState.Ready }
         runCurrent()
         vm.onSplashShown()
+        vm.onMascotShown()
         vm.onHeroVisualReady()
         advanceTimeBy(599)
         assertEquals(StartupPhase.Splash, vm.startup.value)

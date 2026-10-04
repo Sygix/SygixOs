@@ -73,6 +73,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
@@ -129,6 +130,9 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
             mascot = viewModel.mascot,
             onSplashShown = viewModel::onSplashShown,
             onFadeFinished = viewModel::onSplashFadeFinished,
+            onMascotShown = viewModel::onMascotShown,
+            onMascotUnavailable = viewModel::onMascotUnavailable,
+            windowFocused = LocalWindowInfo.current.isWindowFocused,
         ) { s, interactive ->
             LaunchedEffect(Unit) { viewModel.onHomeShown() }
             LauncherHome(

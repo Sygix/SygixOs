@@ -142,6 +142,8 @@ class HomeScreenStartupTest {
         frames(3)
         shownAt = scheduler.currentTime
         compose.onNodeWithTag("startup-splash").assertExists()
+        compose.onAllNodesWithTag("zone-hero").assertCountEquals(0)
+        advanceTo(400)
         compose.onNodeWithTag("hero-poster").assertExists()
         advanceTo(500)
         compose.onAllNodes(isFocused()).assertCountEquals(0)

@@ -19,12 +19,22 @@ class StartupGate(
     private val now: () -> Long,
 ) {
     private var shownAt: Long? = null
+    private var mascotAt: Long? = null
+    private var mascotMissing = false
     private var catalogAt: Long? = null
     private var visualAt: Long? = null
     private var fadeDone = false
 
     fun splashShown() {
         if (shownAt == null) shownAt = now()
+    }
+
+    fun mascotShown() {
+        if (mascotAt == null) mascotAt = now()
+    }
+
+    fun mascotUnavailable() {
+        mascotMissing = true
     }
 
     fun catalogReady() {
@@ -56,6 +66,12 @@ class StartupGate(
     private fun fadeStart(start: Long): Long {
         val visual = visualAt?.minus(start) ?: Long.MAX_VALUE
         val ready = catalogAt?.let { maxOf(it - start, minOf(visual, timings.visualCapMs)) } ?: Long.MAX_VALUE
-        return minOf(maxOf(timings.minMs, ready), timings.capMs)
+        val mascot = mascotAt
+        val minimum = when {
+            mascot != null -> maxOf(mascot - start, 0L) + timings.minMs
+            mascotMissing -> timings.minMs
+            else -> Long.MAX_VALUE
+        }
+        return minOf(maxOf(minimum, ready), timings.capMs)
     }
 }

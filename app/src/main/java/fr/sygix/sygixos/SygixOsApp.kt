@@ -22,6 +22,7 @@ import fr.sygix.sygixos.data.HttpsUrlTransport
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.PackageManagerApkInspector
+import fr.sygix.sygixos.data.RawMascotAnimationSource
 import fr.sygix.sygixos.data.SystemPackageInstallerGateway
 import fr.sygix.sygixos.data.TvProviderHeroSource
 import fr.sygix.sygixos.data.UpdateInstaller
@@ -41,9 +42,11 @@ class SygixOsApp : Application(), ImageLoaderFactory {
     val foregroundTracker = ForegroundTracker()
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
+    val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
 
     override fun onCreate() {
         super.onCreate()
+        mascotAnimation.prefetch(CoroutineScope(SupervisorJob() + Dispatchers.Default))
         registerActivityLifecycleCallbacks(foregroundTracker)
         updateRepository.coldStart()
     }

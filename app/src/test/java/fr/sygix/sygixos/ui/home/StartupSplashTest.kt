@@ -153,7 +153,7 @@ class StartupSplashTest : StartupHostTest(motionScale = 1f) {
         advanceTo(100)
         catalogReady()
         controller.heroVisualReady()
-        advanceTo(300)
+        advanceTo(Motion.SPLASH_APPEAR_MS + 100L)
         compose.onNodeWithTag("zone-hero").assertExists()
         compose.onNodeWithTag("settings-gear").assertExists()
         assertEquals(0f, homeAlpha())

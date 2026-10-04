@@ -24,6 +24,7 @@ class StartupGateTest {
     private fun StartupGate.shownNow(): StartupGate = apply {
         time = 10_000L
         splashShown()
+        mascotShown()
     }
 
     @Test
@@ -132,5 +133,58 @@ class StartupGateTest {
         gate.at(400)
         gate.splashShown()
         assertEquals(StartupPhase.FadingOut, gate.at(600))
+    }
+
+    @Test
+    fun `minimum duration counts from the first frame showing the mascot`() {
+        val gate = gate()
+        time = 10_000L
+        gate.splashShown()
+        gate.catalogReady()
+        gate.heroVisualReady()
+        assertEquals(StartupPhase.Splash, gate.at(900))
+        gate.at(450)
+        gate.mascotShown()
+        assertEquals(600L, gate.millisUntilChange())
+        assertEquals(StartupPhase.Splash, gate.at(1_049))
+        assertEquals(StartupPhase.FadingOut, gate.at(1_050))
+    }
+
+    @Test
+    fun `mascot not shown yet waits until the global cap`() {
+        val gate = gate()
+        time = 10_000L
+        gate.splashShown()
+        gate.catalogReady()
+        gate.heroVisualReady()
+        assertEquals(5_000L, gate.millisUntilChange())
+        assertEquals(StartupPhase.Splash, gate.at(4_999))
+        assertEquals(StartupPhase.FadingOut, gate.at(5_000))
+    }
+
+    @Test
+    fun `unreadable mascot counts the minimum from the first frame of the splash`() {
+        val gate = gate()
+        time = 10_000L
+        gate.splashShown()
+        gate.at(300)
+        gate.mascotUnavailable()
+        gate.catalogReady()
+        gate.heroVisualReady()
+        assertEquals(StartupPhase.Splash, gate.at(599))
+        assertEquals(StartupPhase.FadingOut, gate.at(600))
+    }
+
+    @Test
+    fun `late mascot keeps the caps counted from the first frame of the splash`() {
+        val gate = gate()
+        time = 10_000L
+        gate.splashShown()
+        gate.at(4_700)
+        gate.mascotShown()
+        gate.catalogReady()
+        gate.heroVisualReady()
+        assertEquals(StartupPhase.Splash, gate.at(4_999))
+        assertEquals(StartupPhase.FadingOut, gate.at(5_000))
     }
 }

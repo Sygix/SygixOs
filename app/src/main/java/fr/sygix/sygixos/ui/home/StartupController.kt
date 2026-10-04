@@ -28,6 +28,10 @@ class StartupController(
 
     fun splashShown() = record(gate::splashShown)
 
+    fun mascotShown() = record(gate::mascotShown)
+
+    fun mascotUnavailable() = record(gate::mascotUnavailable)
+
     fun catalogReady() = record(gate::catalogReady)
 
     fun heroVisualReady() = record(gate::heroVisualReady)
