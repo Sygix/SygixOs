@@ -205,10 +205,14 @@ class HomeViewModel(
         val pending = uris.filter { it !in validated.value }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
-            validator.validate(pending, keepInMemory).collect { check ->
-                checked.update { it + check.uri }
-                if (check.usable) validated.update { it + check.uri }
-                if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
+            pending.forEachIndexed { index, uri ->
+                var usable = false
+                validator.validate(listOf(uri), if (index < keepInMemory) 1 else 0).collect { check ->
+                    checked.update { it + check.uri }
+                    if (check.usable) validated.update { it + check.uri }
+                    usable = check.usable
+                }
+                if (holdAfterFirstDuringStartup && usable) startup.first { it == StartupPhase.Done }
             }
         }
     }

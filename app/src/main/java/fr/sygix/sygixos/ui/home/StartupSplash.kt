@@ -31,8 +31,6 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.SemanticsPropertyKey
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
@@ -44,10 +42,6 @@ import fr.sygix.sygixos.data.MascotAnimationSource
 import fr.sygix.sygixos.domain.StartupPhase
 import kotlinx.coroutines.delay
 
-internal val StartupHomeAlpha = SemanticsPropertyKey<Float>("StartupHomeAlpha")
-private var SemanticsPropertyReceiver.startupHomeAlpha by StartupHomeAlpha
-
-private fun Modifier.startupOpacity(alpha: Float): Modifier = semantics { startupHomeAlpha = alpha }
 
 @Composable
 internal fun StartupHost(
@@ -80,7 +74,7 @@ internal fun StartupHost(
         currentOnFadeFinished()
     }
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().startupOpacity(if (interactive) 1f else 0f)) {
+        Box(Modifier.fillMaxSize()) {
             when (state) {
                 HomeState.Loading -> Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
                 is HomeState.Ready -> if (homeComposed) home(state, interactive)
