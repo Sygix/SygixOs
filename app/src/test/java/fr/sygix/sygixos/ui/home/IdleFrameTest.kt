@@ -19,6 +19,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import coil.Coil
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.model.ProgramKind
 import coil.ComponentRegistry
 import coil.ImageLoader
 import coil.decode.DataSource
@@ -165,6 +166,26 @@ class IdleFrameTest {
         advance(Motion.HERO_KEN_BURNS_MS.toLong())
         assertEquals(0, stateWritesDuring(5_000))
         assertEquals(0L, recompositionsDuring(2_000))
+    }
+
+    @Test
+    fun `hero header, details and remaining time never recompose during the ken burns`() {
+        val program = poster("h1").copy(
+            sourceLabel = "Appli fictive",
+            kind = ProgramKind.CONTINUE,
+            season = "2",
+            episode = "5",
+            durationMillis = 42 * 60_000L,
+            positionMillis = 17 * 60_000L,
+            progress = 17f / 42f,
+        )
+        showPosters(program)
+        advance(2_000)
+        compose.onNodeWithTag("hero-details", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("hero-remaining", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("hero-header-label", useUnmergedTree = true).assertExists()
+        assertTrue(stateWritesDuring(1_000) > 0)
+        assertEquals(0L, recompositionsDuring(3_000))
     }
 
     @Test

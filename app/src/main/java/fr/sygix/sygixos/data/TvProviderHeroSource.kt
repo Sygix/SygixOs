@@ -14,6 +14,7 @@ import android.media.tv.TvContract
 import android.net.Uri
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.model.ProgramKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -110,6 +111,11 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
                 c.optLong(TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS),
             ),
             launchUri = intentUri,
+            kind = ProgramKind.FEATURED,
+            season = c.optString(TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER),
+            episode = c.optString(TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER),
+            durationMillis = c.optLong(TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS).takeIf { it > 0 },
+            positionMillis = c.optLong(TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS).takeIf { it > 0 },
         )
     }
 
@@ -131,7 +137,20 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             ),
             launchUri = intentUri,
             engagement = c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
+            kind = watchNextKind(c.optInt(TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE, -1)),
+            season = c.optString(TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER),
+            episode = c.optString(TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER),
+            durationMillis = c.optLong(TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS).takeIf { it > 0 },
+            positionMillis = c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS).takeIf { it > 0 },
         )
+    }
+
+    private fun watchNextKind(type: Int): ProgramKind = when (type) {
+        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_CONTINUE -> ProgramKind.CONTINUE
+        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEXT -> ProgramKind.NEXT
+        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEW -> ProgramKind.NEW
+        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_WATCHLIST -> ProgramKind.WATCHLIST
+        else -> ProgramKind.WATCH_NEXT
     }
 
     private fun playableVideo(uri: String?): String? = uri?.takeIf { raw ->
@@ -172,6 +191,8 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             TvContract.PreviewPrograms.COLUMN_INTENT_URI,
             TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
             TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS,
+            TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
+            TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
             TvContract.PreviewPrograms.COLUMN_BROWSABLE,
         )
         val WATCH_NEXT_PROJECTION = arrayOf(
@@ -186,6 +207,9 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
             TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS,
             TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS,
+            TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE,
+            TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
+            TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
             TvContract.WatchNextPrograms.COLUMN_BROWSABLE,
         )
     }

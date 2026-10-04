@@ -82,6 +82,19 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.model.HeroItem
+import androidx.compose.foundation.Image
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
+import fr.sygix.sygixos.R
+import fr.sygix.sygixos.data.AppIconCache
+import fr.sygix.sygixos.domain.HeroCaption
+import fr.sygix.sygixos.domain.HeroDetails
+import fr.sygix.sygixos.domain.HeroHeader
+import fr.sygix.sygixos.model.ProgramKind
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 
@@ -99,6 +112,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val TAG = "HeroStage"
+
+internal val LocalSourceIcons = staticCompositionLocalOf<AppIconCache?> { null }
 
 @Composable
 fun HeroStage(
@@ -155,6 +170,8 @@ fun HeroStage(
     }
 
     val context = LocalContext.current
+    val providedIcons = LocalSourceIcons.current
+    val icons = remember(providedIcons) { providedIcons ?: AppIconCache.squareFor(context.packageManager) }
     val player = remember {
         HeroPlayer(
             context = context.applicationContext,
@@ -242,6 +259,7 @@ fun HeroStage(
         )
         HeroOverlay(
             current = current?.takeIf { it.title.isNotEmpty() },
+            icons = icons,
             launchable = launchable,
             buttonFocusRequester = focusRequester,
             focusEnabled = active && launchable,
@@ -373,6 +391,7 @@ private fun HeroPosterLayers(
 @Composable
 private fun HeroOverlay(
     current: HeroItem?,
+    icons: AppIconCache,
     launchable: Boolean,
     buttonFocusRequester: FocusRequester,
     focusEnabled: Boolean,
@@ -387,7 +406,7 @@ private fun HeroOverlay(
             verticalArrangement = Arrangement.spacedBy(Dimens.HeroTextSpacing),
         ) {
             SequentialFade(target = current, durationMillis = Motion.HERO_CROSSFADE_MS) { item ->
-                HeroMetadata(item)
+                HeroMetadata(item, icons)
             }
             if (launchable && current != null) {
                 HeroOpenButton(
@@ -403,14 +422,12 @@ private fun HeroOverlay(
 }
 
 @Composable
-private fun HeroMetadata(item: HeroItem) {
+private fun HeroMetadata(item: HeroItem, icons: AppIconCache) {
     Column(
         Modifier.testTag("hero-metadata"),
         verticalArrangement = Arrangement.spacedBy(Dimens.HeroTextSpacing),
     ) {
-        item.sourceLabel?.let { source ->
-            Text(source, style = TextStyles.HeroSource.copy(shadow = SmallTextShadow), color = SourceColor, maxLines = 1)
-        }
+        HeroHeaderRow(item, icons)
         Text(
             item.title,
             style = TextStyles.HeroTitle.copy(shadow = TitleShadow),
@@ -418,23 +435,119 @@ private fun HeroMetadata(item: HeroItem) {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        HeroCaption.details(item)?.let { details ->
+            Text(
+                detailsText(details),
+                style = TextStyles.HeroDetails.copy(shadow = SmallTextShadow),
+                color = DetailsColor,
+                maxLines = 1,
+                modifier = Modifier.testTag("hero-details"),
+            )
+        }
         item.progress?.let { progress ->
-            Box(
-                Modifier
-                    .width(ProgressWidth)
-                    .height(ProgressHeight)
-                    .clip(RoundedCornerShape(ProgressHeight / 2))
-                    .background(ProgressTrack)
-                    .testTag("hero-progress"),
+            Row(
+                Modifier.testTag("hero-progress"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(ProgressGap),
             ) {
                 Box(
                     Modifier
-                        .fillMaxWidth(progress)
-                        .fillMaxHeight()
-                        .background(SygixColors.OnDark),
-                )
+                        .width(ProgressWidth)
+                        .height(ProgressHeight)
+                        .clip(RoundedCornerShape(ProgressHeight / 2))
+                        .background(ProgressTrack)
+                        .testTag("hero-progress-bar"),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(progress)
+                            .fillMaxHeight()
+                            .background(SygixColors.OnDark),
+                    )
+                }
+                HeroCaption.remainingMinutes(item)?.let { minutes ->
+                    Text(
+                        stringResource(R.string.hero_remaining, durationText(minutes)),
+                        style = TextStyles.HeroRemaining.copy(shadow = SmallTextShadow),
+                        color = SourceColor,
+                        maxLines = 1,
+                        modifier = Modifier.testTag("hero-remaining"),
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun HeroHeaderRow(item: HeroItem, icons: AppIconCache) {
+    val header = HeroCaption.header(item)
+    val pkg = item.sourcePackage
+    val icon by produceState(initialValue = pkg?.let(icons::cached), pkg, icons) {
+        if (value == null && pkg != null) value = withContext(Dispatchers.IO) { icons.get(pkg) }
+    }
+    val label = header?.let { headerText(it) }
+    val bitmap = icon
+    if (label == null && bitmap == null) return
+    Row(
+        Modifier.testTag("hero-header"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HeaderGap),
+    ) {
+        if (bitmap != null) {
+            val image = remember(bitmap) { bitmap.asImageBitmap() }
+            Image(
+                bitmap = image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(Dimens.HeroSourceIcon)
+                    .clip(SourceIconShape)
+                    .testTag("hero-source-icon"),
+            )
+        }
+        if (label != null) {
+            Text(
+                label,
+                style = TextStyles.HeroSource.copy(shadow = SmallTextShadow),
+                color = SourceColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.testTag("hero-header-label"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun headerText(header: HeroHeader): String? {
+    val app = header.app
+    return when (header.kind) {
+        ProgramKind.CONTINUE -> if (app != null) stringResource(R.string.hero_header_continue, app) else stringResource(R.string.hero_kind_continue)
+        ProgramKind.NEXT -> if (app != null) stringResource(R.string.hero_header_next, app) else stringResource(R.string.hero_kind_next)
+        ProgramKind.NEW -> if (app != null) stringResource(R.string.hero_header_new, app) else stringResource(R.string.hero_kind_new)
+        ProgramKind.WATCHLIST -> if (app != null) stringResource(R.string.hero_header_watchlist, app) else stringResource(R.string.hero_kind_watchlist)
+        ProgramKind.FEATURED, ProgramKind.WATCH_NEXT -> app
+    }
+}
+
+@Composable
+private fun detailsText(details: HeroDetails): String {
+    val parts = listOfNotNull(
+        details.season?.let { stringResource(R.string.hero_season, it) },
+        details.episode?.let { stringResource(R.string.hero_episode, it) },
+        details.minutes?.let { durationText(it) },
+    )
+    return parts.joinToString(stringResource(R.string.hero_details_separator))
+}
+
+@Composable
+private fun durationText(minutes: Int): String {
+    val split = HeroCaption.split(minutes)
+    return when {
+        split.hours == 0 -> stringResource(R.string.hero_duration_minutes, split.minutes)
+        split.minutes == 0 -> stringResource(R.string.hero_duration_hours, split.hours)
+        else -> stringResource(R.string.hero_duration_hours_minutes, split.hours, split.minutes)
     }
 }
 
@@ -506,6 +619,10 @@ private val CornerVeilHeight = 150.dp
 private val ProgressWidth = 160.dp
 private val ProgressHeight = 3.dp
 private val ProgressTrack = Color.White.copy(alpha = 0.28f)
+private val ProgressGap = 8.dp
+private val HeaderGap = 6.dp
+private val DetailsColor = Color.White.copy(alpha = 0.82f)
+private val SourceIconShape = RoundedCornerShape(Dimens.HeroSourceIconCorner)
 private val SourceColor = Color.White.copy(alpha = 0.86f)
 private val ButtonPaddingStart = 16.dp
 private val ButtonPaddingEnd = 20.dp

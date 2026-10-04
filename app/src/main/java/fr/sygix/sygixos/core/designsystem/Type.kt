@@ -52,6 +52,8 @@ object TextStyles {
     private val Sans = Figtree
     val HeroTitle = TextStyle(fontFamily = Sans, fontWeight = FontWeight.ExtraBold, fontSize = 38.sp, lineHeight = 39.sp, letterSpacing = (-0.5).sp)
     val HeroSource = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+    val HeroDetails = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+    val HeroRemaining = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
     val Button = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     val Clock = TextStyle(fontFamily = Sans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, letterSpacing = 0.1.sp, fontFeatureSettings = "tnum")
     val MenuTitle = TextStyle(fontFamily = Sans, fontWeight = FontWeight.Bold, fontSize = 15.sp)

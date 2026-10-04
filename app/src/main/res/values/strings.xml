@@ -47,4 +47,19 @@
     <string name="update_failure_storage">stockage insuffisant</string>
     <string name="update_failure_timeout">délai dépassé</string>
     <string name="update_failure_other">erreur inconnue</string>
+    <string name="hero_header_continue">Continuer dans %1$s</string>
+    <string name="hero_header_next">Épisode suivant dans %1$s</string>
+    <string name="hero_header_new">Nouveau dans %1$s</string>
+    <string name="hero_header_watchlist">À regarder dans %1$s</string>
+    <string name="hero_kind_continue">Continuer</string>
+    <string name="hero_kind_next">Épisode suivant</string>
+    <string name="hero_kind_new">Nouveau</string>
+    <string name="hero_kind_watchlist">À regarder</string>
+    <string name="hero_season">Saison %1$s</string>
+    <string name="hero_episode">Épisode %1$s</string>
+    <string name="hero_duration_minutes">%1$d min</string>
+    <string name="hero_duration_hours">%1$d h</string>
+    <string name="hero_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="hero_remaining">Reste %1$s</string>
+    <string name="hero_details_separator">" · "</string>
 </resources>

@@ -15,4 +15,11 @@ data class HeroItem(
     val progress: Float? = null,
     val launchUri: String? = null,
     val engagement: Long = 0L,
+    val kind: ProgramKind = ProgramKind.FEATURED,
+    val season: String? = null,
+    val episode: String? = null,
+    val durationMillis: Long? = null,
+    val positionMillis: Long? = null,
 )
+
+enum class ProgramKind { FEATURED, CONTINUE, NEXT, NEW, WATCHLIST, WATCH_NEXT }
