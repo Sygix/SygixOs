@@ -9,6 +9,8 @@ object UpdateSelector {
 
     const val APK_NAME = "app-release.apk"
     const val MAX_APK_BYTES = 200L * 1024 * 1024
+    const val PROFILE_NAME = "app-release.dm"
+    const val MAX_PROFILE_BYTES = 16L * 1024 * 1024
     private const val UPLOADED = "uploaded"
     private val Sha256Digest = Regex("sha256:([0-9a-fA-F]{64})")
 
@@ -17,7 +19,7 @@ object UpdateSelector {
         val version = ReleaseVersion.parse(release.tag) ?: return null
         val asset = release.assets.firstOrNull { it.name == APK_NAME } ?: return null
         if (asset.state != UPLOADED || asset.size <= 0 || asset.size > MAX_APK_BYTES) return null
-        val sha256 = asset.digest?.let { Sha256Digest.matchEntire(it) }?.groupValues?.get(1)?.lowercase() ?: return null
+        val sha256 = sha256Of(asset) ?: return null
         if (!UpdateUrlPolicy.isAllowed(asset.downloadUrl)) return null
         return UpdateCandidate(
             tag = release.tag,
@@ -28,8 +30,20 @@ object UpdateSelector {
             size = asset.size,
             sha256 = sha256,
             htmlUrl = release.htmlUrl,
+            profile = profile(release),
         )
     }
+
+    fun profile(release: Release): ProfileAsset? {
+        val asset = release.assets.firstOrNull { it.name == PROFILE_NAME } ?: return null
+        if (asset.state != UPLOADED || asset.size <= 0 || asset.size > MAX_PROFILE_BYTES) return null
+        val sha256 = sha256Of(asset) ?: return null
+        if (!UpdateUrlPolicy.isAllowed(asset.downloadUrl)) return null
+        return ProfileAsset(url = asset.downloadUrl, size = asset.size, sha256 = sha256)
+    }
+
+    private fun sha256Of(asset: ReleaseAsset): String? =
+        asset.digest?.let { Sha256Digest.matchEntire(it) }?.groupValues?.get(1)?.lowercase()
 
     fun known(releases: List<Release>): KnownUpdates {
         val candidates = releases.mapNotNull(::eligible)

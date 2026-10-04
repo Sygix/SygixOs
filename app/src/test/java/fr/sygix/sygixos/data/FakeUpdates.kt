@@ -124,10 +124,15 @@ internal class FakeInspector(var installed: ApkIdentity?, private val packageNam
 
 internal class FakeSession(override val id: Int, private val gateway: FakeGateway) : InstallSession {
     val written = ByteArrayOutputStream()
+    var profile: ByteArray? = null
     var committed = false
     var abandoned = false
     override fun write(size: Long, block: (OutputStream) -> Unit) {
         block(written)
+    }
+    override fun writeProfile(bytes: ByteArray) {
+        gateway.onWriteProfile(this, bytes)
+        profile = bytes
     }
     override fun commit() {
         gateway.onCommit(this)
@@ -145,6 +150,7 @@ internal class FakeGateway : PackageInstallerGateway {
     var openSessions = 0
     var active = false
     var onCommit: (FakeSession) -> Unit = {}
+    var onWriteProfile: (FakeSession, ByteArray) -> Unit = { _, _ -> }
     override fun create(size: Long): InstallSession = FakeSession(sessions.size + 1, this).also { sessions += it }
     override fun abandon(sessionId: Int) {
         abandonedIds += sessionId

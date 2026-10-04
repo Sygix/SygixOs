@@ -30,6 +30,13 @@ data class UpdateCandidate(
     val size: Long,
     val sha256: String,
     val htmlUrl: String,
+    val profile: ProfileAsset? = null,
+)
+
+data class ProfileAsset(
+    val url: String,
+    val size: Long,
+    val sha256: String,
 )
 
 data class KnownUpdates(val bestFinal: UpdateCandidate? = null, val bestAny: UpdateCandidate? = null) {

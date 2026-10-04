@@ -15,6 +15,7 @@ import java.io.OutputStream
 interface InstallSession {
     val id: Int
     fun write(size: Long, block: (OutputStream) -> Unit)
+    fun writeProfile(bytes: ByteArray)
     fun commit()
     fun abandon()
 }
@@ -85,6 +86,13 @@ class SystemPackageInstallerGateway(private val context: Context) : PackageInsta
             }
         }
 
+        override fun writeProfile(bytes: ByteArray) {
+            session.openWrite(PROFILE_ENTRY, 0, bytes.size.toLong()).use { out ->
+                out.write(bytes)
+                session.fsync(out)
+            }
+        }
+
         override fun commit() {
             val intent = Intent(context, InstallStatusReceiver::class.java).setPackage(context.packageName)
             val pending = PendingIntent.getBroadcast(
@@ -104,5 +112,6 @@ class SystemPackageInstallerGateway(private val context: Context) : PackageInsta
 
     private companion object {
         const val APK_ENTRY = "base.apk"
+        const val PROFILE_ENTRY = "base.dm"
     }
 }

@@ -6,6 +6,7 @@ build/
 # Android
 local.properties
 *.apk
+*.dm
 *.aab
 *.ap_
 *.dex

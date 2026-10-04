@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+import com.android.build.api.artifact.SingleArtifact
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -74,6 +76,47 @@ android {
     kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
     buildFeatures { compose = true }
     testOptions { unitTests { isIncludeAndroidResources = true } }
+}
+
+abstract class DexMetadataTask : DefaultTask() {
+    @get:InputFiles
+    abstract val apkFolder: DirectoryProperty
+
+    @get:Input
+    abstract val minSdk: Property<Int>
+
+    @get:OutputDirectory
+    abstract val outputFolder: DirectoryProperty
+
+    @TaskAction
+    fun run() {
+        val folder = apkFolder.get().asFile
+        @Suppress("UNCHECKED_CAST")
+        val metadata = groovy.json.JsonSlurper().parse(File(folder, "output-metadata.json")) as Map<String, Any?>
+        val apk = ((metadata["elements"] as List<Map<String, Any?>>).single()["outputFile"] as String)
+        val api = minSdk.get()
+        @Suppress("UNCHECKED_CAST")
+        val profiles = metadata["baselineProfiles"] as? List<Map<String, Any?>> ?: emptyList()
+        val match = profiles.firstOrNull { (it["minApi"] as Number).toInt() <= api && api <= (it["maxApi"] as Number).toInt() }
+        val dm = (match?.get("baselineProfiles") as? List<*>)?.singleOrNull() as? String
+            ?: error("Aucun fichier .dm produit par AGP pour l'API $api dans ${folder.name}")
+        val out = outputFolder.get().asFile
+        out.deleteRecursively()
+        out.mkdirs()
+        File(folder, dm).copyTo(File(out, apk.removeSuffix(".apk") + ".dm"))
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        if (variant.buildType != "release" && variant.buildType != "perf") return@onVariants
+        val suffix = variant.name.replaceFirstChar { it.uppercase() }
+        tasks.register<DexMetadataTask>("dexMetadata$suffix") {
+            apkFolder.set(variant.artifacts.get(SingleArtifact.APK))
+            minSdk.set(variant.minSdk.apiLevel)
+            outputFolder.set(layout.buildDirectory.dir("outputs/dexmetadata/${variant.name}"))
+        }
+    }
 }
 
 aboutLibraries {
