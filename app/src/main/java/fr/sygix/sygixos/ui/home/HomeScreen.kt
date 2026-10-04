@@ -569,6 +569,7 @@ internal fun LauncherHome(
                 onCategoryEntered = onSettingsCategory,
                 update = update,
                 onBack = { settingsOpen = false },
+                backEnabled = backEnabled,
             )
         }
         menuApp?.let { app ->

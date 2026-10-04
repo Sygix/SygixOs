@@ -289,9 +289,33 @@ class StartupSplashTest : StartupHostTest(motionScale = 1f) {
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         press(listOf(Key.DirectionUp))
         compose.onNodeWithTag("settings-gear").assertIsFocused()
+        val heroTop = compose.onNodeWithTag("zone-hero").fetchSemanticsNode().boundsInRoot.top
         pressBackThroughActivity()
         frames()
         assertTrue(isActivityFinishing())
+        compose.onNodeWithTag("settings-gear").assertIsFocused()
+        assertEquals(heroTop, compose.onNodeWithTag("zone-hero").fetchSemanticsNode().boundsInRoot.top, 0.5f)
+        assertEquals(0, reactions)
+    }
+
+    @Test
+    fun `back during the exit fade leaves the app while the settings are open`() {
+        launch()
+        advanceTo(100)
+        catalogReady()
+        controller.heroVisualReady()
+        advanceTo(600)
+        frames()
+        assertSplash(true)
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        press(listOf(Key.DirectionUp, Key.DirectionCenter))
+        frames()
+        compose.onNodeWithTag("settings-screen").assertExists()
+        compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
+        pressBackThroughActivity()
+        frames()
+        assertTrue(isActivityFinishing())
+        compose.onNodeWithTag("settings-screen").assertExists()
         assertEquals(0, reactions)
     }
 
