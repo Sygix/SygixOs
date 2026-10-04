@@ -17,6 +17,10 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import androidx.compose.runtime.snapshots.Snapshot
+import coil.Coil
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +31,12 @@ class HomeGridTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    @Before
+    fun offlineImages() = Coil.setImageLoader(UnreachableImageLoader())
+
+    @After
+    fun resetImages() = Coil.reset()
 
     @Test
     fun `grid renders each installed app exactly once`() {
@@ -149,6 +159,7 @@ class HomeGridTest {
             keyDown(key)
             keyUp(key)
         }
+        compose.runOnIdle { Snapshot.sendApplyNotifications() }
         settle()
     }
 

@@ -471,6 +471,7 @@ internal fun LauncherHome(
                         items = hero.items,
                         validatedVisuals = heroVisuals,
                         active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen,
+                        stillActive = { zone == Zone.HERO && menuApp == null && !settingsOpen },
                         visible = heroVisible && !settingsOpen,
                         focusRequester = heroFocus,
                         claimFocus = !gearFocused,
