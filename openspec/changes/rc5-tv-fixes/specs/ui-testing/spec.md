@@ -11,11 +11,27 @@ Le rendu du héro et du verre (« Thème », « Diaporama héro » et « Précha
 
 #### Scenario: visuel voilé
 - **WHEN** un visuel blanc de 3840 × 2160 passe par la transformation du héro
-- **THEN** l'image produite mesure 1920 × 1080, est opaque, reste blanche hors des voiles et est assombrie en bas, à gauche et en haut à droite
+- **THEN** l'image produite mesure 1920 × 1080, est opaque, reste blanche hors des voiles (coin haut droit compris, son voile étant dessiné à part) et est assombrie en bas et à gauche
 
 #### Scenario: arrière-plan du verre
 - **WHEN** un visuel moitié noir, moitié blanc passe par la transformation du verre
 - **THEN** l'image produite mesure le huitième du visuel, est opaque, a une transition adoucie entre les deux moitiés et est assombrie en bas
+
+#### Scenario: alignement du verre
+- **WHEN** la copie floutée sous le dock est à motif, zoomée à 1,08 et à mi-fondu sur une autre copie
+- **THEN** chaque point du verre montre la couleur du point du visuel situé dessous, avec ce zoom et ce fondu
+
+#### Scenario: verre sans copie floutée
+- **WHEN** un visuel est chargé sans copie floutée
+- **THEN** la surface verre utilise le flou en direct, puis la copie dès qu'elle existe
+
+#### Scenario: voile du coin pendant le Ken Burns
+- **WHEN** un visuel blanc zoome jusqu'à 1,08
+- **THEN** l'écran en haut à droite est voilé et ne s'éclaircit pas entre le début et la fin du zoom
+
+#### Scenario: retour pendant le fondu
+- **WHEN** l'utilisateur revient au programme précédent à mi-fondu
+- **THEN** le visuel suivant s'efface à partir de son opacité courante et le précédent reste entièrement visible dessous
 
 #### Scenario: couleur du verre
 - **WHEN** le dock est rendu sur un arrière-plan gris moyen puis sur un arrière-plan sombre
@@ -72,7 +88,7 @@ L'écran de démarrage (« Écran de démarrage » de `launcher-shell`) SHALL ê
 
 #### Scenario: composition différée de l'accueil
 - **WHEN** le catalogue est prêt avant la fin du fondu d'entrée de la mascotte, ou alors que la fenêtre n'est pas active
-- **THEN** « zone-hero » n'existe pas avant la fin de ce fondu et l'activation de la fenêtre, puis existe aussitôt après
+- **THEN** « zone-hero » n'existe pas avant la fin de ce fondu et l'activation de la fenêtre, puis existe aussitôt après ; si la fenêtre reste sans focus (demande de permission), « zone-hero » existe 400 ms après la fin du fondu et le héro a le focus après le fondu de sortie
 
 #### Scenario: échelle d'animation de l'app forcée à 0
 - **WHEN** l'échelle d'animation de l'app est forcée à 0 alors que l'échelle de durée des animations du système n'est pas réglée

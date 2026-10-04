@@ -3,7 +3,10 @@
 ## MODIFIED Requirements
 
 ### Requirement: Thème
-L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Glass façon tvOS 26 : verre sombre transparent (teinte sombre translucide sur l'arrière-plan flouté), fine bordure claire, fin reflet clair sur le bord haut et ombre légère sous la surface. Le flou SHALL être calculé à partir d'une image réduite de l'arrière-plan, et seulement sous les surfaces verre (dock, capsule heure et réglages, menu contextuel, bandeau du mode déplacement) ; aucun autre élément n'est flouté. Le verre SHALL reproduire la maquette validée : arrière-plan flouté de 28 px et saturé à 170 %, teinte sombre translucide (rgb 22, 22, 28 à 36 % pour le dock, 38 % pour la capsule), bordure de 1 px blanche à 16 %, reflet haut blanc à 32 % et reflet bas blanc à 6 %. Quand le héro affiche le visuel d'un programme, l'arrière-plan flouté du dock et de la capsule SHALL être calculé une seule fois par visuel, voiles du héro compris, puis suivre exactement le visuel (Ken Burns, fondu) sans être recalculé à chaque image ; sous une vidéo, le dégradé du repli, le menu contextuel et le bandeau du mode déplacement, il SHALL être calculé en direct.
+L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Glass façon tvOS 26 : verre sombre transparent (teinte sombre translucide sur l'arrière-plan flouté), fine bordure claire, fin reflet clair sur le bord haut et ombre légère sous la surface. Seules les surfaces verre (dock, capsule heure et réglages, menu contextuel, bandeau du mode déplacement) SHALL montrer un arrière-plan flouté ; aucun autre élément n'est flouté. Le verre SHALL reproduire la maquette validée : arrière-plan flouté de 28 px et saturé à 170 %, teinte sombre translucide (rgb 22, 22, 28 à 36 % pour le dock, 38 % pour la capsule), bordure de 1 px blanche à 16 %, reflet haut blanc à 32 % et reflet bas blanc à 6 %. Le flou SHALL être obtenu de deux façons selon ce qui est derrière :
+
+- dock et capsule sur le visuel d'un programme : copie floutée et saturée du visuel voilé, calculée une seule fois par visuel à partir d'une image réduite, puis déplacée exactement comme le visuel (Ken Burns, fondu) sans être recalculée à chaque image ; si cette copie n'a pas pu être calculée, flou en direct ;
+- dock et capsule sur une vidéo ou sur le dégradé du repli, menu contextuel et bandeau du mode déplacement : flou calculé en direct, à partir d'une image réduite de l'arrière-plan et seulement sur la zone couverte par la surface.
 
 - Toujours sombre, noir pur, posters plein cadre, police Figtree (SIL Open Font License 1.1, listée dans « À propos »)
 - Relief par une ombre portée douce et un reflet clair, jamais par un halo coloré
@@ -14,7 +17,7 @@ L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Gl
 
 #### Scenario: surfaces verre
 - **WHEN** le dock, la capsule heure et réglages (« Capsule heure et réglages » de `settings`), le menu contextuel ou le bandeau du mode déplacement sont affichés
-- **THEN** ils utilisent le matériau verre sombre (arrière-plan flouté en direct, teinte sombre translucide, fine bordure claire, reflet sur le bord haut, ombre légère) ; le panneau du menu contextuel est nettement plus foncé que le dock et la capsule ; si l'appareil ne supporte pas l'effet, la surface reste sombre et translucide, sans flou et sans crash
+- **THEN** ils utilisent le matériau verre sombre (arrière-plan flouté selon les deux façons ci-dessus, teinte sombre translucide, fine bordure claire, reflet sur le bord haut, ombre légère) ; le panneau du menu contextuel est nettement plus foncé que le dock et la capsule ; si l'appareil ne supporte pas l'effet, la surface reste sombre et translucide, sans flou et sans crash
 
 #### Scenario: bouton sans flou
 - **WHEN** le bouton d'ouverture du héro est affiché au repos
@@ -22,7 +25,11 @@ L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Gl
 
 #### Scenario: coût du flou
 - **WHEN** une surface verre est affichée
-- **THEN** son flou n'est calculé que sur la zone qu'elle couvre, à partir d'une image réduite de l'arrière-plan ; une surface verre hors écran n'est plus calculée (« Préchargement et mémoire »)
+- **THEN** son flou est soit la copie floutée du visuel calculée une fois par visuel, soit un flou en direct calculé seulement sur la zone qu'elle couvre à partir d'une image réduite de l'arrière-plan ; une surface verre hors écran n'est plus calculée (« Préchargement et mémoire »)
+
+#### Scenario: copie floutée indisponible
+- **WHEN** le visuel d'un programme est affiché mais que sa copie floutée n'a pas pu être calculée
+- **THEN** le dock et la capsule utilisent le flou en direct ; le visuel net n'apparaît jamais sous leur teinte
 
 #### Scenario: verre sur un visuel en mouvement
 - **WHEN** le visuel d'un programme zoome (Ken Burns) ou change par fondu sous le dock et la capsule, ou qu'une tuile du dock prend le focus
@@ -50,6 +57,14 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 #### Scenario: métadonnées
 - **WHEN** un programme ouvrable est affiché
 - **THEN** titre, app source et barre de progression (si connue) apparaissent en bas à gauche, suivis d'un bouton « Ouvrir » (« Reprendre » si progression) qui porte le focus du héro, au style de « Thème » (scénario « bouton sans flou ») ; OK sur ce bouton ouvre le contenu
+
+#### Scenario: retour au programme précédent pendant le fondu
+- **WHEN** l'utilisateur revient au programme précédent avant la fin du fondu croisé
+- **THEN** le fondu repart de l'opacité courante vers le programme précédent, sans coupure ni saut d'image
+
+#### Scenario: voiles pendant le Ken Burns
+- **WHEN** le visuel zoome (Ken Burns)
+- **THEN** le voile du coin haut droit derrière la capsule reste fixe et garde son opacité ; les voiles du bas et de la gauche, intégrés au visuel, ne s'affaiblissent pas de façon visible
 
 #### Scenario: changement de programme
 - **WHEN** le héro passe d'un programme à un autre
@@ -88,14 +103,14 @@ Le launcher SHALL valider les visuels avant de les afficher, en bornant ce trava
 
 #### Scenario: une passe par image
 - **WHEN** le héro affiche le visuel d'un programme, au repos, pendant le Ken Burns ou un fondu
-- **THEN** les voiles sont intégrés au visuel décodé ; ni fond de fenêtre, ni fond noir, ni dégradé du repli, ni voile n'est dessiné sous un visuel opaque, et aucun fondu ne passe par un calque plein écran hors écran
+- **THEN** les voiles du bas et de la gauche sont intégrés au visuel décodé et le voile du coin haut droit est dessiné seul sur sa petite zone ; ni fond de fenêtre, ni fond noir, ni dégradé du repli, ni voile n'est dessiné sous un visuel opaque, et aucun fondu ne passe par un calque plein écran hors écran
 
 ### Requirement: Écran de démarrage
 Au démarrage à froid du launcher, c'est-à-dire à la première création de l'accueil dans son processus (y compris quand Android avait déjà démarré le processus en arrière-plan, et après une mise à jour), le launcher SHALL afficher un écran de démarrage plein écran à la place de l'accueil : la mascotte seule (le fantôme, sans TV ni nom, aucun texte), centrée, sur le fond noir de l'application (« Thème »), animée (« Animation de la mascotte »). La mascotte SHALL apparaître par un fondu court depuis le fond, jamais par un saut sec.
 
 L'accueil SHALL être prêt quand le catalogue d'apps est chargé et que le premier visuel du héro est prêt à l'affichage (image d'un programme chargée, ou première image d'une vidéo, de programme ou nature, rendue ; le dégradé animé du repli ne compte pas comme visuel) ; l'attente de ce visuel SHALL être plafonnée à 2 s, comptées depuis la première image de l'écran de démarrage. L'écran de démarrage SHALL rester affiché au moins 600 ms depuis la première image qui montre la mascotte (depuis sa propre première image si l'animation est illisible), et tant que l'accueil n'est pas prêt, sans dépasser 5 s au total depuis sa première image. L'animation de la mascotte SHALL être décodée dès le démarrage du processus, hors du fil principal. Dès que la durée minimale est atteinte et que l'accueil est prêt, ou au plus tard à 5 s, il SHALL laisser place à l'accueil par un fondu enchaîné, avec la courbe et une durée du design system (« Focus tvOS »), sans image noire, sans saut et sans flash ; à 5 s, l'accueil est révélé dans l'état où il se trouve et ses propres états de chargement ou d'erreur prennent le relais.
 
-L'accueil SHALL être composé seulement après le fondu d'entrée de la mascotte et une fois la fenêtre active (ou au début du fondu de sortie), pour que sa composition ne retarde ni l'apparition de la mascotte ni la réception des touches ; jusqu'au début du fondu, il SHALL être composé sans être dessiné (entièrement transparent) et aucun de ses éléments ne SHALL pouvoir prendre le focus : les touches du D-pad et OK n'ont aucun effet sur lui. Le fondu de sortie SHALL être fluide, sans calque plein écran hors écran. La touche Retour SHALL suivre le comportement normal du système (SygixOs quitte le premier plan). L'écran de démarrage SHALL ne jamais être affiché au retour sur un accueil déjà créé dans le processus (touche Home, fin d'une autre app, retour au premier plan). Hors démarrage à froid, si l'accueil est recréé alors que son catalogue n'est pas encore chargé, le launcher SHALL afficher un fond noir uni, sans mascotte ni animation, jusqu'à ce que l'accueil s'affiche.
+L'accueil SHALL être composé seulement après le fondu d'entrée de la mascotte, puis dès que la fenêtre est active ou au plus tard 400 ms après ce fondu si elle ne l'est pas (demande de permission, surcouche système), ou au début du fondu de sortie, pour que sa composition ne retarde ni l'apparition de la mascotte ni la réception des touches ; jusqu'au début du fondu, il SHALL être composé sans être dessiné (entièrement transparent) et aucun de ses éléments ne SHALL pouvoir prendre le focus : les touches du D-pad et OK n'ont aucun effet sur lui. Le fondu de sortie SHALL être fluide, sans calque plein écran hors écran. La touche Retour SHALL suivre le comportement normal du système (SygixOs quitte le premier plan). L'écran de démarrage SHALL ne jamais être affiché au retour sur un accueil déjà créé dans le processus (touche Home, fin d'une autre app, retour au premier plan). Hors démarrage à froid, si l'accueil est recréé alors que son catalogue n'est pas encore chargé, le launcher SHALL afficher un fond noir uni, sans mascotte ni animation, jusqu'à ce que l'accueil s'affiche.
 
 #### Scenario: démarrage à froid
 - **WHEN** l'accueil est créé pour la première fois dans le processus du launcher
@@ -116,6 +131,10 @@ L'accueil SHALL être composé seulement après le fondu d'entrée de la mascott
 #### Scenario: composition de l'accueil
 - **WHEN** le catalogue est chargé avant la fin du fondu d'entrée de la mascotte ou avant que la fenêtre soit active
 - **THEN** l'accueil n'est composé qu'après ce fondu et l'activation de la fenêtre ; l'apparition de la mascotte et son animation ne sont pas interrompues
+
+#### Scenario: fenêtre sans focus
+- **WHEN** la demande de permission du premier lancement ou une surcouche système garde le focus de la fenêtre pendant l'écran de démarrage
+- **THEN** l'accueil est composé 400 ms après le fondu d'entrée de la mascotte et l'écran de démarrage se termine selon les mêmes règles de durée
 
 #### Scenario: attente du premier visuel
 - **WHEN** le catalogue est chargé à 200 ms et le premier visuel du héro n'est prêt qu'à 1,5 s

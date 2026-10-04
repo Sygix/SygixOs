@@ -24,6 +24,14 @@
 - [x] 5.3 Accueil composé après le fondu d'entrée de la mascotte et le focus de la fenêtre, fondu de sortie sans calque ; test Compose `StartupMascotTest` ; `StartupSplashTest`, `HomeScreenStartupTest` et `HomeViewModelStartupTest` adaptés
 - [x] 5.4 `SettingsMotionSource` (D5) ; test Robolectric `SettingsMotionSourceTest`
 
+## 5bis. Corrections de relecture
+- [x] 5bis.1 Voile du coin haut droit dessiné à part, fixe, au-dessus du visuel et dans le verre de la capsule ; test `HeroPosterLayersTest` (coin non éclairci en fin de zoom)
+- [x] 5bis.2 Test d'alignement du verre (copie à motif, zoom 1,08, mi-fondu) dans `GlassBackdropTest`
+- [x] 5bis.3 Attente du focus de la fenêtre bornée à 400 ms ; test `StartupMascotTest` (demande de permission)
+- [x] 5bis.4 Copie floutée absente : flou en direct ; test `GlassBackdropTest`
+- [x] 5bis.5 Retour au programme précédent pendant un fondu sans coupure ; test `HeroPosterLayersTest`
+- [x] 5bis.6 Préchargement de l'animation dans le seul processus principal, libéré sur `onTrimMemory` avant l'écran de démarrage, désactivé dans l'application de test ; test `MascotAnimationSourceTest`
+
 ## 6. Profil de référence
 - [x] 6.1 `app/src/main/baseline-prof.txt` (D6) ; le profil compilé de l'APK contient les règles de l'app
 
