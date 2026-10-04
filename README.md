@@ -11,7 +11,7 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 ## Features
 
 - **Startup screen**: on a cold start, the SygixOs ghost mascot floats and blinks alone on a black background (no icon or second screen from the system before it), for at least 0.6 s and until the home screen is ready (app catalog loaded and first hero picture ready, at most 5 s), then crossfades into the hero. It never shows when you come back to the launcher. With animations turned off in the system, the mascot stays still and the home screen appears without a fade.
-- **Full-screen hero**: a muted slideshow (crossfade, one slow zoom per picture, then still) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Soft dark veils keep the title and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
+- **Full-screen hero**: a muted slideshow (crossfade, one slow zoom per picture, then still) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Above the title, the source app's icon and a label that depends on what the app published: "Continuer dans X" (continue watching), "Épisode suivant dans X" (next episode), "Nouveau dans X" (new), "À regarder dans X" (watchlist), or just the app name for a highlighted program. Under the title, only the details the app provides (season, episode, duration, e.g. "Saison 2 · Épisode 5 · 42 min"), and a progress bar with the time left ("Reste 25 min") when the playback position and the duration are known. Soft dark veils keep the text and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
 - **Clock and settings capsule**: a small dark glass capsule at the top right of the hero shows the time (12 or 24-hour, as set on the TV) and the settings gear.
 - **Dock and app grid**:
   - apps are detected automatically;
@@ -55,15 +55,16 @@ Detailed requirements for each feature live in [`openspec/specs/`](openspec/spec
 ## Installation
 
 1. On the TV: Settings → About → press "Build" 7 times (developer mode), then enable ADB debugging.
-2. Download `app-release.apk` from the [Releases](https://github.com/Sygix/SygixOs/releases) page.
-3. Install it:
+2. Download `app-release.apk` and `app-release.dm` from the [Releases](https://github.com/Sygix/SygixOs/releases) page.
+3. Install both files together:
    ```
    adb connect <TV-IP>:<port>
-   adb install -r app-release.apk
+   adb install-multiple app-release.apk app-release.dm
    ```
+   `app-release.dm` is the startup profile of this APK (Android "dex metadata"): installed with it, the app is compiled for a fast start right away instead of running interpreted until the system compiles it in the background. `adb install -r app-release.apk` alone also works, without that head start. Check with `adb shell dumpsys package fr.sygix.sygixos | grep -A1 'arm64\|arm:'`: `speed-profile` with the reason `install-dm` means the profile was applied.
 4. On first launch, grant the "TV programs" permission (`READ_TV_LISTINGS`). Without it, the hero cannot see other apps' content.
 
-ADB is only needed for this first installation. Later versions install from the app: Settings → About → "Vérifier les mises à jour", then "Mettre à jour vers X". The download goes on if you leave the settings or open another app, and SygixOs restarts on its home screen if it was on screen when the update was installed. The first time, Android may ask you to allow SygixOs to install unknown apps: accept, and the update carries on. An update is installed only if its size, its SHA-256 digest published by GitHub, its package name, its version and its signing certificate all match; a build signed with another key (for example a local debug build) is refused with "Signature différente de l'app installée".
+ADB is only needed for this first installation. Later versions install from the app: Settings → About → "Vérifier les mises à jour", then "Mettre à jour vers X". The download goes on if you leave the settings or open another app, and SygixOs restarts on its home screen if it was on screen when the update was installed. The first time, Android may ask you to allow SygixOs to install unknown apps: accept, and the update carries on. The startup profile (`app-release.dm`) is installed with the update when the release provides it with a SHA-256 digest that matches; otherwise the update is installed without it. An update is installed only if its size, its SHA-256 digest published by GitHub, its package name, its version and its signing certificate all match; a build signed with another key (for example a local debug build) is refused with "Signature différente de l'app installée".
 
 SygixOs declares itself as a possible home screen (`CATEGORY_HOME`), so that Android brings it back after an update when it is your default launcher. It never asks to become the default launcher and changes no setting: after installing it, Android may offer you a choice of launcher the next time you press Home, and the answer is yours.
 
@@ -92,7 +93,8 @@ Remote control (D-pad) only, three tiers: hero → dock (pinned apps, at the bot
 The hero reads the programs apps publish to the TV Provider (`content://android.media.tv`, watch next and preview programs), and opens each item through the intent provided by the app. It reloads every time you return to the launcher.
 
 - **Artwork validated before display**: a preview video, or an image or video at least 1080 px wide. A program without suitable artwork is left out of the slideshow.
-- **Progressive validation**: the TV Provider can hold hundreds of programs, so only the first hero visuals are validated at startup, and an app's posters when it gets focus.
+- **Progressive validation**: the TV Provider can hold hundreds of programs, so only the first hero visuals are validated at startup, and an app's posters once the focus rests on its tile for half a second.
+- **Optional fields**: the program type (`watch_next_type`), season and episode numbers, duration and playback position are all optional; whatever an app leaves out is simply not shown.
 - **Instant startup**: the app catalog is cached.
 
 ## Building from source
@@ -101,6 +103,7 @@ Requirements: JDK 21, Android SDK with platform and build-tools 37.
 ```
 ./gradlew testDebugUnitTest      # JUnit / Robolectric tests
 ./gradlew assembleRelease        # APK to test on the TV
+./gradlew dexMetadataRelease     # its startup profile, app/build/outputs/dexmetadata/release/app-release.dm
 ```
 Without a local SDK, use a throwaway container (Docker or Podman; amd64 is required because adb and aapt2 are x86_64):
 ```
@@ -111,11 +114,11 @@ docker exec sygixos-build ./gradlew testDebugUnitTest assembleRelease
 ```
 On Fedora or any other SELinux system, add `:z` to the mount (`-v "$PWD":/work:z`). Give the container about 4 GB of memory. Run `./gradlew --stop` before a build session, so leftover Gradle daemons don't get the build killed.
 
-**Performance:** the `debug` build interprets bytecode and stutters on the TV. Always judge smoothness on `assembleRelease` (R8). To measure next to an installed release, `./gradlew assemblePerf` builds `fr.sygix.sygixos.perf` ("SygixOs perf"): same R8 build signed with the debug key, not declared as a home app, profileable from the shell; launch it with `adb shell am start -n fr.sygix.sygixos.perf/fr.sygix.sygixos.ui.MainActivity` and measure with `adb shell dumpsys gfxinfo fr.sygix.sygixos.perf`. CI never builds or publishes it. The `perf` variant is for measurements only: its built-in update always ends in an error (its debug signature does not match the release), which is expected.
+**Performance:** the `debug` build interprets bytecode and stutters on the TV. Always judge smoothness on `assembleRelease` (R8). To measure next to an installed release, `./gradlew assemblePerf` builds `fr.sygix.sygixos.perf` ("SygixOs perf"): same R8 build signed with the debug key, not declared as a home app, profileable from the shell; `./gradlew dexMetadataPerf` builds its startup profile (`app/build/outputs/dexmetadata/perf/app-perf.dm`, install both with `adb install-multiple`); launch it with `adb shell am start -n fr.sygix.sygixos.perf/fr.sygix.sygixos.ui.MainActivity` and measure with `adb shell dumpsys gfxinfo fr.sygix.sygixos.perf`. CI never builds or publishes it. The `perf` variant is for measurements only: its built-in update always ends in an error (its debug signature does not match the release), which is expected.
 
 **Signing:** signing keys come from the environment (`SYGIXOS_STORE_FILE`, `SYGIXOS_STORE_PASSWORD`, `SYGIXOS_KEY_ALIAS`, `SYGIXOS_KEY_PASSWORD`). Without these variables, the debug key is used.
 
-**Releases:** a `vX.Y.Z` tag (or `vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N`) triggers the `release` workflow. It builds, tests, signs and publishes the APK to a GitHub release; the `versionCode` is derived from the tag.
+**Releases:** a `vX.Y.Z` tag (or `vX.Y.Z-alpha.N`, `-beta.N`, `-rc.N`) triggers the `release` workflow. It builds, tests, signs and publishes the APK and its startup profile (`app-release.dm`) to a GitHub release; the `versionCode` is derived from the tag.
 
 ## Contributing
 
