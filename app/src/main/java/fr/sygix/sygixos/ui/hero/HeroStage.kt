@@ -120,6 +120,8 @@ private const val TAG = "HeroStage"
 
 internal val LocalSourceIcons = staticCompositionLocalOf<AppIconCache?> { null }
 
+internal val LocalHeroVideoFactory = staticCompositionLocalOf { SystemHeroVideo }
+
 @Composable
 fun HeroStage(
     items: List<HeroItem>,
@@ -138,14 +140,16 @@ fun HeroStage(
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
     var failedImages by remember { mutableStateOf(emptySet<String>()) }
-    var slowImages by remember { mutableStateOf(emptySet<String>()) }
+    var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
     val index = items.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
     val current = items.getOrNull(index)
     val showVideo = current?.videoUrl != null && current.id !in failedVideos
 
     fun viable(item: HeroItem): Boolean =
-        (item.videoUrl != null && item.id !in failedVideos) ||
-            (item.imageUrl != null && item.imageUrl in validatedVisuals && item.id !in failedImages && item.id !in slowImages)
+        item.id !in slowVisuals && (
+            (item.videoUrl != null && item.id !in failedVideos) ||
+                (item.imageUrl != null && item.imageUrl in validatedVisuals && item.id !in failedImages)
+            )
 
     val step: (Int) -> Unit = { delta ->
         var i = index
@@ -179,11 +183,12 @@ fun HeroStage(
     val context = LocalContext.current
     val providedIcons = LocalSourceIcons.current
     val icons = remember(providedIcons) { providedIcons ?: AppIconCache.squareFor(context.packageManager) }
-    val player = remember {
-        HeroPlayer(
-            context = context.applicationContext,
-            onEnded = { stepState.value(1) },
-            onError = { onVideoErrorState.value(it) },
+    val videoFactory = LocalHeroVideoFactory.current
+    val player = remember(videoFactory) {
+        videoFactory.create(
+            context.applicationContext,
+            { stepState.value(1) },
+            { onVideoErrorState.value(it) },
         )
     }
     DisposableEffect(player) { onDispose { player.release() } }
@@ -191,13 +196,16 @@ fun HeroStage(
     LaunchedEffect(player) {
         snapshotFlow { player.firstFrameRendered }.filter { it }.collect { onVisualReadyState.value() }
     }
+    LaunchedEffect(player) {
+        snapshotFlow { player.readyItem }.collect { id -> if (id != null) slowVisuals = slowVisuals - id }
+    }
 
-    LaunchedEffect(current?.id, showVideo, visible, items.size) {
+    LaunchedEffect(current?.id, showVideo, visible, motion, items.size) {
         val item = current
-        if (visible && item?.videoUrl != null && showVideo) {
-            player.show(item.id, item.videoUrl, play = true, loop = items.size == 1)
-        } else {
-            player.clear()
+        when {
+            visible && item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
+            visible && player.loadedItem in slowVisuals -> player.park()
+            else -> player.clear()
         }
     }
     LaunchedEffect(current?.id, showVideo, visible) {
@@ -226,12 +234,13 @@ fun HeroStage(
             posterUrl == null -> shownId = targetId
         }
     }
-    LaunchedEffect(targetId, posterUrl) {
+    LaunchedEffect(targetId, posterUrl, showVideo) {
         val id = targetId ?: return@LaunchedEffect
-        if (posterUrl == null || shownId == id) return@LaunchedEffect
+        if (shownId == id) return@LaunchedEffect
+        if (posterUrl == null && !(showVideo && shownId != null)) return@LaunchedEffect
         delay(Motion.HERO_VISUAL_TIMEOUT_MS)
         if (shownId != id) {
-            slowImages = slowImages + id
+            slowVisuals = slowVisuals + id
             stepState.value(1)
         }
     }
@@ -288,7 +297,7 @@ fun HeroStage(
                 if (url == poster) shownId = id
             },
             onError = { url -> items.firstOrNull { it.imageUrl == url }?.let(onImageError) },
-            onLoaded = { url -> slowImages = slowImages - items.filter { it.imageUrl == url }.map { it.id }.toSet() },
+            onLoaded = { url -> slowVisuals = slowVisuals - items.filter { it.imageUrl == url }.map { it.id }.toSet() },
         )
         Spacer(
             Modifier
@@ -308,7 +317,7 @@ fun HeroStage(
 }
 
 @Composable
-private fun HeroVideoLayer(player: HeroPlayer, visible: Boolean) {
+private fun HeroVideoLayer(player: HeroVideo, visible: Boolean) {
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing),
@@ -382,7 +391,10 @@ private fun HeroPosterLayers(
             if (layer.image == null) {
                 val pending = loads.getOrPut(url) {
                     loadScope.async { HeroPosterLoader.load(context, url, spec) }.also { load ->
-                        load.invokeOnCompletion { cause -> if (cause == null) currentOnLoaded(url) }
+                        load.invokeOnCompletion { cause ->
+                            if (loads[url] === load) loads.remove(url)
+                            if (cause == null) currentOnLoaded(url)
+                        }
                     }
                 }
                 while (loads.size > MaxPendingPosters) {
@@ -390,7 +402,6 @@ private fun HeroPosterLayers(
                     loads.remove(oldest)?.cancel()
                 }
                 val images = pending.await()
-                loads.remove(url)
                 if (images == null) {
                     backdrop.layers.remove(layer)
                     currentOnError(url)

@@ -18,21 +18,45 @@ import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import fr.sygix.sygixos.domain.VisualQuality
 
+internal interface HeroVideo {
+    val firstFrameRendered: Boolean
+    val renderedItem: String?
+    val readyItem: String?
+    val loadedItem: String?
+    val videoAspect: Float
+    fun show(id: String, url: String, play: Boolean, loop: Boolean)
+    fun park()
+    fun clear()
+    fun attach(textureView: TextureView)
+    fun release()
+}
+
+internal fun interface HeroVideoFactory {
+    fun create(context: Context, onEnded: () -> Unit, onError: (itemId: String) -> Unit): HeroVideo
+}
+
+internal val SystemHeroVideo = HeroVideoFactory { context, onEnded, onError -> HeroPlayer(context, onEnded, onError) }
+
 internal class HeroPlayer(
     private val context: Context,
     private val onEnded: () -> Unit,
     private val onError: (itemId: String) -> Unit,
-) {
-    var firstFrameRendered by mutableStateOf(false)
+) : HeroVideo {
+    override var firstFrameRendered by mutableStateOf(false)
         private set
-    var renderedItem by mutableStateOf<String?>(null)
+    override var renderedItem by mutableStateOf<String?>(null)
         private set
-    var videoAspect by mutableFloatStateOf(16f / 9f)
+    override var readyItem by mutableStateOf<String?>(null)
+        private set
+    override var videoAspect by mutableFloatStateOf(16f / 9f)
         private set
 
     private var exo: ExoPlayer? = null
     private var view: TextureView? = null
     private var itemId: String? = null
+
+    override val loadedItem: String?
+        get() = itemId
 
     private val listener = object : Player.Listener {
         override fun onRenderedFirstFrame() {
@@ -50,6 +74,7 @@ internal class HeroPlayer(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_READY) readyItem = itemId
             if (playbackState == Player.STATE_ENDED) onEnded()
         }
 
@@ -58,32 +83,38 @@ internal class HeroPlayer(
         }
     }
 
-    fun show(id: String, url: String, play: Boolean, loop: Boolean) {
+    override fun show(id: String, url: String, play: Boolean, loop: Boolean) {
         val player = exo ?: create().also { exo = it }
         player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         if (id != itemId) {
             itemId = id
             firstFrameRendered = false
             renderedItem = null
+            readyItem = null
             player.setMediaItem(MediaItem.fromUri(url))
             player.prepare()
         }
         player.playWhenReady = play
     }
 
-    fun clear() {
+    override fun park() {
+        exo?.playWhenReady = false
+    }
+
+    override fun clear() {
         itemId = null
         firstFrameRendered = false
         renderedItem = null
+        readyItem = null
         exo?.apply { stop(); clearMediaItems() }
     }
 
-    fun attach(textureView: TextureView) {
+    override fun attach(textureView: TextureView) {
         view = textureView
         exo?.setVideoTextureView(textureView)
     }
 
-    fun release() {
+    override fun release() {
         exo?.release()
         exo = null
     }
