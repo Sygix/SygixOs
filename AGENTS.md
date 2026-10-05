@@ -3,6 +3,15 @@
 ## Vue d'ensemble
 SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pour remplacer le launcher Google TV. Propriétaire : Sygix. Langue UI : français.
 
+## Feuille de route
+- P3 — Logo et écran de démarrage animé : livré (v0.0.1) ; cadence de la mascotte en suivi
+- P4 — Mises à jour intégrées depuis les releases GitHub : livré (v0.0.1) ; relance au premier plan bloquée par le constructeur, reprise manuelle, résolution différée à P5
+- P5 — Remplacement du launcher système : planifié (commandes ADB dans le README)
+- P6 — Rangée Up Next : change actif `openspec/changes/up-next` (ex-`p2c-upnext`), questions ouvertes dans sa proposal ; embarque `jellyfin-tvprovider-only`
+- P7 — Recherche : planifié
+- P8 — BetaSeries (OAuth) : planifié
+Les archives historiques (`openspec/changes/archive/`) conservent leur numérotation d'époque : ne pas les renuméroter.
+
 ## Workflow de spécification (OpenSpec)
 - Contexte, conventions et règles de rédaction : `openspec/config.yaml` (`context`, `rules` par document, `operations`), injectés par `openspec instructions` — à lire AVANT tout travail
 - Passer par les skills OpenSpec (`openspec-propose`, `openspec-apply-change`, `openspec-verify-change`, `openspec-archive-change`…) : ils appellent `openspec instructions`, qui applique les règles du repo ; ne pas rédiger les documents d'un change à la main sans eux
