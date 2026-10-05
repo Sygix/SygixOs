@@ -320,11 +320,11 @@ Une fois le fichier vérifié, le launcher SHALL l'installer comme mise à jour 
 - **THEN** aucun fichier ne subsiste, la ligne indique l'échec et sa cause en français clair, sans crash ; la version reste proposée
 
 ### Requirement: Redémarrage après la mise à jour
-Après une installation réussie, si SygixOs était au premier plan au moment où l'installation a été validée (installation sans confirmation lancée au premier plan, ou écran de confirmation du système effectivement affiché), le launcher SHALL se rouvrir sur son accueil sans action de l'utilisateur, dans la nouvelle version, comme lors d'un démarrage à froid. La demande de relance SHALL porter sur la version visée, être effacée après un refus, un échec ou l'abandon de la session, et n'avoir aucun effet si la version installée n'est pas celle visée. Si SygixOs n'était pas au premier plan, il SHALL ne pas se rouvrir et ne rien afficher : la nouvelle version est simplement présente au prochain retour sur SygixOs. Le launcher SHALL déclarer son activité principale comme candidate au rôle d'écran d'accueil d'Android, pour que le système la relance quand SygixOs est le launcher par défaut, mais SHALL ne jamais demander ce rôle ni rien faire pour devenir launcher par défaut : ce choix reste celui de l'utilisateur.
+Après une installation réussie, si SygixOs était au premier plan au moment où l'installation a été validée (installation sans confirmation lancée au premier plan, ou écran de confirmation du système effectivement affiché), le launcher SHALL demander sa réouverture sur son accueil, dans la nouvelle version, comme lors d'un démarrage à froid. La réouverture automatique dépend des autorisations du système : sur la TV de référence, la politique constructeur bloque cette relance. Cette limitation est acceptée et son traitement est reporté à P5 (remplacement du launcher système, suivi post-release sujet 9) ; dans ce cas, la nouvelle version SHALL être présente au retour manuel sur SygixOs. La demande de relance SHALL porter sur la version visée, être effacée après un refus, un échec ou l'abandon de la session, et n'avoir aucun effet si la version installée n'est pas celle visée. Si SygixOs n'était pas au premier plan, il SHALL ne pas se rouvrir et ne rien afficher : la nouvelle version est simplement présente au prochain retour sur SygixOs. Le launcher SHALL déclarer son activité principale comme candidate au rôle d'écran d'accueil d'Android, pour que le système la relance quand SygixOs est le launcher par défaut, mais SHALL ne jamais demander ce rôle ni rien faire pour devenir launcher par défaut : ce choix reste celui de l'utilisateur.
 
 #### Scenario: installation au premier plan
 - **WHEN** l'installation réussit alors que SygixOs était au premier plan
-- **THEN** l'accueil de SygixOs s'affiche de nouveau sans appui de l'utilisateur, dans la nouvelle version ; « À propos » affiche la nouvelle version et la pastille a disparu ; aucun message n'annonce la mise à jour
+- **THEN** l'accueil de SygixOs s'affiche de nouveau dans la nouvelle version si le système autorise la relance ; si la politique constructeur la bloque, l'utilisateur rouvre SygixOs manuellement ; « À propos » affiche la nouvelle version et la pastille a disparu ; aucun message n'annonce la mise à jour
 
 #### Scenario: installation en arrière-plan
 - **WHEN** l'installation réussit alors qu'une autre app est au premier plan
@@ -332,7 +332,7 @@ Après une installation réussie, si SygixOs était au premier plan au moment o�
 
 #### Scenario: confirmation acceptée au retour
 - **WHEN** l'utilisateur a pressé Home pendant le téléchargement, que la confirmation du système a été gardée puis affichée à son retour sur SygixOs, et qu'il l'accepte
-- **THEN** l'accueil de SygixOs s'affiche de nouveau après l'installation, dans la nouvelle version
+- **THEN** l'accueil de SygixOs s'affiche de nouveau après l'installation, dans la nouvelle version, si le système autorise la relance ; sinon la nouvelle version est disponible au retour manuel, conformément à la limitation constructeur reportée à P5
 
 #### Scenario: remplacement venu d'ailleurs
 - **WHEN** une demande de relance a été effacée par un échec, ou vise une autre version, et que SygixOs est remplacé par un autre moyen

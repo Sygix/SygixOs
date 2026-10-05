@@ -26,10 +26,10 @@ Aucune.
 ## Dépendances et chevauchements
 Deltas écrits sur `main` (`d5579cf`), après l'archivage de `home-settings-polish`, à partir du texte courant de `openspec/specs/`.
 
-**`p2c-upnext` (spec sur `main`, implémentation reportée)**
-- `launcher-shell` « Navigation 3 paliers » : `p2c-upnext` y ajoute la rangée Up Next, ce change y remplace « l'engrenage » par « la capsule ». Le delta de `p2c-upnext` est réconcilié dans le même commit que ce change (mêmes mots remplacés, rien d'autre). **Ordre d'archivage** : ce change est archivé avant `p2c-upnext` ; si `p2c-upnext` devait l'être d'abord, le delta « Navigation 3 paliers » de ce change devra être repris sur le texte archivé de `p2c-upnext` avant son propre archivage.
-- `settings` « Page de réglages » : `p2c-upnext` y ajoute la catégorie « Écran d'accueil », ce change y ajoute le fond et les pilules de focus. Le delta de `p2c-upnext` est réconcilié de la même façon (il reprend le fond et les pilules) ; même règle d'ordre d'archivage.
-- Les autres exigences touchées par `p2c-upnext` (« Rangée Up Next », « Sélection des apps sources », « Apps sources », « Cacher une application », « Sélecteurs stables », « Navigation D-pad des trois zones ») ne sont pas modifiées ici. La carte Up Next renvoie déjà à « Focus tvOS » : elle héritera du nouveau style de focus sans changement de son delta.
+**`up-next` (spec sur `main`, implémentation reportée)**
+- `launcher-shell` « Navigation 3 paliers » : `up-next` y ajoute la rangée Up Next, ce change y remplace « l'engrenage » par « la capsule ». Le delta de `up-next` est réconcilié dans le même commit que ce change (mêmes mots remplacés, rien d'autre). **Ordre d'archivage** : ce change est archivé avant `up-next` ; si `up-next` devait l'être d'abord, le delta « Navigation 3 paliers » de ce change devra être repris sur le texte archivé de `up-next` avant son propre archivage.
+- `settings` « Page de réglages » : `up-next` y ajoute la catégorie « Écran d'accueil », ce change y ajoute le fond et les pilules de focus. Le delta de `up-next` est réconcilié de la même façon (il reprend le fond et les pilules) ; même règle d'ordre d'archivage.
+- Les autres exigences touchées par `up-next` (« Rangée Up Next », « Sélection des apps sources », « Apps sources », « Cacher une application », « Sélecteurs stables », « Navigation D-pad des trois zones ») ne sont pas modifiées ici. La carte Up Next renvoie déjà à « Focus tvOS » : elle héritera du nouveau style de focus sans changement de son delta.
 
 **`jellyfin-tvprovider-only`** : sans recouvrement.
 

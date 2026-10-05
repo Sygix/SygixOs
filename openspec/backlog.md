@@ -26,7 +26,7 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 **Constat** : Retour pressé pendant le fondu de sortie de l'écran de démarrage est absorbé par l'accueil : SygixOs reste au premier plan. « Écran de démarrage » prévoit le comportement normal du système (SygixOs quitte le premier plan) « pendant l'écran de démarrage », sans dire si le fondu de sortie en fait partie.
 
-**À trancher** : le fondu de sortie appartient-il à l'écran de démarrage (Retour quitte le premier plan) ou à l'accueil (Retour suit « Navigation 3 paliers ») ? La réponse sera écrite dans un scénario dédié.
+**Résolu côté comportement** : le fondu appartient à l'écran de démarrage ; `startup-fade-back` est implémenté (PR #35) et Sygix a déclaré l'avoir testé sur la TV. Aucun test TV n'a été exécuté par l'agente pendant le lot documentaire. Cette entrée reste présente jusqu'à la synchronisation et à l'archivage de `startup-fade-back`, après ses cinq prédécesseurs (sujet 12).
 
 ## 4. Tests Robolectric des réglages instables sous forte charge
 
@@ -82,7 +82,7 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 - relance assurée par le système quand SygixOs est le launcher par défaut (phase de remplacement du launcher système) ;
 - statut de la session d'installation transmis à une activité plutôt qu'à un récepteur.
 
-**À trancher** : le propriétaire a choisi d'attendre la phase de remplacement du launcher système avant de traiter ce point ; reformuler le scénario de relance dans `self-update` en conséquence lors de l'archivage.
+**À trancher** : le propriétaire a choisi d'attendre la phase de remplacement du launcher système avant de traiter ce point ; la spec active `self-update` est reformulée en conséquence dans ce lot documentaire. Sa synchronisation et son archivage restent différés (sujet 12).
 
 ## 10. Guidage vers l'autorisation « Installer des applis inconnues »
 
@@ -104,10 +104,15 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 ## 12. Suites de documentation après v0.0.1
 
-**Constat** : v0.0.1 est publiée (même commit que v0.0.1-rc.7). Les changes livrés ne sont pas encore archivés, et la roadmap du README garde l'ancienne numérotation (P2c, P4, P5).
+**Constat initial** : v0.0.1 est publiée (même commit que v0.0.1-rc.7). Les changes livrés ne sont pas encore archivés ; avant ce lot, la roadmap du README gardait l'ancienne numérotation (P2c, P4, P5).
 
-**Pistes** :
-- archiver dans cet ordre, après vérification de leurs tâches TV : `ui-tvos-polish`, `startup-splash`, `self-update`, `rc5-tv-fixes`, `rc6-polish` (puis `p2c-upnext` quand il sera implémenté) ;
-- renuméroter la roadmap : P3 logo et écran de démarrage (livré), P4 mises à jour intégrées (livré), P5 remplacement du launcher système, P6 Up Next (ex-P2c, change `p2c-upnext` à renommer `up-next`), P7 recherche (ex-P2c), P8 BetaSeries (ex-P4), en mettant à jour les mentions dans les specs, `AGENTS.md` et `openspec/config.yaml`.
+**État du lot documentaire** :
+- roadmap du README et contexte `openspec/config.yaml` renumérotés : P3 logo et écran de démarrage (livré), P4 mises à jour intégrées (livré avec la limitation du sujet 9), P5 remplacement du launcher système, P6 Up Next, P7 recherche, P8 BetaSeries ;
+- change actif `p2c-upnext` renommé `up-next` ; références actives mises à jour, archives historiques inchangées ; les questions ouvertes restent dans `up-next/proposal.md` ;
+- ordre de synchronisation et d'archivage conservé : `ui-tvos-polish` → `startup-splash` → `self-update` → `rc5-tv-fixes` → `rc6-polish` → `startup-fade-back` ; aucun de ces changes n'est encore synchronisé ni archivé dans ce lot, faute de confirmation sur les vérifications TV historiques encore ouvertes ;
+- `up-next` et `jellyfin-tvprovider-only` restent actifs, sans implémentation d'Up Next ni synchronisation anticipée ;
+- mise à jour de `AGENTS.md` encore à autoriser : l'outil a refusé l'écriture du fichier protégé, aucun contournement effectué.
 
-**À trancher** : rien, décisions déjà prises par le propriétaire.
+**À confirmer avant archivage** : les tâches TV non cochées de `ui-tvos-polish` (4.1, 6.2, 9.1–9.3, 11.6, 11.13), `startup-splash` (1.1, 7.1–7.4), `self-update` (1.1, 7.1–7.2, 9.1–9.6), `rc5-tv-fixes` (3.2, 7.3–7.4), `rc6-polish` (1.4). Les PR #18, #26 et #29 consignent des mesures ou des tests partiels, pas une validation exhaustive. La cadence de la mascotte reste un écart accepté (sujet 2) ; la relance après mise à jour reste reportée (sujet 9). Une confirmation peut accepter explicitement un écart ou un report, mais ne doit pas transformer un test absent en test réussi. La validation TV de `startup-fade-back` est déclarée par Sygix seulement pour ce change.
+
+**À trancher** : aucun nouveau choix produit ; confirmer les vérifications ou accepter explicitement les reports ci-dessus pour terminer le lot.

@@ -6,5 +6,5 @@
 
 ## 2. Validation
 - [x] 2.1 `./gradlew test` vert ; `openspec validate --all --strict` vert
-- [ ] 2.2 Sur la TV réelle, en `assembleRelease` : Retour pendant le fondu de sortie quitte SygixOs au premier plan ; Retour avant le fondu inchangé ; Retour après le fondu ramène au héro comme avant ; sans animation, la frontière du remplacement instantané vérifiée — non exécutée ici (pas d'accès à la TV de test), à faire par le propriétaire sur la TV de référence
+- [x] 2.2 Sur la TV réelle, en `assembleRelease` : Retour pendant le fondu de sortie quitte SygixOs au premier plan ; Retour avant le fondu inchangé ; Retour après le fondu ramène au héro comme avant ; sans animation, la frontière du remplacement instantané vérifiée — validation déclarée par Sygix lors du lot documentaire post-release (« pour le retour c'est déjà traité et j'ai testé tu peux archiver et sync la spec ») ; aucun test TV exécuté par l'agente pendant ce lot, aucune validation générale des autres changes n'en est déduite
 - [ ] 2.3 `openspec archive startup-fade-back` après `ui-tvos-polish`, `startup-splash`, `self-update`, `rc5-tv-fixes` et `rc6-polish`, puis retirer le sujet n° 3 du suivi post-release (`openspec/backlog.md`) — différé après merge et validation sur la TV

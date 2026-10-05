@@ -58,7 +58,7 @@
 
 ## 9. Validation sur la TV après le passage en public (pré-releases signées par la CI, `assembleRelease`)
 - [ ] 9.1 Préversions désactivées puis activées, avec deux pré-releases publiées : états « à jour » puis « préversion disponible », pastille sur l'engrenage et sur « À propos », code QR lisible par un téléphone depuis le canapé
-- [ ] 9.2 Mise à jour complète au premier plan depuis « Mettre à jour vers X » : relecture, téléchargement, vérification, installation (confirmation ou autorisation la première fois), relance seule sur l'accueil, nouvelle version dans « À propos », pastille disparue, aucun message
+- [ ] 9.2 Mise à jour complète au premier plan depuis « Mettre à jour vers X » : relecture, téléchargement, vérification, installation (confirmation ou autorisation la première fois), demande de relance sur l'accueil (si le système l'autorise ; limitation constructeur acceptée et reportée à P5, retour manuel sinon), nouvelle version dans « À propos », pastille disparue, aucun message
 - [ ] 9.3 Mise à jour lancée puis Home et une autre app pendant le téléchargement : rien ne surgit ; au retour sur SygixOs, la nouvelle version est là, ou l'écran du système s'affiche si Android a demandé une action
 - [ ] 9.4 Build locale signée avec la clé de debug (désinstallation préalable de la version de la CI : réglages effacés, les noter) : la mise à jour est refusée avec « Signature différente de l'app installée », aucun fichier dans le cache de l'app ensuite ; réinstaller ensuite la version de la CI
 - [ ] 9.5 Réseau coupé pendant un téléchargement : « Téléchargement interrompu », aucun fichier résiduel, nouvel appui qui recommence depuis le début

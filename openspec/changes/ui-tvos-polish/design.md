@@ -139,7 +139,7 @@ Sur une pré-release (`assembleRelease`, R8), avec `adb shell dumpsys gfxinfo fr
 - [Image d'entrée réduite visiblement pixelisée] → Haze lisse le résultat ; à juger sur la TV (point 5). Repli possible : `HazePerformanceMode.Balanced`.
 - [Ombre d'élévation de plateforme différente de l'ombre CSS de la maquette] → ombre douce cohérente avec Android, sans flou logiciel ; à juger sur la TV.
 - [Pendant le passage du Ken Burns, le flou est recalculé à chaque image] → coût réduit (D2) ; l'image est immobile au moins 2 s par cycle de 12 s, et en continu après le passage avec un seul programme.
-- [Ordre d'archivage avec `p2c-upnext`] → voir `proposal.md`, Dépendances.
+- [Ordre d'archivage avec `up-next`] → voir `proposal.md`, Dépendances.
 - [Tests qui ne voient pas le GPU] → les tests vérifient la géométrie, l'absence de travail au repos et les couleurs calculées ; le rendu est validé sur la TV.
 
 ## Migration Plan

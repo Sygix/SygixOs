@@ -1,6 +1,6 @@
 # Tasks : jellyfin-tvprovider-only
 
-Change spec-only : aucun code de configuration Jellyfin ni d'appel réseau n'existe dans le repo, il n'y a rien à supprimer ; la lecture du TV Provider et ses tests appartiennent à `p2c-upnext`.
+Change spec-only : aucun code de configuration Jellyfin ni d'appel réseau n'existe dans le repo, il n'y a rien à supprimer ; la lecture du TV Provider et ses tests appartiennent à `up-next`.
 
 ## 1. Spec
 

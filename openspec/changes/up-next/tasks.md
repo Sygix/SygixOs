@@ -1,4 +1,4 @@
-# Tasks : p2c-upnext
+# Tasks : up-next
 
 ## 1. Prérequis de spec
 
@@ -13,7 +13,7 @@
 
 ## 3. Logique métier
 
-- [ ] 3.1 Normalisation des titres + dédoublonnage niveaux 1 à 4 (niveau 5 = P4, via `externalIds`), gagnant `CONTINUE` > `NEXT`/`NEW` > `WATCHLIST`, puis engagement le plus récent, puis ordre de préférence (constante) ; vérifié par des tests JUnit par niveau, y compris faux positifs (remake année différente, même titre types différents, film inféré contre épisode publié) et cas de fusion (même titre même année, année inconnue d'un côté, épisode inféré contre épisode publié au niveau 3), et par des tests JUnit du gagnant avec un programme sans `watch_next_type` (perd contre `CONTINUE`, gagne contre `WATCHLIST`)
+- [ ] 3.1 Normalisation des titres + dédoublonnage niveaux 1 à 4 (niveau 5 = P8, via `externalIds`), gagnant `CONTINUE` > `NEXT`/`NEW` > `WATCHLIST`, puis engagement le plus récent, puis ordre de préférence (constante) ; vérifié par des tests JUnit par niveau, y compris faux positifs (remake année différente, même titre types différents, film inféré contre épisode publié) et cas de fusion (même titre même année, année inconnue d'un côté, épisode inféré contre épisode publié au niveau 3), et par des tests JUnit du gagnant avec un programme sans `watch_next_type` (perd contre `CONTINUE`, gagne contre `WATCHLIST`)
 - [ ] 3.2 Tri : `CONTINUE` puis `NEXT`/`NEW` puis `WATCHLIST`, chaque groupe par `last_engagement_time` décroissant et à égalité `_ID` croissant, tri stable, limite 20 ; vérifié par des tests JUnit (ordre des groupes, programme sans `watch_next_type` placé après les `CONTINUE` et avant les `WATCHLIST`, engagement absent classé le plus ancien de son groupe puis `_ID` croissant, égalités, limite)
 - [ ] 3.3 Filtre des apps sources : filtrer les items Up Next via `disabledSources` / `filterBySources` existants (`HomeViewModel.kt`, `domain/HeroFeed.kt`) **avant** le dédoublonnage ; les apps cachées ne filtrent pas ; vérifié par un test JUnit (source désactivée ni gagnante ni dans les sources du menu ; app cachée toujours présente) et un test Compose (bascule du switch → carte disparue sans redémarrage)
 
@@ -29,6 +29,6 @@
 ## 5. Finition
 
 - [ ] 5.1 Chaînes FR en ressources (aucun texte en dur) ; vérifié par un grep des chaînes des composables Up Next et du réglage
-- [ ] 5.2 README : rangée Up Next (toutes apps, dédoublonnage) et catégorie « Écran d'accueil » documentées, ligne P2c du roadmap mise à jour ; vérifié par relecture du diff
+- [ ] 5.2 README : rangée Up Next (toutes apps, dédoublonnage) et catégorie « Écran d'accueil » documentées, ligne P6 du roadmap mise à jour ; vérifié par relecture du diff
 - [ ] 5.3 `./gradlew test assembleRelease` verts (aucune configuration propre à une machine) et validation sur la TV réelle en `assembleRelease` : rangée, navigation, réglage de position, menu
-- [ ] 5.4 `openspec validate --all --strict` vert, puis `openspec archive p2c-upnext` après merge sur main, après la validation sur la TV ; vérifié par `openspec/specs/up-next/spec.md` créée avec son Purpose (le delta up-next en porte un)
+- [ ] 5.4 `openspec validate --all --strict` vert, puis `openspec archive up-next` après merge sur main, après la validation sur la TV ; vérifié par `openspec/specs/up-next/spec.md` créée avec son Purpose (le delta up-next en porte un)

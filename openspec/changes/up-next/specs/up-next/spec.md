@@ -29,14 +29,14 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 
 #### Scenario: constitution
 - **WHEN** un programme watch next est converti en item de la rangée
-- **THEN** l'item expose le package source, le type (épisode ou film, publié ou inféré selon « Champs facultatifs »), le titre de série, la saison, l'épisode, le titre d'affichage, le poster, la progression optionnelle, le type watch next, le timestamp d'activité, l'intent publié et le nom de l'app source ; le champ `externalIds` est présent mais vide en p2c
+- **THEN** l'item expose le package source, le type (épisode ou film, publié ou inféré selon « Champs facultatifs »), le titre de série, la saison, l'épisode, le titre d'affichage, le poster, la progression optionnelle, le type watch next, le timestamp d'activité, l'intent publié et le nom de l'app source ; le champ `externalIds` est présent mais vide en P6
 
 #### Scenario: sources du contenu
 - **WHEN** des items sont fusionnés par le dédoublonnage
 - **THEN** l'item retenu conserve la liste des sources qui possèdent le contenu (package, nom, icône et intent publié de chacune), après fusion comme avant ; c'est cette liste qu'affiche le menu « Ouvrir avec… »
 
-#### Scenario: extension P4
-- **WHEN** l'enrichissement BetaSeries (P4) ajoute des IDs externes (IMDb, TVDB) aux items de toutes les sources
+#### Scenario: extension P8
+- **WHEN** l'enrichissement BetaSeries (P8) ajoute des IDs externes (IMDb, TVDB) aux items de toutes les sources
 - **THEN** le modèle canonique et la rangée absorbent ces IDs sans refonte, et le niveau 5 de dédoublonnage s'active quand il est connu ; BetaSeries reste une étape d'enrichissement et non la source unique de la rangée
 
 ### Requirement: Champs facultatifs
@@ -99,7 +99,7 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **THEN** le programme est considéré comme browsable, comme dans le héro
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P4, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu. Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
+La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P8, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu. Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
@@ -135,7 +135,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 
 #### Scenario: limite assumée
 - **WHEN** deux apps publient le même contenu sous des titres localisés différents
-- **THEN** les items restent en double jusqu'à l'activation du niveau 5 en P4, et cette limite est documentée
+- **THEN** les items restent en double jusqu'à l'activation du niveau 5 en P8, et cette limite est documentée
 
 ### Requirement: Gagnant d'un doublon
 Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
@@ -154,7 +154,7 @@ Quand plusieurs items partagent une même clé, la carte retenue SHALL être dé
 
 #### Scenario: égalité
 - **WHEN** deux candidats ont le même timestamp d'activité
-- **THEN** l'ordre de préférence des apps (constante en p2c, Jellyfin d'abord) tranche
+- **THEN** l'ordre de préférence des apps (constante en P6, Jellyfin d'abord) tranche
 
 ### Requirement: Tri et limite
 La rangée SHALL être triée de façon déterministe en trois groupes : les items en cours (`CONTINUE`) d'abord, puis les items à suivre (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), puis les items `WATCHLIST` ; dans chaque groupe, par timestamp d'activité décroissant et à égalité par `_ID` croissant ; le tri est stable et la rangée est limitée à 20 items. « En cours » désigne le type `CONTINUE` ; la progression ne sert qu'à la barre de la carte.

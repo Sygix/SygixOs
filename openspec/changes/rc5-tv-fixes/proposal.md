@@ -29,8 +29,8 @@ Aucune.
 
 ## Dépendances et chevauchements
 - Ce change reprend des exigences portées par des changes non archivés : `ui-tvos-polish` (« Thème », « Diaporama héro », « Préchargement et mémoire ») et `startup-splash` (« Écran de démarrage », « Écran de démarrage sans animation », « Couverture de l'écran de démarrage »). Les deltas MODIFIED partent de leur texte et gardent tous leurs scénarios.
-- `self-update` et `p2c-upnext` ne touchent aucune de ces exigences.
-- **Ordre d'archivage** : `ui-tvos-polish`, puis `startup-splash`, puis `self-update`, puis `rc5-tv-fixes` ; `p2c-upnext` après `ui-tvos-polish`, sans contrainte vis-à-vis de ce change.
+- `self-update` et `up-next` ne touchent aucune de ces exigences.
+- **Ordre d'archivage** : `ui-tvos-polish`, puis `startup-splash`, puis `self-update`, puis `rc5-tv-fixes` ; `up-next` après `ui-tvos-polish`, sans contrainte vis-à-vis de ce change.
 
 ## Impact
 - `ui/hero/HeroStage.kt`, nouveaux `ui/hero/HeroPosterPipeline.kt` et `ui/hero/SequentialFade.kt`, `ui/hero/AmbientGradient.kt`.

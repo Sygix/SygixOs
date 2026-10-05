@@ -1,4 +1,4 @@
-# Design : p2c-upnext
+# Design : up-next
 
 ## Context
 Motivation et périmètre : voir `proposal.md`. Ce document fixe le comment. État du repo qui conditionne l'approche :
@@ -32,7 +32,7 @@ La rangée lit uniquement `WatchNextPrograms` (les `PreviewPrograms` ne sont pas
 D'après `jellyfin-androidtv` (`LeanbackChannelWorker.getBaseItemAsWatchNextProgram`), les programmes Jellyfin portent `internal_provider_id`, le type, le titre de série, `episode_title`, les numéros de saison et d'épisode, `watch_next_type` et un intent qui ouvre la **fiche** de l'item (`StartupActivity` + `ItemId`), pas la lecture. Le verbe de la rangée est donc « ouvrir », pas « lire » : l'app affiche sa fiche ou reprend selon son propre comportement. `release_date` est absent des programmes Jellyfin : ni le tri ni le dédoublonnage ne s'y fient (voir niveau 4).
 
 ### Modèle canonique
-`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film : `COLUMN_TYPE` publié, sinon inféré, voir « Types absents »), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST` ; absent : rattaché au groupe « à suivre », voir « Types absents »), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), vide en p2c, rempli en P4 par l'enrichissement BetaSeries.
+`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film : `COLUMN_TYPE` publié, sinon inféré, voir « Types absents »), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST` ; absent : rattaché au groupe « à suivre », voir « Types absents »), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), vide en P6, rempli en P8 par l'enrichissement BetaSeries.
 
 `UpNextSource` est une interface aux frontières (SOLID) : retourne un `Result<List<UpNextItem>>` pour que l'UI distingue **erreur** et **vide** (jamais d'exception avalée, contrairement à `TvProviderHeroSource.load()` qui avale via `runCatching {...}.getOrDefault(emptyList())`).
 
@@ -45,11 +45,11 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 | 2. Série dans une app | `package_name` + titre de série normalisé | Au plus une carte par série : l'épisode en cours prime sur l'épisode suivant |
 | 3. Épisode entre apps | titre de série normalisé + saison + épisode | Même épisode sur deux apps (type publié ou inféré) |
 | 4. Film entre apps | titre normalisé + année | Même titre et même année → fusion ; pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée) ; types différents (film contre épisode, type publié ou inféré) → jamais de fusion |
-| 5. P4 | ID IMDb/TVDB ajouté aux items par l'enrichissement BetaSeries | Prend le pas sur les niveaux 3 et 4 quand il est connu |
+| 5. P8 | ID IMDb/TVDB ajouté aux items par l'enrichissement BetaSeries | Prend le pas sur les niveaux 3 et 4 quand il est connu |
 
 **Normalisation** : minuscules, diacritiques retirés (NFKD), ponctuation et `(année)` supprimés, espaces compactés, puis **égalité stricte**. Aucune correspondance approximative : il ne faut jamais fusionner à tort.
 
-**Limite assumée, documentée dans la spec** : les titres localisés différemment selon l'app (« La Casa de Papel » contre « Money Heist ») restent en double jusqu'à P4.
+**Limite assumée, documentée dans la spec** : les titres localisés différemment selon l'app (« La Casa de Papel » contre « Money Heist ») restent en double jusqu'à P8.
 
 **Types exclus** : les programmes dont le `COLUMN_TYPE` n'est ni un épisode ni un film (clip, extrait, autre) ne sont pas convertis en items.
 
@@ -60,7 +60,7 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 **Gagnant d'un doublon** (décision produit) :
 1. `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, programmes sans `watch_next_type` inclus), qui bat `WATCHLIST` ;
 2. ensuite, l'engagement le plus récent (`last_engagement_time` décroissant) ;
-3. à égalité, l'ordre de préférence des apps (constante en p2c : Jellyfin d'abord) tranche.
+3. à égalité, l'ordre de préférence des apps (constante en P6 : Jellyfin d'abord) tranche.
 
 ### Tri
 `release_date` n'est pas fiable (absent côté Jellyfin) et trier globalement par `last_engagement_time` mettrait tous les `NEXT` avant les `CONTINUE` (Jellyfin publie pour `NEXT` un `last_engagement_time` égal à l'heure de synchro, qui tourne toutes les heures). Tri final :
@@ -95,7 +95,7 @@ Nouvelle entrée `HOME` dans `SettingsCategory` (`ui/settings/SettingsScreen.kt`
 - budget mémoire : posters Up Next intégrés au mécanisme existant « Préchargement et mémoire » de launcher-shell (même cache Coil), pas de second cache.
 
 ### Ouverture et menu « Ouvrir avec… » (décision produit)
-Appui OK sur une carte : ouverture de `COLUMN_INTENT_URI` du programme ; si absent ou si l'ouverture échoue (`ActivityNotFoundException`, `SecurityException`), l'app source est lancée (`LeanbackLauncher` du package). Aucun routage par score en p2c.
+Appui OK sur une carte : ouverture de `COLUMN_INTENT_URI` du programme ; si absent ou si l'ouverture échoue (`ActivityNotFoundException`, `SecurityException`), l'app source est lancée (`LeanbackLauncher` du package). Aucun routage par score en P6.
 
 Appui long : menu « Ouvrir avec… » listant les sources du contenu conservées par l'item, chacune ouverte via **son** intent publié ; OK valide, Retour ferme, le focus revient sur la carte ; focus initial sur la première entrée, bords sans boucle ; intent en échec → repli lancement de l'app + toast. Rien n'est persisté. **Le menu s'ouvre même avec une seule entrée** (décision Sygix). Le menu contextuel existant (`AppContextMenu.kt`, lié à `TvApp`) est généralisé pour accepter les entrées Up Next.
 
@@ -116,7 +116,7 @@ Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « App
 ## Risks / Trade-offs
 - [Une app remplit moins de colonnes que prévu] → chaque champ est facultatif avec un comportement défini (« Champs facultatifs ») ; le seul rejet est l'absence de tout titre ou un `COLUMN_TYPE` hors épisode/film.
 - [Colonnes non mesurées sur l'appareil] → lecture en `opt*`, dégradation champ par champ (pas d'année, pas de progression, pas de `SxxEyy`) sans exclure l'item ; type watch next absent → groupe « à suivre », `COLUMN_TYPE` absent → type inféré (épisode si saison et épisode, sinon film).
-- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à P4.
+- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à P8.
 - [Repo public] → toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
 
 ## Notes de test

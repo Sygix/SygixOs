@@ -45,7 +45,7 @@
 - [ ] 9.3 Réponses de Sygix aux questions ouvertes reportées dans les documents du change
 
 ## 10. Clôture
-- [ ] 10.1 `openspec archive ui-tvos-polish` après merge et validation sur la TV, avant l'archivage de `p2c-upnext` ; `openspec validate --all --strict` vert après fusion
+- [ ] 10.1 `openspec archive ui-tvos-polish` après merge et validation sur la TV, avant l'archivage de `up-next` ; `openspec validate --all --strict` vert après fusion
 
 ## 11. Décisions de Sygix et corrections après relecture
 - [x] 11.1 Dock limité à 6 apps (`AppCatalog.MAX_DOCK`, `pinState`, `togglePinned` refusant un 7e épinglage, aucun épinglage enregistré effacé), défilement provisoire du dock supprimé, « Épingler au dock » grisé avec « Dock plein (6 apps maximum) » ; tests `AppCatalogTest` (maximum, conservation, refus, état) et `ContextMenuTest` (dock plein : action désactivée, message, OK sans effet ; dock à 5 : épinglage)

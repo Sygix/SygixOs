@@ -1,6 +1,6 @@
 # Delta betaseries-integration
 
-Alignement sur la décision P4 : BetaSeries est une étape d'**enrichissement** des items de toutes les sources, pas une concaténation après Jellyfin. L'éventuel rôle de BetaSeries comme source à part entière n'est pas tranché : voir « Questions ouvertes » de `proposal.md`.
+Alignement sur la décision P8 : BetaSeries est une étape d'**enrichissement** des items de toutes les sources, pas une concaténation après Jellyfin. L'éventuel rôle de BetaSeries comme source à part entière n'est pas tranché : voir « Questions ouvertes » de `proposal.md`.
 
 ## MODIFIED Requirements
 
@@ -8,7 +8,7 @@ Alignement sur la décision P4 : BetaSeries est une étape d'**enrichissement** 
 Les données BetaSeries SHALL enrichir les items de toutes les sources de la rangée Up Next avec des IDs externes (IMDb/TVDB) activant le niveau 5 de dédoublonnage de la capability up-next, plutôt que s'y concaténer ; la rangée reste multi-sources.
 
 #### Scenario: comportement
-- **WHEN** la capability est utilisée (P4)
+- **WHEN** la capability est utilisée (P8)
 - **THEN** les IDs externes BetaSeries sont attachés aux items existants de toutes les sources (Jellyfin inclus), sans ordre « Jellyfin puis BetaSeries »
 
 #### Scenario: fusion par ID externe

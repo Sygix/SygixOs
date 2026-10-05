@@ -39,11 +39,13 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 | P2b | Settings: source apps, hidden apps, about | ✅ done |
 | Polish | Home fixes: settings gear, grid and dock refresh, Top Shelf placement | ✅ done (v0.0.1-rc.2) |
 | Polish | Continuous hero/grid scroll, hidden apps in the settings panel, source apps sorting | ✅ done (v0.0.1-rc.4) |
-| Polish | tvOS 26 dark glass, focus, readability and smoothness pass | 🚧 in progress |
-| P2c | Up Next row (all apps, deduplication) | 📝 spec done, implementation planned |
-| P2c | Search | planned |
-| P4 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
-| P5 | Replacing the system launcher | ADB commands available (see Installation) |
+| Polish | tvOS 26 dark glass, focus, readability, concentric corners and smoother grid | ✅ delivered in v0.0.1; historical TV checks still pending documentation |
+| P3 | Logo and animated startup splash | ✅ delivered in v0.0.1; splash cadence follow-up remains |
+| P4 | Built-in updates from GitHub releases | ✅ delivered in v0.0.1; manufacturer-blocked relaunch deferred to P5 |
+| P5 | Replacing the system launcher | planned; ADB commands available (see Installation) |
+| P6 | Up Next row (all apps, deduplication) | 📝 [spec](openspec/changes/up-next/proposal.md) done, implementation planned; open questions remain |
+| P7 | Search | planned |
+| P8 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
 
 Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Follow-ups deferred after v0.0.1, not specified yet, are tracked in [`openspec/backlog.md`](openspec/backlog.md). Specs and the user interface are written in French.
 
@@ -64,9 +66,9 @@ Detailed requirements for each feature live in [`openspec/specs/`](openspec/spec
    `app-release.dm` is the startup profile of this APK (Android "dex metadata"): installed with it, the app is compiled for a fast start right away instead of running interpreted until the system compiles it in the background. `adb install -r app-release.apk` alone also works, without that head start. Check with `adb shell dumpsys package fr.sygix.sygixos | grep status=`: `[status=speed-profile] [reason=install-dm]` means the profile was applied (`verify` without it).
 4. On first launch, grant the "TV programs" permission (`READ_TV_LISTINGS`). Without it, the hero cannot see other apps' content.
 
-ADB is only needed for this first installation. Later versions install from the app: Settings → About → "Vérifier les mises à jour", then "Mettre à jour vers X". The download goes on if you leave the settings or open another app, and SygixOs restarts on its home screen if it was on screen when the update was installed. The first time, Android may ask you to allow SygixOs to install unknown apps: accept, and the update carries on. The startup profile (`app-release.dm`) is installed with the update when the release provides it with a SHA-256 digest that matches; otherwise, or if Android refuses it, the update is installed without it. An update is installed only if its size, its SHA-256 digest published by GitHub, its package name, its version and its signing certificate all match; a build signed with another key (for example a local debug build) is refused with "Signature différente de l'app installée".
+ADB is only needed for this first installation. Later versions install from the app: Settings → About → "Vérifier les mises à jour", then "Mettre à jour vers X". The download goes on if you leave the settings or open another app, and the new version is available when you return to SygixOs. Automatic relaunch is not guaranteed: on the reference TV, the manufacturer's auto-start policy blocks it even after a foreground update. This limitation is deferred to P5 (system launcher replacement); reopen SygixOs manually in the meantime. The first time, Android may ask you to allow SygixOs to install unknown apps: accept, and the update carries on. The startup profile (`app-release.dm`) is installed with the update when the release provides it with a SHA-256 digest that matches; otherwise, or if Android refuses it, the update is installed without it. An update is installed only if its size, its SHA-256 digest published by GitHub, its package name, its version and its signing certificate all match; a build signed with another key (for example a local debug build) is refused with "Signature différente de l'app installée".
 
-SygixOs declares itself as a possible home screen (`CATEGORY_HOME`), so that Android brings it back after an update when it is your default launcher. It never asks to become the default launcher and changes no setting: after installing it, Android may offer you a choice of launcher the next time you press Home, and the answer is yours.
+SygixOs declares itself as a possible home screen (`CATEGORY_HOME`), so that Android can bring it back after an update when it is your default launcher; this is still to be verified in P5 on the reference TV. It never asks to become the default launcher and changes no setting: after installing it, Android may offer you a choice of launcher the next time you press Home, and the answer is yours.
 
 This is also the first step of P5 (replacing the system launcher). To make SygixOs the default launcher by disabling the Google TV one (reversible), so that it becomes the only possible home screen:
 ```
