@@ -5,31 +5,39 @@ Page de réglages du launcher : choix des apps sources du héro et du Top Shelf,
 
 ## Requirements
 
-### Requirement: Icône réglages flottante
-Le home SHALL afficher sur le héro une icône engrenage flottante en haut à droite, qui ouvre la page de réglages. L'icône SHALL être un engrenage plein façon tvOS, blanc opaque, dessiné sans fond, sans bordure ni matériau verre. L'engrenage SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : il n'a aucun fondu propre, sort par le haut avec le héro pendant le défilement vers la grille, revient avec lui, et il n'est jamais visible en vue grille.
+### Requirement: Capsule heure et réglages
+Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre sombre (« Thème » de `launcher-shell`) qui contient l'heure courante puis un engrenage dessiné au trait ouvrant la page de réglages ; elle remplace l'engrenage seul. L'heure SHALL suivre le format 12 ou 24 h choisi dans le système, n'est jamais focusable et SHALL se mettre à jour au changement de minute sans recomposer le reste de l'écran. Seul l'engrenage SHALL prendre le focus. La capsule SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : elle n'a aucun fondu propre, sort par le haut avec le héro pendant le défilement vers la grille, revient avec lui, et n'est jamais visible en vue grille.
 
 #### Scenario: affichage
 - **WHEN** le héro est affiché
-- **THEN** l'engrenage est visible en haut à droite, blanc opaque, sans fond, sans bordure ni verre, sans masquer le héro et sans détourner le focus du héro à l'ouverture du home
+- **THEN** la capsule est visible en haut à droite avec l'heure puis l'engrenage, sans masquer le titre du héro et sans détourner le focus du héro à l'ouverture du home ; au repos l'engrenage est blanc sur une pastille claire discrète
 
 #### Scenario: accès DPAD
 - **WHEN** l'utilisateur presse haut depuis le héro
-- **THEN** l'icône réglages prend le focus avec l'état focus net (zoom + halo, cohérent avec le focus tvOS du launcher) ; bas depuis l'icône rend le focus au héro
+- **THEN** l'engrenage prend le focus : pastille blanche, icône noire, léger zoom et ombre ; l'heure ne prend jamais le focus ; bas depuis l'engrenage rend le focus au héro ; Retour depuis l'engrenage rend le focus au bouton d'ouverture du héro (au héro s'il n'en a pas) ; gauche et droite laissent le focus sur l'engrenage
 
 #### Scenario: ouverture
-- **WHEN** l'utilisateur presse OK sur l'icône réglages
+- **WHEN** l'utilisateur presse OK sur l'engrenage
 - **THEN** la page de réglages plein écran s'ouvre, la lecture du héro est mise en pause
 
 #### Scenario: zone grille
 - **WHEN** l'utilisateur passe en zone grille et la page de l'accueil défile du héro vers la grille (« Navigation 3 paliers » de `launcher-shell`)
-- **THEN** l'engrenage suit exactement le mouvement du héro, sans fondu propre ni décalage, et sort par le haut avec lui ; à la fin du défilement il est entièrement hors écran ; il n'est ni visible ni focusable tant que la grille est affichée
+- **THEN** la capsule suit exactement le mouvement du héro, sans fondu propre ni décalage, et sort par le haut avec lui ; à la fin du défilement elle est entièrement hors écran ; ni elle ni l'engrenage ne sont visibles ou focusables tant que la grille est affichée
 
 #### Scenario: retour sur le héro
 - **WHEN** l'utilisateur revient sur le héro depuis la grille (Retour, ou remontée par le dock)
-- **THEN** l'engrenage revient par le haut avec le héro, dans le même mouvement et sans fondu propre, jusqu'à sa position initiale, sans prendre le focus
+- **THEN** la capsule revient par le haut avec le héro, dans le même mouvement et sans fondu propre, jusqu'à sa position initiale, sans que l'engrenage prenne le focus
+
+#### Scenario: heure
+- **WHEN** la minute change, ou que l'heure ou le fuseau du système change
+- **THEN** l'heure affichée est mise à jour dans le format 12 ou 24 h du système, seule l'heure est recomposée ; un changement du format 12/24 h est pris en compte au plus tard à la minute suivante
+
+#### Scenario: retour au premier plan
+- **WHEN** le launcher revient au premier plan après un passage en arrière-plan
+- **THEN** l'heure affichée redevient l'heure courante dès le retour, sans attendre le changement de minute ; aucune mise à jour n'a lieu tant que le launcher est en arrière-plan
 
 ### Requirement: Page de réglages
-Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, fond sombre neutre, navigable au DPAD uniquement.
+Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », bouton « Tout réactiver », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit.
 
 #### Scenario: structure
 - **WHEN** la page de réglages s'ouvre
@@ -42,6 +50,22 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 #### Scenario: retour
 - **WHEN** l'utilisateur presse Retour depuis la page de réglages
 - **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend
+
+#### Scenario: fond
+- **WHEN** la page de réglages s'ouvre
+- **THEN** son fond est identique à celui de la zone grille de l'accueil
+
+#### Scenario: focus d'une ligne
+- **WHEN** une ligne de la page prend le focus
+- **THEN** elle devient une pilule claire à texte et icônes sombres, à la même taille et à la même place qu'au repos (aucun zoom), sans halo ni verre ; au repos les lignes n'ont pas de fond, sauf « Tout réactiver » qui garde un fond discret
+
+#### Scenario: catégorie active, focus à droite
+- **WHEN** le focus est dans le volet droit
+- **THEN** la catégorie active est une pilule grise discrète à texte blanc et les autres catégories n'ont pas de fond
+
+#### Scenario: vignette des lignes d'apps
+- **WHEN** une ligne d'app est affichée (« Apps sources », « Applications cachées »)
+- **THEN** l'icône de l'app est présentée dans une vignette 16:9 : la bannière TV de l'app quand elle en a une, sinon son icône entière centrée, comme le repli des tuiles de l'accueil
 
 ### Requirement: Apps sources
 La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro et au Top Shelf ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture). Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
@@ -177,8 +201,12 @@ La catégorie « Applications cachées » SHALL afficher directement dans le vol
 - **THEN** l'ordre et les états des switches sont ceux laissés à la sortie, et le focus va à la première ligne (scénario « focus initial »)
 
 ### Requirement: À propos
-La catégorie « À propos » SHALL afficher la version du launcher et les licences des bibliothèques open source utilisées.
+La catégorie « À propos » SHALL afficher la version du launcher et les licences des bibliothèques open source utilisées. Elle SHALL aussi contenir les lignes de mise à jour du launcher, décrites par `self-update` (« Lignes de mise à jour dans À propos »), qui fixe leur contenu, leur place et leur navigation D-pad.
 
 #### Scenario: contenu
 - **WHEN** la catégorie « À propos » est affichée
 - **THEN** la version de l'application et la liste des licences OSS sont visibles, navigables au DPAD
+
+#### Scenario: lignes de mise à jour
+- **WHEN** la catégorie « À propos » est affichée
+- **THEN** les lignes de mise à jour de `self-update` sont visibles avant la liste des licences, avec le comportement que `self-update` spécifie

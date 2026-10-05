@@ -1,5 +1,8 @@
 # Tasks
 
+## Acceptation historique rapportée par le propriétaire
+Le 6 octobre 2026, Sygix confirme : « J’ai aussi validé ces anciens changes sur la TV ». Cette acceptation couvre le rendu et le comportement livrés, sans constituer un relevé chiffré ni un test exécuté par l'agente. Les cases historiques non cochées restent ouvertes lorsqu'elles demandent une mesure, une consignation ou un scénario individuel non détaillé dans cette confirmation générale ; l'archivage demandé conserve ces réserves documentaires. La cadence de mascotte reste l'écart accepté du backlog, sujet 2 ; la relance automatique bloquée par le constructeur reste reportée à P5 (sujet 9), avec réouverture manuelle.
+
 ## 1. Vérifications préalables sur la TV (avant le code de l'installation et du redémarrage)
 - [ ] 1.1 Protocole d'installation et de relance, réalisable dépôt privé (sans l'API), résultats consignés dans `design.md` (structure seulement) :
   1. Build B : `SYGIXOS_VERSION=v0.0.98-rc.2 ./gradlew assembleRelease`, sans variables de signature (clé de debug) ; garder `app-release.apk` hors du dépôt.
@@ -70,4 +73,4 @@
 - [x] 10.3 Asset limité à 200 Mo, espace libre sans dépassement, délais totaux (API 30 s, téléchargement 10 min), statuts d'une autre session ignorés, vérification automatique qui garde une erreur non vue, version retirée affichée à part (avec la version proposée s'il y en a une), `ForegroundTracker` atomique, `User-Agent`, version installée et code QR hors du thread principal, bascule atomique des préversions, erreur TLS distincte (négociation ou certificat seulement, une autre `SSLException` reste une coupure), `ACCESS_NETWORK_STATE` déclarée, vérification manuelle toujours envoyée, colonne du code QR superposée (`UpdateSelectorTest`, `HttpsUrlTransportTest`, `GitHubReleaseSourceTest`, `UpdatePrefsTest`, `UpdateRepositoryTest`, `UpdateAboutTest`)
 
 ## 11. Clôture
-- [ ] 11.1 `openspec archive self-update` après merge, validation sur la TV (9.x) et archivage préalable de `ui-tvos-polish` ; `openspec validate --all --strict` vert après fusion des deltas
+- [x] 11.1 Synchronisation des deltas vérifiée et change archivé dans le lot documentaire, après ses prédécesseurs ; acceptation TV rapportée par le propriétaire, avec les réserves ci-dessus. Le sujet 3 est retiré du backlog après le dernier archivage.

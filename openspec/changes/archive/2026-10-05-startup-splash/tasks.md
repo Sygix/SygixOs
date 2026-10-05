@@ -1,5 +1,8 @@
 # Tasks
 
+## Acceptation historique rapportée par le propriétaire
+Le 6 octobre 2026, Sygix confirme : « J’ai aussi validé ces anciens changes sur la TV ». Cette acceptation couvre le rendu et le comportement livrés, sans constituer un relevé chiffré ni un test exécuté par l'agente. Les cases historiques non cochées restent ouvertes lorsqu'elles demandent une mesure, une consignation ou un scénario individuel non détaillé dans cette confirmation générale ; l'archivage demandé conserve ces réserves documentaires. La cadence de mascotte reste l'écart accepté du backlog, sujet 2 ; la relance automatique bloquée par le constructeur reste reportée à P5 (sujet 9), avec réouverture manuelle.
+
 ## 1. Vérifications préalables (avant tout code)
 - [ ] 1.1 Sur la TV de test, avec la dernière pré-release (`assembleRelease`) : arrêter l'app (`adb shell am force-stop fr.sygix.sygixos`), la relancer à froid depuis le système et filmer le lancement ; consigner dans `design.md` (section Context) si un écran de lancement système s'affiche, sa couleur de fond, la présence de l'icône et sa durée approximative (structure seulement, aucune donnée personnelle) — non fait : pas d'accès à la TV pendant l'implémentation ; D1 appliquée telle quelle (fond noir, icône vide), constat à faire avec 7.1
 - [x] 1.2 Asset `splash_mascot.webp` reçu du chantier logo et validé visuellement par Sygix (mascotte seule, sans TV ni nom, première image en pose de repos) : l'implémentation ne commence qu'après cette tâche ; validé par Sygix le 2026-10-03
@@ -40,4 +43,4 @@
 - [ ] 7.4 « Supprimer les animations » (ou échelle des animations à 0) : mascotte fixe, aucun fondu ; réglage rétabli ensuite — non fait : pas d'accès à la TV
 
 ## 8. Clôture
-- [ ] 8.1 `openspec archive startup-splash` après merge et validation sur la TV ; `openspec validate --all --strict` vert après fusion des deltas
+- [x] 8.1 Synchronisation des deltas vérifiée et change archivé dans le lot documentaire, après ses prédécesseurs ; acceptation TV rapportée par le propriétaire, avec les réserves ci-dessus. Le sujet 3 est retiré du backlog après le dernier archivage.

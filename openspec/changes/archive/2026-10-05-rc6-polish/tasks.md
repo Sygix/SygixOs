@@ -1,5 +1,8 @@
 # Tasks
 
+## Acceptation historique rapportée par le propriétaire
+Le 6 octobre 2026, Sygix confirme : « J’ai aussi validé ces anciens changes sur la TV ». Cette acceptation couvre le rendu et le comportement livrés, sans constituer un relevé chiffré ni un test exécuté par l'agente. Les cases historiques non cochées restent ouvertes lorsqu'elles demandent une mesure, une consignation ou un scénario individuel non détaillé dans cette confirmation générale ; l'archivage demandé conserve ces réserves documentaires. La cadence de mascotte reste l'écart accepté du backlog, sujet 2 ; la relance automatique bloquée par le constructeur reste reportée à P5 (sujet 9), avec réouverture manuelle.
+
 ## 0. Vérification sur l'appareil
 - [x] 0.1 Colonnes du TV Provider réellement remplies par les apps de la TV de référence (journal de diagnostic temporaire de la variante `perf`, structure seulement) : `watch_next_type` présent (programmes `NEW` et `CONTINUE` observés, les autres sont des preview programs), numéros de saison et d'épisode publiés par deux apps, durée par plusieurs, position seulement avec un `CONTINUE` ; visuels `content://` du fournisseur d'images de Jellyfin lents (5 à 11 s), visuels HTTPS des autres apps en 0,06 à 0,47 s
 
@@ -40,4 +43,4 @@
 ## 6. Réconciliation et validation
 - [x] 6.1 Renvois depuis `rc5-tv-fixes` et `ui-tvos-polish` vers ce change ; `openspec validate --all --strict` vert
 - [x] 6.2 `./gradlew test` et `./gradlew assembleRelease dexMetadataRelease` verts
-- [ ] 6.3 `openspec archive rc6-polish` après le merge, la validation sur la TV et l'archivage de `ui-tvos-polish`, `startup-splash`, `self-update` et `rc5-tv-fixes`
+- [x] 6.3 Synchronisation des deltas vérifiée et change archivé dans le lot documentaire, après ses prédécesseurs ; acceptation TV rapportée par le propriétaire, avec les réserves ci-dessus. Le sujet 3 est retiré du backlog après le dernier archivage.

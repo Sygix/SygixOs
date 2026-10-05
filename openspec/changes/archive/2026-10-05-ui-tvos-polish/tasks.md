@@ -1,5 +1,8 @@
 # Tasks
 
+## Acceptation historique rapportée par le propriétaire
+Le 6 octobre 2026, Sygix confirme : « J’ai aussi validé ces anciens changes sur la TV ». Cette acceptation couvre le rendu et le comportement livrés. Aucun test TV n'a été exécuté par l'agente dans ce lot ; aucune mesure chiffrée absente de la PR n'est reconstituée. Les cases encore ouvertes qui exigent un relevé ou une consignation historique restent ouvertes ; l'archivage est demandé avec ces réserves documentaires.
+
 ## 1. Design system
 - [x] 1.1 Jetons de la maquette (design, D1) dans `Theme.kt` (`SygixColors`) et `Motion.kt` (`Dimens`) ; vérifier par grep qu'aucune des couleurs de D1 n'est écrite en dur dans `ui/` (`grep -rn "0xFFF2F2F5\|Color(22, 22, 28\|Color(18, 18, 24" app/src/main/java/fr/sygix/sygixos/ui` vide)
 - [x] 1.2 `GlassSurface` sombre (D2) : teinte paramétrable, `HazePerformanceMode.Performance`, sans aberration chromatique ni `alpha`, bordure, reflets intérieurs et ombre ; repli sans `clip` ; `GlassSurfaceTest` reste vert et un test vérifie qu'un enfant plus grand que la surface n'est pas découpé par le repli
@@ -45,7 +48,7 @@
 - [ ] 9.3 Réponses de Sygix aux questions ouvertes reportées dans les documents du change
 
 ## 10. Clôture
-- [ ] 10.1 `openspec archive ui-tvos-polish` après merge et validation sur la TV, avant l'archivage de `up-next` ; `openspec validate --all --strict` vert après fusion
+- [x] 10.1 Synchronisation des deltas vérifiée et change archivé dans le lot documentaire, après ses prédécesseurs ; acceptation TV rapportée par le propriétaire, avec les réserves ci-dessus. Le sujet 3 est retiré du backlog après le dernier archivage.
 
 ## 11. Décisions de Sygix et corrections après relecture
 - [x] 11.1 Dock limité à 6 apps (`AppCatalog.MAX_DOCK`, `pinState`, `togglePinned` refusant un 7e épinglage, aucun épinglage enregistré effacé), défilement provisoire du dock supprimé, « Épingler au dock » grisé avec « Dock plein (6 apps maximum) » ; tests `AppCatalogTest` (maximum, conservation, refus, état) et `ContextMenuTest` (dock plein : action désactivée, message, OK sans effet ; dock à 5 : épinglage)

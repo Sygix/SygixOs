@@ -1,5 +1,8 @@
 # Tasks
 
+## Acceptation historique rapportée par le propriétaire
+Le 6 octobre 2026, Sygix confirme : « J’ai aussi validé ces anciens changes sur la TV ». Cette acceptation couvre le rendu et le comportement livrés, sans constituer un relevé chiffré ni un test exécuté par l'agente. Les cases historiques non cochées restent ouvertes lorsqu'elles demandent une mesure, une consignation ou un scénario individuel non détaillé dans cette confirmation générale ; l'archivage demandé conserve ces réserves documentaires. La cadence de mascotte reste l'écart accepté du backlog, sujet 2 ; la relance automatique bloquée par le constructeur reste reportée à P5 (sujet 9), avec réouverture manuelle.
+
 ## 1. Outillage de mesure
 - [x] 1.1 Type de build `perf` (`initWith(release)`, suffixe `.perf`, clé de debug, nom « SygixOs perf »), manifeste de variante sans catégorie HOME et `profileable`, tests unitaires désactivés pour la variante ; `assembleRelease` inchangé en dehors du code de ce change (manifeste release identique)
 - [x] 1.2 Mesures de référence de la rc.5 sur la TV avec la variante `perf` (héro au repos, focus du dock, grille) et traces Perfetto (origine du décodage 3840 × 2160, passes de rendu par image)
@@ -40,4 +43,4 @@
 - [x] 7.2 Mesures TV de la variante `perf` avant/après pour le héro, le dock et la grille (voir la PR)
 - [ ] 7.3 Sur la rc.6 installée sur la TV : héro au repos et focus du dock ≥ 55 images par seconde et < 10 % d'images en retard (`dumpsys gfxinfo` sur 10 s) ; décision de Sygix sur le Ken Burns
 - [ ] 7.4 Sur la rc.6 : écran de démarrage (noir initial, fondu d'entrée, flottement et clignement visibles, durée de visibilité de la mascotte, fondu de sortie, Retour pendant l'écran de démarrage)
-- [ ] 7.5 `openspec archive rc5-tv-fixes` après `ui-tvos-polish`, `startup-splash` et `self-update`
+- [x] 7.5 Synchronisation des deltas vérifiée et change archivé dans le lot documentaire, après ses prédécesseurs ; acceptation TV rapportée par le propriétaire, avec les réserves ci-dessus. Le sujet 3 est retiré du backlog après le dernier archivage.
