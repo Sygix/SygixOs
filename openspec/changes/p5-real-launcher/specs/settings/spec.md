@@ -3,30 +3,30 @@
 ## ADDED Requirements
 
 ### Requirement: Réglages P5 du launcher système
-La page de réglages SHALL proposer une catégorie P5 permettant à l'utilisateur de consulter l'état du rôle HOME et d'accéder à sa demande système, ainsi que d'accéder aux contrôles utilisateur relatifs au remplacement du launcher système, au recours d'accessibilité et au démarrage à l'allumage de l'appareil. Le périmètre et la sémantique de ces contrôles restent à confirmer dans le design. Les états du rôle HOME et du service d'accessibilité SHALL refléter les états système réels, y compris après un retour de l'application Réglages Android. L'UI SHALL permettre de distinguer état inactif, actif, indisponible et action système en attente.
+Si, après résolution des questions ouvertes du design, une catégorie de réglages P5 et ses contrôles sont retenus, la page de réglages SHALL présenter uniquement les contrôles et actions système correspondant au périmètre validé. Pour tout contrôle retenu qui expose un état système, l'UI SHALL refléter l'état réel, y compris après un retour de l'application Réglages Android, et distinguer les états pertinents parmi inactif, actif, indisponible et action système en attente. Aucun contrôle relatif au remplacement HOME, à l'accessibilité ou au démarrage n'est imposé avant validation de son périmètre et de sa sémantique.
 
-#### Scenario: états système actualisés
-- **WHEN** l'utilisateur revient des réglages système Android vers la catégorie P5
-- **THEN** les états du rôle HOME et de l'accessibilité sont relus et affichés tels qu'autorisés par le système
+#### Scenario: état système actualisé pour un contrôle retenu
+- **WHEN** un contrôle P5 retenu selon le périmètre validé expose un état système et que l'utilisateur revient des réglages système Android
+- **THEN** l'état correspondant est relu et affiché conformément à l'état rapporté par le système
 
-#### Scenario: contrôle utilisateur désactivé
-- **WHEN** l'utilisateur désactive un contrôle P5 depuis les réglages SygixOs
-- **THEN** SygixOs applique le comportement correspondant au périmètre de contrôle validé, conserve une navigation normale et ne révoque aucun accès système sans action autorisée de l'utilisateur
+#### Scenario: contrôle retenu désactivé
+- **WHEN** l'utilisateur désactive un contrôle P5 inclus dans le périmètre validé
+- **THEN** SygixOs applique le comportement convenu pour ce contrôle, conserve une navigation normale et ne révoque aucun accès système sans action autorisée de l'utilisateur
 
-#### Scenario: capacité système indisponible
-- **WHEN** le système ou l'appareil ne permet pas une action demandée dans P5
-- **THEN** le contrôle indique qu'elle n'est pas disponible ou n'a pas abouti et les autres catégories de réglages restent utilisables
+#### Scenario: capacité retenue indisponible
+- **WHEN** une action système incluse dans le périmètre P5 validé n'est pas disponible ou n'aboutit pas
+- **THEN** le contrôle correspondant indique cette indisponibilité ou cet échec et les autres catégories de réglages restent utilisables
 
 ### Requirement: Présentation initiale de P5
-Au premier lancement où le rôle HOME de SygixOs n'est pas attribué, SygixOs SHALL présenter une explication proposant à l'utilisateur de la définir comme launcher par défaut et d'activer les capacités système optionnelles nécessaires à P5. Cette présentation SHALL être distincte des dialogues système Android, ne SHALL pas affirmer que SygixOs est le launcher par défaut avant confirmation et SHALL laisser l'utilisateur poursuivre ou ignorer la proposition. Le style visuel et le parcours D-pad de la présentation ainsi que de la catégorie P5 restent en attente du choix de maquette.
+Si une présentation initiale P5 et son déclenchement sont retenus après résolution des questions ouvertes du design, son contenu et ses actions SHALL se limiter au parcours validé. Toute explication précédant une demande de rôle HOME ou une capacité système SHALL être distincte des dialogues système Android, ne SHALL pas annoncer un état non confirmé et SHALL laisser l'utilisateur poursuivre ou ignorer cette proposition. Aucun moment de présentation ni aucune capacité à proposer n'est imposé avant validation des décisions correspondantes. Le style visuel et le parcours D-pad restent en attente du choix de maquette.
 
-#### Scenario: choix d'ignorer
-- **WHEN** l'utilisateur ignore ou ferme la proposition initiale
-- **THEN** SygixOs s'ouvre normalement sans demander le rôle HOME ni activer une capacité optionnelle
+#### Scenario: proposition retenue ignorée
+- **WHEN** une proposition initiale a été retenue et que l'utilisateur l'ignore ou la ferme
+- **THEN** SygixOs s'ouvre normalement sans demander le rôle HOME ni activer une capacité optionnelle sans action explicite
 
-#### Scenario: choix de poursuivre
-- **WHEN** l'utilisateur choisit de poursuivre la proposition initiale
-- **THEN** SygixOs guide vers le mécanisme système approprié pour le rôle HOME et explique séparément toute activation d'accessibilité, laquelle reste à la décision de l'utilisateur
+#### Scenario: parcours retenu poursuivi
+- **WHEN** l'utilisateur choisit de poursuivre un parcours initial validé
+- **THEN** SygixOs guide uniquement vers le mécanisme système prévu par ce parcours et toute activation de capacité sensible reste soumise à l'action explicite de l'utilisateur
 
 #### Scenario: UI en attente de maquette
 - **WHEN** les exigences visuelles de la catégorie P5 ou de la proposition initiale sont rédigées avant la sélection d'une variante

@@ -18,19 +18,19 @@ SygixOs SHALL être éligible au rôle système HOME et SHALL permettre à l'uti
 - **THEN** l'état affiché reflète le rôle courant, sans afficher à tort une activation réussie
 
 ### Requirement: Retour Home sur les appareils compatibles
-Lorsque l'utilisateur active le recours de compatibilité dans les réglages P5, SygixOs SHALL proposer son service d'accessibilité pour retourner au launcher quand la touche Home est détournée par le système ou l'OEM. Cette fonction SHALL rester désactivée tant que l'utilisateur ne l'a pas activée explicitement dans les réglages système; SygixOs SHALL expliquer séparément son utilité et l'étape système requise. Elle SHALL pouvoir être désactivée dans les réglages de SygixOs et SHALL tolérer un service indisponible, désactivé ou interrompu sans bloquer le launcher.
+Uniquement si la conformité et la politique de distribution sont validées et si le recours est retenu dans le périmètre produit, SygixOs SHALL proposer le service d'accessibilité pour retourner au launcher quand la touche Home est détournée par le système ou l'OEM. Dans ce cas, la fonction SHALL rester désactivée tant que l'utilisateur ne l'a pas activée explicitement dans les réglages système; SygixOs SHALL expliquer séparément son utilité et l'étape système requise. Elle SHALL pouvoir être désactivée selon le parcours retenu et SHALL tolérer un service indisponible, désactivé ou interrompu sans bloquer le launcher. Avant ces validations, aucun service, recours ou contrôle d'accessibilité n'est exigé par cette spécification.
 
-#### Scenario: activation explicite
-- **WHEN** l'utilisateur active le recours de compatibilité et choisit de poursuivre
+#### Scenario: activation explicite après validation
+- **WHEN** conformité, distribution et inclusion du recours sont validées, puis l'utilisateur choisit de poursuivre son activation
 - **THEN** SygixOs explique que l'activation s'effectue dans les réglages système, puis ouvre le parcours système approprié sans prétendre accorder elle-même l'accès
 
-#### Scenario: accès refusé ou service arrêté
-- **WHEN** l'utilisateur n'active pas le service, le désactive, ou que le système l'arrête
+#### Scenario: accès refusé ou service arrêté après validation
+- **WHEN** le recours est validé et retenu, et que l'utilisateur n'active pas le service, le désactive, ou que le système l'arrête
 - **THEN** le recours de compatibilité reste inactif et SygixOs demeure utilisable; l'état est présenté comme inactif
 
 #### Scenario: touche Home détournée
-- **WHEN** le service est activé par l'utilisateur et reçoit un événement Home pris en charge par l'appareil
-- **THEN** SygixOs retourne au premier plan sans annoncer une interception garantie sur les appareils qui ne transmettent pas cet événement
+- **WHEN** le recours est validé et retenu, le service est activé par l'utilisateur et reçoit un événement Home pris en charge par l'appareil
+- **THEN** une activité de SygixOs devient visible au premier plan (état de reprise de l'activité observable), sans annoncer une interception garantie sur les appareils qui ne transmettent pas cet événement
 
 ### Requirement: Démarrage à l'allumage
 Lorsque l'utilisateur active l'option de démarrage dans les réglages P5, SygixOs SHALL demander le démarrage ou la reprise de l'accueil au démarrage de l'appareil uniquement par les mécanismes système disponibles et autorisés. Le comportement SHALL être réversible et ne SHALL pas être présenté comme garanti si le système ou l'OEM l'empêche.

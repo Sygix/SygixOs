@@ -11,8 +11,8 @@ Le service `AccessibilityService` est un accès sensible, activé explicitement 
 ## Goals / Non-Goals
 
 **Goals:**
-- Séparer l'explication SygixOs des consentements et écrans de contrôle Android.
-- Actualiser les états HOME et accessibilité au retour depuis Réglages système.
+- Pour les parcours retenus, séparer l'explication SygixOs des consentements et écrans de contrôle Android.
+- Actualiser les états système exposés par les contrôles retenus au retour depuis Réglages système.
 - Rendre les limitations et échecs non bloquants, et la désactivation explicite.
 - Spécifier le fonctionnel maintenant; différer le détail visuel à la sélection du mockup par Simon.
 
@@ -26,9 +26,9 @@ Le service `AccessibilityService` est un accès sensible, activé explicitement 
 
 - Le rôle HOME se demande par l'API système officielle, après une action utilisateur; aucun réglage n'est changé silencieusement.
 - SygixOs relit l'état réel après chaque retour au premier plan depuis les réglages système, plutôt que de déduire un succès d'une tentative d'ouverture.
-- La popup propre à SygixOs informe et route vers l'étape concernée; elle n'est jamais présentée comme le dialogue de permission Android.
+- Si une présentation propre à SygixOs est retenue, elle informe et route vers l'étape validée; elle n'est jamais présentée comme le dialogue de permission Android.
 - L'accessibilité n'est jamais activée par SygixOs seule. Un éventuel événement Home ne peut être traité que si le système le transmet; l'application doit prévoir absence, arrêt et refus.
-- Les réglages sont une catégorie P5, conformément à la demande, mais son graphisme, sa hiérarchie précise, les testTags UI, le placement et le parcours D-pad sont explicitement en attente du choix d'une variante du fichier « SygixOs UI tvOS 26-png.zip ».
+- Le maintien d'une catégorie de réglages P5 et son périmètre dépendent des questions ouvertes ci-dessous; graphisme, hiérarchie, testTags UI, placement et parcours D-pad restent en attente du choix d'une variante du fichier « SygixOs UI tvOS 26-png.zip ».
 - Avant archivage de ce change, archiver `up-next`, qui modifie également `settings`, puis appliquer P5 à la baseline résultante. `jellyfin-tvprovider-only` est indépendant de ces capacités et n'impose pas d'ordre relatif.
 
 ## Risks / Trade-offs

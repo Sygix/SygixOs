@@ -6,10 +6,10 @@ SygixOs se déclare déjà comme écran d'accueil Android, mais ne prend pas enc
 
 ## What Changes
 
-- Ajouter la procédure intégrée d'offre du rôle HOME au premier lancement, avec consentement explicite au dialogue système Android et distinction avec la popup explicative propre à SygixOs.
-- Fournir dans Settings le contrôle du remplacement du launcher, le recours conditionnel à un service d'accessibilité pour les appareils qui détournent Home, et une option de démarrage au démarrage TV.
-- Spécifier l'activation explicite de l'accessibilité par l'utilisateur, la réversibilité, les indisponibilités et échecs; ne pas promettre un comportement uniforme entre OEM/versions.
-- Prévoir une section P5 dans Settings et une popup initiale inspirées de la maquette « SygixOs UI tvOS 26-png.zip »; les exigences UI détaillées restent volontairement en placeholder jusqu'au choix par Simon d'une variante du mockup.
+- Spécifier le parcours HOME et les options/réglages P5 selon le périmètre produit validé; la présentation initiale, son déclenchement et les contrôles proposés restent conditionnés aux décisions ouvertes du design.
+- Le recours à l'accessibilité est spécifié uniquement si conformité, politique de distribution et inclusion produit sont validées; aucun service ni contrôle n'est imposé avant ces validations.
+- Pour tout parcours retenu, distinguer l'explication SygixOs des écrans système, respecter l'action explicite de l'utilisateur et traiter les indisponibilités sans promettre un comportement uniforme entre OEM/versions.
+- Si ces interfaces sont retenues, leur UI s'inspirera de la maquette « SygixOs UI tvOS 26-png.zip »; les exigences visuelles et de navigation restent en placeholder jusqu'à la sélection explicite d'une variante par Simon.
 - Ne pas automatiser la désactivation ADB du launcher Google TV ni d'autres applications système.
 
 ## Capabilities
@@ -21,7 +21,7 @@ SygixOs se déclare déjà comme écran d'accueil Android, mais ne prend pas enc
 ### Modified Capabilities
 
 - `launcher-shell`: mécanismes d'offre et d'activation du rôle HOME et comportement de remplacement.
-- `settings`: options de remplacement, accessibilité et démarrage TV, ainsi que section P5.
+- `settings`: options et section P5 éventuelles, selon le périmètre validé; aucun contrôle précis n'est décidé par avance.
 - `ui-testing`: validation fonctionnelle des parcours et états système; exigences visuelles en attente du mockup choisi.
 
 ## Impact
