@@ -3,15 +3,15 @@
 ## ADDED Requirements
 
 ### Requirement: Réglages P5 du launcher système
-La page de réglages SHALL proposer une catégorie P5 permettant à l'utilisateur d'activer ou de désactiver le recours de remplacement du launcher système, de consulter l'état du rôle HOME et d'accéder à sa demande système, d'activer ou désactiver le recours d'accessibilité, et d'activer ou désactiver l'option de démarrage à l'allumage de l'appareil. Les états du rôle HOME et du service d'accessibilité SHALL refléter les états système réels, y compris après un retour de l'application Réglages Android. L'UI SHALL permettre de distinguer état inactif, actif, indisponible et action système en attente.
+La page de réglages SHALL proposer une catégorie P5 permettant à l'utilisateur de consulter l'état du rôle HOME et d'accéder à sa demande système, ainsi que d'accéder aux contrôles utilisateur relatifs au remplacement du launcher système, au recours d'accessibilité et au démarrage à l'allumage de l'appareil. Le périmètre et la sémantique de ces contrôles restent à confirmer dans le design. Les états du rôle HOME et du service d'accessibilité SHALL refléter les états système réels, y compris après un retour de l'application Réglages Android. L'UI SHALL permettre de distinguer état inactif, actif, indisponible et action système en attente.
 
 #### Scenario: états système actualisés
 - **WHEN** l'utilisateur revient des réglages système Android vers la catégorie P5
 - **THEN** les états du rôle HOME et de l'accessibilité sont relus et affichés tels qu'autorisés par le système
 
-#### Scenario: options désactivées
-- **WHEN** l'utilisateur désactive un recours P5 depuis les réglages SygixOs
-- **THEN** SygixOs cesse de demander ce recours et conserve une navigation normale; elle ne révoque aucun accès système sans action autorisée de l'utilisateur
+#### Scenario: contrôle utilisateur désactivé
+- **WHEN** l'utilisateur désactive un contrôle P5 depuis les réglages SygixOs
+- **THEN** SygixOs applique le comportement correspondant au périmètre de contrôle validé, conserve une navigation normale et ne révoque aucun accès système sans action autorisée de l'utilisateur
 
 #### Scenario: capacité système indisponible
 - **WHEN** le système ou l'appareil ne permet pas une action demandée dans P5

@@ -39,14 +39,15 @@ Le service `AccessibilityService` est un accès sensible, activé explicitement 
 
 ## Migration Plan
 
-Aucune migration de données existante prévue. Ajouter les options comme désactivées par défaut; ne pas modifier automatiquement le choix HOME ou les réglages d'accessibilité. Les étapes d'implémentation dépendent des décisions ouvertes et de la validation sur appareil. Archive seulement après merge et validation sur TV réelle selon les règles du dépôt.
+Aucune migration de données existante prévue. La politique d'état initiale des options reste à décider; ne pas modifier automatiquement le choix HOME ou les réglages d'accessibilité. Les étapes d'implémentation dépendent des décisions ouvertes et de la validation sur appareil. Archive seulement après merge et validation sur TV réelle selon les règles du dépôt.
 
 ## Open Questions
 
 1. Quel périmètre donner au contrôle « remplacer le launcher système »? A) simple raccourci vers demande/état HOME, options distinctes — recommandé, to confirm; B) contrôle groupé HOME + accessibilité + démarrage; C) le retirer au profit de contrôles séparés.
-2. À quel moment demander l'activation du service d'accessibilité? A) uniquement après action volontaire dans P5 — recommandé, to confirm; B) dans le parcours initial avec étape de consentement distincte; C) ne pas livrer ce service avant confirmation de conformité Android/distribution.
-3. Après refus de HOME ou d'accessibilité, quand reproposer? A) uniquement depuis la catégorie P5 — recommandé, to confirm; B) proposer une seule fois au prochain démarrage; C) réafficher à chaque lancement jusqu'à activation.
-4. L'interception Home via `AccessibilityService` est-elle autorisée pour ce produit et sa distribution? A) ne pas activer avant vérification de conformité — recommandé, to confirm; B) la livrer comme compatibilité expérimentale si conforme; C) exclure le service et ne proposer que le rôle HOME.
+2. Quelle politique d'état initial appliquer aux options P5? A) non activées jusqu'au choix explicite de l'utilisateur — recommandé, to confirm; B) conserver les états système existants et demander séparément les capacités manquantes; C) proposer le choix dans l'accueil initial.
+3. À quel moment demander l'activation du service d'accessibilité? A) uniquement après action volontaire dans P5 — recommandé, to confirm; B) dans le parcours initial avec étape de consentement distincte; C) ne pas livrer ce service avant confirmation de conformité Android/distribution.
+4. Après refus de HOME ou d'accessibilité, quand reproposer? A) uniquement depuis la catégorie P5 — recommandé, to confirm; B) proposer une seule fois au prochain démarrage; C) réafficher à chaque lancement jusqu'à activation.
+5. L'interception Home via `AccessibilityService` est-elle autorisée pour ce produit et sa distribution? A) ne pas activer avant vérification de conformité — recommandé, to confirm; B) la livrer comme compatibilité expérimentale si conforme; C) exclure le service et ne proposer que le rôle HOME.
 
 ## UI Placeholder
 
