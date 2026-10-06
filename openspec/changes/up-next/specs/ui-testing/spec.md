@@ -42,7 +42,7 @@ La navigation D-pad entre héro, dock et grille, rangée Up Next incluse dans la
 
 #### Scenario: restauration au retour d'une app
 - **WHEN** le test simule l'ouverture d'une app depuis une carte Up Next puis le retour au launcher
-- **THEN** le focus est restauré sur la carte d'origine, ou sur la première carte si celle-ci a disparu
+- **THEN** la position précédente dans la grille est restaurée et le focus revient sur la carte d'origine, ou au début de la section Up Next si cette carte a disparu
 
 #### Scenario: rangée devenue vide
 - **WHEN** le test simule le retour au launcher avec une rangée Up Next devenue vide, pour chaque position réglée
@@ -59,3 +59,7 @@ La navigation D-pad entre héro, dock et grille, rangée Up Next incluse dans la
 #### Scenario: réglage de position
 - **WHEN** le test ouvre la catégorie « Écran d'accueil » des réglages et bascule « Position d'Up Next »
 - **THEN** la valeur change au D-pad (OK, gauche, droite) sans boucle, Retour rend le focus au volet des catégories, et le home recomposé place la rangée à la position choisie
+
+#### Scenario: réglage de visibilité
+- **WHEN** le test désactive « Afficher Up Next » dans « Écran d'accueil » puis revient au home
+- **THEN** la rangée est masquée, la navigation la saute, le réglage est conservé après redémarrage, et la rangée réapparaît si le réglage est réactivé

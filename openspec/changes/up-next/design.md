@@ -13,7 +13,7 @@ Motivation et périmètre : voir `proposal.md`. Ce document fixe le comment. Ét
 ## Goals / Non-Goals
 **Goals :** une seule source TV Provider pour la rangée, logique pure (mapping, dédoublonnage, tri) testable en JUnit, réutilisation du code existant du héro et des réglages, aucun état dupliqué.
 
-**Non-Goals :** voir `proposal.md` ; au niveau design, aucun second cache d'images, aucun score, aucune persistance hors du réglage de position.
+**Non-Goals :** voir `proposal.md` ; au niveau design, aucun second cache d'images, aucun score, aucune persistance hors des réglages de position et de visibilité.
 
 ## Décisions
 
@@ -45,11 +45,11 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 | 2. Série dans une app | `package_name` + titre de série normalisé | Au plus une carte par série : l'épisode en cours prime sur l'épisode suivant |
 | 3. Épisode entre apps | titre de série normalisé + saison + épisode | Même épisode sur deux apps (type publié ou inféré) |
 | 4. Film entre apps | titre normalisé + année | Même titre et même année → fusion ; pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée) ; types différents (film contre épisode, type publié ou inféré) → jamais de fusion |
-| 5. P8 | ID IMDb/TVDB ajouté aux items par l'enrichissement BetaSeries | Prend le pas sur les niveaux 3 et 4 quand il est connu |
+| 5. Extension ultérieure | Identifiant externe fourni par un change distinct | Prend le pas sur les niveaux 3 et 4 quand il est connu ; hors périmètre de ce change |
 
 **Normalisation** : minuscules, diacritiques retirés (NFKD), ponctuation et `(année)` supprimés, espaces compactés, puis **égalité stricte**. Aucune correspondance approximative : il ne faut jamais fusionner à tort.
 
-**Limite assumée, documentée dans la spec** : les titres localisés différemment selon l'app (« La Casa de Papel » contre « Money Heist ») restent en double jusqu'à P8.
+**Limite assumée, documentée dans la spec** : les titres localisés différemment selon l'app (« La Casa de Papel » contre « Money Heist ») restent en double jusqu'à l'activation du niveau 5 par un change distinct.
 
 **Types exclus** : les programmes dont le `COLUMN_TYPE` n'est ni un épisode ni un film (clip, extrait, autre) ne sont pas convertis en items.
 
@@ -73,9 +73,9 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 Limite : 20 items.
 
 ### Position (décision produit)
-La rangée Up Next est la **première ligne de la zone grille** : on y arrive par bas depuis le dock, et la page d'un seul tenant défile alors jusqu'à la zone grille, le héro, le dock et la capsule heure et réglages sortant par le haut, exactement comme pour les apps ; un bas de plus descend sur la première rangée d'apps dans la même zone, sans changement de fond. C'est un arrêt D-pad entre le dock et les apps, mais **pas un palier distinct** au sens de launcher-shell (une zone avec son propre fond) : « Navigation 3 paliers » reste héro → dock → grille. La rangée est sautée si elle est masquée. Le réglage « Position d'Up Next » (catégorie « Écran d'accueil », delta `settings`) permet *avant la grille* (défaut) ou *après la grille* : la rangée est alors la **dernière ligne de la zone grille**. Toute la navigation de la zone grille, rangée incluse, est dans le delta launcher-shell ; up-next et settings y renvoient.
+La rangée Up Next est la **première ligne de la zone grille** : on y arrive par bas depuis le dock, et la page d'un seul tenant défile alors jusqu'à la zone grille, le héro, le dock et la capsule heure et réglages sortant par le haut, exactement comme pour les apps ; un bas de plus descend sur la première rangée d'apps dans la même zone, sans changement de fond. C'est un arrêt D-pad entre le dock et les apps, mais **pas un palier distinct** au sens de launcher-shell (une zone avec son propre fond) : « Navigation 3 paliers » reste héro → dock → grille. La rangée est sautée si elle est masquée, qu'elle soit masquée faute de contenu, de permission ou par le réglage « Afficher Up Next ». Le réglage « Position d'Up Next » (catégorie « Écran d'accueil », delta `settings`) permet *avant la grille* (défaut) ou *après la grille* : la rangée est alors la **dernière ligne de la zone grille**. Toute la navigation de la zone grille, rangée incluse, est dans le delta launcher-shell ; up-next et settings y renvoient.
 
-Intégration à la page d'un seul tenant : la rangée fait partie du bloc grille, donc de la zone que `GridScroll` place entre les marges et dont `origin` marque le début ; à la première entrée, la page s'arrête sur `origin`, première ligne de la zone grille en haut de l'écran. `GridScroll` suppose aujourd'hui des rangées de même hauteur (`rowHeight`) : la hauteur propre de la rangée Up Next reste à y intégrer à l'implémentation. La redescente à la position laissée et le focus qui l'accompagne suivent le texte archivé de `home-settings-polish` (voir « Questions ouvertes » du `proposal.md`).
+Intégration à la page d'un seul tenant : la rangée fait partie du bloc grille, donc de la zone que `GridScroll` place entre les marges et dont `origin` marque le début ; à la première entrée, la page s'arrête sur `origin`, première ligne de la zone grille en haut de l'écran. `GridScroll` suppose aujourd'hui des rangées de même hauteur (`rowHeight`) : la hauteur propre de la rangée Up Next reste à y intégrer à l'implémentation. Au retour au launcher depuis une app ouverte sur une carte Up Next, la grille retrouve la position précédente ; le focus revient sur la carte d'origine, ou, si cette carte a disparu, au début de la section Up Next. Ce cas spécifique ne change pas le repli générique « Focus d'une app disparue » déjà défini pour le dock et la grille, ni le comportement du splash.
 
 **Pas de dédoublonnage entre le héro et Up Next** (décision produit) : le héro peut montrer les mêmes contenus, comme sur tvOS. Écrit explicitement dans la spec pour que personne ne « l'optimise » plus tard.
 
@@ -108,15 +108,20 @@ Appui long : menu « Ouvrir avec… » listant les sources du contenu conservée
 - Non-blocage : la navigation du home reste fonctionnelle dans tous les états.
 
 ### Compteur des apps sources
-`TvProviderHeroSource.programCounts()` ne compte que les `PreviewPrograms` : une app qui ne publie que des `WatchNextPrograms` affiche « 0 programme » dans « Apps sources » alors qu'elle alimente Up Next. Depuis `home-settings-polish`, ce compteur trie aussi la liste « Apps sources » (apps à 0 en fin de liste). Ce change n'y touche pas ; l'élargissement du compteur est en Questions ouvertes du `proposal.md`.
+Le compteur des « Apps sources » inclut tous les programmes publiés par l'app, `PreviewPrograms` et `WatchNextPrograms` compris. Une app qui ne publie que des `WatchNextPrograms` ne doit donc pas afficher zéro. Le tri conserve les règles existantes, appliquées au total par app ; la lecture et l'observation doivent réutiliser le mécanisme existant sans seconde observation indépendante.
 
+### Présentation visuelle validée (maquette `v3-reference-aligned`)
+La zone principale présente le titre « À suivre » avant la rangée Applications dans l'état par défaut. La rangée est une ligne de cartes média horizontales 16:9, à coins arrondis, séparées par un espacement régulier ; les cartes affichent l'image en plein cadre, un dégradé sombre en bas pour la lisibilité du texte, le titre du programme et un badge discret d'icône source. Le fond est sombre et continu avec la zone grille. Le focus suit l'exigence « Focus tvOS » de launcher-shell. Pour une affiche portrait, elle est centrée sur fond sombre ; en absence d'image exploitable, conserver la carte et son placeholder. La maquette de référence est 1920×1080 ; ses proportions sont adaptées à la taille de l'écran, sans imposer de dimensions absolues.
+
+### Intégration à la page et comportement des états
+La rangée fait partie du bloc grille, donc de la zone que `GridScroll` place entre les marges et dont `origin` marque le début ; à la première entrée, la page s'arrête sur `origin`, première ligne de la zone grille en haut de l'écran. `GridScroll` suppose aujourd'hui des rangées de même hauteur (`rowHeight`) : la hauteur propre de la rangée Up Next reste à y intégrer à l'implémentation. Au retour au launcher depuis une app ouverte sur une carte Up Next, la grille retrouve la position précédente ; le focus revient sur la carte d'origine, ou, si cette carte a disparu, au début de la section Up Next. Ce cas spécifique ne change pas le repli générique « Focus d'une app disparue » déjà défini pour le dock et la grille, ni le comportement du splash.
 ## MODIFIED settings
 Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « Apps sources » et « Cacher une application » sont posés dans `specs/settings/spec.md` de ce change (tâche 1.1, faite après l'archivage de `p2b-settings`). Ils partent du texte archivé de `home-settings-polish` (exception de focus d'« Applications cachées », tri et comptage d'« Apps sources », date de masquage) et n'y ajoutent que la catégorie « Écran d'accueil » et la rangée Up Next.
 
 ## Risks / Trade-offs
 - [Une app remplit moins de colonnes que prévu] → chaque champ est facultatif avec un comportement défini (« Champs facultatifs ») ; le seul rejet est l'absence de tout titre ou un `COLUMN_TYPE` hors épisode/film.
 - [Colonnes non mesurées sur l'appareil] → lecture en `opt*`, dégradation champ par champ (pas d'année, pas de progression, pas de `SxxEyy`) sans exclure l'item ; type watch next absent → groupe « à suivre », `COLUMN_TYPE` absent → type inféré (épisode si saison et épisode, sinon film).
-- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à P8.
+- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à l'activation du niveau 5 dans un change distinct.
 - [Repo public] → toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
 
 ## Notes de test

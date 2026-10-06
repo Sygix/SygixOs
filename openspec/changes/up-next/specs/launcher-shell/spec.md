@@ -51,7 +51,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 
 #### Scenario: retour depuis une app
 - **WHEN** l'utilisateur revient au launcher après avoir ouvert une app depuis la rangée Up Next
-- **THEN** le focus est restauré sur la carte d'origine, ou sur la première carte si celle-ci a disparu
+- **THEN** la position précédente dans la grille est restaurée et le focus revient sur la carte d'origine ; si cette carte Up Next a disparu, le focus est placé au début de la section Up Next, sans modifier le repli générique des apps disparues du dock ou de la grille
 
 #### Scenario: retour depuis la grille
 - **WHEN** l'utilisateur presse Retour depuis la zone grille, quelle que soit la ligne focusée (rangée Up Next ou rangée d'apps)

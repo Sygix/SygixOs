@@ -35,9 +35,9 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **WHEN** des items sont fusionnés par le dédoublonnage
 - **THEN** l'item retenu conserve la liste des sources qui possèdent le contenu (package, nom, icône et intent publié de chacune), après fusion comme avant ; c'est cette liste qu'affiche le menu « Ouvrir avec… »
 
-#### Scenario: extension P8
-- **WHEN** l'enrichissement BetaSeries (P8) ajoute des IDs externes (IMDb, TVDB) aux items de toutes les sources
-- **THEN** le modèle canonique et la rangée absorbent ces IDs sans refonte, et le niveau 5 de dédoublonnage s'active quand il est connu ; BetaSeries reste une étape d'enrichissement et non la source unique de la rangée
+#### Scenario: extension par un change ultérieur
+- **WHEN** un change ultérieur apporte des identifiants externes aux items de toutes les sources
+- **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus
 
 ### Requirement: Champs facultatifs
 Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Une valeur de `watch_next_type` inconnue (hors des quatre valeurs définies par Android : `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`) SHALL être traitée comme une valeur absente, donc rattachée au groupe « à suivre ». Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
@@ -99,7 +99,7 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **THEN** le programme est considéré comme browsable, comme dans le héro
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) en P8, ID IMDb/TVDB prenant le pas sur les niveaux 3 et 4 quand il est connu. Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
+La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) identifiant externe fourni par un change ultérieur, prenant le pas sur les niveaux 3 et 4 quand il est connu. Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
@@ -135,7 +135,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 
 #### Scenario: limite assumée
 - **WHEN** deux apps publient le même contenu sous des titres localisés différents
-- **THEN** les items restent en double jusqu'à l'activation du niveau 5 en P8, et cette limite est documentée
+- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par un change ultérieur, et cette limite est documentée
 
 ### Requirement: Gagnant d'un doublon
 Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
@@ -190,7 +190,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-Chaque carte Up Next SHALL être au format 16:9 uniforme affichant l'image du programme en 16:9 plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, avec le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder si l'image manque ou est trop petite, et un petit badge avec l'icône de l'app source prise dans le `PackageManager`. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas.
+La rangée Up Next SHALL porter le titre fixe « À suivre » avant la rangée Applications dans l'état par défaut ; ce libellé nomme la rangée et non une catégorie de contenu, qui peut réunir les groupes `CONTINUE`, `NEXT`/`NEW` et `WATCHLIST`. Chaque carte Up Next SHALL être horizontale au format 16:9 uniforme, à coins arrondis et espacement régulier, affichant l'image du programme en plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, avec un dégradé sombre en bas pour la lisibilité du texte, le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder si l'image manque ou est trop petite, et un badge discret avec l'icône de l'app source prise dans le `PackageManager`.  Le fond reste continu avec la zone grille et le focus suit l'exigence « Focus tvOS » de launcher-shell. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas. La référence visuelle est la maquette `v3-reference-aligned` (1920×1080) ; les proportions s'adaptent à l'écran, sans dimensions absolues.
 
 #### Scenario: carte épisode
 - **WHEN** l'item est un épisode (type publié ou inféré selon « Champs facultatifs »)

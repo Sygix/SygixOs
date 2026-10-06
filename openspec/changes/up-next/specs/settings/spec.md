@@ -1,8 +1,31 @@
 # Delta settings
 
-La capability `settings` vient de l'archivage de `p2b-settings`. Ce delta y ajoute « Position d'Up Next » (catégorie « Écran d'accueil ») et modifie « Page de réglages », « Apps sources » et « Cacher une application » pour couvrir la rangée Up Next. Les trois blocs MODIFIED partent du texte courant de `openspec/specs/settings/spec.md`, après l'archivage de `home-settings-polish`, et n'y ajoutent que la catégorie « Écran d'accueil » et la rangée Up Next ; « Page de réglages » reprend aussi le fond, les pilules de focus et la vignette des lignes d'apps du change `ui-tvos-polish`, archivé avant celui-ci.
+La capability `settings` vient de l'archivage de `p2b-settings`. Ce delta y ajoute « Position d'Up Next » et « Afficher Up Next » (catégorie « Écran d'accueil ») et modifie « Page de réglages », « Apps sources » et « Cacher une application » pour couvrir la rangée Up Next. Les blocs MODIFIED partent du texte courant de `openspec/specs/settings/spec.md`, après l'archivage de `home-settings-polish`, et n'y ajoutent que la catégorie « Écran d'accueil » et la rangée Up Next ; « Page de réglages » reprend aussi le fond, les pilules de focus et la vignette des lignes d'apps du change `ui-tvos-polish`, archivé avant celui-ci.
 
 ## ADDED Requirements
+
+### Requirement: Afficher Up Next
+La catégorie « Écran d'accueil » SHALL proposer le réglage « Afficher Up Next », activé par défaut et persisté dans DataStore. Ce réglage autorise l'affichage sans le forcer : la rangée n'est visible que si elle dispose de contenu affichable et que la permission requise est accordée. Lorsqu'il est désactivé, la rangée est masquée et ignorée par la navigation, sans modifier les programmes publiés ni les filtres des apps sources.
+
+#### Scenario: réglage activé
+- **WHEN** « Afficher Up Next » est activé
+- **THEN** la rangée est présentée selon son réglage de position et les programmes publiés par les apps sources actives
+
+#### Scenario: réglage désactivé
+- **WHEN** « Afficher Up Next » est désactivé
+- **THEN** la rangée est masquée et la navigation de la zone grille la saute ; le réglage reste conservé après redémarrage
+
+#### Scenario: rangée indisponible malgré le réglage activé
+- **WHEN** « Afficher Up Next » est activé, mais qu'aucun programme affichable n'est publié ou que la permission est refusée
+- **THEN** la rangée reste masquée conformément à la capability up-next et la navigation de la zone grille la saute jusqu'à ce qu'elle soit effectivement affichée
+
+#### Scenario: contrôle D-pad
+- **WHEN** le focus est sur « Afficher Up Next »
+- **THEN** OK bascule le réglage, gauche/droite restent dans le contrôle sans boucle, et Retour rend le focus au volet des catégories
+
+#### Scenario: focus du réglage
+- **WHEN** l'utilisateur entre dans la catégorie « Écran d'accueil » depuis le volet des catégories
+- **THEN** le focus initial est placé sur le premier contrôle de la catégorie, « Afficher Up Next » ; après Retour vers le volet et réouverture de la catégorie, la valeur reste conservée
 
 ### Requirement: Position d'Up Next
 La catégorie « Écran d'accueil » des réglages SHALL proposer un contrôle « Position d'Up Next » valant « avant la grille » (défaut) ou « après la grille », persisté dans DataStore, l'effet sur la navigation de la zone grille étant spécifié par « Navigation 3 paliers » de launcher-shell.
@@ -53,11 +76,11 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 - **THEN** l'icône de l'app est présentée dans une vignette 16:9 : la bannière TV de l'app quand elle en a une, sinon son icône entière centrée, comme le repli des tuiles de l'accueil
 
 ### Requirement: Apps sources
-La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf et à la rangée Up Next ; par défaut toutes les apps sont activées. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture). Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
+La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf et à la rangée Up Next ; par défaut toutes les apps sont activées. Le nombre affiché SHALL compter tous les programmes publiés par chaque app dans le TV Provider, `PreviewPrograms` et `WatchNextPrograms` compris. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture). Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
-- **THEN** chaque ligne montre l'icône de l'app, son nom et sous le nom des informations sur l'app dont le nombre de programmes publiés dans le TV Provider, avec à droite de la ligne un toggle switch
+- **THEN** chaque ligne montre l'icône de l'app, son nom et sous le nom le nombre total de programmes publiés (`PreviewPrograms` et `WatchNextPrograms`) dans le TV Provider, avec à droite de la ligne un toggle switch
 
 #### Scenario: tri par contenu publié
 - **WHEN** la catégorie est affichée avec des apps publiant respectivement 12, 0, 3 et 0 programmes
