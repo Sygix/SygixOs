@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Réglages P5 du launcher système
-Si, après résolution des questions ouvertes du design, une catégorie de réglages P5 et ses contrôles sont retenus, la page de réglages SHALL présenter uniquement les contrôles et actions système correspondant au périmètre validé. Pour tout contrôle retenu qui expose un état système, l'UI SHALL refléter l'état réel, y compris après un retour de l'application Réglages Android, et distinguer les états pertinents parmi inactif, actif, indisponible et action système en attente. Aucun contrôle relatif au remplacement HOME, à l'accessibilité ou au démarrage n'est imposé avant validation de son périmètre et de sa sémantique.
+Le rôle HOME et une option de démarrage à l'allumage TV font partie du périmètre P5 confirmé et SHALL être accessibles depuis les réglages P5. La sémantique d'un éventuel contrôle global de remplacement, l'état initial de l'option et les détails des contrôles restent ouverts. Pour tout contrôle qui expose un état système, l'UI SHALL refléter l'état réel, y compris après retour des Réglages Android, et distinguer les états pertinents parmi inactif, actif, indisponible et action système en attente. Un contrôle d'accessibilité n'est requis que si conformité et politique de distribution sont vérifiées.
 
 #### Scenario: état système actualisé pour un contrôle retenu
 - **WHEN** un contrôle P5 retenu selon le périmètre validé expose un état système et que l'utilisateur revient des réglages système Android
@@ -18,7 +18,7 @@ Si, après résolution des questions ouvertes du design, une catégorie de régl
 - **THEN** le contrôle correspondant indique cette indisponibilité ou cet échec et les autres catégories de réglages restent utilisables
 
 ### Requirement: Présentation initiale de P5
-Si une présentation initiale P5 et son déclenchement sont retenus après résolution des questions ouvertes du design, son contenu et ses actions SHALL se limiter au parcours validé. Toute explication précédant une demande de rôle HOME ou une capacité système SHALL être distincte des dialogues système Android, ne SHALL pas annoncer un état non confirmé et SHALL laisser l'utilisateur poursuivre ou ignorer cette proposition. Aucun moment de présentation ni aucune capacité à proposer n'est imposé avant validation des décisions correspondantes. Le style visuel et le parcours D-pad restent en attente du choix de maquette.
+Si une présentation initiale P5 est retenue après résolution des questions ouvertes du design, son contenu et ses actions SHALL se limiter aux parcours confirmés, notamment l'attribution HOME et l'option de démarrage; elle ne SHALL pas être requise pour rendre ces parcours disponibles dans les réglages. Toute explication précédant une action système SHALL être distincte des dialogues Android, ne SHALL pas annoncer un état non confirmé et SHALL laisser l'utilisateur poursuivre ou ignorer la proposition. Le moment de présentation et son déclenchement restent ouverts. Le style visuel et le parcours D-pad restent en attente du choix de maquette.
 
 #### Scenario: proposition retenue ignorée
 - **WHEN** une proposition initiale a été retenue et que l'utilisateur l'ignore ou la ferme

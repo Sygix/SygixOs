@@ -3,11 +3,11 @@
 ## ADDED Requirements
 
 ### Requirement: Rôle d'écran d'accueil
-SygixOs SHALL être éligible au rôle système HOME et SHALL permettre à l'utilisateur de demander son attribution par le mécanisme officiel Android, uniquement après un consentement explicite. SygixOs SHALL distinguer son explication initiale des écrans système de choix ou de confirmation. L'application SHALL refléter l'état réellement accordé; elle ne SHALL pas modifier le rôle sans action utilisateur.
+Le rôle système HOME fait partie du périmètre P5 confirmé. SygixOs SHALL être éligible à ce rôle et SHALL permettre à l'utilisateur d'en demander l'attribution via le mécanisme officiel Android, uniquement après une action explicite. SygixOs SHALL distinguer toute explication qu'elle présente des écrans système. L'application SHALL refléter l'état réellement accordé; elle ne SHALL pas modifier le rôle sans action utilisateur. Le déclenchement et la forme d'une éventuelle présentation initiale restent ouverts et ne sont pas imposés ici.
 
 #### Scenario: proposition initiale
-- **WHEN** l'utilisateur ouvre SygixOs pour la première fois et que le rôle HOME n'est pas attribué
-- **THEN** SygixOs lui présente une explication distincte du dialogue Android et ne demande l'attribution du rôle qu'après son action explicite
+- **WHEN** l'utilisateur choisit le parcours d'attribution HOME et que le rôle n'est pas attribué
+- **THEN** SygixOs peut présenter une explication distincte du dialogue Android, puis ne demande l'attribution qu'après l'action explicite de l'utilisateur
 
 #### Scenario: attribution acceptée ou refusée
 - **WHEN** l'utilisateur accepte ou refuse le mécanisme système d'attribution HOME
@@ -32,8 +32,8 @@ Uniquement si la conformité et la politique de distribution sont validées et s
 - **WHEN** le recours est validé et retenu, le service est activé par l'utilisateur et reçoit un événement Home pris en charge par l'appareil
 - **THEN** une activité de SygixOs devient visible au premier plan (état de reprise de l'activité observable), sans annoncer une interception garantie sur les appareils qui ne transmettent pas cet événement
 
-### Requirement: Démarrage à l'allumage
-Lorsque l'utilisateur active l'option de démarrage dans les réglages P5, SygixOs SHALL demander le démarrage ou la reprise de l'accueil au démarrage de l'appareil uniquement par les mécanismes système disponibles et autorisés. Le comportement SHALL être réversible et ne SHALL pas être présenté comme garanti si le système ou l'OEM l'empêche.
+### Requirement: Option de démarrage à l'allumage
+Une option permettant de demander le démarrage ou la reprise de SygixOs à l'allumage TV fait partie du périmètre P5 confirmé. Lorsque l'utilisateur l'active, SygixOs SHALL demander ce démarrage uniquement par les mécanismes système disponibles et autorisés. Le comportement SHALL être réversible et ne SHALL pas être présenté comme garanti si le système ou l'OEM l'empêche. Le mécanisme exact et l'état initial de l'option restent à décider; aucune activation automatique par défaut n'est exigée.
 
 #### Scenario: démarrage activé
 - **WHEN** l'appareil démarre et que l'option est activée
