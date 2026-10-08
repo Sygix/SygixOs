@@ -8,6 +8,16 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 
 > Independent project, not affiliated with Apple, Google or TCL. Apple TV and tvOS are trademarks of Apple Inc.; Android TV and Google TV are trademarks of Google LLC.
 
+## Your TV, without the clutter
+
+An immersive home screen, fluid navigation, and your apps where you want them. See SygixOs in this **41-second presentation** (French · Full HD · 60 fps).
+
+[![Watch the SygixOs presentation](.github/assets/sygixos-promo-preview.jpg)](.github/assets/sygixos-promo.mp4)
+
+[▶ Watch or download the video](.github/assets/sygixos-promo.mp4)
+
+Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — [www.scottbuckley.com.au](https://www.scottbuckley.com.au/library/electric-dreams/). Edited excerpt with original sound effects. Nature footage and demonstration artwork: [Pexels](https://www.pexels.com/license/).
+
 ## Features
 
 - **Startup screen**: on a cold start, the SygixOs ghost mascot floats and blinks alone on a black background (no icon or second screen from the system before it), for at least 0.6 s and until the home screen is ready (app catalog loaded and first hero picture ready, at most 5 s), then crossfades into the hero. It never shows when you come back to the launcher. With animations turned off in the system, the mascot stays still and the home screen appears without a fade.
