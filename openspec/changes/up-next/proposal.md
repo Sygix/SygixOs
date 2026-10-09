@@ -60,9 +60,11 @@ P6 du roadmap : rangée Up Next dédiée (ancien change `p2c-upnext`). La spec l
 7. **Navigation des réglages de « Écran d'accueil »** : alignée sur « Page de réglages » (gauche vers les catégories, Retour vers l'accueil, haut/bas entre les deux contrôles) ; la rangée Up Next respecte « Afficher Up Next ».
 8. **Nom de la catégorie** : `SettingsCategory.HOME_SCREEN` (et non `HOME`, pour éviter la confusion avec le rôle HOME d'Android) ; P5 ajoutera ses réglages à cette catégorie.
 9. **Maquettes** : la spec, alignée sur le design system actuel, est la source de vérité ; les maquettes de `assets/` sont à refaire (nouvelles maquettes Penpot à venir).
+10. **Points ajoutés pendant la mise à jour, validés** : le MODIFIED « Panneau Top Shelf au focus » (titre de section dans le bloc focusé, origine de la zone grille = haut du premier titre), gauche/droite sans effet tant que la liste déroulante est ouverte, et les cibles du repli quand la rangée devient vide (première tuile d'apps si la rangée était avant les applications, dernière si elle était après, d'après `FocusFallback.entry`).
+11. **Rendu du panneau de la liste déroulante** (opaque ou verre) : non décidé ; la spec ne le fixe pas, il sera décidé avec les maquettes Penpot (voir « Questions ouvertes »).
 
 ## Questions ouvertes
 - **Panneau Top Shelf sur la première rangée d'apps** : quand le panneau s'ouvre au-dessus de la première rangée d'apps, il se place entre le titre « Applications » et la rangée, ou au-dessus du titre. À confirmer ; la spec ne fixe que la règle du bloc focusé (titre et panneau ouvert compris).
 - **Titre « Applications » sans aucune app** : affiché au-dessus du message « Aucune app TV détectée » ou masqué. À confirmer.
 - **« Position d'Up Next » quand « Afficher Up Next » est désactivé** : contrôle grisé ou toujours modifiable. À confirmer ; la spec n'en fait pas une règle.
-- **Rendu visuel non fixé par le design system** (rayons et bordure du panneau de la liste déroulante, taille des cartes Up Next par rapport aux tuiles d'apps) : à confirmer avec les nouvelles maquettes Penpot.
+- **Rendu visuel non fixé par le design system** : panneau de la liste déroulante (matériau opaque ou verre, rayons, bordure) et taille des cartes Up Next par rapport aux tuiles d'apps. À confirmer avec les nouvelles maquettes Penpot.

@@ -259,11 +259,11 @@ La rangée SHALL couvrir les états chargement, erreur, vide et permission refus
 
 #### Scenario: erreur
 - **WHEN** la requête vers le TV Provider échoue ou dépasse le timeout au premier chargement
-- **THEN** une carte d'état focusable (message + « Réessayer ») remplace la rangée, distincte de l'état vide, sans crash
+- **THEN** une carte d'état focusable (message + « Réessayer ») remplace le contenu de la rangée, distincte de l'état vide, sans crash ; la rangée n'est pas masquée : le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée
 
 #### Scenario: carte d'erreur
 - **WHEN** la carte « Réessayer » est focusée
-- **THEN** elle occupe la place de la rangée dans la navigation de la zone grille, quelle que soit la position réglée (« Avant les applications » ou « Après les applications »), et OK relance la requête
+- **THEN** elle occupe la place de la rangée dans la navigation de la zone grille, sous le titre « À suivre », quelle que soit la position réglée (« Avant les applications » ou « Après les applications »), et OK relance la requête
 
 #### Scenario: chargement initial
 - **WHEN** le premier chargement dépasse ~300 ms

@@ -7,7 +7,7 @@ Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher 
 
 Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / LAUNCHER).
 
-La zone grille SHALL être découpée en sections titrées, comme les en-têtes de section de tvOS : le titre « À suivre » au-dessus de la rangée Up Next (« Rangée Up Next ») et le titre « Applications » au-dessus des rangées d'apps. Les sections se suivent dans l'ordre fixé par le réglage « Position d'Up Next » de `settings` : « À suivre » puis « Applications » quand il vaut « Avant les applications » (défaut), « Applications » puis « À suivre » quand il vaut « Après les applications ». Chaque titre SHALL être aligné à gauche sur la première carte ou tuile de sa section et ne jamais prendre le focus. Les deux titres SHALL utiliser le même style de texte et la même couleur, pris parmi les jetons existants du design system (`core/designsystem`), sans valeur propre. Un titre appartient à sa section : il défile avec elle et, quand la rangée Up Next est masquée, le titre « À suivre » est masqué avec elle, sans place réservée. Le haut de la zone grille, d'où part son défilement (« Panneau Top Shelf au focus »), est le haut du titre de sa première section.
+La zone grille SHALL être découpée en sections titrées, comme les en-têtes de section de tvOS : le titre « À suivre » au-dessus de la rangée Up Next (« Rangée Up Next ») et le titre « Applications » au-dessus des rangées d'apps. Les sections se suivent dans l'ordre fixé par le réglage « Position d'Up Next » de `settings` : « À suivre » puis « Applications » quand il vaut « Avant les applications » (défaut), « Applications » puis « À suivre » quand il vaut « Après les applications ». Chaque titre SHALL être aligné à gauche sur la première carte ou tuile de sa section et ne jamais prendre le focus. Les deux titres SHALL utiliser le même style de texte et la même couleur, pris parmi les jetons existants du design system (`core/designsystem`), sans valeur propre. Un titre appartient à sa section : il défile avec elle et, quand la rangée Up Next est masquée, le titre « À suivre » est masqué avec elle, sans place réservée. En erreur, la rangée n'est pas masquée : la carte « Réessayer » remplace son contenu (« États de la rangée » de up-next) et le titre « À suivre » reste au-dessus d'elle. Le haut de la zone grille, d'où part son défilement (« Panneau Top Shelf au focus »), est le haut du titre de sa première section.
 
 #### Scenario: affichage
 - **WHEN** le home s'ouvre
@@ -36,6 +36,10 @@ La zone grille SHALL être découpée en sections titrées, comme les en-têtes 
 #### Scenario: section Up Next masquée
 - **WHEN** la rangée Up Next est masquée (réglage « Afficher Up Next » désactivé, aucun contenu ou permission refusée)
 - **THEN** le titre « À suivre » n'est pas affiché et aucune place ne lui est réservée ; « Applications » est le seul titre de la zone grille et son haut est le haut de la zone grille
+
+#### Scenario: titre au-dessus de la carte d'erreur
+- **WHEN** la rangée Up Next est en erreur au premier chargement et que la carte « Réessayer » remplace son contenu
+- **THEN** le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée, et fait partie du bloc focusé quand la carte a le focus
 
 #### Scenario: style des titres
 - **WHEN** les deux titres de section sont affichés

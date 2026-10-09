@@ -32,7 +32,7 @@ La catégorie « Écran d'accueil » SHALL proposer, en première ligne, le rég
 - **THEN** le focus est placé sur le premier contrôle de la catégorie, « Afficher Up Next », qui prend la pilule de focus des lignes (« Page de réglages », scénario « focus d'une ligne ») ; après gauche vers le volet puis droite, le focus revient sur « Afficher Up Next » et les valeurs des deux réglages sont inchangées
 
 ### Requirement: Position d'Up Next
-La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher Up Next », le contrôle « Position d'Up Next » : une liste déroulante à deux valeurs, « Avant les applications » (défaut) et « Après les applications », persistée dans DataStore et restaurée au démarrage ; l'effet sur la zone grille est spécifié par « Grille d'apps » et « Navigation 3 paliers » de `launcher-shell`. Fermée, la ligne affiche le libellé « Position d'Up Next », la valeur courante et un chevron vers le bas. Ouverte, la liste SHALL présenter les deux valeurs dans cet ordre, la valeur courante marquée d'une coche, dans un panneau sombre opaque affiché par-dessus le volet droit, sans flou ni matériau verre (il ne fait pas partie des surfaces verre de « Thème » de `launcher-shell`), dont les coins suivent la règle des coins concentriques de « Thème ». Tant que la liste est ouverte, le focus SHALL y rester. La navigation D-pad de la ligne fermée SHALL suivre « Page de réglages », comme « Afficher Up Next ».
+La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher Up Next », le contrôle « Position d'Up Next » : une liste déroulante à deux valeurs, « Avant les applications » (défaut) et « Après les applications », persistée dans DataStore et restaurée au démarrage ; l'effet sur la zone grille est spécifié par « Grille d'apps » et « Navigation 3 paliers » de `launcher-shell`. Fermée, la ligne affiche le libellé « Position d'Up Next », la valeur courante et un chevron vers le bas. Ouverte, la liste SHALL présenter les deux valeurs dans cet ordre, la valeur courante marquée d'une coche, dans un panneau affiché par-dessus le volet droit ; le rendu de ce panneau (matériau opaque ou verre, rayons, bordure) n'est pas fixé par cette exigence. Tant que la liste est ouverte, le focus SHALL y rester. La navigation D-pad de la ligne fermée SHALL suivre « Page de réglages », comme « Afficher Up Next ».
 
 #### Scenario: contrôle fermé
 - **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil » des réglages
@@ -108,7 +108,7 @@ La catégorie « Apps sources » SHALL lister toutes les apps TV installées ave
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
-- **THEN** chaque ligne montre l'icône de l'app, son nom et sous le nom le nombre total de programmes publiés (`PreviewPrograms` et `WatchNextPrograms`) dans le TV Provider, avec à droite de la ligne un toggle switch
+- **THEN** chaque ligne montre l'icône de l'app, son nom et sous le nom des informations sur l'app dont le nombre de programmes publiés dans le TV Provider, avec à droite de la ligne un toggle switch
 
 #### Scenario: tri par contenu publié
 - **WHEN** la catégorie est affichée avec des apps publiant respectivement 12, 0, 3 et 0 programmes

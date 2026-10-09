@@ -62,7 +62,7 @@ La navigation D-pad entre héro, dock et grille, rangée Up Next et titres de se
 
 #### Scenario: états de la rangée
 - **WHEN** la rangée est composée avec chaque état (chargement initial, rechargement, erreur, vide, permission refusée)
-- **THEN** le rendu correspond : squelette au premier chargement seulement, état précédent conservé au rechargement, carte « Réessayer » focusable en erreur, rangée masquée si vide ou permission refusée
+- **THEN** le rendu correspond : squelette au premier chargement seulement, état précédent conservé au rechargement, carte « Réessayer » focusable en erreur, sous « section-title-upnext » toujours affiché, rangée et « section-title-upnext » masqués si vide ou permission refusée
 
 #### Scenario: menu Ouvrir avec
 - **WHEN** l'appui long est simulé sur une carte Up Next
