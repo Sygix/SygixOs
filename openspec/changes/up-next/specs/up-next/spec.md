@@ -35,9 +35,9 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **WHEN** des items sont fusionnés par le dédoublonnage
 - **THEN** l'item retenu conserve la liste des sources qui possèdent le contenu (package, nom, icône et intent publié de chacune), après fusion comme avant ; c'est cette liste qu'affiche le menu « Ouvrir avec… »
 
-#### Scenario: extension par un change ultérieur
-- **WHEN** un change ultérieur apporte des identifiants externes aux items de toutes les sources
-- **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus
+#### Scenario: extension par le change P8
+- **WHEN** le change P8 dédié à BetaSeries apporte des identifiants externes (enrichissement) aux items de toutes les sources
+- **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus ; en P6, `externalIds` reste vide et le niveau 5 ne s'applique jamais
 
 ### Requirement: Champs facultatifs
 Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Une valeur de `watch_next_type` inconnue (hors des quatre valeurs définies par Android : `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`) SHALL être traitée comme une valeur absente, donc rattachée au groupe « à suivre ». Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
@@ -99,7 +99,7 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **THEN** le programme est considéré comme browsable, comme dans le héro
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) identifiant externe fourni par un change ultérieur, prenant le pas sur les niveaux 3 et 4 quand il est connu. Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
+La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) identifiant externe apporté par l'enrichissement BetaSeries du change P8 dédié, prenant le pas sur les niveaux 3 et 4 quand il est connu (inactif en P6). Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
@@ -135,7 +135,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 
 #### Scenario: limite assumée
 - **WHEN** deux apps publient le même contenu sous des titres localisés différents
-- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par un change ultérieur, et cette limite est documentée
+- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par le change P8 dédié à BetaSeries, et cette limite est documentée
 
 ### Requirement: Gagnant d'un doublon
 Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
@@ -172,15 +172,15 @@ La rangée SHALL être triée de façon déterministe en trois groupes : les ite
 - **THEN** la rangée affiche les 20 premiers selon l'ordre ci-dessus
 
 ### Requirement: Position de la rangée
-La rangée Up Next SHALL être une ligne style tvOS de la zone grille, première ligne de la zone par défaut (au-dessus de la première rangée d'apps) ou dernière ligne (sous la dernière rangée d'apps) selon le réglage « Position d'Up Next » de la capability settings ; elle n'est pas un palier distinct de launcher-shell : la zone grille masque le héro comme pour les apps, sans changement de fond entre la rangée et les apps. La navigation D-pad de la zone grille, rangée Up Next incluse, est spécifiée par « Navigation 3 paliers » de launcher-shell.
+La rangée Up Next SHALL être une ligne style tvOS de la zone grille, sous son titre de section « À suivre » (« Grille d'apps » de launcher-shell) : première ligne de la zone, au-dessus de la section « Applications », quand le réglage « Position d'Up Next » de la capability settings vaut « Avant les applications » (défaut), dernière ligne, sous la dernière rangée d'apps, quand il vaut « Après les applications ». Elle n'est pas un palier distinct de launcher-shell : la zone grille masque le héro comme pour les apps, sans changement de fond entre la rangée et les apps. La navigation D-pad de la zone grille, rangée Up Next incluse, est spécifiée par « Navigation 3 paliers » de launcher-shell.
 
 #### Scenario: position par défaut
-- **WHEN** la zone grille prend le focus et que le réglage vaut « avant la grille »
-- **THEN** la rangée Up Next est la première ligne de la zone grille, au-dessus de la première rangée d'apps, sur le fond de la zone grille
+- **WHEN** la zone grille prend le focus et que le réglage vaut « Avant les applications »
+- **THEN** la rangée Up Next, sous son titre « À suivre », est la première ligne de la zone grille, au-dessus du titre « Applications » et de la première rangée d'apps, sur le fond de la zone grille
 
-#### Scenario: position réglée après la grille
-- **WHEN** le réglage « Position d'Up Next » vaut « après la grille »
-- **THEN** la rangée est la dernière ligne de la zone grille, sous la dernière rangée d'apps, sur le même fond
+#### Scenario: position réglée après les applications
+- **WHEN** le réglage « Position d'Up Next » vaut « Après les applications »
+- **THEN** la rangée, sous son titre « À suivre », est la dernière ligne de la zone grille, sous la dernière rangée d'apps, sur le même fond
 
 ### Requirement: Indépendance avec le héro
 La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au héro : le héro peut montrer les mêmes contenus.
@@ -190,7 +190,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-La rangée Up Next SHALL porter le titre fixe « À suivre » au-dessus de ses cartes et avant le libellé et les tuiles « Applications » dans l'état par défaut ; ce libellé nomme la rangée et non une catégorie de contenu, qui peut réunir les groupes `CONTINUE`, `NEXT`/`NEW` et `WATCHLIST`. Chaque carte Up Next SHALL être horizontale au format 16:9 uniforme, à coins arrondis et espacement régulier, affichant l'image du programme en plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, avec un dégradé sombre en bas pour la lisibilité du texte, le texte de série (« SxxEyy » + titre d'épisode ; films : titre seul), une barre de progression pour les items en cours seulement, un placeholder explicite si l'image manque ou est trop petite, et un badge discret avec l'icône de l'app source prise dans le `PackageManager`. Le fond reste continu avec la zone grille ; le focus agrandit la carte avec une ombre, sans contour blanc, conformément à l'exigence « Focus tvOS » de launcher-shell. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas. La référence visuelle est `assets/p2-grid.png` (1920×1080) ; les proportions s'adaptent à l'écran, sans dimensions absolues. Cette présentation ne modifie pas le hero.
+La rangée Up Next SHALL porter le titre de section « À suivre » défini par « Grille d'apps » de launcher-shell ; ce titre nomme la rangée et non une catégorie de contenu, qui peut réunir les groupes `CONTINUE`, `NEXT`/`NEW` et `WATCHLIST`. Chaque carte Up Next SHALL être horizontale au format 16:9 uniforme, avec les coins arrondis des tuiles d'apps (« Thème » de launcher-shell) et un espacement régulier, et afficher : l'image du programme en plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, sinon un placeholder explicite ; un dégradé sombre en bas pour la lisibilité du texte ; le texte de l'item (épisode : titre de série, « SxxEyy » et titre d'épisode ; film : titre seul), sans autre texte, ni libellé d'action ni nom d'app ; une barre de progression pour les items en cours seulement ; un badge discret qui est l'icône de l'app source prise dans le `PackageManager`. Le fond reste continu avec la zone grille. Le focus d'une carte SHALL suivre intégralement « Focus tvOS » de launcher-shell, comme celui d'une tuile d'app. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas. Les proportions s'adaptent à l'écran, sans dimensions absolues. Cette présentation ne modifie pas le héro.
 
 #### Scenario: carte épisode
 - **WHEN** l'item est un épisode (type publié ou inféré selon « Champs facultatifs »)
@@ -198,11 +198,11 @@ La rangée Up Next SHALL porter le titre fixe « À suivre » au-dessus de ses c
 
 #### Scenario: carte film
 - **WHEN** l'item est un film (type publié ou inféré selon « Champs facultatifs »)
-- **THEN** la carte affiche l'image et le titre du film
+- **THEN** la carte affiche l'image et le titre du film, sans « SxxEyy » ni libellé d'action, et la barre de progression pour un item en cours
 
 #### Scenario: badge et image
 - **WHEN** une carte est affichée
-- **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué), et un placeholder remplace l'image si celle-ci manque ou échoue
+- **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué, aucun libellé texte à la place de l'icône), et un placeholder remplace l'image si celle-ci manque ou échoue ; sans icône disponible, la carte n'a pas de badge
 
 #### Scenario: image trop petite
 - **WHEN** l'image décodée d'une carte fait moins de deux fois la largeur affichée de la carte
@@ -210,7 +210,7 @@ La rangée Up Next SHALL porter le titre fixe « À suivre » au-dessus de ses c
 
 #### Scenario: focus
 - **WHEN** une carte prend le focus
-- **THEN** le comportement visuel suit l'exigence « Focus tvOS » de launcher-shell
+- **THEN** le comportement visuel est celui d'une tuile d'app selon l'exigence « Focus tvOS » de launcher-shell, sans exception, et aucun panneau Top Shelf ne s'ouvre
 
 ### Requirement: Ouverture d'un item
 L'appui sur une carte SHALL ouvrir l'intent publié par le programme de la rangée (`COLUMN_INTENT_URI`) ; à défaut, ou en cas d'échec d'ouverture, l'app source SHALL être lancée.
@@ -251,7 +251,7 @@ L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les
 - **THEN** l'app source est lancée en repli et un toast en informe l'utilisateur, sans crash
 
 ### Requirement: États de la rangée
-La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home. Le comportement du focus quand la rangée se masque est spécifié par « Navigation 3 paliers » de launcher-shell (scénario « rangée devenue vide »).
+La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home. Le comportement du focus quand une carte disparaît ou que la rangée se masque est spécifié par « Navigation 3 paliers » de launcher-shell (scénarios « carte focusée disparue » et « rangée devenue vide »).
 
 #### Scenario: permission refusée
 - **WHEN** `READ_TV_LISTINGS` n'est pas accordée
@@ -263,7 +263,7 @@ La rangée SHALL couvrir les états chargement, erreur, vide et permission refus
 
 #### Scenario: carte d'erreur
 - **WHEN** la carte « Réessayer » est focusée
-- **THEN** elle occupe la place de la rangée dans la navigation de la zone grille, quelle que soit la position réglée (avant ou après la grille), et OK relance la requête
+- **THEN** elle occupe la place de la rangée dans la navigation de la zone grille, quelle que soit la position réglée (« Avant les applications » ou « Après les applications »), et OK relance la requête
 
 #### Scenario: chargement initial
 - **WHEN** le premier chargement dépasse ~300 ms

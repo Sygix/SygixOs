@@ -1,11 +1,11 @@
 # Delta settings
 
-La capability `settings` vient de l'archivage de `p2b-settings`. Ce delta y ajoute « Position d'Up Next » et « Afficher Up Next » (catégorie « Écran d'accueil ») et modifie « Page de réglages », « Apps sources » et « Cacher une application » pour couvrir la rangée Up Next. Les blocs MODIFIED partent du texte courant de `openspec/specs/settings/spec.md`, après l'archivage de `home-settings-polish`, et n'y ajoutent que la catégorie « Écran d'accueil » et la rangée Up Next ; « Page de réglages » reprend aussi le fond, les pilules de focus et la vignette des lignes d'apps du change `ui-tvos-polish`, archivé avant celui-ci.
+La capability `settings` vient de l'archivage de `p2b-settings`. Ce delta y ajoute « Afficher Up Next » et « Position d'Up Next » (catégorie « Écran d'accueil ») et modifie « Page de réglages », « Apps sources » et « Cacher une application » pour couvrir la rangée Up Next. Les blocs MODIFIED partent du texte courant de `openspec/specs/settings/spec.md`, après l'archivage de `home-settings-polish`, et n'y ajoutent que la catégorie « Écran d'accueil », ses deux contrôles, la rangée Up Next et le comptage des `WatchNextPrograms` ; « Page de réglages » reprend aussi le fond, les pilules de focus et la vignette des lignes d'apps du change `ui-tvos-polish`, archivé avant celui-ci.
 
 ## ADDED Requirements
 
 ### Requirement: Afficher Up Next
-La catégorie « Écran d'accueil » SHALL proposer le réglage « Afficher Up Next », activé par défaut et persisté dans DataStore. Ce réglage autorise l'affichage sans le forcer : la rangée n'est visible que si elle dispose de contenu affichable et que la permission requise est accordée. Lorsqu'il est désactivé, la rangée est masquée et ignorée par la navigation, sans modifier les programmes publiés ni les filtres des apps sources.
+La catégorie « Écran d'accueil » SHALL proposer, en première ligne, le réglage « Afficher Up Next » : une ligne avec un toggle switch (style Apple, comme « Apps sources »), activé par défaut et persisté dans DataStore. Ce réglage autorise l'affichage sans le forcer : la rangée n'est visible que si elle dispose de contenu affichable et que la permission requise est accordée. Lorsqu'il est désactivé, la rangée et son titre sont masqués et ignorés par la navigation (« Rangée Up Next » et « Navigation 3 paliers » de `launcher-shell`), sans modifier les programmes publiés ni les filtres des apps sources. La navigation D-pad de la ligne SHALL suivre « Page de réglages » : gauche rend le focus au volet des catégories, Retour ferme les réglages, haut et bas passent d'un contrôle de la catégorie à l'autre.
 
 #### Scenario: réglage activé
 - **WHEN** « Afficher Up Next » est activé
@@ -13,39 +13,67 @@ La catégorie « Écran d'accueil » SHALL proposer le réglage « Afficher Up N
 
 #### Scenario: réglage désactivé
 - **WHEN** « Afficher Up Next » est désactivé
-- **THEN** la rangée est masquée et la navigation de la zone grille la saute ; le réglage reste conservé après redémarrage
+- **THEN** la rangée et son titre « À suivre » sont masqués et la navigation de la zone grille les saute ; le réglage reste conservé après redémarrage
 
 #### Scenario: rangée indisponible malgré le réglage activé
 - **WHEN** « Afficher Up Next » est activé, mais qu'aucun programme affichable n'est publié ou que la permission est refusée
 - **THEN** la rangée reste masquée conformément à la capability up-next et la navigation de la zone grille la saute jusqu'à ce qu'elle soit effectivement affichée
 
-#### Scenario: contrôle D-pad
-- **WHEN** le focus est sur « Afficher Up Next »
-- **THEN** OK bascule le réglage, gauche/droite restent dans le contrôle sans boucle, et Retour rend le focus au volet des catégories
+#### Scenario: bascule
+- **WHEN** l'utilisateur presse OK sur la ligne « Afficher Up Next »
+- **THEN** le switch bascule avec l'animation Apple, l'état est persisté (DataStore), l'effet sur l'accueil est immédiat, sans redémarrage ; le focus reste sur la ligne
 
-#### Scenario: focus du réglage
-- **WHEN** l'utilisateur entre dans la catégorie « Écran d'accueil » depuis le volet des catégories
-- **THEN** le focus initial est placé sur le premier contrôle de la catégorie, « Afficher Up Next » ; après Retour vers le volet et réouverture de la catégorie, la valeur reste conservée
+#### Scenario: navigation D-pad de la ligne
+- **WHEN** le focus est sur « Afficher Up Next »
+- **THEN** bas porte le focus sur « Position d'Up Next » ; haut ne fait rien (première ligne de la catégorie, sans boucle) ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » (« Page de réglages », scénario « changement de catégorie ») ; Retour ferme les réglages et le home reprend avec le héro focusé (« Page de réglages », scénario « retour »)
+
+#### Scenario: focus initial de la catégorie
+- **WHEN** l'utilisateur presse droite depuis la catégorie « Écran d'accueil » du volet des catégories
+- **THEN** le focus est placé sur le premier contrôle de la catégorie, « Afficher Up Next », qui prend la pilule de focus des lignes (« Page de réglages », scénario « focus d'une ligne ») ; après gauche vers le volet puis droite, le focus revient sur « Afficher Up Next » et les valeurs des deux réglages sont inchangées
 
 ### Requirement: Position d'Up Next
-La catégorie « Écran d'accueil » des réglages SHALL proposer un contrôle « Position d'Up Next » valant « avant la grille » (défaut) ou « après la grille », persisté dans DataStore, l'effet sur la navigation de la zone grille étant spécifié par « Navigation 3 paliers » de launcher-shell.
+La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher Up Next », le contrôle « Position d'Up Next » : une liste déroulante à deux valeurs, « Avant les applications » (défaut) et « Après les applications », persistée dans DataStore et restaurée au démarrage ; l'effet sur la zone grille est spécifié par « Grille d'apps » et « Navigation 3 paliers » de `launcher-shell`. Fermée, la ligne affiche le libellé « Position d'Up Next », la valeur courante et un chevron vers le bas. Ouverte, la liste SHALL présenter les deux valeurs dans cet ordre, la valeur courante marquée d'une coche, dans un panneau sombre opaque affiché par-dessus le volet droit, sans flou ni matériau verre (il ne fait pas partie des surfaces verre de « Thème » de `launcher-shell`), dont les coins suivent la règle des coins concentriques de « Thème ». Tant que la liste est ouverte, le focus SHALL y rester. La navigation D-pad de la ligne fermée SHALL suivre « Page de réglages », comme « Afficher Up Next ».
 
-#### Scenario: contrôle
+#### Scenario: contrôle fermé
 - **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil » des réglages
-- **THEN** le contrôle « Position d'Up Next » propose « avant la grille » (valeur par défaut) et « après la grille », et le choix est persisté dans DataStore puis restauré au démarrage
+- **THEN** la ligne « Position d'Up Next » affiche la valeur courante, « Avant les applications » par défaut, suivie d'un chevron vers le bas ; la valeur affichée est celle persistée dans DataStore, y compris après un redémarrage du launcher
 
-#### Scenario: navigation D-pad du contrôle
-- **WHEN** le focus est sur le contrôle « Position d'Up Next »
-- **THEN** OK bascule la valeur ; droite passe à la valeur suivante et gauche à la précédente, sans boucle aux bords ; gauche depuis la première valeur et Retour rendent le focus au volet des catégories sur « Écran d'accueil », la valeur choisie étant conservée ; droite depuis le volet des catégories ramène le focus sur le contrôle
+#### Scenario: ouverture de la liste
+- **WHEN** le focus est sur « Position d'Up Next » fermée et l'utilisateur presse OK
+- **THEN** la liste s'ouvre avec « Avant les applications » puis « Après les applications », la valeur courante est cochée et a le focus ; la ligne du contrôle reste marquée par la pilule grise discrète de la catégorie active (« Page de réglages ») tant que la liste est ouverte
+
+#### Scenario: déplacements dans la liste
+- **WHEN** la liste est ouverte et l'utilisateur presse haut, bas, gauche ou droite
+- **THEN** haut et bas déplacent le focus d'une valeur à l'autre, sans boucle aux bords (haut depuis la première valeur et bas depuis la dernière ne font rien) ; gauche et droite ne font rien ; le focus ne quitte jamais la liste tant qu'elle est ouverte
+
+#### Scenario: choix d'une valeur
+- **WHEN** la liste est ouverte et l'utilisateur presse OK sur une valeur
+- **THEN** cette valeur devient la valeur du réglage, la liste se ferme, le focus revient sur la ligne « Position d'Up Next » qui affiche la nouvelle valeur ; la valeur est persistée dans DataStore et appliquée à l'accueil sans redémarrage ; OK sur la valeur déjà cochée ferme la liste sans rien changer
+
+#### Scenario: fermeture sans changement
+- **WHEN** la liste est ouverte et l'utilisateur presse Retour
+- **THEN** la liste se ferme sans changer la valeur, le focus revient sur la ligne « Position d'Up Next » et les réglages restent ouverts
+
+#### Scenario: états de focus
+- **WHEN** le focus passe sur la ligne fermée, puis sur une valeur de la liste ouverte
+- **THEN** la ligne fermée focusée est une pilule claire à texte, valeur et chevron sombres (« Page de réglages », scénario « focus d'une ligne ») ; dans la liste, la valeur focusée est une pilule claire à texte sombre, sans zoom, sans halo ni verre, l'autre valeur n'a pas de fond, et la coche reste sur la valeur courante, qu'elle ait le focus ou non
+
+#### Scenario: navigation D-pad du contrôle fermé
+- **WHEN** le focus est sur « Position d'Up Next » fermée
+- **THEN** haut porte le focus sur « Afficher Up Next » ; bas ne fait rien tant que « Position d'Up Next » est la dernière ligne de la catégorie (sans boucle) ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » ; Retour ferme les réglages et le home reprend avec le héro focusé (« Page de réglages », scénario « retour »)
+
+#### Scenario: réglages quittés liste ouverte
+- **WHEN** l'utilisateur quitte les réglages pendant que la liste est ouverte (touche Home de la télécommande ou autre app au premier plan), puis rouvre les réglages
+- **THEN** la liste est fermée et la ligne affiche la valeur persistée, inchangée
 
 #### Scenario: application immédiate
 - **WHEN** la valeur du réglage change
-- **THEN** la rangée Up Next est repositionnée sans redémarrage du launcher, et la navigation suit le scénario « position après la grille » de launcher-shell
+- **THEN** la rangée Up Next et son titre sont repositionnés sans redémarrage du launcher, et la navigation suit le scénario « position après les applications » de « Navigation 3 paliers » (`launcher-shell`)
 
 ## MODIFIED Requirements
 
 ### Requirement: Page de réglages
-Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », bouton « Tout réactiver », contrôle « Position d'Up Next », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit.
+Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », bouton « Tout réactiver », lignes « Afficher Up Next » et « Position d'Up Next » et valeurs de la liste déroulante de « Position d'Up Next », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit.
 
 #### Scenario: structure
 - **WHEN** la page de réglages s'ouvre
@@ -53,11 +81,11 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 
 #### Scenario: changement de catégorie
 - **WHEN** l'utilisateur presse haut/bas dans le volet gauche
-- **THEN** la catégorie active change et le volet droit affiche son contenu ; droite depuis le volet gauche porte le focus sur le premier élément du volet droit, sauf pour « Applications cachées » dont le focus initial est la première ligne de la liste (« Applications cachées », scénario « focus initial ») ; gauche depuis le volet droit le rend au volet gauche
+- **THEN** la catégorie active change et le volet droit affiche son contenu ; droite depuis le volet gauche porte le focus sur le premier élément du volet droit (« Afficher Up Next » pour « Écran d'accueil »), sauf pour « Applications cachées » dont le focus initial est la première ligne de la liste (« Applications cachées », scénario « focus initial ») ; gauche depuis le volet droit le rend au volet gauche, sur la catégorie active, sauf quand la liste déroulante de « Position d'Up Next » est ouverte (« Position d'Up Next », scénario « déplacements dans la liste »)
 
 #### Scenario: retour
 - **WHEN** l'utilisateur presse Retour depuis la page de réglages
-- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend
+- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend ; seule exception : quand la liste déroulante de « Position d'Up Next » est ouverte, Retour la ferme d'abord, sans quitter les réglages (« Position d'Up Next », scénario « fermeture sans changement »)
 
 #### Scenario: fond
 - **WHEN** la page de réglages s'ouvre
@@ -76,7 +104,7 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 - **THEN** l'icône de l'app est présentée dans une vignette 16:9 : la bannière TV de l'app quand elle en a une, sinon son icône entière centrée, comme le repli des tuiles de l'accueil
 
 ### Requirement: Apps sources
-La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf et à la rangée Up Next ; par défaut toutes les apps sont activées. Le nombre affiché SHALL compter tous les programmes publiés par chaque app dans le TV Provider, `PreviewPrograms` et `WatchNextPrograms` compris. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture). Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
+La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf et à la rangée Up Next ; par défaut toutes les apps sont activées. Le nombre affiché SHALL compter tous les programmes publiés par chaque app dans le TV Provider, `PreviewPrograms` et `WatchNextPrograms` compris. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture), qui SHALL réagir aux changements des `PreviewPrograms` comme des `WatchNextPrograms`. Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
@@ -94,12 +122,16 @@ La catégorie « Apps sources » SHALL lister toutes les apps TV installées ave
 - **WHEN** l'utilisateur entre dans la catégorie « Apps sources » avant l'arrivée du premier comptage, puis ce comptage arrive alors que le focus est sur une ligne
 - **THEN** la liste s'affiche d'abord par ordre alphabétique, puis elle est retriée une seule fois par compteur à l'arrivée du comptage ; le focus reste sur la même app, à sa nouvelle position ; les émissions suivantes mettent seulement à jour les nombres affichés, sans retri
 
+#### Scenario: app qui ne publie que du Watch Next
+- **WHEN** une app ne publie aucun `PreviewPrograms` mais publie des `WatchNextPrograms`
+- **THEN** son compteur affiché est le nombre de ses `WatchNextPrograms`, supérieur à 0, et elle est triée parmi les apps à compteur non nul selon ce nombre, jamais parmi les apps à 0
+
 #### Scenario: égalité de compteur
 - **WHEN** deux apps publient le même nombre de programmes, supérieur à 0
 - **THEN** elles sont départagées par ordre alphabétique de leur nom (insensible à la casse), à leur place dans la partie des apps à compteur non nul
 
 #### Scenario: compteurs mis à jour dans la catégorie
-- **WHEN** un compteur change (programme publié ou retiré dans le TV Provider) alors que la catégorie « Apps sources » est active
+- **WHEN** un compteur change (programme `PreviewPrograms` ou `WatchNextPrograms` publié ou retiré dans le TV Provider) alors que la catégorie « Apps sources » est active
 - **THEN** le nombre affiché sur la ligne se met à jour sur place, aucune ligne ne change de position et le focus reste sur la même ligne (hors le retri unique du scénario « compteurs en retard »)
 
 #### Scenario: nouvel ordre à la prochaine entrée
