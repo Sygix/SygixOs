@@ -8,7 +8,7 @@ Les nouvelles maquettes seront faites dans Penpot et fournies aux agents d'impl�
 - la présentation initiale (rôle HOME, choix du démarrage à l'allumage, service d'accessibilité) ;
 - les contrôles P5 dans la catégorie « Écran d'accueil » des réglages (« Remplacer le launcher », démarrage à l'allumage, service d'accessibilité), avec leurs états.
 
-Jusqu'à leur réception, le rendu, les libellés définitifs, la place des contrôles et la navigation D-pad détaillée restent en attente (`design.md`, « Maquettes » et question ouverte 7).
+Jusqu'à leur réception, le rendu, les libellés définitifs, la place des contrôles et la navigation D-pad détaillée restent en attente (`design.md`, « Maquettes » et question ouverte 5).
 
 ## Fichiers remplacés
 

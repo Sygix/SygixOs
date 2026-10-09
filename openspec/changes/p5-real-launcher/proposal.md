@@ -29,6 +29,16 @@ SygixOs se déclare déjà comme écran d'accueil Android (filtre `CATEGORY_HOME
 10. Ordre d'archivage : `up-next` avant `p5-real-launcher`, parce que P5 ajoute ses réglages à la catégorie « Écran d'accueil » introduite par `up-next`.
 11. Maquettes : v1 et v2 sont remplacées. De nouvelles maquettes (présentation initiale et réglages P5 dans « Écran d'accueil ») seront faites dans Penpot et fournies aux agents d'implémentation ; les exigences visuelles restent en attente de ces maquettes.
 
+Décisions complémentaires du même jour, après la relecture de la PR :
+
+12. Rôle HOME indisponible, ou dialogue de demande impossible à ouvrir : le contrôle ouvre l'écran système des applications par défaut ou de l'écran d'accueil quand l'appareil en a un ; sinon il affiche l'état « indisponible ».
+13. Une installation existante qui passe à P5 voit la présentation initiale une fois.
+14. La touche Home pendant la présentation initiale la ferme définitivement.
+15. La procédure ADB du README est conservée, reformulée comme alternative manuelle.
+16. Contrôle d'accessibilité avec le service déjà activé : il affiche « actif » et OK ouvre les réglages d'accessibilité du système.
+17. La présentation initiale ne s'affiche jamais par-dessus un dialogue système : la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) passe d'abord, puis la présentation.
+18. La détection du démarrage automatique par numéro de démarrage et l'état « action système en attente » restent tels qu'écrits.
+
 ## Capabilities
 
 ### New Capabilities

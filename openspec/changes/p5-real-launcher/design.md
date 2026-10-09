@@ -25,6 +25,16 @@ Références plateforme : rôle HOME par [`RoleManager`](https://developer.andro
 10. Ordre d'archivage : `up-next` avant `p5-real-launcher`, parce que P5 ajoute ses réglages à la catégorie « Écran d'accueil » introduite par `up-next`.
 11. Maquettes : v1 et v2 sont remplacées. De nouvelles maquettes (présentation initiale et réglages P5 dans « Écran d'accueil ») seront faites dans Penpot et fournies aux agents d'implémentation ; les exigences visuelles restent en attente de ces maquettes.
 
+Décisions complémentaires du même jour, après la relecture de la PR :
+
+12. Rôle HOME indisponible, ou dialogue de demande impossible à ouvrir : le contrôle ouvre l'écran système des applications par défaut ou de l'écran d'accueil quand l'appareil en a un ; sinon il affiche l'état « indisponible ».
+13. Une installation existante qui passe à P5 voit la présentation initiale une fois.
+14. La touche Home pendant la présentation initiale la ferme définitivement.
+15. La procédure ADB du README est conservée, reformulée comme alternative manuelle.
+16. Contrôle d'accessibilité avec le service déjà activé : il affiche « actif » et OK ouvre les réglages d'accessibilité du système.
+17. La présentation initiale ne s'affiche jamais par-dessus un dialogue système : la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) passe d'abord, puis la présentation.
+18. La détection du démarrage automatique par numéro de démarrage et l'état « action système en attente » restent tels qu'écrits.
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -41,13 +51,13 @@ Références plateforme : rôle HOME par [`RoleManager`](https://developer.andro
 ## Decisions
 
 ### D1. Rôle HOME derrière une interface
-Une interface `HomeRoleGateway` (`data/`) expose l'état du rôle (`isRoleAvailable` puis `isRoleHeld`) et l'intent de demande (`createRequestRoleIntent(ROLE_HOME)`), remplacée par un double dans les tests. Le résultat de l'activité de demande n'est jamais pris pour vérité : l'état est relu à chaque retour au premier plan (`ON_RESUME`). Une demande qui ne peut pas s'ouvrir (aucune activité, exception) donne l'état « indisponible ». Le parcours de mise à jour (`self-update`) n'a pas accès à cette interface.
+Une interface `HomeRoleGateway` (`data/`) expose l'état du rôle (`isRoleAvailable` puis `isRoleHeld`) et l'intent de demande (`createRequestRoleIntent(ROLE_HOME)`), remplacée par un double dans les tests. Le résultat de l'activité de demande n'est jamais pris pour vérité : l'état est relu à chaque retour au premier plan (`ON_RESUME`). Si le rôle est déclaré indisponible ou que la demande ne peut pas s'ouvrir (aucune activité, exception), le contrôle ouvre l'écran système des applications par défaut ou de l'écran d'accueil (`Settings.ACTION_HOME_SETTINGS`, sinon `Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS`) quand l'appareil en résout un ; sinon il affiche « indisponible » (décision 12). Dans ce cas, l'état « actif » ou « inactif » relu au retour vient de l'activité d'écran d'accueil par défaut résolue par le système (`PackageManager.resolveActivity` sur `CATEGORY_HOME`). Les écrans disponibles sur la TV de référence sont relevés par la tâche 1.2. Le parcours de mise à jour (`self-update`) n'a pas accès à cette interface.
 
 ### D2. États des contrôles système
 Un même modèle d'état sert la présentation initiale et les réglages : actif, inactif, indisponible, action système en attente. L'état « action système en attente » commence quand SygixOs ouvre un écran ou un dialogue système pour un contrôle et se termine au retour au premier plan suivant, qui relit l'état réel ; il n'est jamais persisté (un processus recréé relit directement l'état). Il est exposé par le ViewModel des réglages et de l'accueil (StateFlow), aucune logique dans les composables.
 
 ### D3. Présentation initiale
-Persistance d'un drapeau « présentation initiale fermée » dans `LauncherPrefs`, écrit à toute fermeture (Retour, action d'ignorer, touche Home, ou fin du parcours). Tant qu'il est absent, la présentation s'affiche une fois l'accueil interactif, après la fin de l'écran de démarrage et jamais par-dessus un dialogue système ; une installation existante qui passe à P5 la voit donc une fois. Si le processus est arrêté pendant qu'un écran système ouvert depuis la présentation est affiché, la présentation réapparaît au lancement suivant avec les états relus. Contenu : rôle HOME (état et demande, D1), choix du démarrage à l'allumage (D4), service d'accessibilité (état et ouverture des réglages d'accessibilité du système, D5).
+Persistance d'un drapeau « présentation initiale fermée » dans `LauncherPrefs`, écrit à toute fermeture (Retour, action d'ignorer, touche Home, ou fin du parcours). Tant qu'il est absent, la présentation s'affiche une fois l'accueil interactif, après la fin de l'écran de démarrage et après la réponse à la demande de permission « Programmes TV » quand celle-ci est affichée, jamais par-dessus un dialogue système (décision 17) ; une installation existante qui passe à P5 la voit une fois (décision 13). Si le processus est arrêté pendant qu'un écran système ouvert depuis la présentation est affiché, la présentation réapparaît au lancement suivant avec les états relus. Contenu : rôle HOME (état et demande, D1), choix du démarrage à l'allumage (D4), service d'accessibilité (état et ouverture des réglages d'accessibilité du système, D5).
 
 ### D4. Démarrage à l'allumage
 - Option persistée dans `LauncherPrefs`, désactivée tant que l'utilisateur ne l'a pas choisie (présentation initiale ou réglages). À l'activation, SygixOs mémorise le numéro de démarrage courant (`Settings.Global.BOOT_COUNT`).
@@ -59,7 +69,7 @@ Persistance d'un drapeau « présentation initiale fermée » dans `LauncherPref
 Service déclaré avec la permission `BIND_ACCESSIBILITY_SERVICE` et une description française qui en dit l'usage (retour à SygixOs quand la touche Home est détournée). Le signal utilisé (touche Home filtrée par le service, ou passage au premier plan du launcher du constructeur) est choisi d'après la tâche 1.3 ; le service ne lit que les événements nécessaires à ce signal et ne conserve rien. Sur ce signal, il ouvre `MainActivity` comme une touche Home (D6 s'applique si SygixOs était déjà au premier plan). L'état activé est lu par `AccessibilityManager` au retour au premier plan. Le contrôle ouvre `Settings.ACTION_ACCESSIBILITY_SETTINGS`, que le service soit actif ou non ; SygixOs ne l'active ni ne le désactive jamais lui-même.
 
 ### D6. Touche Home avec SygixOs au premier plan
-`MainActivity.onNewIntent` transmet au ViewModel de l'accueil un événement « Home » quand l'intent porte `CATEGORY_HOME` et que l'activité était au premier plan à sa réception, ou quand l'intent vient du service (D5) et que SygixOs était au premier plan avant l'appui détourné. L'événement ferme la page de réglages et toute surcouche de l'accueil comme le ferait Retour (menu contextuel, mode « Déplacer » annulé, présentation initiale fermée), ramène la page en haut et donne le focus au héro. Hors premier plan (retour depuis une autre app), les règles de retour existantes s'appliquent sans changement. Pendant l'écran de démarrage, l'événement est sans effet.
+`MainActivity.onNewIntent` transmet au ViewModel de l'accueil un événement « Home » quand l'intent porte `CATEGORY_HOME` et que l'activité était au premier plan à sa réception, ou quand l'intent vient du service (D5) et que SygixOs était au premier plan avant l'appui détourné. L'événement ferme entièrement la page de réglages en une fois, y compris quand la liste déroulante « Position d'Up Next » (`up-next`) est ouverte, sans passer par la fermeture de la liste seule que fait Retour ; il ferme aussi toute surcouche de l'accueil comme le ferait Retour sur elle (menu contextuel, mode « Déplacer » annulé, présentation initiale fermée définitivement), ramène la page en haut et donne le focus au héro. Hors premier plan (retour depuis une autre app), les règles de retour existantes s'appliquent sans changement. Pendant l'écran de démarrage, l'événement est sans effet.
 
 ### D7. Réglages dans « Écran d'accueil »
 Les trois contrôles P5 sont des lignes de `SettingsCategory.HOME_SCREEN` ; « Afficher Up Next » reste le premier contrôle et le focus initial de la catégorie (`settings`). Aucune nouvelle entrée de `SettingsCategory`. Les libellés sont des ressources françaises ; leur texte définitif, leur ordre et leurs testTags suivent les maquettes Penpot.
@@ -74,7 +84,7 @@ Résultats à consigner ici par les tâches 1.x (structure et comportements seul
 | Vérification | Tâche | Résultat |
 | --- | --- | --- |
 | Fin du démarrage reçue par le récepteur statique, ouverture de l'activité acceptée (sans rôle HOME, avec rôle HOME, avec le service d'accessibilité activé) | 1.1 | à consigner |
-| Rôle HOME : disponibilité, dialogue de demande, acceptation, refus, refus répété ; touche Home qui atteint `onNewIntent` quand SygixOs détient le rôle | 1.2 | à consigner |
+| Rôle HOME : disponibilité, dialogue de demande, acceptation, refus, refus répété ; écran système des applications par défaut ou de l'écran d'accueil disponible ou non ; touche Home qui atteint `onNewIntent` quand SygixOs détient le rôle | 1.2 | à consigner |
 | Signal transmis au service d'accessibilité quand la touche Home est pressée et que le constructeur affiche son launcher | 1.3 | à consigner |
 | Relance de SygixOs après sa propre mise à jour intégrée quand il détient le rôle HOME (sujet 9) | 1.4 | à consigner |
 
@@ -84,7 +94,7 @@ Résultats à consigner ici par les tâches 1.x (structure et comportements seul
 - [Rôle HOME, touche Home et démarrage varient selon le constructeur et la version] → Vérifications 1.x avant le code ; états « indisponible » et « démarrage automatique non observé » au lieu d'une promesse.
 - [Android 14 peut refuser l'ouverture depuis le récepteur de fin de démarrage] → Tâche 1.1 identifie les cas acceptés ; l'échec est détecté et affiché (D4).
 - [« Démarrage automatique non observé » peut s'afficher brièvement si SygixOs est ouvert avant la diffusion de fin de démarrage] → État réactif, effacé dès que l'ouverture est observée dans le même démarrage.
-- [Une touche Home pendant un écran système ouvert depuis la présentation initiale ferme cette présentation] → Conforme aux décisions 3 et 9 ; les mêmes contrôles restent dans « Écran d'accueil ».
+- [Une touche Home pendant un écran système ouvert depuis la présentation initiale ferme cette présentation] → Conforme aux décisions 9 et 14 ; les mêmes contrôles restent dans « Écran d'accueil ».
 
 ## Migration Plan
 
@@ -96,13 +106,11 @@ Aucune donnée existante migrée. Nouvelles clés DataStore (présentation initi
 
 ## Questions ouvertes
 
-1. Rôle HOME indisponible, ou demande sans dialogue sur la TV (résultat de 1.2) : A) afficher seulement l'état « indisponible » — proposé, à confirmer ; B) ouvrir l'écran système de choix du launcher s'il existe.
-2. « Remplacer le launcher » quand le rôle est déjà détenu : A) aucune action, l'état « actif » est affiché — proposé, à confirmer ; B) ouvrir l'écran système de choix du launcher pour le rendre.
-3. Ouverture au démarrage refusée par Android hors exemption (résultat de 1.1) : A) s'en tenir aux cas déjà permis (rôle HOME, service d'accessibilité activé) et afficher l'échec — proposé, à confirmer ; B) demander en plus la permission « Afficher par-dessus d'autres applis ».
-4. Aucun signal Home exploitable transmis au service d'accessibilité sur la TV de référence (résultat de 1.3) : A) suspendre l'implémentation du service et revenir vers Simon — proposé, à confirmer ; B) le livrer quand même pour d'autres appareils.
-5. Sujet 9, si SygixOs n'est pas relancé après sa mise à jour même avec le rôle HOME (résultat de 1.4) : A) consigner le résultat et laisser le sujet 9 ouvert au backlog — proposé, à confirmer ; B) traiter la relance dans P5 (piste du backlog : statut de session transmis à une activité).
-6. Moment de la présentation initiale par rapport à la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) au premier lancement : A) après la réponse à cette demande — proposé, à confirmer ; B) avant.
-7. Rendu visuel, libellés définitifs, ordre des contrôles P5 dans « Écran d'accueil », navigation D-pad détaillée et testTags de la présentation initiale et des contrôles P5 : à confirmer à la réception des maquettes Penpot.
+1. « Remplacer le launcher » quand le rôle est déjà détenu : A) aucune action, l'état « actif » est affiché — proposé, à confirmer ; B) ouvrir l'écran système des applications par défaut ou de l'écran d'accueil pour le rendre.
+2. Ouverture au démarrage refusée par Android hors exemption (résultat de 1.1) : A) s'en tenir aux cas déjà permis (rôle HOME, service d'accessibilité activé) et afficher l'échec — proposé, à confirmer ; B) demander en plus la permission « Afficher par-dessus d'autres applis ».
+3. Aucun signal Home exploitable transmis au service d'accessibilité sur la TV de référence (résultat de 1.3) : A) suspendre l'implémentation du service et revenir vers Simon — proposé, à confirmer ; B) le livrer quand même pour d'autres appareils.
+4. Sujet 9, si SygixOs n'est pas relancé après sa mise à jour même avec le rôle HOME (résultat de 1.4) : A) consigner le résultat et laisser le sujet 9 ouvert au backlog — proposé, à confirmer ; B) traiter la relance dans P5 (piste du backlog : statut de session transmis à une activité).
+5. Rendu visuel, libellés définitifs, ordre des contrôles P5 dans « Écran d'accueil », navigation D-pad détaillée et testTags de la présentation initiale et des contrôles P5 : à confirmer à la réception des maquettes Penpot.
 
 ## Maquettes
 
