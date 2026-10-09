@@ -1,33 +1,40 @@
 # Spec Delta
 
+La catégorie « Écran d'accueil » (`SettingsCategory.HOME_SCREEN`) est introduite par le change `up-next`, archivé avant celui-ci. Ce delta y ajoute les contrôles P5 sans créer de catégorie ni modifier les exigences d'`up-next`.
+
 ## ADDED Requirements
 
-### Requirement: Réglages P5 du launcher système
-Le rôle HOME et une option de démarrage à l'allumage TV font partie du périmètre P5 confirmé et SHALL être accessibles depuis les réglages P5. La sémantique d'un éventuel contrôle global de remplacement, l'état initial de l'option et les détails des contrôles restent ouverts. Pour tout contrôle qui expose un état système, l'UI SHALL refléter l'état réel, y compris après retour des Réglages Android, et distinguer les états pertinents parmi inactif, actif, indisponible et action système en attente. Un contrôle d'accessibilité n'est requis que si conformité et politique de distribution sont vérifiées.
+### Requirement: Réglages du launcher système
+La catégorie « Écran d'accueil » SHALL contenir, sans changer son focus initial (« Afficher Up Next » reste son premier contrôle), trois contrôles distincts : « Remplacer le launcher », qui affiche l'état du rôle HOME et en déclenche la demande (« Rôle d'écran d'accueil » de `launcher-shell`) ; l'option de démarrage à l'allumage (« Démarrage à l'allumage » de `launcher-shell`) ; le contrôle du service d'accessibilité (« Retour Home par le service d'accessibilité » de `launcher-shell`). Aucune autre catégorie ne SHALL porter ces contrôles. « Remplacer le launcher » et le contrôle d'accessibilité SHALL afficher l'un des états suivants, partagés avec la présentation initiale : « actif » (rôle détenu ou service activé, selon le système), « inactif », « indisponible » (capacité absente de l'appareil, ou écran système impossible à ouvrir) et « action système en attente ». L'état « action système en attente » SHALL commencer quand SygixOs ouvre un dialogue ou un écran système pour ce contrôle et SHALL prendre fin au retour au premier plan suivant, qui relit l'état réel ; il n'est jamais persisté ni présenté comme un succès. L'option de démarrage à l'allumage SHALL être un réglage activé ou désactivé, persisté dans DataStore, désactivé par défaut ; quand l'état « démarrage automatique non observé » de `launcher-shell` est vrai, le contrôle SHALL l'indiquer. Le rendu visuel, les libellés définitifs autres que « Remplacer le launcher », la place des trois contrôles dans la catégorie et leur navigation D-pad détaillée suivent les maquettes Penpot à venir ; gauche et Retour se comportent comme pour les autres contrôles de la catégorie (« Afficher Up Next »).
 
-#### Scenario: état système actualisé pour un contrôle retenu
-- **WHEN** un contrôle P5 retenu selon le périmètre validé expose un état système et que l'utilisateur revient des réglages système Android
-- **THEN** l'état correspondant est relu et affiché conformément à l'état rapporté par le système
+#### Scenario: emplacement
+- **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil »
+- **THEN** les trois contrôles P5 y figurent, distincts, avec les réglages Up Next ; le focus initial reste sur « Afficher Up Next » ; aucune autre catégorie (dont « Apps sources ») ne les contient et aucune nouvelle catégorie n'apparaît dans le volet gauche
 
-#### Scenario: contrôle retenu désactivé
-- **WHEN** l'utilisateur désactive un contrôle P5 inclus dans le périmètre validé
-- **THEN** SygixOs applique le comportement convenu pour ce contrôle, conserve une navigation normale et ne révoque aucun accès système sans action autorisée de l'utilisateur
+#### Scenario: action système en attente
+- **WHEN** l'utilisateur valide « Remplacer le launcher » ou le contrôle d'accessibilité et que l'écran système correspondant s'ouvre
+- **THEN** le contrôle passe à l'état « action système en attente » jusqu'au retour au premier plan, sans jamais afficher « actif » avant la relecture
 
-#### Scenario: capacité retenue indisponible
-- **WHEN** une action système incluse dans le périmètre P5 validé n'est pas disponible ou n'aboutit pas
-- **THEN** le contrôle correspondant indique cette indisponibilité ou cet échec et les autres catégories de réglages restent utilisables
+#### Scenario: état relu au retour
+- **WHEN** SygixOs revient au premier plan après un dialogue ou un écran système, ou après tout passage en arrière-plan
+- **THEN** l'état du rôle HOME et celui du service d'accessibilité sont relus auprès du système et affichés, l'état « action système en attente » disparaît et le focus est sur le contrôle qui a ouvert l'écran système
 
-### Requirement: Présentation initiale de P5
-Si une présentation initiale P5 est retenue après résolution des questions ouvertes du design, son contenu et ses actions SHALL se limiter aux parcours confirmés, notamment l'attribution HOME et l'option de démarrage; elle ne SHALL pas être requise pour rendre ces parcours disponibles dans les réglages. Toute explication précédant une action système SHALL être distincte des dialogues Android, ne SHALL pas annoncer un état non confirmé et SHALL laisser l'utilisateur poursuivre ou ignorer la proposition. Le moment de présentation et son déclenchement restent ouverts. Le style visuel et le parcours D-pad restent en attente du choix de maquette.
+#### Scenario: écran système impossible à ouvrir
+- **WHEN** le dialogue du rôle HOME ou les réglages d'accessibilité du système ne peuvent pas s'ouvrir
+- **THEN** le contrôle affiche « indisponible », sans crash, le focus reste sur lui et les autres contrôles et catégories restent utilisables
 
-#### Scenario: proposition retenue ignorée
-- **WHEN** une proposition initiale a été retenue et que l'utilisateur l'ignore ou la ferme
-- **THEN** SygixOs s'ouvre normalement sans demander le rôle HOME ni activer une capacité optionnelle sans action explicite
+#### Scenario: service d'accessibilité depuis les réglages
+- **WHEN** l'utilisateur valide le contrôle d'accessibilité, que le service soit actif ou non
+- **THEN** les réglages d'accessibilité du système s'ouvrent ; SygixOs n'active ni ne désactive le service lui-même
 
-#### Scenario: parcours retenu poursuivi
-- **WHEN** l'utilisateur choisit de poursuivre un parcours initial validé
-- **THEN** SygixOs guide uniquement vers le mécanisme système prévu par ce parcours et toute activation de capacité sensible reste soumise à l'action explicite de l'utilisateur
+#### Scenario: bascule du démarrage à l'allumage
+- **WHEN** l'utilisateur presse OK sur l'option de démarrage à l'allumage
+- **THEN** l'option bascule, l'état est persisté (DataStore) et restauré au lancement suivant, et le focus reste sur l'option
 
-#### Scenario: UI en attente de maquette
-- **WHEN** les exigences visuelles de la catégorie P5 ou de la proposition initiale sont rédigées avant la sélection d'une variante
-- **THEN** elles demeurent explicitement en placeholder et aucune mise en page ni décision de focus propre à P5 n'est imposée
+#### Scenario: démarrage automatique non observé
+- **WHEN** la catégorie est affichée alors que l'option est activée et que l'état « démarrage automatique non observé » de `launcher-shell` est vrai pour le démarrage courant
+- **THEN** le contrôle de démarrage indique que le démarrage automatique n'a pas eu lieu, sans masquer l'option ni la désactiver
+
+#### Scenario: démarrage automatique observé ou option désactivée
+- **WHEN** l'ouverture au démarrage a été observée pour le démarrage courant, ou que l'option est désactivée
+- **THEN** le contrôle de démarrage n'affiche aucune indication d'échec
