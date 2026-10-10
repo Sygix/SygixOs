@@ -33,12 +33,14 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     suspend fun programCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
         val resolver = context.contentResolver
         val counts = mutableMapOf<String, Int>()
-        runCatching {
-            resolver.query(TvContract.PreviewPrograms.CONTENT_URI, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
-                while (c.moveToNext()) {
-                    if (!c.isNull(1) && c.getInt(1) == 0) continue
-                    val pkg = c.getString(0) ?: continue
-                    counts[pkg] = (counts[pkg] ?: 0) + 1
+        for (uri in listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)) {
+            runCatching {
+                resolver.query(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        if (c.optInt(COLUMN_BROWSABLE, 1) == 0) continue
+                        val pkg = c.optString(COLUMN_PACKAGE) ?: continue
+                        counts[pkg] = (counts[pkg] ?: 0) + 1
+                    }
                 }
             }
         }
@@ -57,9 +59,9 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
                 signals.trySend(Unit)
             }
         }
-        val observing = runCatching {
-            resolver.registerContentObserver(TvContract.PreviewPrograms.CONTENT_URI, true, observer)
-        }.isSuccess
+        val observing = listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)
+            .map { uri -> runCatching { resolver.registerContentObserver(uri, true, observer) }.isSuccess }
+            .any { it }
         try {
             send(programCounts())
             while (observing) {
@@ -81,7 +83,7 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     private fun query(
         resolver: ContentResolver,
-        uri: android.net.Uri,
+        uri: Uri,
         projection: Array<String>,
         map: (Cursor) -> HeroItem?,
     ): List<HeroItem> {
@@ -151,12 +153,6 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             (parsed.scheme == "content" && parsed.authority != TvContract.AUTHORITY)
     }
 
-    private fun landscapeImage(c: Cursor, posterColumn: String, aspectColumn: String, thumbnailColumn: String): String? {
-        val poster = c.optString(posterColumn)
-        val thumbnail = c.optString(thumbnailColumn)
-        val portrait = c.optInt(aspectColumn, -1) in PORTRAIT_RATIOS
-        return if (portrait && thumbnail != null) thumbnail else poster ?: thumbnail
-    }
 
     private fun labelOf(packageName: String?): String? = packageName?.let { pkg ->
         labels.getOrPut(pkg) {
@@ -168,10 +164,10 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     }
 
     private companion object {
-        const val ASPECT_RATIO_MOVIE_POSTER = 5
+
         const val COLUMN_PACKAGE = TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME
         const val COLUMN_BROWSABLE = TvContract.PreviewPrograms.COLUMN_BROWSABLE
-        val PORTRAIT_RATIOS = setOf(TvContract.PreviewPrograms.ASPECT_RATIO_2_3, ASPECT_RATIO_MOVIE_POSTER)
+
         val PREVIEW_PROJECTION = arrayOf(
             TvContract.PreviewPrograms._ID,
             TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME,
@@ -206,12 +202,3 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         )
     }
 }
-
-private fun Cursor.optString(column: String): String? =
-    getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getString)?.takeIf { it.isNotBlank() }
-
-private fun Cursor.optLong(column: String): Long =
-    getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getLong) ?: 0L
-
-private fun Cursor.optInt(column: String, default: Int): Int =
-    getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getInt) ?: default
