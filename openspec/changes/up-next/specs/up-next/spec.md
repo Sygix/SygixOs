@@ -35,8 +35,8 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **WHEN** des items sont fusionnés par le dédoublonnage
 - **THEN** l'item retenu conserve la liste des sources qui possèdent le contenu (package, nom, icône et intent publié de chacune), après fusion comme avant ; c'est cette liste qu'affiche le menu « Ouvrir avec… »
 
-#### Scenario: extension par le change P8
-- **WHEN** le change P8 dédié à BetaSeries apporte des identifiants externes (enrichissement) aux items de toutes les sources
+#### Scenario: extension par le change P9
+- **WHEN** le change P9 dédié à BetaSeries apporte des identifiants externes (enrichissement) aux items de toutes les sources
 - **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus ; en P6, `externalIds` reste vide et le niveau 5 ne s'applique jamais
 
 ### Requirement: Champs facultatifs
@@ -99,7 +99,7 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **THEN** le programme est considéré comme browsable, comme dans le héro
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) identifiant externe apporté par l'enrichissement BetaSeries du change P8 dédié, prenant le pas sur les niveaux 3 et 4 quand il est connu (inactif en P6). Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
+La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) identifiant externe apporté par l'enrichissement BetaSeries du change P9 dédié, prenant le pas sur les niveaux 3 et 4 quand il est connu (inactif en P6). Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
@@ -139,7 +139,7 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 
 #### Scenario: limite assumée
 - **WHEN** deux apps publient le même contenu sous des titres localisés différents
-- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par le change P8 dédié à BetaSeries, et cette limite est documentée
+- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par le change P9 dédié à BetaSeries, et cette limite est documentée
 
 ### Requirement: Gagnant d'un doublon
 Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).

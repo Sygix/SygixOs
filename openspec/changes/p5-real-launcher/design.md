@@ -81,7 +81,7 @@ Références complémentaires : [`AccessibilityService.onKeyEvent`](https://deve
 - Hypothèses plateforme vérifiées sur la TV de référence lors de la réception RC, résultats consignés ci-dessous sans les présumer pendant l'implémentation.
 
 **Non-Goals:**
-- Désactivation automatique (ADB ou autre) de composants système.
+- Désactivation (ADB ou autre) de composants système : hors P5 ; celle de l'accueil d'origine est proposée en P7 (`p7-shizuku`).
 - Garantie universelle du retour Home ou du démarrage automatique.
 - Nouveau composant de design system : la présentation et les réglages P5 réutilisent les lignes de réglages, la pilule de focus, `AppleSwitch` et `GlassSurface` existants.
 

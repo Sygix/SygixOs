@@ -96,7 +96,7 @@ Manifeste (récepteur de fin de démarrage, service d'accessibilité et sa confi
 
 ## Non-goals
 
-- Désactiver automatiquement le launcher Google TV, SetupWraith ou toute autre application système, notamment par ADB : hors périmètre, sans phase prévue.
+- Désactiver le launcher Google TV, SetupWraith ou toute autre application système, notamment par ADB : hors P5. La désactivation de l'accueil d'origine depuis SygixOs, après action explicite de l'utilisateur et à travers Shizuku, est proposée en P7 (`p7-shizuku`) ; les autres applications système restent hors périmètre.
 - Garantir le retour Home ou le démarrage automatique sur tous les appareils : P5 décrit le comportement sur les appareils qui le permettent et l'indique quand il n'a pas eu lieu.
 - Ouverture de SygixOs à la sortie de veille : P5 ne couvre que le démarrage à froid (décision 36) ; un change ultérieur traitera la sortie de veille si la tâche 1.1 montre qu'elle n'ouvre pas SygixOs.
 - Nouveau composant de design system ou nouveau style de ligne : la présentation initiale et les contrôles P5 réutilisent les lignes de réglages, la pilule de focus, le switch Apple et le verre existants (`design.md`, D9 et D10).
