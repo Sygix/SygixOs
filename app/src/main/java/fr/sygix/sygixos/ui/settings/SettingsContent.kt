@@ -127,7 +127,7 @@ internal fun SourcesContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.6f),
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Dimens.SettingsHeaderGap))
         }
         items(rows, key = { it.app.packageName }) { row ->
             SourceRowLine(
@@ -235,7 +235,7 @@ internal fun HiddenContent(
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.6f),
             )
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(Dimens.SettingsHeaderGap))
         }
         item {
             SettingsEntryButton(

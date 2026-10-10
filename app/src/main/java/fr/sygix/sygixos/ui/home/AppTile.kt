@@ -33,6 +33,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TileShape
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocus
@@ -42,8 +43,6 @@ import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.withContext
 
 internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource?> { null }
-
-private val TileBackground = Color(0xFF141418)
 
 @Composable
 internal fun AppTile(
@@ -95,7 +94,7 @@ internal fun TileBox(
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
             .clip(shape)
-            .background(TileBackground)
+            .background(SygixColors.TileBackground)
             .then(border),
         contentAlignment = Alignment.Center,
     ) {

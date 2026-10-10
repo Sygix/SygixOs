@@ -510,7 +510,7 @@ private fun HeroMetadata(item: HeroItem, icons: AppIconCache) {
             Text(
                 detailsText(details),
                 style = TextStyles.HeroDetails.copy(shadow = SmallTextShadow),
-                color = DetailsColor,
+                color = SygixColors.OnDarkDetails,
                 maxLines = 1,
                 modifier = Modifier.testTag("hero-details"),
             )
@@ -524,9 +524,9 @@ private fun HeroMetadata(item: HeroItem, icons: AppIconCache) {
                 Box(
                     Modifier
                         .width(ProgressWidth)
-                        .height(ProgressHeight)
-                        .clip(RoundedCornerShape(ProgressHeight / 2))
-                        .background(ProgressTrack)
+                        .height(Dimens.ProgressHeight)
+                        .clip(RoundedCornerShape(Dimens.ProgressHeight / 2))
+                        .background(SygixColors.ProgressTrack)
                         .testTag("hero-progress-bar"),
                 ) {
                     Box(
@@ -695,11 +695,8 @@ private const val MaxPendingPosters = 4
 private val CornerVeilWidth = 320.dp
 private val CornerVeilHeight = 150.dp
 private val ProgressWidth = 160.dp
-private val ProgressHeight = 3.dp
-private val ProgressTrack = Color.White.copy(alpha = 0.28f)
 private val ProgressGap = 8.dp
 private val HeaderGap = 6.dp
-private val DetailsColor = Color.White.copy(alpha = 0.82f)
 private val SourceIconShape = RoundedCornerShape(Dimens.HeroSourceIconCorner)
 private val SourceColor = Color.White.copy(alpha = 0.86f)
 private val ButtonPaddingStart = 16.dp

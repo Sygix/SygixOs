@@ -8,6 +8,7 @@ package fr.sygix.sygixos.core.designsystem
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
 val AppleEasing: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
@@ -38,6 +39,36 @@ object Motion {
 }
 
 object Dimens {
+    val SectionTitleGap = 10.dp
+    val UpNextBadgeInset = 8.dp
+    val UpNextBadgeCorner = 6.dp
+    val UpNextTextInset = 12.dp
+    val UpNextTextBottom = 11.dp
+    val UpNextTextAboveProgress = 7.dp
+    val UpNextPlaceholderIcon = 32.dp
+    val UpNextErrorIcon = 20.dp
+    val UpNextSkeletonTitle = DpSize(110.dp, 12.dp)
+    val UpNextSkeletonSubtitle = DpSize(75.dp, 9.dp)
+    const val CardScrimStart = 0.35f
+    val ProgressHeight = 3.dp
+    val MenuEntryPadding = 10.dp
+    val MenuEntryIcon = 22.dp
+    val MenuEntryIconCorner = 4.dp
+    val MenuEntryGap = 10.dp
+    val SettingsChevron = 14.dp
+    val SettingsChevronGap = 6.dp
+    val DropdownWidth = 240.dp
+    val DropdownCorner = 16.dp
+    val DropdownPadding = 6.dp
+    val DropdownOptionGap = 2.dp
+    val DropdownOffset = 4.dp
+    val DropdownInsetEnd = 6.dp
+    val DropdownOptionHeight = 32.dp
+    val DropdownOptionCorner = 10.dp
+    val DropdownOptionPaddingStart = 8.dp
+    val DropdownOptionPaddingEnd = 12.dp
+    val DropdownCheck = 14.dp
+    val DropdownCheckGap = 6.dp
     val ScreenMarginH = 48.dp
     val GridTopMargin = 40.dp
     val GridSpacing = 24.dp
@@ -92,6 +123,7 @@ object Dimens {
     val SettingsRowCorner = 14.dp
     val SettingsRowHeight = 48.dp
     val SettingsRowPadding = 14.dp
+    val SettingsHeaderGap = 37.dp
     val SettingsThumbWidth = 48.dp
     val SettingsThumbHeight = 27.dp
     val SettingsThumbCorner = 3.5.dp
@@ -102,6 +134,9 @@ object Dimens {
     val SplashMascot = 180.dp
 
     val Nested: List<NestedCorner> = listOf(
+        NestedCorner("dropdown-option", outer = DropdownCorner, inner = DropdownOptionCorner, margin = DropdownPadding),
+        NestedCorner("card-badge", outer = TileCorner, inner = UpNextBadgeCorner, margin = UpNextBadgeInset),
+        NestedCorner("menu-entry-icon", outer = PillCorner, inner = MenuEntryIconCorner, margin = (MenuActionHeight - MenuEntryIcon) / 2),
         NestedCorner("dock-tile", outer = DockCorner, inner = TileCorner, margin = DockPadding),
         NestedCorner("capsule-gear", outer = CapsuleHeight / 2, inner = GearButton / 2, margin = CapsulePadding),
         NestedCorner("menu-pill", outer = MenuCorner, inner = PillCorner, margin = MenuPadding),

@@ -203,7 +203,7 @@ private fun AboutHeader(version: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.7f),
         )
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(Dimens.SettingsHeaderGap))
     }
 }
 
@@ -244,35 +244,13 @@ private fun PrereleasesRow(
     focusEnabled: Boolean,
     onToggle: () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
-    Row(
-        Modifier
-            .testTag("update-prereleases")
-            .fillMaxWidth()
-            .tvFocusable(
-                enabled = focusEnabled,
-                onFocused = { focused = it },
-            )
-            .tvClickable(onClick = onToggle)
-            .semantics(mergeDescendants = true) {
-                role = Role.Switch
-                toggleableState = ToggleableState(checked)
-                onClick { onToggle(); true }
-            }
-            .focusPill(colors, RowShape)
-            .heightIn(min = RowHeight)
-            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            stringResource(R.string.update_prereleases),
-            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
-            color = colors.content,
-            modifier = Modifier.weight(1f),
-        )
-        AppleSwitch(checked = checked, tag = "update-prereleases-switch")
-    }
+    SwitchPreferenceRow(
+        label = stringResource(R.string.update_prereleases),
+        checked = checked,
+        enabled = focusEnabled,
+        onToggle = onToggle,
+        tag = "update-prereleases",
+    )
 }
 
 @Composable

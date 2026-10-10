@@ -11,6 +11,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 object SygixColors {
+    val TileBackground = Color(0xFF141418)
+    val CardScrimEnd = Color.Black.copy(alpha = 0.82f)
+    val OnDarkDetails = Color.White.copy(alpha = 0.82f)
+    val ProgressTrack = Color.White.copy(alpha = 0.28f)
+    val PlaceholderGlyph = Color.White.copy(alpha = 0.22f)
+    val SkeletonBase = Color.White.copy(alpha = 0.06f)
+    val SkeletonBar = Color.White.copy(alpha = 0.08f)
+    val MenuSubtitle = Color(235, 235, 245).copy(alpha = 0.7f)
     val GlassTint = Color(22, 22, 28, 92)
     val CapsuleTint = Color(22, 22, 28, 97)
     val MenuTint = Color(18, 18, 24, 184)
