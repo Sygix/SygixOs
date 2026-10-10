@@ -88,6 +88,9 @@ class SettingsThumbnailTest {
     fun `row thumbnail falls back to the centred icon without a banner`() {
         install("com.plain", banner = false)
         show(TvApp("com.plain", "Plain"))
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("app-icon-com.plain"), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("app-icon-com.plain", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("app-banner-com.plain", useUnmergedTree = true).assertDoesNotExist()
     }

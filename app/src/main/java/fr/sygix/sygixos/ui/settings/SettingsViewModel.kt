@@ -19,6 +19,7 @@ import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.domain.SettingsOrdering
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.model.UpNextPosition
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,11 +41,13 @@ data class SettingsState(
     val hiddenRows: List<HiddenRow> = emptyList(),
     val version: String = "",
     val update: AboutUpdateState = AboutUpdateState(),
+    val upNextVisible: Boolean = true,
+    val upNextPosition: UpNextPosition = UpNextPosition.BEFORE_APPS,
 ) {
     fun canEnter(category: SettingsCategory): Boolean = when (category) {
         SettingsCategory.SOURCES -> sources.isNotEmpty()
         SettingsCategory.HIDDEN -> hiddenRows.isNotEmpty()
-        SettingsCategory.ABOUT -> true
+        SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN -> true
     }
 }
 
@@ -104,6 +107,8 @@ class SettingsViewModel(
             version = version,
             update = update,
         )
+    }.combine(combine(apps.upNextVisible, apps.upNextPosition) { visible, position -> visible to position }) { state, preferences ->
+        state.copy(upNextVisible = preferences.first, upNextPosition = preferences.second)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     init {
@@ -117,13 +122,18 @@ class SettingsViewModel(
         when (category) {
             SettingsCategory.SOURCES -> sourceCounts.value = counts.value
             SettingsCategory.HIDDEN -> refreshHiddenRows()
-            SettingsCategory.ABOUT -> Unit
+            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN -> Unit
         }
     }
 
     fun refreshHiddenRows() {
         hiddenOrder.value = library.value?.let(::hiddenSnapshot)
     }
+
+    val homeScreenActions = HomeScreenActions(
+        onToggleUpNext = { viewModelScope.launch { apps.setUpNextVisible(!state.value.upNextVisible) } },
+        onUpNextPosition = { position -> viewModelScope.launch { apps.setUpNextPosition(position) } },
+    )
 
     private fun hiddenSnapshot(library: Library): List<String> =
         SettingsOrdering.hidden(library.apps.filter { it.packageName in library.hiddenDates }, library.hiddenDates)

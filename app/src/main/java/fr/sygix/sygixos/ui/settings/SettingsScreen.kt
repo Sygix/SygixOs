@@ -58,6 +58,7 @@ enum class SettingsPane { CATEGORIES, CONTENT }
 enum class SettingsCategory(@StringRes val label: Int) {
     SOURCES(R.string.settings_category_sources),
     HIDDEN(R.string.settings_category_hidden),
+    HOME_SCREEN(R.string.settings_category_home_screen),
     ABOUT(R.string.settings_category_about),
     ;
 
@@ -78,6 +79,7 @@ fun SettingsScreen(
     onBack: () -> Unit = {},
     homeHandlesBack: Boolean = true,
     modifier: Modifier = Modifier,
+    homeScreenActions: HomeScreenActions = HomeScreenActions(),
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
@@ -185,6 +187,13 @@ fun SettingsScreen(
                         update = state.update,
                         actions = update,
                         listState = contentListState,
+                        focusEnabled = pane == SettingsPane.CONTENT,
+                        contentFocus = contentFocus,
+                    )
+                    SettingsCategory.HOME_SCREEN -> HomeScreenContent(
+                        visible = state.upNextVisible,
+                        position = state.upNextPosition,
+                        actions = homeScreenActions,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
                     )

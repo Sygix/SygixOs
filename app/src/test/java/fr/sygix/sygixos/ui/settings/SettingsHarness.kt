@@ -117,6 +117,10 @@ internal class SettingsHarness(
         open = true
     }
 
+    fun closeSettings() {
+        open = false
+    }
+
     fun clear() = store.clear()
 
     @Composable
@@ -134,6 +138,7 @@ internal class SettingsHarness(
                 onCategoryEntered = viewModel::enterCategory,
                 update = viewModel.updateActions,
                 onBack = { backs++; open = false },
+                homeScreenActions = viewModel.homeScreenActions,
             )
         }
     }

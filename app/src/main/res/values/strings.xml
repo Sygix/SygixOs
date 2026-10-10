@@ -1,7 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="upnext_title">À suivre</string>
+    <string name="applications_title">Applications</string>
+    <string name="no_tv_apps">Aucune app TV détectée</string>
+    <string name="settings_category_home_screen">Écran d\'accueil</string>
+    <string name="home_screen_description">Choisissez ce qu\'affiche l\'accueil de SygixOs.</string>
+    <string name="upnext_visible">Afficher Up Next</string>
+    <string name="upnext_position">Position d\'Up Next</string>
+    <string name="upnext_position_before">Avant les applications</string>
+    <string name="upnext_position_after">Après les applications</string>
+    <string name="upnext_open_with">Ouvrir avec…</string>
+    <string name="upnext_load_error">Impossible de charger</string>
+    <string name="upnext_retry">OK pour réessayer</string>
+    <string name="upnext_open_error">Impossible d\'ouvrir %1$s</string>
+    <string name="upnext_open_fallback">Contenu indisponible, ouverture de %1$s</string>
+    <string name="upnext_episode_number">S%1$sE%2$s</string>
     <string name="settings_title">Réglages</string>
-    <string name="sources_description">Choisissez les applications qui alimentent le héro et le Top Shelf.</string>
+    <string name="sources_description">Choisissez les applications qui alimentent le héro, le Top Shelf et Up Next.</string>
     <string name="settings_category_sources">Apps sources</string>
     <string name="settings_category_hidden">Applications cachées</string>
     <string name="settings_category_about">À propos</string>

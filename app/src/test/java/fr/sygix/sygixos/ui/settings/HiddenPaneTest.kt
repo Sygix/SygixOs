@@ -265,7 +265,7 @@ class HiddenPaneTest {
         compose.waitForToggle("hidden-row-com.beta", on = false)
         press(Key.DirectionLeft)
         press(Key.DirectionDown)
-        compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+        compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
         compose.mainClock.autoAdvance = false
         send(Key.DirectionUp)
         compose.mainClock.advanceTimeByFrame()

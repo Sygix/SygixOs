@@ -106,8 +106,7 @@ class SettingsNavigationTest {
     }
 
     private fun openAboutAndWaitForLicenses() {
-        press(Key.DirectionDown)
-        press(Key.DirectionDown)
+        repeat(3) { press(Key.DirectionDown) }
         compose.waitUntil(10_000) { compose.onAllNodes(licenseRow).fetchSemanticsNodes().isNotEmpty() }
     }
 
@@ -124,7 +123,11 @@ class SettingsNavigationTest {
         press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
         press(Key.DirectionDown)
+        compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
+        press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-category-HIDDEN").assertIsFocused()
     }
@@ -178,6 +181,9 @@ class SettingsNavigationTest {
             Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
         }
         setState(sources = longSourceRows(), icons = icons)
+        compose.waitUntil(5_000) {
+            compose.onAllNodesWithTag("app-icon-com.s1", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
         compose.onNodeWithTag("app-icon-com.s1", useUnmergedTree = true).assertExists()
         press(Key.DirectionRight)
         repeat(12) { press(Key.DirectionDown) }
