@@ -50,6 +50,7 @@ Maquettes Penpot validées le 2026-10-10 (fichier « SygixOs Maquette », page �
 23. Réglages « Écran d'accueil » : après les deux réglages Up Next (`up-next`), un intertitre « Launcher système » non focusable puis les trois lignes ; focus initial inchangé (« Afficher Up Next »), haut/bas sans boucle, intertitre sauté.
 24. Démarrage automatique non observé : seul le détail de « Démarrer à l'allumage » change (« SygixOs ne s'est pas ouvert automatiquement à ce démarrage »), le switch reste activé.
 25. testTags fixés dans le delta `ui-testing`.
+26. Confirmations du même jour, après relecture de la spec mise à jour : pastille « En attente… » en `SygixColors.Badge` (aucune nouvelle couleur) ; mascotte de la présentation = pose de repos fixe (première image de l'animation), 64 dp ; ligne « Indisponible » focalisable, OK sans effet, raison lisible au focus, dans la présentation et dans les réglages ; bouton « Continuer » de hauteur `Dimens.MenuActionHeight` (38 dp), sans jeton propre ; détail « non observé » sans autre indicateur, dans la couleur du détail normal.
 
 ## Capabilities
 

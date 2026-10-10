@@ -54,7 +54,7 @@ La présentation initiale et les contrôles P5 de « Écran d'accueil » SHALL e
 
 #### Scenario: états affichés
 - **WHEN** le test compose une ligne d'état (présentation ou réglages) dans chacun des états « Actif », « En attente… », « Inactif » et « Indisponible », avec et sans le focus
-- **THEN** « <ligne>-state » affiche le libellé de l'état ; « <ligne>-dot » existe, à gauche de « <ligne>-state », pour « Actif » (couleur `SwitchOn`) et « En attente… » (couleur `Badge`) et n'existe pas pour « Inactif » et « Indisponible » ; en « Indisponible », « <ligne>-detail » affiche la raison propre au contrôle et le titre a la couleur secondaire hors focus ; le libellé d'état n'est jamais « Actif » tant que le double n'a pas confirmé l'état
+- **THEN** « <ligne>-state » affiche le libellé de l'état ; « <ligne>-dot » existe, à gauche de « <ligne>-state », pour « Actif » (couleur `SwitchOn`) et « En attente… » (couleur `Badge`) et n'existe pas pour « Inactif » et « Indisponible » ; en « Indisponible », « <ligne>-detail » affiche la raison propre au contrôle, le titre a la couleur secondaire hors focus, la ligne prend le focus et OK n'ouvre aucun écran ; le libellé d'état n'est jamais « Actif » tant que le double n'a pas confirmé l'état
 
 #### Scenario: fermeture définitive de la présentation
 - **WHEN** le test, dans trois compositions distinctes, presse OK sur « onboarding-continue », presse Retour, puis transmet un intent Home à l'activité au premier plan, chaque fois avec « onboarding-launcher » affiché
