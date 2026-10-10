@@ -23,6 +23,7 @@ import fr.sygix.sygixos.data.RawMascotAnimationSource
 import fr.sygix.sygixos.data.SystemClockSource
 import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.data.SystemMotionSource
+import fr.sygix.sygixos.data.TvProviderUpNextSource
 import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.domain.HeroFeed
 import fr.sygix.sygixos.core.designsystem.Motion
@@ -31,6 +32,9 @@ import fr.sygix.sygixos.domain.StartupGate
 import fr.sygix.sygixos.domain.StartupPhase
 import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.domain.StartupTimings
+import fr.sygix.sygixos.domain.UpNextController
+import fr.sygix.sygixos.domain.UpNextSource
+import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.domain.withSources
 import fr.sygix.sygixos.model.HeroItem
@@ -38,12 +42,14 @@ import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
@@ -59,7 +65,7 @@ data class HeroState(
 
 sealed interface HomeState {
     data object Loading : HomeState
-    data class Ready(val catalog: Catalog, val hero: HeroState) : HomeState
+    data class Ready(val catalog: Catalog, val hero: HeroState, val upNext: UpNextState? = null) : HomeState
 }
 
 class HomeViewModel(
@@ -74,6 +80,7 @@ class HomeViewModel(
     val mascot: MascotAnimationSource,
     startupClock: () -> Long = SystemClock::uptimeMillis,
     startupDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+    upNextSource: UpNextSource? = null,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -95,6 +102,12 @@ class HomeViewModel(
     private var lastDisabled: Set<String>? = null
     private var lastShelfPackage: String? = null
 
+    private val upNext = upNextSource?.let {
+        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope)
+    }
+
+    val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
+
     val state: StateFlow<HomeState> = combine(
         apps.catalog.onEach { preloadArtwork(it) },
         rawFeed,
@@ -112,7 +125,9 @@ class HomeViewModel(
             .toList()
         launchHeroValidationIfNeeded(heroUris)
         if (disabled != lastDisabled) onSourcesChanged(disabled, shown.items)
-        HomeState.Ready(catalog, hero) as HomeState
+        HomeState.Ready(catalog, hero)
+    }.combine(upNext?.state ?: MutableStateFlow(null)) { ready, row ->
+        ready.copy(upNext = row) as HomeState
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeState.Loading)
 
     private val coldStart = session.claimColdStart()
@@ -171,7 +186,10 @@ class HomeViewModel(
     fun refresh() {
         refreshApps()
         refreshHero()
+        refreshUpNext()
     }
+
+    fun refreshUpNext() { upNext?.refresh() }
 
     fun onForeground() = updates.onForeground()
 
@@ -247,6 +265,7 @@ class HomeViewModel(
                 session = app.startupSession,
                 motion = SettingsMotionSource(app.contentResolver),
                 mascot = app.mascotAnimation,
+                upNextSource = TvProviderUpNextSource(app),
             ) as T
         }
     }

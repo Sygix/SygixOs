@@ -7,6 +7,7 @@ package fr.sygix.sygixos.data
 
 import fr.sygix.sygixos.domain.AppCatalog
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.model.UpNextPosition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,11 @@ class AppCatalogRepository(
     val hiddenWithDates: Flow<Map<String, Long?>> = prefs.hiddenWithDates
 
     val disabledSources: Flow<Set<String>> = prefs.disabledSources
+    val upNextVisible: Flow<Boolean> = prefs.upNextVisible
+    val upNextPosition: Flow<UpNextPosition> = prefs.upNextPosition
+
+    suspend fun setUpNextVisible(visible: Boolean) = prefs.setUpNextVisible(visible)
+    suspend fun setUpNextPosition(position: UpNextPosition) = prefs.setUpNextPosition(position)
 
     val allApps: Flow<List<TvApp>> = installed.filterNotNull()
 

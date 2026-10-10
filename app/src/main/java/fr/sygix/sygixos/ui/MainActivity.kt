@@ -26,7 +26,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var viewModel: HomeViewModel
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { viewModel.refreshHero() }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            viewModel.refreshHero()
+            viewModel.refreshUpNext()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

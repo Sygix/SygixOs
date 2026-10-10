@@ -8,12 +8,14 @@ package fr.sygix.sygixos.data
 import android.content.Context
 import androidx.annotation.VisibleForTesting
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.model.UpNextPosition
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -24,6 +26,23 @@ class LauncherPrefs(
     private val context: Context,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+
+    private val upNextVisibleKey = booleanPreferencesKey("up_next_visible")
+    private val upNextPositionKey = stringPreferencesKey("up_next_position")
+
+    val upNextVisible: Flow<Boolean> = context.dataStore.data.map { it[upNextVisibleKey] ?: true }
+    val upNextPosition: Flow<UpNextPosition> = context.dataStore.data.map { prefs ->
+        UpNextPosition.entries.firstOrNull { it.name == prefs[upNextPositionKey] }
+            ?: UpNextPosition.BEFORE_APPS
+    }
+
+    suspend fun setUpNextVisible(visible: Boolean) {
+        context.dataStore.edit { it[upNextVisibleKey] = visible }
+    }
+
+    suspend fun setUpNextPosition(position: UpNextPosition) {
+        context.dataStore.edit { it[upNextPositionKey] = position.name }
+    }
 
     private val pinnedKey = stringSetPreferencesKey("pinned_apps")
     private val orderKey = stringPreferencesKey("grid_order")
