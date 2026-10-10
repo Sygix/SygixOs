@@ -6,8 +6,8 @@
 Les zones et tuiles de l'écran home SHALL exposer des testTags stables utilisés par les tests à la place de sélecteurs fragiles (texte, position).
 
 #### Scenario: sélection par tag
-- **WHEN** un test cible une zone (héro, dock, grille, panneau shelf, rangée Up Next), un titre de section de la zone grille, un menu contextuel, une tuile d'app, une carte Up Next ou un contrôle de la catégorie « Écran d'accueil » des réglages
-- **THEN** il le sélectionne par testTag documenté (« zone-hero », « zone-dock », « zone-grid », « shelf-panel », « zone-upnext », « section-title-upnext », « section-title-apps », « app-menu », « upnext-menu », « setting-upnext-visible », « setting-upnext-position », « setting-upnext-position-list », préfixes « app-tile-<package> », « upnext-card-<key> » et « setting-upnext-position-<VALUE> », la catégorie elle-même étant « settings-category-HOME_SCREEN »), sans dépendre du libellé affiché
+- **WHEN** un test cible une zone (héro, dock, grille, panneau shelf, rangée Up Next), un titre de section de la zone grille, un menu contextuel ou une de ses entrées, une tuile d'app, une carte Up Next ou un de ses éléments (badge, barre de progression, placeholder), le squelette ou la carte d'erreur de la rangée, le volet ou un contrôle de la catégorie « Écran d'accueil » des réglages
+- **THEN** il le sélectionne par testTag documenté (« zone-hero », « zone-dock », « zone-grid », « shelf-panel », « zone-upnext », « section-title-upnext », « section-title-apps », « app-menu », « upnext-menu », « upnext-skeleton », « upnext-error », « settings-home-screen », « setting-upnext-visible », « setting-upnext-position », « setting-upnext-position-list », préfixes « app-tile-<package> », « upnext-card-<key> », « upnext-card-badge-<key> », « upnext-card-progress-<key> », « upnext-card-placeholder-<key> », « upnext-menu-entry-<package> » et « setting-upnext-position-<VALUE> », la catégorie elle-même étant « settings-category-HOME_SCREEN »), sans dépendre du libellé affiché
 
 ### Requirement: Navigation D-pad des trois zones
 La navigation D-pad entre héro, dock et grille, rangée Up Next et titres de section inclus dans la zone grille, SHALL être couverte par des tests simulant les key events physiques, exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`).
@@ -62,15 +62,23 @@ La navigation D-pad entre héro, dock et grille, rangée Up Next et titres de se
 
 #### Scenario: états de la rangée
 - **WHEN** la rangée est composée avec chaque état (chargement initial, rechargement, erreur, vide, permission refusée)
-- **THEN** le rendu correspond : squelette au premier chargement seulement, état précédent conservé au rechargement, carte « Réessayer » focusable en erreur, sous « section-title-upnext » toujours affiché, rangée et « section-title-upnext » masqués si vide ou permission refusée
+- **THEN** le rendu correspond : squelette au premier chargement seulement, état précédent conservé au rechargement, carte d'erreur « upnext-error » focusable en erreur, sous « section-title-upnext » toujours affiché, rangée et « section-title-upnext » masqués si vide ou permission refusée
+
+#### Scenario: structure des cartes
+- **WHEN** le test compose la rangée Up Next à la taille TV avec au moins cinq items (un épisode en cours avec image, un film, un item sans image, un item sans icône d'app)
+- **THEN** chaque « upnext-card-<key> » a une largeur égale à (largeur de contenu − 3 × `Dimens.GridSpacing`) / 4 et un ratio 16:9, les quatre premières sont entières à partir de la marge gauche et le rectangle de la cinquième dépasse le bord droit de l'écran ; « upnext-card-badge-<key> » est présent sauf sans icône, « upnext-card-progress-<key> » n'existe que pour l'item en cours, « upnext-card-placeholder-<key> » n'existe que pour l'item sans image ; l'épisode porte deux nœuds de texte (titre de série, « SxxEyy · titre d'épisode »), le film un seul, aucune carte ne contient de texte d'action ni de nom d'app ; après droite jusqu'à la cinquième carte, son rectangle est entier à l'écran ; aucune assertion de pixel
+
+#### Scenario: squelette et carte d'erreur
+- **WHEN** le test compose la rangée en chargement initial puis en erreur
+- **THEN** « upnext-skeleton » contient cinq nœuds de la taille d'une carte, aucun n'est focusable ; en erreur, « upnext-error » est un nœud unique de la taille d'une carte, focusable, portant les textes « Impossible de charger » et « OK pour réessayer », sous « section-title-upnext »
 
 #### Scenario: menu Ouvrir avec
 - **WHEN** l'appui long est simulé sur une carte Up Next
-- **THEN** le menu « Ouvrir avec… » s'ouvre (testTag « upnext-menu »), y compris avec une seule source, OK ouvre l'app choisie, Retour ferme le menu et rend le focus à la carte
+- **THEN** le menu « Ouvrir avec… » s'ouvre (testTag « upnext-menu »), y compris avec une seule source, avec son en-tête (vignette, titre du contenu, sous-titre « Ouvrir avec… ») et une entrée « upnext-menu-entry-<package> » par source dans l'ordre des sources de l'item, la première ayant le focus ; OK ouvre l'app choisie, Retour ferme le menu et rend le focus à la carte
 
 #### Scenario: réglage de position
 - **WHEN** le test ouvre la catégorie « Écran d'accueil » des réglages, presse OK sur « setting-upnext-position », se déplace dans « setting-upnext-position-list » puis valide, et recommence en fermant la liste par Retour
-- **THEN** OK ouvre la liste avec la valeur courante focusée et cochée ; haut et bas changent de valeur sans boucle, gauche et droite ne font rien ; OK sur l'autre valeur ferme la liste, rend le focus à « setting-upnext-position », persiste la valeur et le home recomposé place la rangée et son titre à la position choisie ; Retour liste ouverte ferme la liste sans changer la valeur ni quitter les réglages ; liste fermée, haut donne le focus à « setting-upnext-visible », gauche au volet des catégories sur « settings-category-HOME_SCREEN », Retour ferme les réglages ; le rectangle de chaque ligne est identique avec et sans le focus
+- **THEN** « settings-home-screen » affiche le titre « Écran d'accueil », sa description, puis « setting-upnext-visible » au-dessus de « setting-upnext-position », cette ligne portant la valeur courante et un chevron ; OK ouvre la liste avec la valeur courante focusée et cochée, « setting-upnext-position-list » contient exactement « setting-upnext-position-<VALUE> » pour les deux valeurs dans l'ordre, la coche n'existe que sur la valeur courante, le rectangle de la liste est sous celui de la ligne et dans le volet droit ; haut et bas changent de valeur sans boucle, gauche et droite ne font rien ; OK sur l'autre valeur ferme la liste, rend le focus à « setting-upnext-position », persiste la valeur et le home recomposé place la rangée et son titre à la position choisie ; Retour liste ouverte ferme la liste sans changer la valeur ni quitter les réglages ; liste fermée, haut donne le focus à « setting-upnext-visible », gauche au volet des catégories sur « settings-category-HOME_SCREEN », Retour ferme les réglages ; le rectangle de chaque ligne est identique avec et sans le focus ; aucune assertion de pixel
 
 #### Scenario: réglage de visibilité
 - **WHEN** le test désactive « Afficher Up Next » (« setting-upnext-visible ») dans « Écran d'accueil » puis revient au home

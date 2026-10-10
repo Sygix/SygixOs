@@ -182,6 +182,10 @@ La rangée Up Next SHALL être une ligne style tvOS de la zone grille, sous son 
 - **WHEN** le réglage « Position d'Up Next » vaut « Après les applications »
 - **THEN** la rangée, sous son titre « À suivre », est la dernière ligne de la zone grille, sous la dernière rangée d'apps, sur le même fond
 
+#### Scenario: mode déplacement
+- **WHEN** le mode « Déplacer » d'une tuile d'app est actif (« Persistance de la grille » de launcher-shell)
+- **THEN** le déplacement ne concerne que les tuiles d'apps : la rangée Up Next et ses cartes ne sont ni déplaçables ni une cible du déplacement, et le menu « Ouvrir avec… » d'une carte n'offre pas « Déplacer »
+
 ### Requirement: Indépendance avec le héro
 La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au héro : le héro peut montrer les mêmes contenus.
 
@@ -190,19 +194,31 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-La rangée Up Next SHALL porter le titre de section « À suivre » défini par « Grille d'apps » de launcher-shell ; ce titre nomme la rangée et non une catégorie de contenu, qui peut réunir les groupes `CONTINUE`, `NEXT`/`NEW` et `WATCHLIST`. Chaque carte Up Next SHALL être horizontale au format 16:9 uniforme, avec les coins arrondis des tuiles d'apps (« Thème » de launcher-shell) et un espacement régulier, et afficher : l'image du programme en plein cadre quand elle est exploitable, sinon le poster portrait centré sur fond sombre, sinon un placeholder explicite ; un dégradé sombre en bas pour la lisibilité du texte ; le texte de l'item (épisode : titre de série, « SxxEyy » et titre d'épisode ; film : titre seul), sans autre texte, ni libellé d'action ni nom d'app ; une barre de progression pour les items en cours seulement ; un badge discret qui est l'icône de l'app source prise dans le `PackageManager`. Le fond reste continu avec la zone grille. Le focus d'une carte SHALL suivre intégralement « Focus tvOS » de launcher-shell, comme celui d'une tuile d'app. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas. Les proportions s'adaptent à l'écran, sans dimensions absolues. Cette présentation ne modifie pas le héro.
+La rangée Up Next SHALL porter le titre de section « À suivre » défini par « Grille d'apps » de launcher-shell ; ce titre nomme la rangée et non une catégorie de contenu, qui peut réunir les groupes `CONTINUE`, `NEXT`/`NEW` et `WATCHLIST`. Le rendu de la rangée et des cartes SHALL suivre les maquettes Penpot validées (« SygixOs Maquette », page « TV », écrans 7.1 à 7.5, composant « Carte Up Next » de la page « Composants » ; mesures en px à 1920 × 1080 = dp × 2), dont cette exigence fixe les valeurs structurantes avec les jetons du design system (`design.md`, « Rangée et cartes »). La rangée SHALL être une ligne horizontale défilante alignée à gauche sur la marge de la grille (`Dimens.ScreenMarginH`), sans marge droite : la largeur d'une carte est (largeur de contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4, l'écart entre cartes `Dimens.GridSpacing`, de sorte que quatre cartes sont entièrement visibles et que la cinquième dépasse du bord droit de l'écran ; la carte focalisée SHALL toujours être entière à l'écran, la rangée ne défilant que pour l'y ramener. Chaque carte Up Next SHALL être au format 16:9 uniforme, avec les coins des tuiles d'apps (`Dimens.TileCorner`, « Thème » de launcher-shell) et le fond des tuiles (`SygixColors.TileBackground`), et afficher : l'image du programme en plein cadre quand elle est exploitable, sinon le poster portrait centré sur ce fond, sinon le placeholder (pictogramme « image » de `Dimens.UpNextPlaceholderIcon` en `SygixColors.PlaceholderGlyph`, centré horizontalement dans la moitié haute) ; un dégradé noir sur toute la carte, de transparent à `Dimens.CardScrimStart` de la hauteur jusqu'à `SygixColors.CardScrimEnd` en bas ; le texte de l'item en bas à gauche au retrait `Dimens.UpNextTextInset` (titre en `TextStyles.Row` et `SygixColors.OnDark` : titre de série pour un épisode, titre pour un film ; pour un épisode, une seconde ligne « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` et `SygixColors.OnDarkDetails`), sans autre texte, ni libellé d'action ni nom d'app ; pour les items `CONTINUE` avec progression seulement, une barre de progression de `Dimens.ProgressHeight` (piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`) à `Dimens.UpNextTextBottom` du bas, les textes `Dimens.UpNextTextAboveProgress` au-dessus d'elle (sinon à `Dimens.UpNextTextBottom` du bas) ; un badge en haut à droite, au retrait `Dimens.UpNextBadgeInset`, qui est l'icône de l'app source prise dans le `PackageManager`, de `Dimens.HeroSourceIcon` et coins `Dimens.HeroSourceIconCorner`. Le fond reste continu avec la zone grille. Le focus d'une carte SHALL suivre intégralement « Focus tvOS » de launcher-shell, comme celui d'une tuile d'app. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas. Cette présentation ne modifie pas le héro.
+
+#### Scenario: largeur et débordement
+- **WHEN** la rangée est affichée avec au moins cinq cartes sur un écran de 960 dp de large
+- **THEN** quatre cartes de 198 dp de large sont entièrement visibles à partir de la marge gauche, espacées de `Dimens.GridSpacing`, et la cinquième est coupée par le bord droit de l'écran ; aucune marge droite ne la masque
+
+#### Scenario: défilement horizontal
+- **WHEN** le focus passe à une carte partiellement visible ou hors écran
+- **THEN** la rangée défile juste ce qu'il faut pour que la carte focalisée soit entière entre la marge gauche et le bord droit, avec la durée et la courbe de « Focus tvOS » ; au retour sur la rangée, la position de défilement laissée est conservée
 
 #### Scenario: carte épisode
 - **WHEN** l'item est un épisode (type publié ou inféré selon « Champs facultatifs »)
-- **THEN** la carte affiche l'image 16:9 plein cadre (sinon le poster portrait centré sur fond sombre), le titre de série, « SxxEyy », le titre d'épisode et, pour un item en cours, la barre de progression
+- **THEN** la carte affiche l'image 16:9 plein cadre (sinon le poster portrait centré sur le fond des tuiles) sous le dégradé, le titre de série en `TextStyles.Row`, une seconde ligne « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` (sans « SxxEyy » si les numéros manquent) et, pour un item en cours, la barre de progression sous les textes
 
 #### Scenario: carte film
 - **WHEN** l'item est un film (type publié ou inféré selon « Champs facultatifs »)
-- **THEN** la carte affiche l'image et le titre du film, sans « SxxEyy » ni libellé d'action, et la barre de progression pour un item en cours
+- **THEN** la carte affiche l'image et le titre du film seul, sans « SxxEyy » ni libellé d'action, et la barre de progression pour un item en cours
 
 #### Scenario: badge et image
 - **WHEN** une carte est affichée
-- **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué, aucun libellé texte à la place de l'icône), et un placeholder remplace l'image si celle-ci manque ou échoue ; sans icône disponible, la carte n'a pas de badge
+- **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué, aucun libellé texte à la place de l'icône), en haut à droite ; sans icône disponible, la carte n'a pas de badge
+
+#### Scenario: placeholder
+- **WHEN** l'image d'une carte manque, échoue ou est trop petite
+- **THEN** la carte garde sa taille et ses coins, montre le fond des tuiles avec le pictogramme « image » centré horizontalement dans sa moitié haute, et conserve le dégradé, ses textes, sa barre de progression éventuelle et son badge
 
 #### Scenario: image trop petite
 - **WHEN** l'image décodée d'une carte fait moins de deux fois la largeur affichée de la carte
@@ -224,11 +240,15 @@ L'appui sur une carte SHALL ouvrir l'intent publié par le programme de la rang�
 - **THEN** l'app source est lancée, sans crash
 
 ### Requirement: Menu « Ouvrir avec… »
-L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les apps qui possèdent ce contenu, chacune ouverte via l'intent qu'elle publie ; le menu s'ouvre même quand une seule app possède le contenu ; rien n'est persisté.
+L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les apps qui possèdent ce contenu, chacune ouverte via l'intent qu'elle publie ; le menu s'ouvre même quand une seule app possède le contenu ; rien n'est persisté. Son rendu SHALL être celui du menu contextuel des tuiles (« Grille d'apps » de launcher-shell, scénario « lisibilité du menu contextuel » ; maquette Penpot 7.6, composant « Menu Ouvrir avec ») : voile `SygixColors.Scrim`, panneau verre `GlassLook.Menu` de `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`, centré ; en tête, une vignette 16:9 de `Dimens.MenuThumbnailWidth` avec l'image du programme (le placeholder de la carte à défaut), le titre du contenu en `TextStyles.MenuTitle` et le sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` et `SygixColors.MenuSubtitle` ; en dessous, une entrée par source, pilule de focus de coins `Dimens.PillCorner` et hauteur minimale `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, icône réelle de l'app de `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom de l'app en `TextStyles.Row` (`RowFocused` au focus).
 
 #### Scenario: ouverture du menu
 - **WHEN** l'utilisateur fait un appui long sur une carte
-- **THEN** le menu « Ouvrir avec… » liste les sources du contenu conservées par l'item, avec leur nom et leur icône
+- **THEN** le menu « Ouvrir avec… » liste les sources du contenu conservées par l'item, dans l'ordre de cette liste, chacune avec son icône et son nom, sous un en-tête qui montre la vignette du programme, le titre du contenu et le sous-titre « Ouvrir avec… »
+
+#### Scenario: rendu des entrées
+- **WHEN** le menu est ouvert
+- **THEN** l'entrée focusée est une pilule claire à texte sombre, sans zoom ni halo, les autres entrées n'ont pas de fond, et le panneau est le même verre sombre que le menu contextuel des tuiles, au-dessus d'un voile sur l'accueil
 
 #### Scenario: focus initial dans le menu
 - **WHEN** le menu s'ouvre
@@ -259,15 +279,15 @@ La rangée SHALL couvrir les états chargement, erreur, vide et permission refus
 
 #### Scenario: erreur
 - **WHEN** la requête vers le TV Provider échoue ou dépasse le timeout au premier chargement
-- **THEN** une carte d'état focusable (message + « Réessayer ») remplace le contenu de la rangée, distincte de l'état vide, sans crash ; la rangée n'est pas masquée : le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée
+- **THEN** une seule carte d'état focusable remplace le contenu de la rangée, en première position (maquette Penpot 7.4) : même taille et mêmes coins qu'une carte, fond `SygixColors.TileBackground`, et, centrés, un pictogramme « recharger » de `Dimens.UpNextErrorIcon`, « Impossible de charger » en `TextStyles.Row` et `SygixColors.OnDark`, « OK pour réessayer » en `TextStyles.RowSecondary` et `SygixColors.OnDarkSecondary` ; elle est distincte de l'état vide, sans crash ; la rangée n'est pas masquée : le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée
 
 #### Scenario: carte d'erreur
-- **WHEN** la carte « Réessayer » est focusée
-- **THEN** elle occupe la place de la rangée dans la navigation de la zone grille, sous le titre « À suivre », quelle que soit la position réglée (« Avant les applications » ou « Après les applications »), et OK relance la requête
+- **WHEN** la carte d'erreur est focusée
+- **THEN** elle a le focus d'une tuile (« Focus tvOS »), occupe la place de la rangée dans la navigation de la zone grille, sous le titre « À suivre », quelle que soit la position réglée (« Avant les applications » ou « Après les applications »), et OK relance la requête
 
 #### Scenario: chargement initial
 - **WHEN** le premier chargement dépasse ~300 ms
-- **THEN** un squelette de cartes est affiché ; s'il est plus court, aucune étape intermédiaire n'apparaît
+- **THEN** un squelette est affiché sous le titre « À suivre » (maquette Penpot 7.3) : cinq cartes de la taille et des coins d'une carte, fond `SygixColors.SkeletonBase`, chacune avec deux barres `SygixColors.SkeletonBar` en bas à gauche (`Dimens.UpNextSkeletonTitle` puis `Dimens.UpNextSkeletonSubtitle`, rayons à mi-hauteur), sans animation imposée et sans élément focusable ; s'il est plus court, aucune étape intermédiaire n'apparaît
 
 #### Scenario: rechargement
 - **WHEN** la rangée se recharge alors qu'un contenu est déjà affiché
