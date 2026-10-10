@@ -2,4 +2,27 @@
 <resources>
     <string name="home_accessibility_label">Retour Home vers SygixOs</string>
     <string name="home_accessibility_description">Permet de revenir à SygixOs avec la touche Home sur les appareils qui transmettent cette touche au service. SygixOs ne lit pas le contenu des écrans et ne conserve aucune donnée. Ce service est facultatif et peut être désactivé dans ces réglages.</string>
+    <string name="launcher_system_group">Launcher système</string>
+    <string name="launcher_home_role">Remplacer le launcher</string>
+    <string name="launcher_home_detail">SygixOs devient l’écran d’accueil de la TV</string>
+    <string name="launcher_home_unavailable">Cette TV ne permet pas de changer l’écran d’accueil</string>
+    <string name="launcher_boot">Démarrer à l’allumage</string>
+    <string name="launcher_boot_detail">Ouvrir SygixOs quand la TV s’allume</string>
+    <string name="launcher_boot_unavailable">Cette TV ne permet pas d’autoriser l’ouverture au démarrage</string>
+    <string name="launcher_boot_not_observed">SygixOs ne s’est pas ouvert automatiquement à ce démarrage</string>
+    <string name="launcher_accessibility">Retour à l’accueil</string>
+    <string name="launcher_accessibility_detail">Revenir à SygixOs quand la touche Home ouvre l’accueil du constructeur</string>
+    <string name="launcher_accessibility_unavailable">Les réglages d’accessibilité ne peuvent pas s’ouvrir sur cette TV</string>
+    <string name="launcher_state_active">Actif</string>
+    <string name="launcher_state_inactive">Inactif</string>
+    <string name="launcher_state_pending">En attente…</string>
+    <string name="launcher_state_unavailable">Indisponible</string>
+    <string name="launcher_onboarding_title">Faire de SygixOs l’écran d’accueil</string>
+    <string name="launcher_onboarding_description">Trois réglages pour que la TV s’ouvre toujours sur SygixOs. Rien n’est activé sans votre accord, et vous les retrouverez dans Réglages › Écran d’accueil.</string>
+    <string name="launcher_onboarding_hint">Retour : fermer</string>
+    <string name="launcher_continue">Continuer</string>
+    <string name="launcher_overlay_title">Autoriser le démarrage à l’allumage</string>
+    <string name="launcher_overlay_description">Android peut demander l’autorisation « Afficher par-dessus d’autres applis » pour ouvrir SygixOs au démarrage. Vous pouvez la refuser ; votre choix de démarrage sera conservé. Cette autorisation ne garantit pas l’ouverture sur toutes les TV.</string>
+    <string name="launcher_overlay_open">Ouvrir les réglages</string>
+    <string name="launcher_overlay_decline">Pas maintenant</string>
 </resources>

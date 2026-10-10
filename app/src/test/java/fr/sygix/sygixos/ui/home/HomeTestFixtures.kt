@@ -17,6 +17,10 @@ import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.domain.UpNextState
+import fr.sygix.sygixos.model.LauncherSystemState
+import fr.sygix.sygixos.ui.settings.HomeScreenActions
+import fr.sygix.sygixos.ui.settings.LauncherSystemActions
 import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.UpdateActions
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +73,11 @@ internal fun TestHome(
     onAppFocused: (String) -> Unit = {},
     onOpenHero: (HeroItem) -> Unit = {},
     artworkSource: AppArtworkSource? = null,
+    launcherState: LauncherSystemState = LauncherSystemState(),
+    launcherActions: LauncherSystemActions = LauncherSystemActions(),
+    onRestoreOrder: (List<String>) -> Unit = {},
+    upNext: UpNextState? = null,
+    homeScreenActions: HomeScreenActions = HomeScreenActions(),
 ) {
     val packageManager = LocalContext.current.packageManager
     val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
@@ -90,6 +99,11 @@ internal fun TestHome(
                 interactive = interactive,
                 onAppFocused = onAppFocused,
                 onOpenHero = onOpenHero,
+                launcherState = launcherState,
+                launcherActions = launcherActions,
+                onRestoreOrder = onRestoreOrder,
+                upNext = upNext,
+                homeScreenActions = homeScreenActions,
             )
         }
     }

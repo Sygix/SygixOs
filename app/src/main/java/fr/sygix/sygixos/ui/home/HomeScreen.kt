@@ -126,11 +126,16 @@ import fr.sygix.sygixos.ui.settings.SettingsState
 import fr.sygix.sygixos.ui.settings.SettingsViewModel
 import fr.sygix.sygixos.ui.settings.UpdateActions
 import fr.sygix.sygixos.ui.settings.rememberSettingsViewModel
+import fr.sygix.sygixos.model.LauncherSystemState
+import fr.sygix.sygixos.ui.settings.LauncherSystemActions
+import fr.sygix.sygixos.ui.settings.LauncherSystemControls
 
 @Composable
-fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
+fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: LauncherSystemViewModel? = null) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val startup by viewModel.startup.collectAsStateWithLifecycle()
+    val launcherState = launcher?.state?.collectAsStateWithLifecycle()?.value ?: LauncherSystemState()
+    LaunchedEffect(startup) { if (startup == StartupPhase.Done) launcher?.onStartupFinished() }
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
@@ -180,6 +185,8 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 homeHandlesBack = homeHandlesBack,
                 onHeroVisualReady = viewModel::onHeroVisualReady,
                 gridReady = startup == StartupPhase.Done,
+                launcherState = launcherState,
+                launcherActions = launcher?.actions ?: LauncherSystemActions(),
             )
         }
     }
@@ -377,6 +384,8 @@ internal fun LauncherHome(
     onOpenUpNextSource: (UpNextItem, UpNextSourceEntry) -> Unit = { _, _ -> },
     onRetryUpNext: () -> Unit = {},
     upNextUpdates: Flow<Unit> = emptyFlow(),
+    launcherState: LauncherSystemState = LauncherSystemState(),
+    launcherActions: LauncherSystemActions = LauncherSystemActions(),
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -399,6 +408,21 @@ internal fun LauncherHome(
     LaunchedEffect(upNextUpdates, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { upNextUpdates.collect() }
     }
+    val launcherOverlay = launcherState.overlayShown
+    var handledHome by remember { mutableStateOf(launcherState.homeRequest) }
+    LaunchedEffect(launcherState.homeRequest) {
+        if (handledHome == launcherState.homeRequest) return@LaunchedEffect
+        handledHome = launcherState.homeRequest
+        settingsOpen = false
+        menuApp = null
+        menuItem = null
+        if (movingApp != null) onRestoreOrder(orderBeforeMove)
+        movingApp = null
+        gearFocused = false
+        zone = Zone.HERO
+        withFrameNanos { }
+        heroFocus.tryRequestFocus()
+    }
 
     LaunchedEffect(dockAvailable) {
         if (zone == Zone.DOCK && !dockAvailable) zone = Zone.HERO
@@ -406,8 +430,8 @@ internal fun LauncherHome(
     LaunchedEffect(gridAvailable) {
         if (zone == Zone.GRID && !gridAvailable) zone = Zone.HERO
     }
-    LaunchedEffect(zone, menuOpen, settingsOpen, interactive) {
-        if (!interactive || menuOpen || settingsOpen) return@LaunchedEffect
+    LaunchedEffect(zone, menuOpen, settingsOpen, interactive, launcherOverlay) {
+        if (!interactive || menuOpen || settingsOpen || launcherOverlay) return@LaunchedEffect
         val target = when (zone) {
             Zone.HERO -> heroFocus
             Zone.DOCK -> dockFocus
@@ -436,6 +460,7 @@ internal fun LauncherHome(
             .fillMaxSize()
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (launcherOverlay) return@onPreviewKeyEvent false
                 if (!homeHandlesBack && e.key == Key.Back) return@onPreviewKeyEvent false
                 if (settingsOpen) return@onPreviewKeyEvent false
                 if (menuOpen) {
@@ -499,11 +524,11 @@ internal fun LauncherHome(
                     HeroStage(
                         items = hero.items,
                         validatedVisuals = heroVisuals,
-                        active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen,
-                        stillActive = { zone == Zone.HERO && !menuOpen && !settingsOpen },
+                        active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen && !launcherOverlay,
+                        stillActive = { zone == Zone.HERO && !menuOpen && !settingsOpen && !launcherOverlay },
                         visible = heroVisible && !settingsOpen,
                         focusRequester = heroFocus,
-                        claimFocus = !gearFocused,
+                        claimFocus = !gearFocused && !launcherOverlay,
                         onOpen = onOpenHero,
                         onVisualReady = onHeroVisualReady,
                         motion = interactive,
@@ -514,7 +539,7 @@ internal fun LauncherHome(
                         Dock(
                             apps = catalog.dock,
                             active = heroOnScreen,
-                            focusEnabled = interactive && zone == Zone.DOCK && !menuOpen,
+                            focusEnabled = interactive && zone == Zone.DOCK && !menuOpen && !launcherOverlay,
                             focusRequester = dockFocus,
                             onTileClick = onOpenApp,
                             onTileLongClick = { menuApp = it },
@@ -525,7 +550,7 @@ internal fun LauncherHome(
                                 clock = clock,
                                 updateBadge = updateBadge,
                                 glassActive = heroOnScreen,
-                                gearFocusEnabled = interactive && zone == Zone.HERO && !menuOpen,
+                                gearFocusEnabled = interactive && zone == Zone.HERO && !menuOpen && !launcherOverlay,
                                 gearFocus = gearFocus,
                                 onGearFocused = { gearFocused = it },
                                 onOpenSettings = {
@@ -549,7 +574,7 @@ internal fun LauncherHome(
                     AmbientGradient(Modifier.matchParentSize())
                     if (gridReady) HomeGrid(
                         catalog = catalog,
-                        focusEnabled = interactive && zone == Zone.GRID && !menuOpen,
+                        focusEnabled = interactive && zone == Zone.GRID && !menuOpen && !launcherOverlay,
                         focusRequester = gridFocus,
                         shelfPrograms = { heroNow.value.let { if (it.fromApps) it.items else emptyList() } },
                         validatedVisuals = { heroNow.value.validated },
@@ -601,6 +626,7 @@ internal fun LauncherHome(
                 homeScreenActions = homeScreenActions,
                 onBack = { settingsOpen = false },
                 homeHandlesBack = homeHandlesBack,
+                homeScreenRows = { enabled -> LauncherSystemControls(launcherState, launcherActions, enabled && !launcherOverlay) },
             )
         }
         menuItem?.let { item ->
@@ -624,6 +650,8 @@ internal fun LauncherHome(
                 modifier = Modifier.zIndex(10f),
             )
         }
+        if (launcherState.showOnboarding) LauncherOnboarding(launcherState, launcherActions)
+        if (launcherState.showOverlayConfirmation) OverlayPermissionConfirmation(launcherActions)
     }
     }
 }

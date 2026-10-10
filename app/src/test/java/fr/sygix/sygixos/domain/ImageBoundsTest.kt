@@ -34,4 +34,13 @@ class ImageBoundsTest {
     fun `aspect ratio is kept when one side limits`() {
         assertEquals(PixelSize(216, 270), ImageBounds.artwork(432, 540))
     }
+
+    @Test
+    fun `sample size keeps the decoded image at least as wide as its target`() {
+        assertEquals(2, ImageBounds.sampleSize(360, 128))
+        assertEquals(1, ImageBounds.sampleSize(360, 200))
+        assertEquals(4, ImageBounds.sampleSize(360, 64))
+        assertEquals(1, ImageBounds.sampleSize(100, 128))
+        assertEquals(1, ImageBounds.sampleSize(360, 0))
+    }
 }

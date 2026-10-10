@@ -18,6 +18,7 @@ import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -80,6 +81,7 @@ fun SettingsScreen(
     homeHandlesBack: Boolean = true,
     modifier: Modifier = Modifier,
     homeScreenActions: HomeScreenActions = HomeScreenActions(),
+    homeScreenRows: @Composable ColumnScope.(Boolean) -> Unit = {},
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
@@ -196,6 +198,7 @@ fun SettingsScreen(
                         actions = homeScreenActions,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
+                        additionalRows = homeScreenRows,
                     )
                 }
             }

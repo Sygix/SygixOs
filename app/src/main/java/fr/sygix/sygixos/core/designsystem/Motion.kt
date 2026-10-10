@@ -120,6 +120,20 @@ object Dimens {
     val HeroTextBottom = 148.dp
     val HeroTextWidth = 450.dp
     val HeroTextSpacing = 10.dp
+    val SettingsGroupTitleTop = 19.5.dp
+    val SettingsGroupTitleBottom = 8.5.dp
+    val StateDotGap = 5.dp
+    val OnboardingWidth = 564.dp
+    val OnboardingCorner = 28.dp
+    val OnboardingPadding = 14.dp
+    val OnboardingSpacing = 4.dp
+    val OnboardingHeaderInsetH = 14.dp
+    val OnboardingHeaderInsetTop = 14.dp
+    val OnboardingHeaderInsetBottom = 12.dp
+    val OnboardingHeaderSpacing = 6.dp
+    val OnboardingMascot = 64.dp
+    val OnboardingFooterTop = 10.dp
+    val OnboardingButtonPaddingH = 20.dp
     val SettingsRowCorner = 14.dp
     val SettingsRowHeight = 48.dp
     val SettingsRowPadding = 14.dp
@@ -142,6 +156,7 @@ object Dimens {
         NestedCorner("menu-pill", outer = MenuCorner, inner = PillCorner, margin = MenuPadding),
         NestedCorner("menu-thumbnail", outer = MenuCorner, inner = MenuThumbnailCorner, margin = MenuPadding + MenuHeaderInsetTop),
         NestedCorner("settings-row-thumbnail", outer = SettingsRowCorner, inner = SettingsThumbCorner, margin = (SettingsRowHeight - SettingsThumbHeight) / 2),
+        NestedCorner("onboarding-row", outer = OnboardingCorner, inner = SettingsRowCorner, margin = OnboardingPadding),
     )
 }
 

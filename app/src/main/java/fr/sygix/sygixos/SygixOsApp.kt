@@ -13,6 +13,7 @@ import coil.memory.MemoryCache
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.ConnectivityNetworkStatus
 import fr.sygix.sygixos.data.ContextSystemScreenLauncher
@@ -43,6 +44,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
@@ -54,6 +56,11 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     }
 
     protected open val prefetchesMascot: Boolean get() = true
+
+    override fun onTerminate() {
+        appScope.cancel()
+        super.onTerminate()
+    }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
@@ -90,7 +97,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
             foreground = foregroundTracker,
             screens = ContextSystemScreenLauncher(this),
             installedVersionCode = { UpdateRelaunchReceiver.installedVersionCode(this) ?: 0L },
-            scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+            scope = appScope,
         )
     }
 

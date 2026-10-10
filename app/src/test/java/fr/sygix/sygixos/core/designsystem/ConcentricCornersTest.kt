@@ -24,7 +24,7 @@ class ConcentricCornersTest {
     @Test
     fun `declared pairs cover every nesting of the home and settings`() {
         assertEquals(
-            setOf("dock-tile", "capsule-gear", "menu-pill", "menu-thumbnail", "settings-row-thumbnail", "dropdown-option", "card-badge", "menu-entry-icon"),
+            setOf("dock-tile", "capsule-gear", "menu-pill", "menu-thumbnail", "settings-row-thumbnail", "dropdown-option", "card-badge", "menu-entry-icon", "onboarding-row"),
             Dimens.Nested.map { it.name }.toSet(),
         )
     }

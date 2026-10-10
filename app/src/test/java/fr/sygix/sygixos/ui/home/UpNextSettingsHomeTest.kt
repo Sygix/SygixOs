@@ -151,7 +151,7 @@ class UpNextSettingsHomeTest {
     }
 
     @Test
-    fun `home screen pane has its header and two rows and follows the settings page navigation`() {
+    fun `home screen pane has its header and up next rows first and follows the settings page navigation`() {
         home()
         openHomeScreenCategory()
         val header = hasAnyAncestor(hasTestTag("settings-home-screen"))
@@ -167,6 +167,8 @@ class UpNextSettingsHomeTest {
         press(Key.DirectionDown)
         node("setting-upnext-position").assertIsFocused()
         press(Key.DirectionDown)
+        node("setting-home-role").assertIsFocused()
+        press(Key.DirectionUp)
         node("setting-upnext-position").assertIsFocused()
         press(Key.DirectionRight)
         node("setting-upnext-position").assertIsFocused()

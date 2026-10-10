@@ -25,4 +25,10 @@ object ImageBounds {
     fun screen(width: Int, height: Int): PixelSize = fit(width, height, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT)
 
     fun artwork(width: Int, height: Int): PixelSize = fit(width, height, MAX_ARTWORK_WIDTH, MAX_ARTWORK_HEIGHT)
+
+    fun sampleSize(sourceWidth: Int, targetWidth: Int): Int {
+        var sample = 1
+        while (targetWidth > 0 && sourceWidth / (sample * 2) >= targetWidth) sample *= 2
+        return sample
+    }
 }
