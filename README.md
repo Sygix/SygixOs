@@ -57,8 +57,9 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 | P4 | Built-in updates from GitHub releases | ✅ delivered in v0.0.1; manufacturer-blocked relaunch to be checked with the HOME role in P5 |
 | P5 | Replacing the system launcher (guided setup, Home key, boot opening) | ✅ delivered in v0.1.0-rc.2 and archived; boot opening not verifiable on the reference TV (manufacturer auto-start manager) |
 | P6 | "À suivre" row (all apps, deduplication, opened contents first, removal) | ✅ delivered in v0.1.0-rc.2 and archived |
-| P7 | Search | planned |
-| P8 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
+| P7 | Shizuku: disable the stock home screen from SygixOs (the manual ADB procedure, built in) | [Spec](openspec/changes/p7-shizuku/proposal.md) in review |
+| P8 | Search | planned |
+| P9 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
 
 Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Follow-ups deferred after v0.0.1, not specified yet, are tracked in [`openspec/backlog.md`](openspec/backlog.md). Specs and the user interface are written in French.
 

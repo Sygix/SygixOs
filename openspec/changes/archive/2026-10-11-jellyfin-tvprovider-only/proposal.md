@@ -1,7 +1,7 @@
 # Change : jellyfin-tvprovider-only
 
 ## Why
-La spec `jellyfin-integration` actuelle mentionne des credentials saisis dans Settings et une authentification serveur Jellyfin. Décision prise en amont de P6 : aucune connexion directe au serveur ; l'intégration Jellyfin passe exclusivement par le TV Provider Android (watch next publiés par le client Jellyfin installé). La recherche P7 est reportée dans un change dédié : elle pourra passer par l'intent `ACTION_SEARCH` accepté par le client Jellyfin (`StartupActivity`), sans API directe.
+La spec `jellyfin-integration` actuelle mentionne des credentials saisis dans Settings et une authentification serveur Jellyfin. Décision prise en amont de P6 : aucune connexion directe au serveur ; l'intégration Jellyfin passe exclusivement par le TV Provider Android (watch next publiés par le client Jellyfin installé). La recherche P8 est reportée dans un change dédié : elle pourra passer par l'intent `ACTION_SEARCH` accepté par le client Jellyfin (`StartupActivity`), sans API directe.
 
 ## What Changes
 - **Suppression de l'exigence « Configuration »** (credentials / authentification) : plus rien à configurer, la capability ne parle jamais au serveur Jellyfin.
@@ -20,8 +20,8 @@ Aucune.
 ## Non-goals
 - Écran de configuration, credentials, appels réseau vers un serveur Jellyfin : abandonnés définitivement, aucune phase ne les prévoit.
 - Règles d'affichage, d'état UI ou d'ouverture : elles appartiennent à up-next (P6, change `up-next`).
-- Recherche dans Jellyfin : change séparé (P7, recherche).
-- Enrichissement des programmes Jellyfin par des IDs externes : P8 (`betaseries-integration`).
+- Recherche dans Jellyfin : change séparé (P8, recherche).
+- Enrichissement des programmes Jellyfin par des IDs externes : P9 (`betaseries-integration`).
 
 ## Impact
 - specs affectées : `jellyfin-integration` (delta ci-dessous, MODIFIED + REMOVED) ; le `Purpose` de la capability est corrigé dans la même PR (la description « serveur homelab » ne correspond plus)
