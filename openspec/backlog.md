@@ -74,7 +74,8 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 **Pistes** :
 - relance assurée par le système quand SygixOs est le launcher par défaut (phase de remplacement du launcher système) ;
-- statut de la session d'installation transmis à une activité plutôt qu'à un récepteur.
+- statut de la session d'installation transmis à une activité plutôt qu'à un récepteur ;
+- accueil d'origine désactivé (SygixOs seul écran d'accueil) : la tâche 1.3 de `p7-shizuku` vérifie si la relance a lieu dans ce cas.
 
 **Décision du propriétaire** : attendre P5 (remplacement du launcher système) avant de traiter ce point. La spec courante `self-update` décrit la demande de relance sous réserve de l'autorisation du système et la réouverture manuelle lorsque le constructeur la bloque ; le change est synchronisé et archivé (sujet 12). La limitation n'est pas résolue par cet archivage.
 
@@ -101,7 +102,7 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 **Constat initial** : v0.0.1 est publiée (même commit que v0.0.1-rc.7). Les changes livrés ne sont pas encore archivés ; avant ce lot, la roadmap du README gardait l'ancienne numérotation (P2c, P4, P5).
 
 **État du lot documentaire** :
-- roadmap du README et contexte `openspec/config.yaml` renumérotés : P3 logo et écran de démarrage (livré), P4 mises à jour intégrées (livré avec la limitation du sujet 9), P5 remplacement du launcher système, P6 Up Next, P7 recherche, P8 BetaSeries ;
+- roadmap du README et contexte `openspec/config.yaml` renumérotés : P3 logo et écran de démarrage (livré), P4 mises à jour intégrées (livré avec la limitation du sujet 9), P5 remplacement du launcher système, P6 Up Next, P7 recherche, P8 BetaSeries (numérotation d'alors, avant l'insertion de Shizuku en P7) ;
 - change actif `p2c-upnext` renommé `up-next` ; références actives mises à jour, archives historiques inchangées ; les questions ouvertes restent dans `up-next/proposal.md` ;
 - synchronisation vérifiée puis archivage, dans cet ordre : `ui-tvos-polish` → `startup-splash` → `self-update` → `rc5-tv-fixes` → `rc6-polish` → `startup-fade-back` ; archives sous `openspec/changes/archive/2026-10-05-<nom>/` (date du système d'archivage) ; les quatre specs courantes concernées sont `launcher-shell`, `settings`, `ui-testing` et la nouvelle capability `self-update` ;
 - `up-next` et `jellyfin-tvprovider-only` restent actifs, sans implémentation d'Up Next ni synchronisation anticipée ;

@@ -33,7 +33,7 @@ La rangée lit uniquement `WatchNextPrograms` (les `PreviewPrograms` ne sont pas
 D'après `jellyfin-androidtv` (`LeanbackChannelWorker.getBaseItemAsWatchNextProgram`), les programmes Jellyfin portent `internal_provider_id`, le type, le titre de série, `episode_title`, les numéros de saison et d'épisode, `watch_next_type` et un intent qui ouvre la **fiche** de l'item (`StartupActivity` + `ItemId`), pas la lecture. Le verbe de la rangée est donc « ouvrir », pas « lire » : l'app affiche sa fiche ou reprend selon son propre comportement. `release_date` est absent des programmes Jellyfin : ni le tri ni le dédoublonnage ne s'y fient (voir niveau 4).
 
 ### Modèle canonique
-`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film : `COLUMN_TYPE` publié, sinon inféré, voir « Types absents »), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST` ; absent : rattaché au groupe « à suivre », voir « Types absents »), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), toujours vide en P6 ; il sera rempli par l'enrichissement BetaSeries du change P8 dédié (décision du 2026-10-10, hors périmètre de ce change).
+`UpNextItem` : `id` (`_ID` du programme), package source, type (épisode / film : `COLUMN_TYPE` publié, sinon inféré, voir « Types absents »), titre de série, saison, épisode, titre d'affichage, poster, progression optionnelle (0–1, position / durée quand les deux colonnes existent ; la progression ne sert qu'à la barre de la carte), `watchNextType` (`CONTINUE`, `NEXT`, `NEW`, `WATCHLIST` ; absent : rattaché au groupe « à suivre », voir « Types absents »), timestamp d'activité (`last_engagement_time`), `intentUri` (`COLUMN_INTENT_URI`), nom de l'app source, la **liste des sources du contenu** (package, nom, icône, intent publié de chacune, conservée après fusion, c'est elle qu'affiche le menu « Ouvrir avec… »), et un champ **`externalIds` facultatif** (IMDb / TVDB), toujours vide en P6 ; il sera rempli par l'enrichissement BetaSeries du change P9 dédié (décision du 2026-10-10, hors périmètre de ce change).
 
 `UpNextSource` est une interface aux frontières (SOLID) : retourne un `Result<List<UpNextItem>>` pour que l'UI distingue **erreur** et **vide** (jamais d'exception avalée, contrairement à `TvProviderHeroSource.load()` qui avale via `runCatching {...}.getOrDefault(emptyList())`).
 
@@ -46,11 +46,11 @@ Clé d'identité calculée à partir des colonnes du TV Provider, de la plus fia
 | 2. Série dans une app | `package_name` + titre de série normalisé | Au plus une carte par série : l'épisode en cours prime sur l'épisode suivant |
 | 3. Épisode entre apps | titre de série normalisé + saison + épisode | Même épisode sur deux apps (type publié ou inféré) |
 | 4. Film entre apps | titre normalisé + année | Même titre et même année → fusion ; pas de fusion si les deux années sont connues et différentes (remakes) ; année inconnue d'un côté → fusion sur le titre seul (limite assumée), sauf si plusieurs années connues distinctes partagent ce titre : l'item sans année reste alors séparé, indépendamment de l'ordre d'entrée (décision Sygix, clarification du 2026-10-10) ; types différents (film contre épisode, type publié ou inféré) → jamais de fusion |
-| 5. P8 (enrichissement BetaSeries) | Identifiant externe (IMDb / TVDB) apporté par le change P8 dédié | Prend le pas sur les niveaux 3 et 4 quand il est connu ; inactif en P6 |
+| 5. P9 (enrichissement BetaSeries) | Identifiant externe (IMDb / TVDB) apporté par le change P9 dédié | Prend le pas sur les niveaux 3 et 4 quand il est connu ; inactif en P6 |
 
 **Normalisation** : minuscules, diacritiques retirés (NFKD), ponctuation et `(année)` supprimés, espaces compactés, puis **égalité stricte**. Aucune correspondance approximative : il ne faut jamais fusionner à tort.
 
-**Limite assumée, documentée dans la spec** : les titres localisés différemment selon l'app (« La Casa de Papel » contre « Money Heist ») restent en double jusqu'à l'activation du niveau 5 par le change P8 dédié à BetaSeries.
+**Limite assumée, documentée dans la spec** : les titres localisés différemment selon l'app (« La Casa de Papel » contre « Money Heist ») restent en double jusqu'à l'activation du niveau 5 par le change P9 dédié à BetaSeries.
 
 **Types exclus** : les programmes dont le `COLUMN_TYPE` n'est ni un épisode ni un film (clip, extrait, autre) ne sont pas convertis en items.
 
@@ -196,12 +196,12 @@ Aucun comportement ni élément d'UI du héro n'est modifié par ce change ; les
 Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « Apps sources » et « Cacher une application » sont posés dans `specs/settings/spec.md` de ce change (tâche 1.1, faite après l'archivage de `p2b-settings`). Ils partent du texte archivé de `home-settings-polish` (exception de focus d'« Applications cachées », tri et comptage d'« Apps sources », date de masquage) et n'y ajoutent que la catégorie « Écran d'accueil », ses deux contrôles, la rangée Up Next et le comptage des `WatchNextPrograms`.
 
 ## REMOVED betaseries-integration
-« Agrégation Up Next » est retirée (décision du 2026-10-10) : la rangée ne reçoit plus d'items BetaSeries. BetaSeries revient en P8 dans un change dédié, comme enrichissement par identifiants externes (niveau 5). Le `Purpose` de `betaseries-integration` (« Agrégation "à voir" BetaSeries dans Up Next ») devient caduc après archivage ; un delta ne le modifie pas et `openspec/specs/` n'est jamais édité à la main : le change P8 le réécrira.
+« Agrégation Up Next » est retirée (décision du 2026-10-10) : la rangée ne reçoit plus d'items BetaSeries. BetaSeries revient en P9 dans un change dédié, comme enrichissement par identifiants externes (niveau 5). Le `Purpose` de `betaseries-integration` (« Agrégation "à voir" BetaSeries dans Up Next ») devient caduc après archivage ; un delta ne le modifie pas et `openspec/specs/` n'est jamais édité à la main : le change P9 le réécrira.
 
 ## Risks / Trade-offs
 - [Une app remplit moins de colonnes que prévu] → chaque champ est facultatif avec un comportement défini (« Champs facultatifs ») ; le seul rejet est l'absence de tout titre (ni titre, ni titre d'épisode pour un épisode) ou un `COLUMN_TYPE` hors épisode/film.
 - [Colonnes non mesurées sur l'appareil] → lecture en `opt*`, dégradation champ par champ (pas d'année, pas de progression, pas de `SxxEyy`) sans exclure l'item ; type watch next absent → groupe « à suivre », `COLUMN_TYPE` absent → type inféré (épisode si saison et épisode, sinon film).
-- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à l'activation du niveau 5 par le change P8 dédié à BetaSeries.
+- [Faux positifs de fusion] → égalité stricte après normalisation, tests JUnit sur les remakes et les types différents ; les doublons de titres localisés sont acceptés jusqu'à l'activation du niveau 5 par le change P9 dédié à BetaSeries.
 - [Repo public] → toute donnée issue de l'appareil n'est publiée que sous forme de structure (colonnes, packages, compteurs, types), jamais de titres.
 
 ## Notes de test
@@ -214,7 +214,7 @@ Les MODIFIED « Page de réglages » (catégorie « Écran d'accueil »), « App
 - Validation finale sur la TV réelle en `assembleRelease` : rendu de la rangée et des titres avec les apps installées, navigation, réglages de visibilité et de position (liste déroulante), compteur « Apps sources » d'une app qui ne publie que du Watch Next et sa mise à jour en direct.
 
 ## Décisions du propriétaire (2026-10-10)
-1. BetaSeries n'alimente plus Up Next : REMOVED « Agrégation Up Next » sur `betaseries-integration` ; retour en P8 comme enrichissement (identifiants externes, niveau 5).
+1. BetaSeries n'alimente plus Up Next : REMOVED « Agrégation Up Next » sur `betaseries-integration` ; retour en P9 comme enrichissement (identifiants externes, niveau 5).
 2. Le compteur « Apps sources » inclut les programmes Watch Next et se met à jour en direct pour eux (observation de `WatchNextPrograms` ajoutée à `programCountsFlow()`).
 3. Carte Up Next focusée qui disparaît : la carte voisine (suivante, ou précédente si c'était la dernière) ; rangée devenue vide : repli standard `FocusFallback`.
 4. Retour dans la zone grille : la position laissée est restaurée, dans la rangée Up Next comme dans les apps.

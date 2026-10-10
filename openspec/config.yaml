@@ -19,7 +19,7 @@ context: |
   Design system dans core/designsystem : Modifier.tvFocus / tvClickable, Motion.* + AppleEasing, Dimens.*, GlassSurface (verre sombre, ombre portée douce, aucun halo coloré).
   Sources de données TV : TV Provider (WatchNextPrograms / PreviewPrograms), lu sous READ_TV_LISTINGS ; les colonnes réellement remplies dépendent de l'app qui publie.
 
-  Roadmap actuelle : P3 logo et écran de démarrage livrés ; P4 mises à jour intégrées livrées avec relance bloquée sur la TV de référence (backlog, sujet 9) ; P5 remplacement du launcher système ; P6 Up Next (change up-next, anciennement p2c-upnext) ; P7 recherche ; P8 BetaSeries. Les archives gardent leur numérotation historique.
+  Roadmap actuelle : P3 logo et écran de démarrage livrés ; P4 mises à jour intégrées livrées avec relance bloquée sur la TV de référence (backlog, sujet 9) ; P5 remplacement du launcher système ; P6 Up Next (change up-next, anciennement p2c-upnext) ; P7 Shizuku (change p7-shizuku, désactivation de l'accueil d'origine) ; P8 recherche ; P9 BetaSeries. Les archives gardent leur numérotation historique.
 
   Fluidité jugée uniquement sur assembleRelease, sur la TV réelle (adb).
 
