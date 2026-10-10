@@ -6,8 +6,8 @@ SygixOs se déclare déjà comme écran d'accueil Android (filtre `CATEGORY_HOME
 
 ## What Changes
 
-- Une présentation initiale ignorable s'affiche au premier lancement et propose, chacun après une action explicite de l'utilisateur : l'attribution du rôle HOME, le choix de l'option de démarrage à l'allumage et l'activation du service d'accessibilité (dans les réglages système Android).
-- La catégorie « Écran d'accueil » des réglages, créée par `up-next`, reçoit les contrôles P5 : « Remplacer le launcher » (état et demande du rôle HOME), l'option de démarrage à l'allumage et le contrôle du service d'accessibilité.
+- Une présentation initiale ignorable s'affiche au premier lancement (panneau « Faire de SygixOs l'écran d'accueil », maquettes Penpot 8.1 à 8.4) et propose, chacun après une action explicite de l'utilisateur : l'attribution du rôle HOME (« Remplacer le launcher »), le choix de l'option de démarrage à l'allumage (« Démarrer à l'allumage ») et l'activation du service d'accessibilité (« Retour à l'accueil », dans les réglages système Android).
+- La catégorie « Écran d'accueil » des réglages, créée par `up-next`, reçoit, sous un intertitre « Launcher système », les trois mêmes lignes (maquettes 8.5 et 8.6) : « Remplacer le launcher » (état et demande du rôle HOME), « Démarrer à l'allumage » et « Retour à l'accueil » (service d'accessibilité).
 - Démarrage à l'allumage : à la réception de la fin du démarrage du système, SygixOs demande son ouverture si l'option est activée ; si cette ouverture n'a pas été observée, les réglages l'indiquent au lancement suivant.
 - Service d'accessibilité livré : quand le constructeur détourne la touche Home et que l'utilisateur a activé le service, SygixOs revient au premier plan.
 - Touche Home pressée alors que SygixOs est déjà au premier plan : réglages et surcouches fermés, retour en haut de l'accueil, focus sur le héro.
@@ -39,6 +39,18 @@ Décisions complémentaires du même jour, après la relecture de la PR :
 17. La présentation initiale ne s'affiche jamais par-dessus un dialogue système : la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) passe d'abord, puis la présentation.
 18. La détection du démarrage automatique par numéro de démarrage et l'état « action système en attente » restent tels qu'écrits.
 
+## Décisions du propriétaire (2026-10-10, maquettes)
+
+Maquettes Penpot validées le 2026-10-10 (fichier « SygixOs Maquette », page « TV », écrans 8.1 à 8.6 ; détail dans `design.md`, « Maquettes » et décisions 19 à 25). Elles ferment la question ouverte 5 :
+
+19. Présentation initiale : panneau de verre centré sur l'accueil (voile, mascotte fixe, titre « Faire de SygixOs l'écran d'accueil », description, trois lignes de réglage, aide « Retour : fermer » et bouton « Continuer »).
+20. Trois lignes, dans cet ordre et avec les mêmes libellés dans la présentation et les réglages : « Remplacer le launcher », « Démarrer à l'allumage » (switch, désactivé par défaut), « Retour à l'accueil » (service d'accessibilité).
+21. États « Actif » (pastille verte), « En attente… » (pastille bleue), « Inactif » et « Indisponible » (sans pastille, titre atténué, raison à la place du détail).
+22. Navigation de la présentation : focus initial sur « Remplacer le launcher », haut/bas sur les trois lignes puis « Continuer » sans boucle, gauche/droite sans effet ; « Continuer », Retour et Home ferment définitivement ; au retour d'un écran système, focus sur la ligne qui l'a ouvert.
+23. Réglages « Écran d'accueil » : après les deux réglages Up Next (`up-next`), un intertitre « Launcher système » non focusable puis les trois lignes ; focus initial inchangé (« Afficher Up Next »), haut/bas sans boucle, intertitre sauté.
+24. Démarrage automatique non observé : seul le détail de « Démarrer à l'allumage » change (« SygixOs ne s'est pas ouvert automatiquement à ce démarrage »), le switch reste activé.
+25. testTags fixés dans le delta `ui-testing`.
+
 ## Capabilities
 
 ### New Capabilities
@@ -48,8 +60,8 @@ Décisions complémentaires du même jour, après la relecture de la PR :
 ### Modified Capabilities
 
 - `launcher-shell` : rôle HOME, présentation initiale, démarrage à l'allumage, retour Home par le service d'accessibilité, touche Home avec SygixOs au premier plan (ADDED).
-- `settings` : contrôles P5 dans la catégorie « Écran d'accueil » (ADDED).
-- `ui-testing` : couverture des parcours P5 (ADDED).
+- `settings` : contrôles P5 dans la catégorie « Écran d'accueil », intertitre « Launcher système », rendu des états (ADDED).
+- `ui-testing` : couverture des parcours P5 et sélecteurs du launcher système (ADDED).
 - `self-update` : « Redémarrage après la mise à jour » (MODIFIED) ; la mise à jour ne demande jamais le rôle HOME, P5 seulement après une action explicite de l'utilisateur.
 
 ### Dépendances
@@ -65,7 +77,7 @@ Manifeste (récepteur de fin de démarrage, service d'accessibilité et sa confi
 
 - Désactiver automatiquement le launcher Google TV, SetupWraith ou toute autre application système, notamment par ADB : hors périmètre, sans phase prévue.
 - Garantir le retour Home ou le démarrage automatique sur tous les appareils : P5 décrit le comportement sur les appareils qui le permettent et l'indique quand il n'a pas eu lieu.
-- Rendu visuel, libellés définitifs et navigation D-pad détaillée de la présentation initiale et des contrôles P5 : en attente des maquettes Penpot (voir `design.md`, « Maquettes »).
+- Nouveau composant de design system ou nouveau style de ligne : la présentation initiale et les contrôles P5 réutilisent les lignes de réglages, la pilule de focus, le switch Apple et le verre existants (`design.md`, D9 et D10).
 
 ## Questions ouvertes
 

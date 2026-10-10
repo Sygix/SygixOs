@@ -1,26 +1,14 @@
 # Maquettes P5
 
-## Statut
+## Référence
 
-**v1 et v2 sont remplacées** (décision du propriétaire du 2026-10-10) : elles ne sont ni une référence visuelle ni une exigence. Elles plaçaient l'action HOME dans « Apps sources », ce que la décision 8 de `design.md` écarte : les contrôles P5 vont dans la catégorie « Écran d'accueil » créée par `up-next`.
+Les maquettes de P5 sont dans Penpot, fichier « SygixOs Maquette » (équipe Sygix), validées par le propriétaire le 2026-10-10 :
+- page « TV », écrans 8.1 à 8.4 : présentation initiale (8.1 état initial ; 8.2 « Remplacer le launcher » en attente du dialogue système ; 8.3 retour avec rôle actif, démarrage activé et focus sur « Retour à l'accueil » ; 8.4 rôle indisponible focalisé) ;
+- page « TV », écrans 8.5 et 8.6 : catégorie « Écran d'accueil » des réglages avec l'intertitre « Launcher système » et les trois lignes P5 (8.6 : rôle actif, démarrage activé non observé focalisé, accessibilité indisponible) ; les écrans 6.x et 7.7 montrent la catégorie avant P5 (`up-next`) ;
+- page « Composants », section « Launcher système (P5) » : ligne de réglage avec état, pastille d'état, intertitre, bouton « Continuer ».
 
-Les nouvelles maquettes seront faites dans Penpot et fournies aux agents d'implémentation :
-- la présentation initiale (rôle HOME, choix du démarrage à l'allumage, service d'accessibilité) ;
-- les contrôles P5 dans la catégorie « Écran d'accueil » des réglages (« Remplacer le launcher », démarrage à l'allumage, service d'accessibilité), avec leurs états.
+Les maquettes sont dessinées à 1920 × 1080 px : une mesure en px vaut 2 × sa valeur en dp. Les captures ne sont pas versionnées pour l'instant. La maquette fait foi pour le rendu, la spec pour le comportement (`design.md`, décisions 19 à 25, D9 et D10 ; deltas `launcher-shell`, `settings` et `ui-testing`). Aucun écran Android, constructeur ni d'application tierce n'y est dessiné.
 
-Jusqu'à leur réception, le rendu, les libellés définitifs, la place des contrôles et la navigation D-pad détaillée restent en attente (`design.md`, « Maquettes » et question ouverte 5).
+## Historique
 
-## Fichiers remplacés
-
-- `v1-settings-home-choice.png` / `.html` — « Apps sources » avec une ligne d'action HOME focalisée, juste avant l'ouverture du dialogue système. Remplacée.
-- `v2-settings-home-return.png` / `.html` — même écran au retour dans SygixOs, résultat non confirmé. Remplacée.
-
-Ces deux planches ne dessinaient que des écrans SygixOs, aucun écran Android, constructeur ni d'application tierce.
-
-## Composants existants à reprendre
-
-Repères dans le code pour les nouvelles maquettes (le rendu suit les exigences de `settings`, « Page de réglages », sans en recopier les valeurs) :
-- `ui/settings/SettingsScreen.kt` — `SettingsCategory`, volets catégories et contenu, navigation D-pad entre volets.
-- `ui/settings/SettingsContent.kt` — lignes de réglage et pilule de focus (`focusPill`, `animatedPillColors`).
-- `ui/settings/AboutContent.kt` — `AboutActionRow` (titre et détail), modèle d'une ligne d'action avec état.
-- `core/designsystem/Theme.kt`, `FocusPill.kt`, `Motion.kt` — couleurs, focus et dimensions du design system.
+Les variantes v1 (`v1-settings-home-choice`) et v2 (`v2-settings-home-return`), qui plaçaient l'action HOME dans « Apps sources », ont été remplacées par les maquettes Penpot (décision 11) et supprimées de ce dossier.

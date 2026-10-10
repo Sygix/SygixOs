@@ -11,11 +11,11 @@ SygixOs SHALL rester candidat au rôle système d'écran d'accueil (HOME) et SHA
 
 #### Scenario: attribution acceptée
 - **WHEN** l'utilisateur accepte l'attribution dans le dialogue système
-- **THEN** au retour au premier plan, SygixOs relit le rôle et l'affiche « actif »
+- **THEN** au retour au premier plan, SygixOs relit le rôle et l'affiche « Actif »
 
 #### Scenario: attribution refusée
 - **WHEN** l'utilisateur refuse ou ferme le dialogue système
-- **THEN** au retour au premier plan, le rôle est affiché « inactif », le launcher par défaut n'est pas modifié et SygixOs reste utilisable
+- **THEN** au retour au premier plan, le rôle est affiché « Inactif », le launcher par défaut n'est pas modifié et SygixOs reste utilisable
 
 #### Scenario: rôle indisponible, écran des applications par défaut présent
 - **WHEN** le système déclare le rôle indisponible, ou que le dialogue de demande ne peut pas s'ouvrir, et que l'appareil a un écran système des applications par défaut ou de l'écran d'accueil
@@ -23,18 +23,30 @@ SygixOs SHALL rester candidat au rôle système d'écran d'accueil (HOME) et SHA
 
 #### Scenario: rôle indisponible, sans écran de remplacement
 - **WHEN** le système déclare le rôle indisponible, ou que le dialogue de demande ne peut pas s'ouvrir, et que l'appareil n'a aucun écran système des applications par défaut ou de l'écran d'accueil
-- **THEN** le contrôle est affiché « indisponible », aucun écran système n'est ouvert, sans crash, et SygixOs reste utilisable
+- **THEN** le contrôle est affiché « Indisponible », aucun écran système n'est ouvert, sans crash, et SygixOs reste utilisable
 
 #### Scenario: rôle changé hors de SygixOs
 - **WHEN** SygixOs revient au premier plan après que l'utilisateur a attribué le rôle HOME à une autre app ou à SygixOs dans les réglages système
 - **THEN** l'état affiché est le rôle courant relu auprès du système, sans valeur conservée d'avant la sortie
 
 ### Requirement: Présentation initiale du launcher
-Au premier lancement où elle n'a encore jamais été fermée, y compris pour une installation existante mise à jour vers une version qui l'introduit, SygixOs SHALL afficher sur l'accueil une présentation initiale, après la fin de l'écran de démarrage (« Écran de démarrage ») et après la réponse à la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) quand celle-ci est affichée ; elle SHALL ne jamais s'afficher par-dessus un dialogue système. Elle SHALL proposer, chacun avec son état (états de « Réglages du launcher système » de `settings`) : l'attribution du rôle HOME (« Rôle d'écran d'accueil »), le choix d'activer ou non le démarrage à l'allumage (« Démarrage à l'allumage ») et l'activation du service d'accessibilité (« Retour Home par le service d'accessibilité »). Elle SHALL être distincte des écrans système, ne SHALL rien activer sans action explicite et SHALL pouvoir être ignorée. Une fois fermée, quel qu'en soit le moyen, elle SHALL ne plus jamais s'afficher automatiquement ; les mêmes contrôles restent dans la catégorie « Écran d'accueil » des réglages. Le rendu visuel, les libellés définitifs et la navigation D-pad détaillée suivent les maquettes Penpot à venir.
+Au premier lancement où elle n'a encore jamais été fermée, y compris pour une installation existante mise à jour vers une version qui l'introduit, SygixOs SHALL afficher sur l'accueil une présentation initiale, après la fin de l'écran de démarrage (« Écran de démarrage ») et après la réponse à la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) quand celle-ci est affichée ; elle SHALL ne jamais s'afficher par-dessus un dialogue système. Elle SHALL être un panneau de verre centré par-dessus un voile sur l'accueil (le héro reste rendu dessous), composé d'un en-tête (mascotte fixe de l'écran de démarrage, titre « Faire de SygixOs l'écran d'accueil », description « Trois réglages pour que la TV s'ouvre toujours sur SygixOs. Rien n'est activé sans votre accord, et vous les retrouverez dans Réglages › Écran d'accueil. »), puis de trois lignes de réglage, dans cet ordre, identiques en libellé, détail, état et rendu à celles de « Réglages du launcher système » de `settings` : « Remplacer le launcher » (« Rôle d'écran d'accueil »), « Démarrer à l'allumage » (switch, « Démarrage à l'allumage ») et « Retour à l'accueil » (« Retour Home par le service d'accessibilité »), puis d'un pied avec l'aide « Retour : fermer » et le bouton « Continuer ». Elle SHALL être distincte des écrans système, ne SHALL rien activer sans action explicite et SHALL pouvoir être ignorée. Navigation D-pad : focus initial sur « Remplacer le launcher » ; haut et bas parcourent les trois lignes puis « Continuer », sans boucle ; gauche et droite sont sans effet ; le focus SHALL rester dans le panneau tant qu'il est affiché. OK sur une ligne déclenche l'action de cette ligne définie par `settings` ; OK sur « Continuer », Retour et la touche Home ferment la présentation. Une fois fermée, quel qu'en soit le moyen, elle SHALL ne plus jamais s'afficher automatiquement, et l'accueil reprend avec le focus sur le héro ; les mêmes contrôles restent dans la catégorie « Écran d'accueil » des réglages. Le rendu (dimensions, jetons, états) est fixé par les maquettes Penpot 8.1 à 8.4 et `design.md` (D9).
 
 #### Scenario: premier lancement
 - **WHEN** SygixOs se lance et que la présentation initiale n'a jamais été fermée
-- **THEN** à la fin de l'écran de démarrage, la présentation s'affiche sur l'accueil avec les éléments rôle HOME, démarrage à l'allumage et service d'accessibilité, chacun avec son état courant
+- **THEN** à la fin de l'écran de démarrage, la présentation s'affiche sur l'accueil : en-tête, puis « Remplacer le launcher », « Démarrer à l'allumage » et « Retour à l'accueil » dans cet ordre, chacune avec son état courant (« Inactif », switch désactivé et « Inactif » sur une TV où rien n'est encore fait, maquette 8.1), puis l'aide « Retour : fermer » et « Continuer » ; « Remplacer le launcher » a le focus
+
+#### Scenario: navigation dans la présentation
+- **WHEN** la présentation est affichée et l'utilisateur presse bas, bas, bas, bas, puis haut quatre fois, puis gauche et droite
+- **THEN** le focus passe de « Remplacer le launcher » à « Démarrer à l'allumage », « Retour à l'accueil », « Continuer », puis reste sur « Continuer » (sans boucle) ; il remonte jusqu'à « Remplacer le launcher » et y reste ; gauche et droite ne le déplacent pas et aucun élément de l'accueil ne prend le focus
+
+#### Scenario: actions des lignes
+- **WHEN** l'utilisateur presse OK sur « Remplacer le launcher », sur « Démarrer à l'allumage » ou sur « Retour à l'accueil »
+- **THEN** la première ligne demande le rôle HOME ou ouvre l'écran système de remplacement et passe à « En attente… » (« Rôle d'écran d'accueil ») ; la deuxième bascule son switch et persiste l'option aussitôt, le focus restant sur elle ; la troisième ouvre les réglages d'accessibilité du système et passe à « En attente… » ; la présentation reste affichée dans les trois cas
+
+#### Scenario: fermeture par Continuer
+- **WHEN** l'utilisateur presse OK sur « Continuer », quels que soient les états des trois lignes
+- **THEN** la présentation est enregistrée comme fermée, disparaît, et l'accueil reprend avec le focus sur le héro ; les choix déjà faits (option de démarrage, rôle, service) restent tels quels
 
 #### Scenario: demande de permission au premier lancement
 - **WHEN** au premier lancement, la demande de permission « Programmes TV » est affichée à la fin de l'écran de démarrage
@@ -42,10 +54,10 @@ Au premier lancement où elle n'a encore jamais été fermée, y compris pour un
 
 #### Scenario: installation existante mise à jour
 - **WHEN** SygixOs se lance pour la première fois après la mise à jour d'une installation existante vers une version qui introduit la présentation
-- **THEN** la présentation s'affiche une fois, avec les états courants (par exemple « actif » si SygixOs détient déjà le rôle HOME)
+- **THEN** la présentation s'affiche une fois, avec les états courants (par exemple « Actif » si SygixOs détient déjà le rôle HOME)
 
 #### Scenario: présentation ignorée
-- **WHEN** l'utilisateur ignore la présentation (action d'ignorer ou Retour) sans rien valider
+- **WHEN** l'utilisateur ignore la présentation (« Continuer » ou Retour) sans rien valider
 - **THEN** la présentation se ferme, l'accueil reprend avec le focus sur le héro, le rôle HOME n'est pas demandé, l'option de démarrage reste désactivée et aucun écran d'accessibilité n'est ouvert
 
 #### Scenario: pas de nouvel affichage
@@ -54,7 +66,11 @@ Au premier lancement où elle n'a encore jamais été fermée, y compris pour un
 
 #### Scenario: retour d'un écran système ouvert depuis la présentation
 - **WHEN** l'utilisateur a ouvert le dialogue du rôle HOME ou les réglages d'accessibilité depuis la présentation, puis revient dans SygixOs par Retour
-- **THEN** la présentation est toujours affichée, l'état de l'élément est relu auprès du système et le focus revient sur l'élément qui a ouvert l'écran système
+- **THEN** la présentation est toujours affichée, l'état de l'élément est relu auprès du système (« Actif » ou « Inactif », plus jamais « En attente… ») et le focus revient sur la ligne qui a ouvert l'écran système (maquette 8.3 : rôle « Actif », démarrage activé, focus sur « Retour à l'accueil » « Inactif »)
+
+#### Scenario: ligne indisponible dans la présentation
+- **WHEN** le rôle HOME ou l'ouverture des réglages d'accessibilité est « Indisponible » (« Rôle d'écran d'accueil », « Retour Home par le service d'accessibilité »)
+- **THEN** la ligne reste affichée et focalisable avec l'état « Indisponible », son titre atténué hors focus et la raison à la place du détail (maquette 8.4) ; OK n'ouvre rien et ne change rien ; les autres lignes et « Continuer » restent utilisables
 
 #### Scenario: choix du démarrage à l'allumage
 - **WHEN** l'utilisateur choisit d'activer ou de laisser désactivé le démarrage à l'allumage dans la présentation
@@ -92,11 +108,11 @@ SygixOs SHALL fournir un service d'accessibilité qui, une fois activé par l'ut
 
 #### Scenario: activation par l'utilisateur
 - **WHEN** l'utilisateur valide l'élément accessibilité de la présentation initiale ou le contrôle correspondant des réglages
-- **THEN** les réglages d'accessibilité du système s'ouvrent ; au retour au premier plan, l'état du service est relu et affiché « actif » seulement si le système le déclare activé
+- **THEN** les réglages d'accessibilité du système s'ouvrent ; au retour au premier plan, l'état du service est relu et affiché « Actif » seulement si le système le déclare activé
 
 #### Scenario: service refusé
 - **WHEN** l'utilisateur revient des réglages d'accessibilité sans avoir activé le service, ou ferme la présentation sans l'ouvrir
-- **THEN** le service est affiché « inactif », SygixOs reste utilisable et aucune nouvelle proposition ne s'affiche automatiquement, à ce lancement comme aux suivants
+- **THEN** le service est affiché « Inactif », SygixOs reste utilisable et aucune nouvelle proposition ne s'affiche automatiquement, à ce lancement comme aux suivants
 
 #### Scenario: touche Home détournée, service activé
 - **WHEN** le service a été activé par l'utilisateur, que SygixOs est en arrière-plan et que l'appui sur Home affiche le launcher du constructeur
@@ -108,7 +124,7 @@ SygixOs SHALL fournir un service d'accessibilité qui, une fois activé par l'ut
 
 #### Scenario: service désactivé ou arrêté
 - **WHEN** l'utilisateur désactive le service dans les réglages système, ou que le système l'arrête
-- **THEN** l'appui sur Home suit le comportement du système, aucune erreur n'est affichée, et au retour au premier plan le service est affiché « inactif »
+- **THEN** l'appui sur Home suit le comportement du système, aucune erreur n'est affichée, et au retour au premier plan le service est affiché « Inactif »
 
 ### Requirement: Touche Home avec SygixOs au premier plan
 Quand la touche Home atteint SygixOs alors qu'il est déjà au premier plan, ou quand le service d'accessibilité signale un appui sur Home détourné alors que SygixOs était au premier plan (« Retour Home par le service d'accessibilité »), SygixOs SHALL fermer entièrement la page de réglages en une seule fois, quel que soit l'élément ouvert ou focalisé dans les réglages (y compris la liste déroulante « Position d'Up Next » de `settings`, que Retour ne ferait que refermer), fermer toute surcouche de l'accueil comme le ferait Retour sur cette surcouche, ramener la page de l'accueil en haut, donner le focus au héro et reprendre sa lecture. Hors premier plan, les règles de retour existantes s'appliquent sans changement (« Écran de démarrage », scénario « retour sur le launcher »).
