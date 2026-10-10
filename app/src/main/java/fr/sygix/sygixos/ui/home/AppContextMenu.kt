@@ -28,7 +28,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.disabled
@@ -50,7 +49,6 @@ import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.model.TvApp
 
-private val PackageColor = Color(235, 235, 245).copy(alpha = 0.7f)
 private val HeaderGap = 10.dp
 private val MenuThumbnailShape = RoundedCornerShape(Dimens.MenuThumbnailCorner)
 private val MenuShape = RoundedCornerShape(Dimens.MenuCorner)
@@ -72,9 +70,22 @@ internal fun AppContextMenu(
         withFrameNanos { }
         firstFocus.tryRequestFocus()
     }
+    ContextMenuPanel(modifier.testTag("app-menu")) {
+        MenuHeader(app)
+        MenuAction(
+            text = if (pinState == PinState.PINNED) "Retirer du dock" else "Épingler au dock",
+            action = "pin", onClick = onTogglePin, focusRequester = firstFocus,
+            unavailable = if (pinState == PinState.DOCK_FULL) stringResource(R.string.menu_dock_full, AppCatalog.MAX_DOCK) else null,
+        )
+        if (onMove != null) MenuAction(text = "Déplacer", action = "move", onClick = onMove)
+        MenuAction(text = "Cacher", action = "hide", onClick = onHide)
+    }
+}
+
+@Composable
+internal fun ContextMenuPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
         modifier
-            .testTag("app-menu")
             .fillMaxSize()
             .background(SygixColors.Scrim),
         contentAlignment = Alignment.Center,
@@ -90,20 +101,7 @@ internal fun AppContextMenu(
                     .focusGroup(),
                 verticalArrangement = Arrangement.spacedBy(ActionGap),
             ) {
-                MenuHeader(app)
-                MenuAction(
-                    text = if (pinState == PinState.PINNED) "Retirer du dock" else "Épingler au dock",
-                    action = "pin",
-                    onClick = onTogglePin,
-                    focusRequester = firstFocus,
-                    unavailable = if (pinState == PinState.DOCK_FULL) {
-                        stringResource(R.string.menu_dock_full, AppCatalog.MAX_DOCK)
-                    } else {
-                        null
-                    },
-                )
-                if (onMove != null) MenuAction(text = "Déplacer", action = "move", onClick = onMove)
-                MenuAction(text = "Cacher", action = "hide", onClick = onHide)
+                content()
             }
         }
     }
@@ -112,17 +110,24 @@ internal fun AppContextMenu(
 @Composable
 private fun MenuHeader(app: TvApp) {
     val artwork by rememberAppArtwork(app)
+    ContextMenuHeader(app.label, app.packageName) {
+        TileBox(artwork, app.label, shape = MenuThumbnailShape, modifier = Modifier.testTag("menu-thumbnail"))
+    }
+}
+
+@Composable
+internal fun ContextMenuHeader(title: String, subtitle: String, tagPrefix: String = "menu", thumbnail: @Composable () -> Unit) {
     Row(
         Modifier.padding(start = Dimens.MenuHeaderInsetStart, end = Dimens.MenuHeaderInsetStart, top = Dimens.MenuHeaderInsetTop, bottom = HeaderGap),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HeaderGap),
     ) {
         Box(Modifier.align(Alignment.Top).width(Dimens.MenuThumbnailWidth)) {
-            TileBox(artwork, app.label, shape = MenuThumbnailShape, modifier = Modifier.testTag("menu-thumbnail"))
+            thumbnail()
         }
         Column {
-            Text(app.label, style = TextStyles.MenuTitle, color = SygixColors.OnDark, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(app.packageName, style = TextStyles.MenuSubtitle, color = PackageColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(title, modifier = Modifier.testTag("$tagPrefix-title"), style = TextStyles.MenuTitle, color = SygixColors.OnDark, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(subtitle, modifier = Modifier.testTag("$tagPrefix-subtitle"), style = TextStyles.MenuSubtitle, color = SygixColors.MenuSubtitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

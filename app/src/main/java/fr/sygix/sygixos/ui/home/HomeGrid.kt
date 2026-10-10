@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -38,16 +41,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import fr.sygix.sygixos.R
+import fr.sygix.sygixos.core.designsystem.SygixColors
+import fr.sygix.sygixos.core.designsystem.SygixTypography
+import fr.sygix.sygixos.domain.UpNextState
+import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.data.Catalog
+import fr.sygix.sygixos.domain.FocusFallback
 import fr.sygix.sygixos.domain.GridScroll
+import fr.sygix.sygixos.domain.GridSections
 import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.domain.PixelSize
 import fr.sygix.sygixos.domain.ShelfPosters
@@ -55,6 +72,7 @@ import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun HomeGrid(
@@ -65,7 +83,7 @@ internal fun HomeGrid(
     validatedVisuals: () -> Set<String>,
     checkedVisuals: () -> Set<String>,
     onAppFocused: (String) -> Unit,
-    onTileFocus: (rowIndex: Int) -> Unit,
+    onExitUp: () -> Unit,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
     origin: Float,
@@ -75,12 +93,29 @@ internal fun HomeGrid(
     modifier: Modifier = Modifier,
     initialShelfApp: String? = null,
     movingApp: String? = null,
+    upNext: UpNextState? = null,
+    onOpenUpNext: (UpNextItem) -> Unit = {},
+    onUpNextMenu: (UpNextItem) -> Unit = {},
+    onRetryUpNext: () -> Unit = {},
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
-    val packages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
-    val focus = rememberTileFocus(packages, focusEnabled, initialShelfApp)
+    val appPackages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
+    val sections = remember(upNext, appPackages) { GridSections.of(upNext, appPackages) }
+    val firstAppRow = sections.firstAppRow
+    val upNextRow = upNext?.takeIf { sections.upNextShown }
+    val upNextScroll = rememberLazyListState()
+    var titleHeight by remember { mutableStateOf(0f) }
+    val focus = remember { TileFocus(initialShelfApp) }
+    val enabled by rememberUpdatedState(focusEnabled)
     val focusedApp = focus.focusedApp
-    val entryApp = focus.entry(packages)
+    val entryApp = focus.gridEntry(sections)
+    LaunchedEffect(sections.upNextKeys) { focus.track(sections) }
+    LaunchedEffect(sections.focusOrder, focusEnabled) {
+        if (focusEnabled && entryApp != null && entryApp !in sections.upNextKeys) {
+            withFrameNanos { }
+            focus.requesterFor(entryApp).tryRequestFocus()
+        }
+    }
     var openApp by remember { mutableStateOf<String?>(null) }
 
     val programs by rememberUpdatedState(shelfPrograms)
@@ -93,9 +128,9 @@ internal fun HomeGrid(
         ?.let { ShelfPosters.candidates(programs(), it, VisualQuality.SHELF_VALIDATED_PER_APP) }
         ?.any { it !in settled() } ?: false
 
-    LaunchedEffect(focusedApp, movingApp) {
+    LaunchedEffect(focusedApp, movingApp, appPackages) {
         val target = focus.focusedApp
-        if (movingApp != null) {
+        if (movingApp != null || target !in appPackages) {
             openApp = null
             return@LaunchedEffect
         }
@@ -117,6 +152,8 @@ internal fun HomeGrid(
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val contentWidth = screenWidth - Dimens.ScreenMarginH * 2
     val rowHeight = (contentWidth - Dimens.GridSpacing * (Dimens.GridColumns - 1)) / Dimens.GridColumns * 9f / 16f
+    val upWidth = (contentWidth - Dimens.GridSpacing * 3) / 4
+    val upHeight = upWidth * 9f / 16f
     val panelBlock = contentWidth / Dimens.ShelfAspectRatio + Dimens.GridRowSpacing
     val posterSize = remember(density, screenWidth) {
         with(density) {
@@ -124,7 +161,8 @@ internal fun HomeGrid(
             ImageBounds.screen(zoomed.roundToPx(), (zoomed / Dimens.ShelfAspectRatio).roundToPx())
         }
     }
-    val geometry = remember(density, screenWidth) {
+    val sectionRows = with(density) { sections.rows(rows.size, upHeight.toPx(), rowHeight.toPx(), titleHeight) }
+    val geometry = remember(density, screenWidth, sectionRows) {
         with(density) {
             GridScroll(
                 topMargin = Dimens.GridTopMargin.toPx(),
@@ -132,15 +170,14 @@ internal fun HomeGrid(
                 rowSpacing = Dimens.GridRowSpacing.toPx(),
                 panelHeight = panelBlock.toPx(),
                 margin = Dimens.GridRowSpacing.toPx(),
+                rows = sectionRows,
             )
         }
     }
-    fun focusedRow(): Int = rows.indexOfFirst { row -> row.any { it.packageName == focus.focusedApp } }
-
-    LaunchedEffect(openRow, focusedApp, origin, viewport) {
-        val row = focusedRow()
+    LaunchedEffect(openRow, focusedApp, origin, viewport, geometry) {
+        val row = sections.rowOf(focus.focusedApp, Dimens.GridColumns)
         if (row < 0 || viewport <= 0f) return@LaunchedEffect
-        onAnchor(geometry.next(anchor(), row, openRow, viewport, origin))
+        onAnchor(geometry.next(anchor(), row, if (openRow < 0) -1 else openRow + firstAppRow, viewport, origin))
     }
     LaunchedEffect(movingApp, rows) {
         if (movingApp == null) return@LaunchedEffect
@@ -154,41 +191,83 @@ internal fun HomeGrid(
     LaunchedEffect(focusedApp, focusEnabled) {
         val target = focusedApp ?: return@LaunchedEffect
         if (!focusEnabled) return@LaunchedEffect
+        if (target !in appPackages) return@LaunchedEffect
         delay(Motion.SHELF_PREPARE_DELAY_MS)
         appFocused(target)
     }
 
-    if (catalog.grid.isEmpty()) {
-        Box(modifier.fillMaxWidth().height(with(density) { viewport.toDp() }), contentAlignment = Alignment.Center) {
-            Text("Aucune app TV détectée", style = MaterialTheme.typography.titleMedium, color = Color.White.copy(alpha = 0.6f))
-        }
-        return
+    val exitUp by rememberUpdatedState(onExitUp)
+    val scope = rememberCoroutineScope()
+    suspend fun focusCard(key: String) {
+        val requester = focus.requesterFor(key)
+        if (requester.tryRequestFocus()) return
+        val index = sections.upNextKeys.indexOf(key)
+        if (index < 0) return
+        upNextScroll.scrollToItem(index)
+        withFrameNanos { }
+        requester.tryRequestFocus()
     }
-
     Column(
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = Dimens.ScreenMarginH, vertical = Dimens.GridTopMargin)
-            .focusGroup(),
+        modifier.fillMaxWidth().padding(vertical = Dimens.GridTopMargin).focusGroup()
+            .onPreviewKeyEvent { event ->
+                if (event.key != Key.DirectionUp) return@onPreviewKeyEvent false
+                when (val up = sections.upFrom(focus.focusedApp, Dimens.GridColumns, focus.lastCard)) {
+                    GridSections.Up.Default -> false
+                    GridSections.Up.Exit -> { if (event.type == KeyEventType.KeyDown) exitUp(); true }
+                    is GridSections.Up.Card -> { if (event.type == KeyEventType.KeyDown) scope.launch { focusCard(up.key) }; true }
+                }
+            },
         verticalArrangement = Arrangement.spacedBy(Dimens.GridRowSpacing),
     ) {
+        @Composable fun UpNextSection() {
+            if (upNextRow == null) return
+            Column {
+                SectionTitle(R.string.upnext_title, "section-title-upnext", padded = true, onHeight = { titleHeight = it })
+                UpNextRow(upNextRow.content, upWidth, focus, entryApp, focusRequester, focusEnabled,
+                    onFocused = { itemKey, index ->
+                        if (enabled) {
+                            focus.onFocused(itemKey, sections.cardOrderIndex(index), FocusFallback.CardVisit(index, afterApps = !sections.upNextFirst))
+                        }
+                    },
+                    onOpen = onOpenUpNext, onMenu = onUpNextMenu, onRetry = onRetryUpNext, state = upNextScroll)
+            }
+        }
+        if (sections.upNextFirst) UpNextSection()
         rows.forEachIndexed { rowIndex, rowApps ->
-            GridRow(
-                rowIndex = rowIndex,
-                apps = rowApps,
-                focus = focus,
-                focusEnabled = focusEnabled,
-                focusRequester = focusRequester,
-                entryApp = entryApp?.takeIf { entry -> rowApps.any { it.packageName == entry } },
-                movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
-                shelfUris = if (rowIndex == openRow) shelfUris else NoShelf,
-                posterSize = posterSize,
-                onTileFocus = onTileFocus,
-                onTileClick = onTileClick,
-                onTileLongClick = onTileLongClick,
-            )
+            Column(Modifier.padding(horizontal = Dimens.ScreenMarginH)) {
+                if (rowIndex == 0) SectionTitle(R.string.applications_title, "section-title-apps", onHeight = { titleHeight = it })
+                GridRow(
+                    rowIndex = rowIndex,
+                    apps = rowApps,
+                    focus = focus,
+                    focusEnabled = focusEnabled,
+                    focusRequester = focusRequester,
+                    entryApp = entryApp?.takeIf { entry -> rowApps.any { it.packageName == entry } },
+                    movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
+                    shelfUris = if (rowIndex == openRow) shelfUris else NoShelf,
+                    posterSize = posterSize,
+                    onTileClick = onTileClick,
+                    onTileLongClick = onTileLongClick,
+                    indexOffset = sections.appIndexOffset,
+                    isFocusEnabled = { enabled },
+                )
+            }
+        }
+        if (!sections.upNextFirst) UpNextSection()
+        if (catalog.grid.isEmpty()) {
+            val height = with(density) { sections.emptyAppsHeight(viewport, Dimens.GridTopMargin.toPx(), upHeight.toPx(), titleHeight, Dimens.GridRowSpacing.toPx()).toDp() }
+            Box(Modifier.fillMaxWidth().height(height).testTag("no-tv-apps"), contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.no_tv_apps), style = MaterialTheme.typography.titleMedium, color = SygixColors.OnDarkSecondary)
+            }
         }
     }
+}
+
+@Composable
+private fun SectionTitle(@StringRes resource: Int, tag: String, padded: Boolean = false, onHeight: (Float) -> Unit) {
+    Text(stringResource(resource), style = SygixTypography.titleLarge, color = SygixColors.OnDarkSecondary,
+        modifier = Modifier.onSizeChanged { onHeight(it.height.toFloat()) }.testTag(tag)
+            .padding(start = if (padded) Dimens.ScreenMarginH else 0.dp, bottom = Dimens.SectionTitleGap))
 }
 
 private val NoShelf: List<String> = emptyList()
@@ -204,9 +283,10 @@ private fun GridRow(
     movingApp: String?,
     shelfUris: List<String>,
     posterSize: PixelSize,
-    onTileFocus: (rowIndex: Int) -> Unit,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
+    indexOffset: Int = 0,
+    isFocusEnabled: () -> Boolean = { focusEnabled },
 ) {
     Column {
         AnimatedVisibility(
@@ -230,9 +310,8 @@ private fun GridRow(
                         onClick = { onTileClick(app) },
                         onLongClick = { onTileLongClick(app) },
                         onFocusChanged = { focused ->
-                            if (focused) {
-                                onTileFocus(rowIndex)
-                                focus.onFocused(app.packageName, rowIndex * Dimens.GridColumns + column)
+                            if (focused && isFocusEnabled()) {
+                                focus.onFocused(app.packageName, indexOffset + rowIndex * Dimens.GridColumns + column)
                             }
                         },
                         focusRequester = focus.requesterFor(app.packageName),

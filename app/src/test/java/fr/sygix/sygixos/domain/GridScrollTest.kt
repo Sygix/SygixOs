@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GridScrollTest {
@@ -82,5 +83,57 @@ class GridScrollTest {
         assertEquals(origin, opened.scroll, 0f)
         val back = grid.next(GridScroll.Anchor(0f, 3, 0f), 0, -1, viewport, origin)
         assertEquals(origin, back.scroll, 0f)
+    }
+
+    private val titled = GridScroll(
+        topMargin = 40f, rowHeight = 86f, rowSpacing = 32f, panelHeight = 344f, margin = 32f,
+        rows = listOf(GridScroll.RowGeometry(112f, 40f), GridScroll.RowGeometry(86f, 40f), GridScroll.RowGeometry(86f), GridScroll.RowGeometry(86f)),
+    )
+    private val titledAfter = GridScroll(
+        topMargin = 40f, rowHeight = 86f, rowSpacing = 32f, panelHeight = 344f, margin = 32f,
+        rows = listOf(GridScroll.RowGeometry(86f, 40f), GridScroll.RowGeometry(86f), GridScroll.RowGeometry(86f), GridScroll.RowGeometry(86f), GridScroll.RowGeometry(112f, 40f)),
+    )
+
+    @Test
+    fun `row tops use real heights and section titles in both positions`() {
+        assertEquals(80f, titled.rowTop(0, -1), 0f)
+        assertEquals(264f, titled.rowTop(1, -1), 0f)
+        assertEquals(382f, titled.rowTop(2, -1), 0f)
+        assertEquals(80f, titledAfter.rowTop(0, -1), 0f)
+        assertEquals(198f, titledAfter.rowTop(1, -1), 0f)
+        assertEquals(592f, titledAfter.rowTop(4, -1), 0f)
+    }
+
+    @Test
+    fun `first entry puts the top of the first title on the top margin`() {
+        val origin = 540f
+        for (grid in listOf(titled, titledAfter)) {
+            val first = grid.next(null, 0, -1, viewport, origin)
+            assertEquals(origin, first.scroll, 0f)
+            assertEquals(40f, first.rowTop - 40f - first.scroll, 0f)
+        }
+    }
+
+    @Test
+    fun `focused block is title then panel then row with the title on the top margin`() {
+        val first = titled.next(null, 0, -1, viewport)
+        val apps = titled.next(first, 1, -1, viewport)
+        assertEquals(0f, apps.scroll, 0f)
+        val opened = titled.next(apps, 1, 1, viewport)
+        val panelTop = opened.rowTop - 344f
+        val titleTop = panelTop - 40f
+        assertEquals(40f, titleTop - opened.scroll, 0f)
+        assertTrue(titleTop < panelTop && panelTop < opened.rowTop)
+    }
+
+    @Test
+    fun `up next after the apps aligns its bottom on the bottom margin with its title visible`() {
+        val first = titledAfter.next(null, 0, -1, viewport)
+        val row = titledAfter.next(first, 4, -1, viewport)
+        assertEquals(196f, row.scroll, 0f)
+        assertEquals(508f, row.rowTop + 112f - row.scroll, 0f)
+        assertTrue(row.rowTop - 40f - row.scroll >= 40f)
+        val back = titledAfter.next(row, 3, -1, viewport)
+        assertEquals(196f, back.scroll, 0f)
     }
 }

@@ -44,7 +44,6 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -85,8 +84,14 @@ import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.emptyFlow
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
@@ -103,12 +108,17 @@ import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.AppCatalog
 import fr.sygix.sygixos.domain.GridScroll
+import fr.sygix.sygixos.domain.GridSections
+import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.domain.HomePage
 import fr.sygix.sygixos.domain.StartupPhase
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.model.UpNextItem
+import fr.sygix.sygixos.model.UpNextSourceEntry
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
+import fr.sygix.sygixos.ui.settings.HomeScreenActions
 import fr.sygix.sygixos.ui.settings.LocalAppIcons
 import fr.sygix.sygixos.ui.settings.SettingsCategory
 import fr.sygix.sygixos.ui.settings.SettingsScreen
@@ -143,6 +153,11 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
             LauncherHome(
                 catalog = s.catalog,
                 hero = s.hero,
+                upNext = s.upNext,
+                onOpenUpNext = { AppLauncher.open(context, it) },
+                onOpenUpNextSource = { item, source -> AppLauncher.openWith(context, item, source) },
+                onRetryUpNext = viewModel::refreshUpNext,
+                upNextUpdates = viewModel.upNextUpdates,
                 onTogglePin = viewModel::togglePin,
                 onOpenApp = { AppLauncher.open(context, it) },
                 onOpenHero = { AppLauncher.open(context, it) },
@@ -160,6 +175,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true) {
                 clock = viewModel.clock,
                 updateBadge = viewModel.updateBadge,
                 update = settingsViewModel.updateActions,
+                homeScreenActions = settingsViewModel.homeScreenActions,
                 interactive = interactive,
                 homeHandlesBack = homeHandlesBack,
                 onHeroVisualReady = viewModel::onHeroVisualReady,
@@ -351,10 +367,16 @@ internal fun LauncherHome(
     clock: StateFlow<String> = NoClock,
     updateBadge: StateFlow<Boolean> = NoBadge,
     update: UpdateActions = UpdateActions(),
+    homeScreenActions: HomeScreenActions = HomeScreenActions(),
     interactive: Boolean = true,
     homeHandlesBack: Boolean = true,
     onHeroVisualReady: () -> Unit = {},
     gridReady: Boolean = true,
+    upNext: UpNextState? = null,
+    onOpenUpNext: (UpNextItem) -> Unit = {},
+    onOpenUpNextSource: (UpNextItem, UpNextSourceEntry) -> Unit = { _, _ -> },
+    onRetryUpNext: () -> Unit = {},
+    upNextUpdates: Flow<Unit> = emptyFlow(),
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -362,16 +384,21 @@ internal fun LauncherHome(
     var orderBeforeMove by remember { mutableStateOf<List<String>>(emptyList()) }
     val haze = rememberHazeState()
     val backdrop = remember { GlassBackdrop() }
-    var gridRow by remember { mutableIntStateOf(0) }
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
+    var menuItem by remember { mutableStateOf<UpNextItem?>(null) }
     val heroFocus = remember { FocusRequester() }
     val dockFocus = remember { FocusRequester() }
     val gridFocus = remember { FocusRequester() }
     val gearFocus = remember { FocusRequester() }
     var gearFocused by remember { mutableStateOf(false) }
     val dockAvailable = catalog.dock.isNotEmpty()
-    val gridAvailable = catalog.grid.isNotEmpty()
-    val menuOpen = menuApp != null
+    val gridAvailable = GridSections.hasFocusTarget(catalog.grid.size, upNext)
+    val menuOpen = menuApp != null || menuItem != null
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+
+    LaunchedEffect(upNextUpdates, lifecycle) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { upNextUpdates.collect() }
+    }
 
     LaunchedEffect(dockAvailable) {
         if (zone == Zone.DOCK && !dockAvailable) zone = Zone.HERO
@@ -412,7 +439,7 @@ internal fun LauncherHome(
                 if (!homeHandlesBack && e.key == Key.Back) return@onPreviewKeyEvent false
                 if (settingsOpen) return@onPreviewKeyEvent false
                 if (menuOpen) {
-                    return@onPreviewKeyEvent if (e.key == Key.Back) { menuApp = null; true } else false
+                    return@onPreviewKeyEvent if (e.key == Key.Back) { menuApp = null; menuItem = null; true } else false
                 }
                 movingApp?.let { moving ->
                     val app = catalog.grid.firstOrNull { it.packageName == moving }
@@ -437,7 +464,6 @@ internal fun LauncherHome(
                         zone == Zone.HERO && !gearFocused -> { gearFocus.tryRequestFocus(); true }
                         zone == Zone.HERO -> true
                         zone == Zone.DOCK -> { zone = Zone.HERO; true }
-                        gridRow == 0 -> { zone = if (dockAvailable) Zone.DOCK else Zone.HERO; true }
                         else -> false
                     }
                     Key.Back -> {
@@ -474,7 +500,7 @@ internal fun LauncherHome(
                         items = hero.items,
                         validatedVisuals = heroVisuals,
                         active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen,
-                        stillActive = { zone == Zone.HERO && menuApp == null && !settingsOpen },
+                        stillActive = { zone == Zone.HERO && !menuOpen && !settingsOpen },
                         visible = heroVisible && !settingsOpen,
                         focusRequester = heroFocus,
                         claimFocus = !gearFocused,
@@ -529,7 +555,7 @@ internal fun LauncherHome(
                         validatedVisuals = { heroNow.value.validated },
                         checkedVisuals = { heroNow.value.checked },
                         onAppFocused = onAppFocused,
-                        onTileFocus = { gridRow = it },
+                        onExitUp = { zone = if (dockAvailable) Zone.DOCK else Zone.HERO },
                         onTileClick = onOpenApp,
                         onTileLongClick = { menuApp = it },
                         origin = viewport,
@@ -537,6 +563,10 @@ internal fun LauncherHome(
                         anchor = { gridAnchor },
                         onAnchor = { gridAnchor = it },
                         movingApp = movingApp,
+                        upNext = upNext,
+                        onOpenUpNext = onOpenUpNext,
+                        onUpNextMenu = { menuItem = it },
+                        onRetryUpNext = onRetryUpNext,
                         modifier = Modifier.testTag("home-grid"),
                     )
                 }
@@ -568,9 +598,13 @@ internal fun LauncherHome(
                 onUnhideAll = onUnhideAll,
                 onCategoryEntered = onSettingsCategory,
                 update = update,
+                homeScreenActions = homeScreenActions,
                 onBack = { settingsOpen = false },
                 homeHandlesBack = homeHandlesBack,
             )
+        }
+        menuItem?.let { item ->
+            UpNextContextMenu(item, onOpen = { source -> onOpenUpNextSource(item, source); menuItem = null }, modifier = Modifier.zIndex(10f))
         }
         menuApp?.let { app ->
             AppContextMenu(

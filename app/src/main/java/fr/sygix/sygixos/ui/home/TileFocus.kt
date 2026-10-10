@@ -17,22 +17,37 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.focus.FocusRequester
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.domain.FocusFallback
+import fr.sygix.sygixos.domain.GridSections
 
 @Stable
 internal class TileFocus(initialApp: String?) {
     var focusedApp by mutableStateOf(initialApp)
         private set
     private var focusedIndex by mutableIntStateOf(0)
+    private var card by mutableStateOf<FocusFallback.CardVisit?>(null)
+    var lastCard: String? = null
+        private set
     private val requesters = mutableMapOf<String, FocusRequester>()
 
     fun requesterFor(packageName: String): FocusRequester = requesters.getOrPut(packageName) { FocusRequester() }
 
-    fun onFocused(packageName: String, index: Int) {
+    fun onFocused(packageName: String, index: Int, card: FocusFallback.CardVisit? = null) {
         focusedApp = packageName
         focusedIndex = index
+        this.card = card
+        if (card != null) lastCard = packageName
     }
 
     fun entry(packages: List<String>): String? = FocusFallback.entry(packages, focusedApp, focusedIndex)
+
+    fun gridEntry(sections: GridSections): String? = FocusFallback.gridEntry(sections, focusedApp, focusedIndex, card)
+
+    fun track(sections: GridSections) {
+        val tracked = FocusFallback.track(sections.upNextKeys, focusedApp, card)
+        if (tracked == card || tracked == null) return
+        card = tracked
+        focusedIndex = sections.cardOrderIndex(tracked.index)
+    }
 
     fun refocus(packages: List<String>, active: Boolean): String? =
         FocusFallback.refocus(packages, focusedApp, focusedIndex, active)

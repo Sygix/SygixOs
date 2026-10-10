@@ -148,8 +148,7 @@ class UpdateBadgeTest {
         compose.onNodeWithTag("update-badge-gear", useUnmergedTree = true).assertDoesNotExist()
         press(Key.DirectionUp)
         press(Key.Enter)
-        press(Key.DirectionDown)
-        press(Key.DirectionDown)
+        repeat(3) { press(Key.DirectionDown) }
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
         compose.onNodeWithTag("update-badge-about", useUnmergedTree = true).assertDoesNotExist()
         press(Key.DirectionRight)
