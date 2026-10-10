@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextPosition
 import fr.sygix.sygixos.model.BootStartState
@@ -28,7 +29,7 @@ internal val Context.dataStore by preferencesDataStore(name = "launcher")
 class LauncherPrefs(
     private val context: Context,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
+) : LauncherSystemStore {
 
     private val upNextVisibleKey = booleanPreferencesKey("up_next_visible")
     private val upNextPositionKey = stringPreferencesKey("up_next_position")
@@ -58,7 +59,7 @@ class LauncherPrefs(
     private val bootStartEnabledAtKey = intPreferencesKey("boot_start_enabled_at_boot")
     private val bootStartObservedAtKey = intPreferencesKey("boot_start_observed_at_boot")
 
-    val launcherSystem: Flow<LauncherSystemPreferences> = context.dataStore.data.map { prefs ->
+    override val launcherSystem: Flow<LauncherSystemPreferences> = context.dataStore.data.map { prefs ->
         LauncherSystemPreferences(
             onboardingDismissed = prefs[onboardingDismissedKey] ?: false,
             bootStart = BootStartState(
@@ -69,11 +70,11 @@ class LauncherPrefs(
         )
     }
 
-    suspend fun dismissLauncherOnboarding() {
+    override suspend fun dismissLauncherOnboarding() {
         context.dataStore.edit { it[onboardingDismissedKey] = true }
     }
 
-    suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {
+    override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {
         context.dataStore.edit { prefs ->
             if (enabled && prefs[bootStartEnabledKey] != true) {
                 if (currentBoot != null) prefs[bootStartEnabledAtKey] = currentBoot
@@ -88,7 +89,7 @@ class LauncherPrefs(
         }
     }
 
-    suspend fun recordBootStartObserved(currentBoot: Int?) {
+    override suspend fun recordBootStartObserved(currentBoot: Int?) {
         if (currentBoot == null) return
         context.dataStore.edit { it[bootStartObservedAtKey] = currentBoot }
     }

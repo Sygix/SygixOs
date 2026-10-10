@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_accessibility_label">Retour Home vers SygixOs</string>
+    <string name="home_accessibility_description">Permet de revenir à SygixOs avec la touche Home sur les appareils qui transmettent cette touche au service. SygixOs ne lit pas le contenu des écrans et ne conserve aucune donnée. Ce service est facultatif et peut être désactivé dans ces réglages.</string>
+</resources>
