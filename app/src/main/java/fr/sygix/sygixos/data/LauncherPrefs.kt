@@ -11,11 +11,14 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextPosition
+import fr.sygix.sygixos.model.BootStartState
+import fr.sygix.sygixos.model.LauncherSystemPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -50,6 +53,45 @@ class LauncherPrefs(
     private val disabledSourcesKey = stringSetPreferencesKey("disabled_sources")
     private val hiddenKey = stringSetPreferencesKey("hidden_apps")
     private val hiddenDatesKey = stringPreferencesKey("hidden_apps_dates")
+    private val onboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
+    private val bootStartEnabledKey = booleanPreferencesKey("boot_start_enabled")
+    private val bootStartEnabledAtKey = intPreferencesKey("boot_start_enabled_at_boot")
+    private val bootStartObservedAtKey = intPreferencesKey("boot_start_observed_at_boot")
+
+    val launcherSystem: Flow<LauncherSystemPreferences> = context.dataStore.data.map { prefs ->
+        LauncherSystemPreferences(
+            onboardingDismissed = prefs[onboardingDismissedKey] ?: false,
+            bootStart = BootStartState(
+                enabled = prefs[bootStartEnabledKey] ?: false,
+                enabledAtBoot = prefs[bootStartEnabledAtKey],
+                observedAtBoot = prefs[bootStartObservedAtKey],
+            ),
+        )
+    }
+
+    suspend fun dismissLauncherOnboarding() {
+        context.dataStore.edit { it[onboardingDismissedKey] = true }
+    }
+
+    suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {
+        context.dataStore.edit { prefs ->
+            if (enabled && prefs[bootStartEnabledKey] != true) {
+                if (currentBoot != null) prefs[bootStartEnabledAtKey] = currentBoot
+                else prefs.remove(bootStartEnabledAtKey)
+                prefs.remove(bootStartObservedAtKey)
+            }
+            prefs[bootStartEnabledKey] = enabled
+            if (!enabled) {
+                prefs.remove(bootStartEnabledAtKey)
+                prefs.remove(bootStartObservedAtKey)
+            }
+        }
+    }
+
+    suspend fun recordBootStartObserved(currentBoot: Int?) {
+        if (currentBoot == null) return
+        context.dataStore.edit { it[bootStartObservedAtKey] = currentBoot }
+    }
 
     val pinned: Flow<Set<String>> = context.dataStore.data.map { it[pinnedKey] ?: emptySet() }
 
