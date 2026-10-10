@@ -23,6 +23,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Startup screen**: on a cold start, the SygixOs ghost mascot floats and blinks alone on a black background (no icon or second screen from the system before it), for at least 0.6 s and until the home screen is ready (app catalog loaded and first hero picture ready, at most 5 s), then crossfades into the hero. It never shows when you come back to the launcher. With animations turned off in the system, the mascot stays still and the home screen appears without a fade.
 - **Full-screen hero**: a muted slideshow (crossfade, one slow zoom per picture, then still) of the programs published by installed apps (continue watching, new releases, recommendations). It plays the preview video when the app provides one, otherwise the poster. Above the title, the source app's icon and a label that depends on what the app published: "Continuer dans X" (continue watching), "Épisode suivant dans X" (next episode), "Nouveau dans X" (new), "À regarder dans X" (watchlist), or just the app name for a highlighted program. Under the title, only the details the app provides (season, episode, duration, e.g. "Saison 2 · Épisode 5 · 42 min"), and a progress bar with the time left ("Reste 25 min") when the playback position and the duration are known. Soft dark veils keep the text and button readable on bright posters. The "Open" / "Resume" button opens the content page in its app.
 - **Clock and settings capsule**: a small dark glass capsule at the top right of the hero shows the time (12 or 24-hour, as set on the TV) and the settings gear.
+- **Up Next**: the "À suivre" section combines Watch Next programs from all enabled source apps, deduplicates matching episodes and movies, and preserves each app in the "Ouvrir avec…" menu. The "Applications" section remains separate; Up Next can sit before or after it. Program artwork falls back to a placeholder when absent or below twice the displayed width.
 - **Dock and app grid**:
   - apps are detected automatically;
   - 16:9 tiles show the Android TV banner;
@@ -32,7 +33,8 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Dark glass**: the dock, the capsule, the context menu and the move-mode banner use a dark translucent glass with a live blur computed at reduced resolution, only under these surfaces.
 - **Top Shelf-style preview**: after about 3 s on an app that publishes content, its artwork appears above the row and pans slowly once.
 - **Settings** (gear in the capsule, same background as the grid, light focus pills):
-  - choose which apps feed the hero and the preview; apps that publish content come first, by number of programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
+  - choose which apps feed the hero, preview and Up Next; apps that publish content come first, by the combined number of Preview and Watch Next programs, then the others alphabetically. The order is set when you open the category, so rows never move under the focus;
+  - "Écran d'accueil" contains "Afficher Up Next" (on by default) and "Position d'Up Next" (before applications by default). Changes apply immediately and persist; position remains editable when Up Next is off;
   - hide apps from the grid, and restore them: the hidden apps are listed right in the settings pane, most recently hidden first, with a "Tout réactiver" (restore all) button above the list that restores the listed apps. A restored app keeps its row (switched to visible) until you leave the category, so a mistake can be undone at once;
   - version and library licenses;
   - updates: "Vérifier les mises à jour" (check for updates) asks the public GitHub releases of this repository, with no account and no token; "Mettre à jour vers X" (update to X) downloads, verifies and installs the new version, with a QR code next to it that opens the release notes on a phone; "Inclure les préversions" (include pre-releases) is off by default.
@@ -53,7 +55,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 | P3 | Logo and animated startup splash | ✅ delivered in v0.0.1; splash cadence follow-up remains |
 | P4 | Built-in updates from GitHub releases | ✅ delivered in v0.0.1; manufacturer-blocked relaunch deferred to P5 |
 | P5 | Replacing the system launcher | planned; ADB commands available (see Installation) |
-| P6 | Up Next row (all apps, deduplication) | 📝 [spec](openspec/changes/up-next/proposal.md) done, implementation planned; open questions remain |
+| P6 | Up Next row (all apps, deduplication) | [Implementation](openspec/changes/up-next/tasks.md) in progress; independent review and real-TV acceptance pending |
 | P7 | Search | planned |
 | P8 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
 

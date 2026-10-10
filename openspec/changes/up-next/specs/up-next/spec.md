@@ -40,15 +40,15 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus ; en P6, `externalIds` reste vide et le niveau 5 ne s'applique jamais
 
 ### Requirement: Champs facultatifs
-Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Une valeur de `watch_next_type` inconnue (hors des quatre valeurs définies par Android : `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`) SHALL être traitée comme une valeur absente, donc rattachée au groupe « à suivre ». Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
+Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre (ni `COLUMN_TITLE`, ni, pour un épisode, `COLUMN_EPISODE_TITLE`) ; un épisode (type publié ou inféré) sans `COLUMN_TITLE` mais avec un `COLUMN_EPISODE_TITLE` SHALL être conservé, son titre d'épisode servant de titre d'affichage et de titre normalisé pour le dédoublonnage (décision du 2026-10-10) ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Une valeur de `watch_next_type` inconnue (hors des quatre valeurs définies par Android : `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`) SHALL être traitée comme une valeur absente, donc rattachée au groupe « à suivre ». Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
 
 #### Scenario: titre absent
-- **WHEN** un programme n'a ni titre ni titre de série
+- **WHEN** un programme n'a ni titre (`COLUMN_TITLE`) ni, pour un épisode, titre d'épisode (`COLUMN_EPISODE_TITLE`), ou qu'un film n'a pas de titre
 - **THEN** il est exclu de la rangée
 
-#### Scenario: titre de série absent
-- **WHEN** un épisode n'a pas de titre de série mais un titre
-- **THEN** le titre sert de titre d'affichage et de clé de titre normalisé, sans « SxxEyy » si les numéros manquent
+#### Scenario: épisode sans titre
+- **WHEN** un épisode (type publié ou inféré) n'a pas de `COLUMN_TITLE` mais publie un `COLUMN_EPISODE_TITLE`
+- **THEN** il est conservé : le titre d'épisode est le seul texte de sa carte, en titre principal, sans ligne « SxxEyy · titre d'épisode », et sert de titre normalisé à chaque niveau de dédoublonnage comme n'importe quel titre
 
 #### Scenario: type watch next absent
 - **WHEN** un programme n'a pas de `watch_next_type`
@@ -126,8 +126,12 @@ La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, 
 - **THEN** aucune fusion n'a lieu
 
 #### Scenario: année inconnue
-- **WHEN** l'année est connue d'un seul côté
+- **WHEN** l'année est connue d'un seul côté et le titre normalisé n'est pas associé à plusieurs années connues distinctes
 - **THEN** la fusion a lieu sur le titre normalisé seul, limite assumée et documentée
+
+#### Scenario: année inconnue entre plusieurs remakes
+- **WHEN** trois apps publient un film de même titre normalisé, avec les années 1982, inconnue et 2011
+- **THEN** l'item sans année reste séparé des deux remakes ; aucune fusion ne relie les années connues distinctes, quel que soit l'ordre des programmes
 
 #### Scenario: normalisation stricte
 - **WHEN** les titres sont comparés
@@ -206,7 +210,7 @@ La rangée Up Next SHALL porter le titre de section « À suivre » défini par 
 
 #### Scenario: carte épisode
 - **WHEN** l'item est un épisode (type publié ou inféré selon « Champs facultatifs »)
-- **THEN** la carte affiche l'image 16:9 plein cadre (sinon le poster portrait centré sur le fond des tuiles) sous le dégradé, le titre de série en `TextStyles.Row`, une seconde ligne « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` (sans « SxxEyy » si les numéros manquent) et, pour un item en cours, la barre de progression sous les textes
+- **THEN** la carte affiche l'image 16:9 plein cadre (sinon le poster portrait centré sur le fond des tuiles) sous le dégradé, le titre de série en `TextStyles.Row`, une seconde ligne « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` (sans « SxxEyy » si les numéros manquent ; un épisode sans titre ne montre que son titre d'épisode, scénario « épisode sans titre ») et, pour un item en cours, la barre de progression sous les textes
 
 #### Scenario: carte film
 - **WHEN** l'item est un film (type publié ou inféré selon « Champs facultatifs »)
@@ -272,7 +276,7 @@ L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les
 
 #### Scenario: intent en échec depuis le menu
 - **WHEN** l'ouverture de l'intent d'une source choisie dans le menu échoue
-- **THEN** l'app source est lancée en repli et un toast en informe l'utilisateur, sans crash
+- **THEN** l'app source est lancée en repli et un toast « Contenu indisponible, ouverture de <nom de l'app> » en informe l'utilisateur, sans crash
 
 ### Requirement: États de la rangée
 La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home. Le comportement du focus quand une carte disparaît ou que la rangée se masque est spécifié par « Navigation 3 paliers » de launcher-shell (scénarios « carte focusée disparue » et « rangée devenue vide »).

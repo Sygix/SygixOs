@@ -73,8 +73,12 @@ La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher Up Next »
 - **WHEN** le focus est sur « Position d'Up Next » fermée
 - **THEN** haut porte le focus sur « Afficher Up Next » ; bas ne fait rien tant que « Position d'Up Next » est la dernière ligne de la catégorie (sans boucle) ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » ; Retour ferme les réglages et le home reprend avec le héro focusé (« Page de réglages », scénario « retour »)
 
-#### Scenario: réglages quittés liste ouverte
-- **WHEN** l'utilisateur quitte les réglages pendant que la liste est ouverte (touche Home de la télécommande ou autre app au premier plan), puis rouvre les réglages
+#### Scenario: launcher en arrière-plan liste ouverte
+- **WHEN** la liste est ouverte et le launcher passe en arrière-plan (touche Home de la télécommande ou autre app au premier plan) alors que les réglages restent ouverts, puis revient au premier plan
+- **THEN** la liste est fermée sans changement de valeur, les réglages sont toujours ouverts, le focus est sur la ligne « Position d'Up Next » et celle-ci affiche la valeur persistée, inchangée
+
+#### Scenario: réglages rouverts
+- **WHEN** les réglages sont fermés puis rouverts après que la liste a été ouverte
 - **THEN** la liste est fermée et la ligne affiche la valeur persistée, inchangée
 
 #### Scenario: application immédiate
