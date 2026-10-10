@@ -12,7 +12,7 @@ SygixOs se déclare déjà comme écran d'accueil Android (filtre `CATEGORY_HOME
 - Service d'accessibilité livré : quand le constructeur détourne la touche Home et que l'utilisateur a activé le service, SygixOs revient au premier plan.
 - Touche Home pressée alors que SygixOs est déjà au premier plan : réglages et surcouches fermés, retour en haut de l'accueil, focus sur le héro.
 - `self-update` : le parcours de mise à jour ne demande toujours jamais le rôle HOME ; seule une action explicite de l'utilisateur, dans la présentation initiale ou les réglages, peut le demander.
-- Vérifications sur la TV de référence avant le code qui en dépend : rôle HOME, réception de la fin du démarrage et ouverture qui suit, signal Home transmis au service d'accessibilité, relance après une mise à jour intégrée quand SygixOs détient le rôle HOME.
+- Vérifications sur la TV de référence à la réception de l'APK RC, après implémentation : rôle HOME, réception de la fin du démarrage et ouverture qui suit, signal Home transmis au service d'accessibilité, relance après une mise à jour intégrée quand il détient le rôle HOME.
 - Aucune désactivation automatique (ADB ou autre) du launcher Google TV ni d'aucune application système.
 
 ## Décisions du propriétaire (2026-10-10)
@@ -52,6 +52,26 @@ Maquettes Penpot validées le 2026-10-10 (fichier « SygixOs Maquette », page �
 25. testTags fixés dans le delta `ui-testing`.
 26. Confirmations du même jour, après relecture de la spec mise à jour : pastille « En attente… » en `SygixColors.Badge` (aucune nouvelle couleur) ; mascotte de la présentation = pose de repos fixe (première image de l'animation), 64 dp ; ligne « Indisponible » focalisable, OK sans effet, raison lisible au focus, dans la présentation et dans les réglages ; bouton « Continuer » de hauteur `Dimens.MenuActionHeight` (38 dp), sans jeton propre ; détail « non observé » sans autre indicateur, dans la couleur du détail normal.
 
+## Décisions du propriétaire (2026-10-10, réception RC)
+
+- Implémenter avant les essais TV, qui restent non vérifiés jusqu'à la réception RC par le propriétaire.
+- Rôle HOME déjà détenu : aucune action, afficher « Actif ».
+- Proposer aussi la permission « Afficher par-dessus d'autres applis » pour le démarrage hors exemption, via les réglages système après consentement explicite et explication ; refus et indisponibilité non bloquants, sans garantie constructeur. Placement : décision 32 ci-dessous.
+- Livrer le service d'accessibilité même sans signal exploitable sur la TV de référence, sans action dans ce cas ; première implémentation par filtrage de la touche Home, sans lecture de contenu des fenêtres.
+- Si la relance après mise à jour reste bloquée avec le rôle HOME, conserver le sujet 9 ouvert sans nouveau mécanisme P5.
+
+## Décisions du propriétaire (2026-10-10, finalisation)
+
+32. Permission d'affichage superposé : quand l'utilisateur fait passer « Démarrer à l'allumage » de désactivé à activé et que la permission manque, une confirmation explicative s'affiche aussitôt (« Ouvrir les réglages », « Pas maintenant ») ; trois lignes seulement ; l'option reste activée en cas de refus ; l'écran système est un choix délibéré de l'utilisateur, sans autorisation automatique ni garantie ; nouvelle proposition à la prochaine activation ; styles existants, sans maquette dédiée, rendu vérifié par capture lors de la validation 4.2. 33. Écran système de la permission d'affichage superposé absent ou impossible à ouvrir : « Démarrer à l'allumage » devient « Indisponible » avec sa raison et l'option ne s'active pas (aucune confirmation, activation refusée). Un refus de l'utilisateur sur un écran existant garde la décision 32 (option conservée, « non observé » si besoin, nouvelle proposition à la prochaine activation).
+
+## Décisions du propriétaire (2026-10-10, relecture)
+
+34. Raison affichée par « Démarrer à l'allumage » « Indisponible » (décision 33) : « Cette TV ne permet pas d'autoriser l'ouverture au démarrage ».
+35. Un appui long sur Home garde son comportement système (tableau de bord Google TV) : le service d'accessibilité n'agit que sur un appui court ; un appui long (événements répétés, ou touche tenue au-delà du délai d'appui long) n'est pas consommé et reste au système.
+36. Le démarrage à l'allumage reste limité au démarrage à froid dans P5. La tâche 1.1 teste séparément la sortie de veille (veille puis rallumage) et le démarrage à froid, et consigne les deux résultats ; si la sortie de veille n'ouvre pas SygixOs, ce cas va à un change ultérieur, sans nouveau mécanisme dans P5.
+
+Les autres confirmations du jour (rôle déjà détenu, service livré sans signal, relance en échec gardée au backlog, ordre des lignes dans « Écran d'accueil ») étaient déjà écrites (décisions 28, 30, 31 et 23 de `design.md`).
+
 ## Capabilities
 
 ### New Capabilities
@@ -78,6 +98,7 @@ Manifeste (récepteur de fin de démarrage, service d'accessibilité et sa confi
 
 - Désactiver automatiquement le launcher Google TV, SetupWraith ou toute autre application système, notamment par ADB : hors périmètre, sans phase prévue.
 - Garantir le retour Home ou le démarrage automatique sur tous les appareils : P5 décrit le comportement sur les appareils qui le permettent et l'indique quand il n'a pas eu lieu.
+- Ouverture de SygixOs à la sortie de veille : P5 ne couvre que le démarrage à froid (décision 36) ; un change ultérieur traitera la sortie de veille si la tâche 1.1 montre qu'elle n'ouvre pas SygixOs.
 - Nouveau composant de design system ou nouveau style de ligne : la présentation initiale et les contrôles P5 réutilisent les lignes de réglages, la pilule de focus, le switch Apple et le verre existants (`design.md`, D9 et D10).
 
 ## Questions ouvertes

@@ -29,6 +29,14 @@ Les parcours P5 SHALL être couverts par des tests déterministes, sans environn
 - **WHEN** le double déclare le service activé par l'utilisateur et que le test simule le signal Home détourné, SygixOs étant en arrière-plan puis au premier plan
 - **THEN** l'ouverture de l'accueil de SygixOs est demandée dans les deux cas ; au premier plan, le comportement de « Touche Home avec SygixOs au premier plan » s'applique
 
+#### Scenario: appui court et appui long sur Home
+- **WHEN** le test transmet au filtre du service une séquence pressé puis relâché courte, puis une séquence avec répétitions ou maintenue au-delà du délai d'appui long
+- **THEN** aucun événement n'est consommé ; seule la séquence courte demande l'ouverture de l'accueil, avec l'état « au premier plan » capturé à l'appui
+
+#### Scenario: écran du rôle refermé aussitôt
+- **WHEN** le test simule un résultat `RESULT_CANCELED` de l'écran du rôle HOME aussitôt après son lancement, rôle non détenu
+- **THEN** l'écran système de l'écran d'accueil par défaut est ouvert quand il existe ; un refus après un délai humain n'ouvre rien d'autre
+
 #### Scenario: démarrage automatique non observé
 - **WHEN** le test simule un démarrage (numéro de démarrage incrémenté) avec l'option activée avant ce démarrage, sans ouverture observée, puis affiche « Écran d'accueil »
 - **THEN** « setting-boot-start-detail » indique que le démarrage automatique n'a pas eu lieu (« détail du démarrage non observé ») ; avec une ouverture au démarrage observée, ou l'option désactivée, ou l'option activée après ce démarrage, le détail normal est affiché
@@ -42,11 +50,11 @@ Les parcours P5 SHALL être couverts par des tests déterministes, sans environn
 - **THEN** aucune demande du rôle HOME n'est faite par le parcours de mise à jour
 
 ### Requirement: Sélecteurs du launcher système
-La présentation initiale et les contrôles P5 de « Écran d'accueil » SHALL exposer des testTags stables, utilisés par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) à la place du texte ou de la position : « onboarding-launcher » (voile et panneau de la présentation), « onboarding-mascot », « onboarding-row-home-role », « onboarding-row-boot », « onboarding-row-accessibility », « onboarding-continue », « onboarding-hint » ; « setting-launcher-group » (intertitre « Launcher système »), « setting-home-role », « setting-boot-start », « setting-accessibility-home » ; pour toute ligne « <ligne> » ci-dessus, « <ligne>-detail » (détail), « <ligne>-state » (libellé d'état), « <ligne>-dot » (pastille d'état, absente quand l'état n'en a pas) et, pour les lignes de démarrage, « <ligne>-switch ». Les tests SHALL vérifier l'ordre, le focus initial, la navigation D-pad, les états affichés et la fermeture définitive de la présentation définis par « Présentation initiale du launcher » de `launcher-shell` et « Réglages du launcher système » de `settings`.
+La présentation initiale et les contrôles P5 de « Écran d'accueil » SHALL exposer des testTags stables, utilisés par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) à la place du texte ou de la position : « onboarding-launcher » (voile et panneau de la présentation), « onboarding-mascot », « onboarding-row-home-role », « onboarding-row-boot », « onboarding-row-accessibility », « onboarding-continue », « onboarding-hint » ; « setting-launcher-group » (intertitre « Launcher système »), « setting-home-role », « setting-boot-start », « setting-accessibility-home » ; « launcher-overlay-confirmation » (voile et panneau de la confirmation d'affichage superposé), « launcher-overlay-open », « launcher-overlay-decline » ; pour toute ligne « <ligne> » ci-dessus, « <ligne>-title » (titre), « <ligne>-detail » (détail), « <ligne>-state » (libellé d'état), « <ligne>-dot » (pastille d'état, absente quand l'état n'en a pas) et, pour les lignes de démarrage, « <ligne>-switch ». Les tests SHALL vérifier l'ordre, le focus initial, la navigation D-pad, les états affichés et la fermeture définitive de la présentation définis par « Présentation initiale du launcher » de `launcher-shell` et « Réglages du launcher système » de `settings`.
 
 #### Scenario: ordre et focus initial de la présentation
 - **WHEN** le test compose l'accueil avec la présentation à afficher, après la fin de l'écran de démarrage et la réponse à la demande de permission
-- **THEN** « onboarding-launcher » est affiché par-dessus « zone-hero » ; « onboarding-mascot », « onboarding-row-home-role », « onboarding-row-boot », « onboarding-row-accessibility », « onboarding-hint » et « onboarding-continue » sont affichés de haut en bas dans cet ordre, à l'intérieur de « onboarding-launcher » ; « onboarding-row-home-role » a le focus sans aucune touche pressée ; « onboarding-row-boot-switch » est désactivé ; le rectangle de chaque ligne est identique avec et sans le focus
+- **THEN** « onboarding-launcher » est affiché par-dessus « zone-hero » ; « onboarding-mascot », « onboarding-row-home-role », « onboarding-row-boot », « onboarding-row-accessibility » puis le pied sont affichés de haut en bas dans cet ordre, à l'intérieur de « onboarding-launcher », le pied plaçant « onboarding-hint » à gauche de « onboarding-continue » sur la même ligne (`design.md`, D9) ; « onboarding-row-home-role » a le focus sans aucune touche pressée ; « onboarding-row-boot-switch » est désactivé ; le rectangle de chaque ligne est identique avec et sans le focus
 
 #### Scenario: navigation dans la présentation
 - **WHEN** le test presse bas quatre fois, haut quatre fois, puis gauche et droite depuis chaque élément focalisable
@@ -71,6 +79,14 @@ La présentation initiale et les contrôles P5 de « Écran d'accueil » SHALL e
 #### Scenario: navigation dans la catégorie
 - **WHEN** le test, depuis « setting-upnext-position » liste fermée, presse bas quatre fois, haut quatre fois, puis droite, gauche et Retour depuis « setting-home-role »
 - **THEN** le focus suit « setting-home-role », « setting-boot-start », « setting-accessibility-home » et y reste, sans jamais passer par « setting-launcher-group » ; il remonte jusqu'à « setting-upnext-visible » ; droite ne fait rien ; gauche rend le focus à « settings-category-HOME_SCREEN » ; Retour ferme les réglages
+
+#### Scenario: confirmation d'affichage superposé
+- **WHEN** le test fait passer « onboarding-row-boot » ou « setting-boot-start » de désactivé à activé avec le double déclarant la permission absente mais son écran disponible, puis presse « launcher-overlay-decline », Retour, ou « launcher-overlay-open »
+- **THEN** « launcher-overlay-confirmation » s'affiche avec « launcher-overlay-open » focalisé ; après chaque réponse il n'existe plus, le switch reste activé et la ligne de démarrage a le focus ; seul « launcher-overlay-open » ouvre l'écran système ; avec la permission accordée, « launcher-overlay-confirmation » n'apparaît pas
+
+#### Scenario: démarrage indisponible sans écran de permission
+- **WHEN** le double déclare l'écran système de la permission absent, ou fait échouer son ouverture depuis « launcher-overlay-open »
+- **THEN** « <ligne de démarrage>-state » affiche « Indisponible », « <ligne de démarrage>-detail » affiche la raison, « <ligne de démarrage>-switch » et « <ligne de démarrage>-dot » n'existent pas, la ligne garde le focus, OK n'affiche pas « launcher-overlay-confirmation » et l'option persistée est désactivée
 
 #### Scenario: détail du démarrage non observé
 - **WHEN** le test affiche « Écran d'accueil » avec l'état « démarrage automatique non observé » vrai, puis avec une ouverture observée, puis avec l'option désactivée

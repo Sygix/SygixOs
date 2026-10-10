@@ -9,6 +9,10 @@ SygixOs SHALL rester candidat au rôle système d'écran d'accueil (HOME) et SHA
 - **WHEN** le rôle n'est pas détenu par SygixOs et que l'utilisateur valide « Remplacer le launcher » ou l'élément HOME de la présentation initiale
 - **THEN** le dialogue système de demande du rôle s'ouvre ; aucune demande n'a lieu sans cette validation
 
+#### Scenario: rôle déjà détenu
+- **WHEN** le rôle HOME est déjà attribué à SygixOs et que l'utilisateur valide « Remplacer le launcher »
+- **THEN** le contrôle reste « Actif » et aucun dialogue ni écran système n'est ouvert
+
 #### Scenario: attribution acceptée
 - **WHEN** l'utilisateur accepte l'attribution dans le dialogue système
 - **THEN** au retour au premier plan, SygixOs relit le rôle et l'affiche « Actif »
@@ -20,6 +24,10 @@ SygixOs SHALL rester candidat au rôle système d'écran d'accueil (HOME) et SHA
 #### Scenario: rôle indisponible, écran des applications par défaut présent
 - **WHEN** le système déclare le rôle indisponible, ou que le dialogue de demande ne peut pas s'ouvrir, et que l'appareil a un écran système des applications par défaut ou de l'écran d'accueil
 - **THEN** cet écran système s'ouvre ; au retour au premier plan, l'état du rôle est relu et affiché, et SygixOs reste utilisable
+
+#### Scenario: écran de demande refermé aussitôt
+- **WHEN** l'écran système de demande du rôle se referme aussitôt sans interface (refus répété mémorisé par le système) et que le rôle n'est pas détenu
+- **THEN** SygixOs le traite comme une demande impossible à ouvrir : il ouvre l'écran système des applications par défaut ou de l'écran d'accueil quand l'appareil en a un, sinon le contrôle est « Indisponible »
 
 #### Scenario: rôle indisponible, sans écran de remplacement
 - **WHEN** le système déclare le rôle indisponible, ou que le dialogue de demande ne peut pas s'ouvrir, et que l'appareil n'a aucun écran système des applications par défaut ou de l'écran d'accueil
@@ -81,7 +89,7 @@ Au premier lancement où elle n'a encore jamais été fermée, y compris pour un
 - **THEN** la présentation, jamais fermée, s'affiche de nouveau avec les états relus
 
 ### Requirement: Démarrage à l'allumage
-SygixOs SHALL proposer une option de démarrage à l'allumage, désactivée tant que l'utilisateur ne l'a pas activée dans la présentation initiale ou dans les réglages. Option activée, à la réception de la fin du démarrage du système, SygixOs SHALL demander l'ouverture de son accueil par les seuls mécanismes autorisés par Android, sans contourner ses restrictions. SygixOs SHALL enregistrer, pour chaque démarrage de l'appareil, si cette ouverture a été observée ; l'état « démarrage automatique non observé » qui en découle est affiché par « Réglages du launcher système » de `settings`. Option désactivée, SygixOs SHALL ne demander aucune ouverture au démarrage.
+SygixOs SHALL proposer une option de démarrage à l'allumage, désactivée tant que l'utilisateur ne l'a pas activée dans la présentation initiale ou dans les réglages. Option activée, à la réception de la fin du démarrage du système, SygixOs SHALL demander l'ouverture de son accueil par les seuls mécanismes autorisés par Android, sans contourner ses restrictions. SygixOs SHALL enregistrer, pour chaque démarrage de l'appareil, si cette ouverture a été observée ; l'état « démarrage automatique non observé » qui en découle est affiché par « Réglages du launcher système » de `settings`. Option désactivée, SygixOs SHALL ne demander aucune ouverture au démarrage. L'option ne vise que le démarrage à froid de l'appareil ; la sortie de veille n'est pas couverte par cette exigence.
 
 #### Scenario: ouverture au démarrage observée
 - **WHEN** l'appareil démarre, que l'option est activée et que la demande d'ouverture aboutit
@@ -103,8 +111,35 @@ SygixOs SHALL proposer une option de démarrage à l'allumage, désactivée tant
 - **WHEN** l'utilisateur active l'option alors que l'appareil a déjà démarré
 - **THEN** le démarrage courant n'est pas compté comme un échec ; seul le prochain démarrage est évalué
 
+### Requirement: Permission d'affichage superposé pour le démarrage
+SygixOs SHALL proposer aussi la permission système « Afficher par-dessus d'autres applis » pour permettre le démarrage hors des autres exemptions Android, avec une explication et un consentement explicite avant d'ouvrir les réglages système. SygixOs SHALL ne jamais accorder la permission lui-même ni la supposer accordée ; au retour au premier plan, son état SHALL être relu auprès du système. Un refus de l'utilisateur SHALL ne pas bloquer l'utilisation de SygixOs ni effacer son choix de démarrage. Quand l'écran système de la permission n'existe pas sur l'appareil, ou ne peut pas s'ouvrir, « Démarrer à l'allumage » SHALL devenir « Indisponible », avec sa raison à la place du détail, et l'option SHALL ne pas s'activer : aucune confirmation n'est affichée, le passage de désactivé à activé est refusé, et une option activée juste avant l'échec revient à désactivé ; SygixOs reste utilisable sans crash. Cet état dure jusqu'au prochain lancement du processus, sauf si le système déclare ensuite la permission accordée ; une option déjà activée auparavant reste désactivable. Une permission accordée SHALL ne pas être présentée comme une garantie d'ouverture au démarrage sur tous les appareils. Le parcours SHALL être une confirmation distincte, affichée aussitôt quand l'utilisateur fait passer « Démarrer à l'allumage » de désactivé à activé (présentation initiale ou réglages) alors que la permission manque et que son écran système existe : un panneau de verre par-dessus l'écran courant, avec une explication, « Ouvrir les réglages » (focus initial) et « Pas maintenant », sans quatrième ligne de réglage. « Ouvrir les réglages » ouvre l'écran système de la permission ; « Pas maintenant » et Retour referment la confirmation ; sauf échec d'ouverture (ci-dessus), l'option de démarrage reste activée ; dans tous les cas le focus revient sur « Démarrer à l'allumage ». La confirmation SHALL être proposée de nouveau à la prochaine activation de l'option, et ne pas s'afficher quand la permission est déjà accordée. Haut et bas passent d'un bouton à l'autre sans boucle ; gauche et droite sont sans effet ; le focus reste dans le panneau tant qu'il est affiché.
+
+#### Scenario: consentement explicite
+- **WHEN** l'utilisateur accepte l'explication du parcours de permission
+- **THEN** l'écran système de la permission s'ouvre ; aucune ouverture n'a lieu sans ce consentement et l'état n'est pas affiché comme accordé avant une relecture système
+
+#### Scenario: permission refusée
+- **WHEN** l'utilisateur répond « Pas maintenant » ou Retour, ou revient de l'écran système sans accorder la permission
+- **THEN** SygixOs reste utilisable sans crash, ne suppose aucune permission accordée et conserve le choix explicite de démarrage (« démarrage automatique non observé » s'affiche si besoin) ; la confirmation est refermée et le focus est sur « Démarrer à l'allumage »
+
+#### Scenario: écran de la permission absent
+- **WHEN** l'appareil n'a pas d'écran système pour la permission et que l'option de démarrage est désactivée
+- **THEN** « Démarrer à l'allumage » est affiché « Indisponible », sans switch, avec la raison « Cette TV ne permet pas d'autoriser l'ouverture au démarrage » ; OK ne l'active pas, aucune confirmation ni écran système ne s'ouvre et la ligne garde le focus
+
+#### Scenario: écran de la permission impossible à ouvrir
+- **WHEN** l'utilisateur valide « Ouvrir les réglages » et que l'écran système ne peut pas s'ouvrir
+- **THEN** la confirmation se referme, l'option revient à désactivé et « Démarrer à l'allumage » devient « Indisponible » avec sa raison, focalisé ; une nouvelle activation est refusée jusqu'au prochain lancement, sauf si la permission est ensuite déclarée accordée
+
+#### Scenario: confirmation à l'activation
+- **WHEN** l'utilisateur fait passer « Démarrer à l'allumage » de désactivé à activé alors que la permission manque
+- **THEN** l'option est persistée activée et la confirmation s'affiche aussitôt, focus sur « Ouvrir les réglages » ; aucun écran système n'est ouvert avant la validation de ce bouton
+
+#### Scenario: nouvelle proposition à la prochaine activation
+- **WHEN** l'utilisateur a répondu « Pas maintenant », puis désactive et réactive l'option, la permission manquant toujours
+- **THEN** la confirmation s'affiche de nouveau ; elle ne s'affiche jamais à la désactivation ni quand la permission est déjà accordée
+
 ### Requirement: Retour Home par le service d'accessibilité
-SygixOs SHALL fournir un service d'accessibilité qui, une fois activé par l'utilisateur dans les réglages d'accessibilité du système, ramène SygixOs au premier plan sur son accueil quand l'appui sur la touche Home est détourné par le système ou le constructeur vers un autre launcher. SygixOs SHALL ne jamais activer ni désactiver ce service lui-même : la présentation initiale et le contrôle des réglages ouvrent seulement les réglages d'accessibilité du système. Après un refus, le service SHALL n'être proposé de nouveau que depuis la catégorie « Écran d'accueil » des réglages, sans relance automatique. Le service SHALL ne lire que les événements nécessaires à ce signal et ne rien conserver. Service non activé, désactivé ou arrêté, SygixOs SHALL rester pleinement utilisable. Le signal exploité est celui confirmé sur la TV de référence (tâche 1.3 de ce change).
+SygixOs SHALL fournir un service d'accessibilité qui, une fois activé par l'utilisateur dans les réglages d'accessibilité du système, ramène SygixOs au premier plan sur son accueil quand l'appui sur la touche Home est détourné par le système ou le constructeur vers un autre launcher. SygixOs SHALL ne jamais activer ni désactiver ce service lui-même : la présentation initiale et le contrôle des réglages ouvrent seulement les réglages d'accessibilité du système. Après un refus, le service SHALL n'être proposé de nouveau que depuis la catégorie « Écran d'accueil » des réglages, sans relance automatique. Le service SHALL ne lire que les événements nécessaires à ce signal et ne rien conserver. Service non activé, désactivé ou arrêté, SygixOs SHALL rester pleinement utilisable. Le service SHALL observer uniquement la touche Home via `AccessibilityService.onKeyEvent`, sans lecture du contenu des fenêtres, et SHALL ne consommer aucun événement de touche ; il SHALL n'agir que sur un appui court (relâché avant le délai d'appui long du système, sans répétition) et SHALL laisser un appui long (répétitions ou touche tenue au-delà de ce délai) au comportement du système, par exemple le tableau de bord Google TV ; il SHALL être livré même si la TV de référence ne transmet pas ce signal et SHALL ne rien faire dans ce cas. La tâche 1.3 de ce change confirme la compatibilité à la réception RC, pas avant l'implémentation.
 
 #### Scenario: activation par l'utilisateur
 - **WHEN** l'utilisateur valide l'élément accessibilité de la présentation initiale ou le contrôle correspondant des réglages
@@ -121,6 +156,14 @@ SygixOs SHALL fournir un service d'accessibilité qui, une fois activé par l'ut
 #### Scenario: touche Home détournée depuis SygixOs, service activé
 - **WHEN** le service a été activé par l'utilisateur, que SygixOs est au premier plan et que l'appui sur Home affiche le launcher du constructeur
 - **THEN** SygixOs revient au premier plan et applique « Touche Home avec SygixOs au premier plan »
+
+#### Scenario: appui long sur Home, service activé
+- **WHEN** le service a été activé par l'utilisateur et que l'utilisateur maintient la touche Home (répétitions ou maintien au-delà du délai d'appui long)
+- **THEN** le service ne consomme aucun événement et ne demande aucune ouverture : le comportement système de l'appui long (tableau de bord Google TV, par exemple) s'applique sans changement
+
+#### Scenario: signal Home absent
+- **WHEN** l'appareil ne transmet aucune touche Home au service, même activé par l'utilisateur
+- **THEN** le service reste livré, ne lit aucun contenu de fenêtre, ne demande aucune ouverture et laisse le comportement système inchangé
 
 #### Scenario: service désactivé ou arrêté
 - **WHEN** l'utilisateur désactive le service dans les réglages système, ou que le système l'arrête
