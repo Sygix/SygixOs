@@ -75,7 +75,10 @@ Les maquettes Penpot de P6 (fichier « SygixOs Maquette », équipe Sygix, page 
 7. **Liste déroulante « Position d'Up Next »** : panneau verre (`GlassSurface`, `GlassLook.Menu`, style menu Liquid Glass validé contre une sous-page tvOS) de 240 dp ancré sous la ligne, options de 32 dp avec colonne de coche à gauche (coche sur la valeur courante seulement) ; ligne ouverte sur fond `PillSelected` et chevron vers le haut ; fermée : valeur courante en `TextStyles.RowState` puis chevron vers le bas.
 8. **Catégorie « Écran d'accueil »** : avant « À propos », en-tête comme les autres catégories (titre, description « Choisissez ce qu'affiche l'accueil de SygixOs. »), « Afficher Up Next » identique à « Inclure les préversions », puis « Position d'Up Next ».
 9. **Mode déplacement** : il ne concerne que les tuiles d'apps ; la rangée Up Next n'est ni déplaçable ni une cible.
+10. **Coins concentriques respectés** (« Thème ») : badge de carte rayon 6 dp avec retrait 8 dp (14 = 6 + 8) ; icône des entrées « Ouvrir avec… » rayon 4 dp avec marge 8 dp dans la pilule de 38 dp (12 = 4 + 8) ; couples `card-badge` et `menu-entry-icon` ajoutés à `Dimens.Nested` ; la maquette Penpot est ajustée en conséquence.
+11. **Repli poster portrait conservé** : image 16:9 plein cadre, sinon poster portrait centré à pleine hauteur sur le fond `#141418`, sinon placeholder ; variante « Poster portrait » ajoutée au composant « Carte Up Next » de la maquette (dégradé, badge et textes comme les autres cartes).
+12. **« Position d'Up Next » quand « Afficher Up Next » est désactivé** : ligne normale, focalisable et modifiable (jamais grisée) ; le choix s'applique à la réactivation.
+13. **Aucune app TV** (écran 4.4) : pas de titre « Applications », seul le message « Aucune app TV détectée » centré.
 
 ## Questions ouvertes
-- **Titre « Applications » sans aucune app** : affiché au-dessus du message « Aucune app TV détectée » ou masqué. À confirmer (aucune maquette ne couvre ce cas).
-- **« Position d'Up Next » quand « Afficher Up Next » est désactivé** : contrôle grisé ou toujours modifiable. À confirmer ; la spec n'en fait pas une règle (la maquette 7.7 montre le réglage activé).
+Aucune : toutes les questions ont été tranchées par le propriétaire le 2026-10-10 (sections ci-dessus).

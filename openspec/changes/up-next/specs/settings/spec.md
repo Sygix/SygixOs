@@ -81,6 +81,10 @@ La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher Up Next »
 - **WHEN** la valeur du réglage change
 - **THEN** la rangée Up Next et son titre sont repositionnés sans redémarrage du launcher, et la navigation suit le scénario « position après les applications » de « Navigation 3 paliers » (`launcher-shell`)
 
+#### Scenario: « Afficher Up Next » désactivé
+- **WHEN** « Afficher Up Next » est désactivé et le focus arrive sur « Position d'Up Next »
+- **THEN** la ligne a le même rendu, le même focus et la même liste qu'avec la rangée affichée (jamais grisée ni sautée), la valeur choisie est persistée et s'applique dès que « Afficher Up Next » est réactivé
+
 ## MODIFIED Requirements
 
 ### Requirement: Page de réglages

@@ -37,6 +37,10 @@ La zone grille SHALL être découpée en sections titrées, comme les en-têtes 
 - **WHEN** la rangée Up Next est masquée (réglage « Afficher Up Next » désactivé, aucun contenu ou permission refusée)
 - **THEN** le titre « À suivre » n'est pas affiché et aucune place ne lui est réservée ; « Applications » est le seul titre de la zone grille et son haut est le haut de la zone grille
 
+#### Scenario: aucune app TV détectée
+- **WHEN** aucune app TV n'est installée (maquette Penpot 4.4)
+- **THEN** la section « Applications » n'a pas de titre : seul le message « Aucune app TV détectée » est affiché, centré dans l'espace des rangées d'apps ; la section « À suivre » suit ses propres règles d'affichage
+
 #### Scenario: titre au-dessus de la carte d'erreur
 - **WHEN** la rangée Up Next est en erreur au premier chargement et que la carte d'erreur remplace son contenu
 - **THEN** le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée, et fait partie du bloc focusé quand la carte a le focus

@@ -82,7 +82,11 @@ La navigation D-pad entre héro, dock et grille, rangée Up Next et titres de se
 
 #### Scenario: réglage de visibilité
 - **WHEN** le test désactive « Afficher Up Next » (« setting-upnext-visible ») dans « Écran d'accueil » puis revient au home
-- **THEN** la rangée et « section-title-upnext » sont masqués, la navigation les saute, le réglage est conservé après redémarrage, et la rangée réapparaît si le réglage est réactivé ; sur la ligne, bas donne le focus à « setting-upnext-position », haut et droite ne font rien, gauche rend le focus à « settings-category-HOME_SCREEN » et Retour ferme les réglages
+- **THEN** la rangée et « section-title-upnext » sont masqués, la navigation les saute, le réglage est conservé après redémarrage, et la rangée réapparaît si le réglage est réactivé ; sur la ligne, bas donne le focus à « setting-upnext-position », qui reste focusable et modifiable (même rectangle et même liste que réglage activé, aucun état grisé), une valeur choisie à ce moment étant appliquée au home dès la réactivation ; haut et droite ne font rien, gauche rend le focus à « settings-category-HOME_SCREEN » et Retour ferme les réglages
+
+#### Scenario: aucune app TV détectée
+- **WHEN** le test compose l'accueil sans aucune app TV
+- **THEN** « section-title-apps » est absent et le message « Aucune app TV détectée » est affiché, centré dans l'espace des rangées d'apps ; « section-title-upnext » et « zone-upnext » suivent leurs propres règles
 
 #### Scenario: tests existants de la transition héro ↔ grille
 - **WHEN** les tests de « Couverture de la transition héro ↔ grille » s'exécutent
