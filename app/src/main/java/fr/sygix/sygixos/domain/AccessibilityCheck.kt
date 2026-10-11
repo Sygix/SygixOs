@@ -5,7 +5,6 @@
 
 package fr.sygix.sygixos.domain
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,46 +13,30 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-enum class RebindStatus { IDLE, CHECKING, BLOCKED }
+enum class AccessibilityCheckStatus { IDLE, CHECKING, BLOCKED }
 
-class AccessibilityRebind(
+class AccessibilityCheck(
     private val enabled: () -> Boolean,
     private val connected: StateFlow<Boolean>,
-    private val toggle: suspend () -> Unit,
     private val scope: CoroutineScope,
     private val waitMs: Long = WAIT_MS,
 ) {
-    private val mutableStatus = MutableStateFlow(RebindStatus.IDLE)
-    val status: StateFlow<RebindStatus> = mutableStatus.asStateFlow()
-    private var toggled = false
+    private val mutableStatus = MutableStateFlow(AccessibilityCheckStatus.IDLE)
+    val status: StateFlow<AccessibilityCheckStatus> = mutableStatus.asStateFlow()
 
     fun check() {
-        if (mutableStatus.value == RebindStatus.CHECKING) return
+        if (mutableStatus.value == AccessibilityCheckStatus.CHECKING) return
         if (!runCatching(enabled).getOrDefault(false) || connected.value) {
-            mutableStatus.value = RebindStatus.IDLE
+            mutableStatus.value = AccessibilityCheckStatus.IDLE
             return
         }
-        if (mutableStatus.value == RebindStatus.BLOCKED && toggled) return
-        mutableStatus.value = RebindStatus.CHECKING
+        if (mutableStatus.value == AccessibilityCheckStatus.BLOCKED) return
+        mutableStatus.value = AccessibilityCheckStatus.CHECKING
         scope.launch {
-            val bound = awaitConnection() || !toggled && toggleOnce() && awaitConnection()
-            mutableStatus.value = if (bound || connected.value) RebindStatus.IDLE else RebindStatus.BLOCKED
+            val bound = withTimeoutOrNull(waitMs) { connected.first { it } } != null
+            mutableStatus.value = if (bound || connected.value) AccessibilityCheckStatus.IDLE else AccessibilityCheckStatus.BLOCKED
         }
     }
-
-    private suspend fun toggleOnce(): Boolean {
-        toggled = true
-        try {
-            toggle()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            Unit
-        }
-        return true
-    }
-
-    private suspend fun awaitConnection(): Boolean = withTimeoutOrNull(waitMs) { connected.first { it } } != null
 
     companion object {
         const val WAIT_MS = 2_000L

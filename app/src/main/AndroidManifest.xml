@@ -67,11 +67,6 @@
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/home_accessibility_service" />
         </service>
 
-        <receiver
-            android:name=".data.AccessibilityRebindToggle"
-            android:enabled="false"
-            android:exported="false" />
-
         <receiver android:name=".data.BootStartReceiver" android:exported="false">
             <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /></intent-filter>
         </receiver>

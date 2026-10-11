@@ -9,7 +9,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import android.provider.Settings
-import fr.sygix.sygixos.domain.AccessibilityRebind
+import fr.sygix.sygixos.domain.AccessibilityCheck
 import fr.sygix.sygixos.model.SystemControlState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,13 +35,15 @@ class AndroidLauncherSystemGatewayTest {
     fun `service must be enabled and running, pending while the launch check runs and blocked after it`() = runTest {
         var enabled = false
         val connected = MutableStateFlow(false)
-        val rebind = AccessibilityRebind({ enabled }, connected, {}, backgroundScope)
-        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { true }, { enabled }, { connected.value }, { false }, { 2 }, rebind)
+        val check = AccessibilityCheck({ enabled }, connected, backgroundScope)
+        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { true }, { enabled }, { connected.value }, { false }, { 2 }, check)
         assertEquals(SystemControlState.INACTIVE, gateway.accessibilityState())
         enabled = true
         assertEquals(SystemControlState.PENDING, gateway.accessibilityState())
         gateway.verifyAccessibility()
-        advanceTimeBy(AccessibilityRebind.WAIT_MS * 2 + 1)
+        runCurrent()
+        assertEquals(SystemControlState.PENDING, gateway.accessibilityState())
+        advanceTimeBy(AccessibilityCheck.WAIT_MS + 1)
         runCurrent()
         assertEquals(SystemControlState.BLOCKED, gateway.accessibilityState())
         connected.value = true

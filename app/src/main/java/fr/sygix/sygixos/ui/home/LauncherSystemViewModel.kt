@@ -56,7 +56,7 @@ class LauncherSystemViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val app = context.applicationContext as SygixOsApp
             val roleRequests = RoleRequestLauncher()
-            val gateway = AndroidLauncherSystemGateway(app, AndroidHomeRoleGateway(app, roleRequests::launch), rebind = app.accessibilityRebind)
+            val gateway = AndroidLauncherSystemGateway(app, AndroidHomeRoleGateway(app, roleRequests::launch), check = app.accessibilityCheck)
             return LauncherSystemViewModel(app.launcherPrefs, gateway, roleRequests) as T
         }
     }

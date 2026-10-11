@@ -79,9 +79,9 @@ Après l'essai de v0.1.0-rc.1 sur la TV de référence (détail et justification
 37. Touche Home consommée par le service (appui, répétitions, relâchement) tant que la redirection est active, SygixOs ouvert aussitôt au relâchement, sans délai ; appui long = appui court. Remplace la décision 35.
 38. Seuil de 700 ms de D1 conservé (écran de demande du rôle refermé sans interface, étape 3) ; le délai d'appui long utilisé pour la touche Home disparaît.
 39. Gestionnaires d'auto-démarrage du constructeur (par exemple TCL) : après un redémarrage complet, `BOOT_COMPLETED` et la liaison du service sont bloqués tant que le processus ne tourne pas ; autorisation impossible sans adb (menu du constructeur sur certains firmwares) ; octroi par le shell en P7 (Shizuku).
-40. Réactivation du service au lancement de SygixOs par bascule d'un de ses composants, gardée seulement si la TV la valide.
+40. Réactivation du service au lancement de SygixOs par bascule d'un de ses composants, gardée seulement si la TV la valide. *(2026-10-11, essai de v0.1.0-rc.2 : sans effet sur la TV réelle (tâche 5.8), retirée ; seul l'état « Bloqué » reste, après une attente bornée de la connexion.)*
 41. Ouverture à l'allumage aussi par la connexion du service peu après un démarrage à froid ; une seule ouverture.
-42. Étape 1 « Bloqué », expliquée, quand le service est activé mais ne tourne pas (maquette 8.7).
+42. Étape 1 « Bloqué », expliquée, quand le service est activé mais ne s'est pas connecté après une attente bornée (maquette 8.7).
 43. Parcours guidé « Faire de SygixOs l'écran d'accueil » à la place de la présentation initiale, des trois lignes des réglages et de la confirmation d'affichage superposé (sous-étape 2b en ligne).
 44. Étapes affichées selon l'appareil et les options ; états « À faire », « En attente… », « Fait », « Bloqué », « Indisponible », « Facultatif » (étape 3) ; progression sur les étapes obligatoires.
 45. Une seule ligne « SygixOs comme écran d'accueil » dans « Écran d'accueil », qui résume le parcours (« Terminé », « Partiel » ou « À faire » avec ce qui reste, « Touche Home bloquée par la TV ») et l'ouvre.
@@ -95,7 +95,7 @@ Après l'essai de v0.1.0-rc.1 sur la TV de référence (détail et justification
 
 ### Modified Capabilities
 
-- `launcher-shell` : rôle HOME, parcours guidé, démarrage à l'allumage (récepteur et service), retour Home par le service d'accessibilité (touche consommée, réactivation, état « Bloqué »), touche Home avec SygixOs au premier plan (ADDED).
+- `launcher-shell` : rôle HOME, parcours guidé, démarrage à l'allumage (récepteur et service), retour Home par le service d'accessibilité (touche consommée, état « Bloqué »), touche Home avec SygixOs au premier plan (ADDED).
 - `settings` : ligne « SygixOs comme écran d'accueil » dans la catégorie « Écran d'accueil », sous l'intertitre « Launcher système », rendu des états (ADDED).
 - `ui-testing` : couverture des parcours P5 et sélecteurs du launcher système (ADDED).
 - `self-update` : « Redémarrage après la mise à jour » (MODIFIED) ; la mise à jour ne demande jamais le rôle HOME, P5 seulement après une action explicite de l'utilisateur.
@@ -107,7 +107,7 @@ Après l'essai de v0.1.0-rc.1 sur la TV de référence (détail et justification
 
 ## Impact
 
-Manifeste (récepteur de fin de démarrage, service d'accessibilité et sa configuration, composant inerte de réactivation), `MainActivity` (`onNewIntent`), accès au rôle HOME derrière une interface, persistance DataStore (parcours guidé fermé, option de démarrage, ouverture au démarrage observée), catégorie « Écran d'accueil » des réglages, chaînes françaises, tests JUnit et Compose, README. Aucune dépendance réseau ni serveur.
+Manifeste (récepteur de fin de démarrage, service d'accessibilité et sa configuration), `MainActivity` (`onNewIntent`), accès au rôle HOME derrière une interface, persistance DataStore (parcours guidé fermé, option de démarrage, ouverture au démarrage observée), catégorie « Écran d'accueil » des réglages, chaînes françaises, tests JUnit et Compose, README. Aucune dépendance réseau ni serveur.
 
 ## Non-goals
 

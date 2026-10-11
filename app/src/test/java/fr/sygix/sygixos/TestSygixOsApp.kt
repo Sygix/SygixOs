@@ -7,5 +7,5 @@ package fr.sygix.sygixos
 
 class TestSygixOsApp : SygixOsApp() {
     override val prefetchesMascot: Boolean get() = false
-    override val rebindsAccessibility: Boolean get() = false
+    override val checksAccessibility: Boolean get() = false
 }

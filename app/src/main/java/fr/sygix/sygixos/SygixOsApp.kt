@@ -15,14 +15,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import android.os.SystemClock
 import android.provider.Settings
 import fr.sygix.sygixos.data.AccessibilityConnection
-import fr.sygix.sygixos.data.AccessibilityRebindToggle
 import fr.sygix.sygixos.data.AndroidLauncherSystemGateway
 import fr.sygix.sygixos.data.LauncherSystemIntents
-import fr.sygix.sygixos.domain.AccessibilityRebind
+import fr.sygix.sygixos.domain.AccessibilityCheck
 import fr.sygix.sygixos.domain.BootStartDispatcher
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.ConnectivityNetworkStatus
@@ -64,11 +62,10 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
             openHome = { runCatching { startActivity(LauncherSystemIntents.boot(this)) }.isSuccess },
         )
     }
-    val accessibilityRebind: AccessibilityRebind by lazy {
-        AccessibilityRebind(
+    val accessibilityCheck: AccessibilityCheck by lazy {
+        AccessibilityCheck(
             enabled = { AndroidLauncherSystemGateway.serviceEnabledIn(this) },
             connected = AccessibilityConnection.connected,
-            toggle = { withContext(Dispatchers.IO) { AccessibilityRebindToggle.toggle(this@SygixOsApp) } },
             scope = appScope,
         )
     }
@@ -80,7 +77,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
         }
         registerActivityLifecycleCallbacks(foregroundTracker)
         updateRepository.coldStart()
-        if (rebindsAccessibility && Application.getProcessName() == packageName) accessibilityRebind.check()
+        if (checksAccessibility && Application.getProcessName() == packageName) accessibilityCheck.check()
     }
 
     fun onAccessibilityConnected() {
@@ -89,7 +86,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
 
     protected open val prefetchesMascot: Boolean get() = true
 
-    protected open val rebindsAccessibility: Boolean get() = true
+    protected open val checksAccessibility: Boolean get() = true
 
     override fun onTerminate() {
         appScope.cancel()
