@@ -5,8 +5,8 @@
     <string name="no_tv_apps">Aucune app TV détectée</string>
     <string name="settings_category_home_screen">Écran d\'accueil</string>
     <string name="home_screen_description">Choisissez ce qu\'affiche l\'accueil de SygixOs.</string>
-    <string name="upnext_visible">Afficher Up Next</string>
-    <string name="upnext_position">Position d\'Up Next</string>
+    <string name="upnext_visible">Afficher À suivre</string>
+    <string name="upnext_position">Position d\'À suivre</string>
     <string name="upnext_position_before">Avant les applications</string>
     <string name="upnext_position_after">Après les applications</string>
     <string name="upnext_open_with">Ouvrir avec…</string>
@@ -15,8 +15,9 @@
     <string name="upnext_open_error">Impossible d\'ouvrir %1$s</string>
     <string name="upnext_open_fallback">Contenu indisponible, ouverture de %1$s</string>
     <string name="upnext_episode_number">S%1$sE%2$s</string>
+    <string name="upnext_remove">Retirer d\'À suivre</string>
     <string name="settings_title">Réglages</string>
-    <string name="sources_description">Choisissez les applications qui alimentent le héro, le Top Shelf et Up Next.</string>
+    <string name="sources_description">Choisissez les applications qui alimentent le héro, le Top Shelf et À suivre.</string>
     <string name="settings_category_sources">Apps sources</string>
     <string name="settings_category_hidden">Applications cachées</string>
     <string name="settings_category_about">À propos</string>
@@ -25,6 +26,16 @@
     <string name="hidden_empty">Aucune application cachée</string>
     <string name="hidden_state_hidden">Cachée</string>
     <string name="hidden_state_visible">Visible</string>
+    <string name="hidden_group_upnext">Retirés d\'À suivre</string>
+    <string name="hidden_content_restore">Réafficher</string>
+    <string name="hidden_content_series">Série</string>
+    <string name="hidden_content_movie">Film</string>
+    <string name="hidden_content_apps_separator">", "</string>
+    <plurals name="hidden_show_more">
+        <item quantity="one">Afficher l\'autre</item>
+        <item quantity="many">Afficher les %1$d autres</item>
+        <item quantity="other">Afficher les %1$d autres</item>
+    </plurals>
     <string name="startup_mascot_description">SygixOs démarre</string>
     <string name="menu_dock_full">Dock plein (%1$d apps maximum)</string>
     <string name="update_check_title">Vérifier les mises à jour</string>

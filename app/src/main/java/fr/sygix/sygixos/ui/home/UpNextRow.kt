@@ -96,7 +96,8 @@ internal fun UpNextRow(
         }
         val offset = UpNextScroll.offsetOf(index, anchor.index, anchor.offset, anchor.size, layout.mainAxisItemSpacing)
         val overflow = UpNextScroll.focusOverflow(anchor.size, Dimens.TileFocusScale)
-        val delta = UpNextScroll.revealDelta(offset, anchor.size, layout.viewportEndOffset, overflow)
+        val inset = UpNextScroll.endInset(index, cards.size, overflow, layout.afterContentPadding)
+        val delta = UpNextScroll.revealDelta(offset, anchor.size, layout.viewportEndOffset, inset)
         if (delta != 0) state.animateScrollBy(delta.toFloat(), tween(Motion.FOCUS_MS, easing = AppleEasing))
     }
     LaunchedEffect(cards.map { it.key }, focusEnabled, content == UpNextContent.Error) {
@@ -113,7 +114,7 @@ internal fun UpNextRow(
     LazyRow(
         state = state,
         modifier = modifier.fillMaxWidth().testTag("zone-upnext"),
-        contentPadding = PaddingValues(start = Dimens.ScreenMarginH, end = width * ((Dimens.TileFocusScale - 1f) / 2f)),
+        contentPadding = PaddingValues(start = Dimens.ScreenMarginH, end = Dimens.ScreenMarginH),
         horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
     ) {
         when (content) {
@@ -255,7 +256,7 @@ internal fun UpNextArtwork(item: UpNextItem, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun UpNextGlyph(retry: Boolean, color: Color, modifier: Modifier) {
+internal fun UpNextGlyph(retry: Boolean, color: Color, modifier: Modifier) {
     Canvas(modifier) {
         val unit = size.minDimension / 24f
         val stroke = Stroke(unit * 2)

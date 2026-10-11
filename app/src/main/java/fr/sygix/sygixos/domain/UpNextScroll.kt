@@ -15,6 +15,9 @@ object UpNextScroll {
 
     fun focusOverflow(size: Int, scale: Float): Int = ceil(size * (scale - 1f) / 2f).toInt()
 
+    fun endInset(index: Int, count: Int, focusOverflow: Int, margin: Int): Int =
+        if (index == count - 1) margin else focusOverflow
+
     fun revealDelta(offset: Int, size: Int, viewportEnd: Int, endInset: Int = 0): Int =
         if (offset < 0) offset else (offset + size + endInset - viewportEnd).coerceAtLeast(0)
 }
