@@ -43,6 +43,14 @@ enum class SummaryDetail { ALL_DONE, HOME_KEY, BOOT, HOME_KEY_AND_BOOT, BLOCKED,
 
 data class GuideSummary(val status: SummaryStatus, val detail: SummaryDetail)
 
+data class GuideView(
+    val steps: List<GuideStepState> = emptyList(),
+    val progress: GuideProgress = GuideProgress(0, 0),
+    val progressQuantity: Int = 1,
+    val initialFocus: GuideStep? = null,
+    val summary: GuideSummary = GuideSummary(SummaryStatus.UNAVAILABLE, SummaryDetail.UNAVAILABLE),
+)
+
 data class LauncherSystemState(
     val homeRole: SystemControlState = SystemControlState.UNAVAILABLE,
     val accessibility: SystemControlState = SystemControlState.UNAVAILABLE,
@@ -54,6 +62,7 @@ data class LauncherSystemState(
     val focusReturn: GuideStep? = null,
     val settingsFocus: Long = 0,
     val preferencesLoaded: Boolean = false,
+    val guideView: GuideView = GuideView(),
 ) {
     val systemPending: Boolean
         get() = homeRole == SystemControlState.PENDING || accessibility == SystemControlState.PENDING ||

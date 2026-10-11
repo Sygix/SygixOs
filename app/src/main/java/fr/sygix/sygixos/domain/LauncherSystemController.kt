@@ -57,7 +57,7 @@ class LauncherSystemController(
         const val ROLE_AUTO_DENIAL_MS = 700L
     }
 
-    private val mutableState = MutableStateFlow(LauncherSystemState())
+    private val mutableState = MutableStateFlow(LauncherSystemState().let { it.copy(guideView = LauncherGuide.view(it)) })
     val state: StateFlow<LauncherSystemState> = mutableState.asStateFlow()
     private var preferences: LauncherSystemPreferences? = null
     private var startupFinished = false
@@ -89,7 +89,7 @@ class LauncherSystemController(
         scope.launch(dispatcher) {
             try {
                 gateway.accessibilityChanges().collect {
-                    if (!accessibilityScreenOpen) mutableState.update { it.copy(accessibility = read(Screen.ACCESSIBILITY)) }
+                    if (!accessibilityScreenOpen) publish { it.copy(accessibility = read(Screen.ACCESSIBILITY)) }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -103,7 +103,7 @@ class LauncherSystemController(
         accessibilityScreenOpen = false
         currentBoot = gateway.bootCount()
         runCatching(gateway::verifyAccessibility)
-        mutableState.update {
+        publish {
             it.copy(homeRole = read(Screen.HOME_ROLE), accessibility = read(Screen.ACCESSIBILITY), overlay = read(Screen.OVERLAY))
         }
         publishPreferences()
@@ -129,7 +129,7 @@ class LauncherSystemController(
     fun openGuide() {
         if (state.value.guide != null) return
         openedFromSettings = true
-        mutableState.update { it.copy(focusReturn = null) }
+        publish { it.copy(focusReturn = null) }
         publishPreferences()
     }
 
@@ -138,7 +138,7 @@ class LauncherSystemController(
             GuideOrigin.AUTOMATIC -> markSeen()
             GuideOrigin.SETTINGS -> {
                 openedFromSettings = false
-                mutableState.update { it.copy(focusReturn = null, settingsFocus = it.settingsFocus + 1) }
+                publish { it.copy(focusReturn = null, settingsFocus = it.settingsFocus + 1) }
                 publishPreferences()
             }
             null -> Unit
@@ -146,14 +146,14 @@ class LauncherSystemController(
     }
 
     fun focusReturned() {
-        mutableState.update { it.copy(focusReturn = null) }
+        publish { it.copy(focusReturn = null) }
     }
 
     fun onHome() {
         if (!startupFinished) return
         if (state.value.guide == GuideOrigin.AUTOMATIC) markSeen()
         openedFromSettings = false
-        mutableState.update { it.copy(focusReturn = null, homeRequest = it.homeRequest + 1) }
+        publish { it.copy(focusReturn = null, homeRequest = it.homeRequest + 1) }
         publishPreferences()
     }
 
@@ -170,13 +170,17 @@ class LauncherSystemController(
         val next = if (opened) SystemControlState.PENDING else read(Screen.HOME_ROLE).let {
             if (it == SystemControlState.ACTIVE) it else SystemControlState.UNAVAILABLE.also { failed += Screen.HOME_ROLE }
         }
-        mutableState.update { it.copy(homeRole = next, focusReturn = if (opened) GuideStep.HOME_ROLE else null) }
+        publish { it.copy(homeRole = next, focusReturn = if (opened) GuideStep.HOME_ROLE else null) }
+    }
+
+    private fun publish(transform: (LauncherSystemState) -> LauncherSystemState) {
+        mutableState.update { transform(it).let { next -> next.copy(guideView = LauncherGuide.view(next)) } }
     }
 
     private fun markSeen() {
         if (seenRequested) return
         seenRequested = true
-        mutableState.update { it.copy(focusReturn = null) }
+        publish { it.copy(focusReturn = null) }
         publishPreferences()
         persist { store.markLauncherGuideSeen() }
     }
@@ -185,7 +189,7 @@ class LauncherSystemController(
         if (state.value.homeRole != SystemControlState.INACTIVE) return
         val next = open(Screen.HOME_ROLE)
         roleRequestedAt = if (next == SystemControlState.PENDING) clock() else null
-        mutableState.update { it.copy(homeRole = next, focusReturn = if (next == SystemControlState.PENDING) GuideStep.HOME_ROLE else it.focusReturn) }
+        publish { it.copy(homeRole = next, focusReturn = if (next == SystemControlState.PENDING) GuideStep.HOME_ROLE else it.focusReturn) }
     }
 
     private fun persist(write: suspend () -> Unit) {
@@ -204,7 +208,7 @@ class LauncherSystemController(
         if (state.value.accessibility == SystemControlState.UNAVAILABLE || accessibilityScreenOpen) return
         val next = open(Screen.ACCESSIBILITY)
         accessibilityScreenOpen = next == SystemControlState.PENDING
-        mutableState.update {
+        publish {
             it.copy(accessibility = next, focusReturn = if (next == SystemControlState.PENDING) GuideStep.ACCESSIBILITY else it.focusReturn)
         }
     }
@@ -213,10 +217,10 @@ class LauncherSystemController(
         if (!state.value.bootEnabled || state.value.overlay != SystemControlState.INACTIVE) return
         val next = open(Screen.OVERLAY)
         if (next == SystemControlState.UNAVAILABLE) {
-            mutableState.update { it.copy(overlay = next, focusReturn = GuideStep.BOOT) }
+            publish { it.copy(overlay = next, focusReturn = GuideStep.BOOT) }
             writeBootStart(false)
         } else {
-            mutableState.update { it.copy(overlay = next, focusReturn = GuideStep.OVERLAY) }
+            publish { it.copy(overlay = next, focusReturn = GuideStep.OVERLAY) }
         }
     }
 
@@ -229,7 +233,7 @@ class LauncherSystemController(
     private fun writeBootStart(enabled: Boolean) {
         bootTarget = enabled
         bootWrites++
-        mutableState.update { it.copy(bootEnabled = enabled, bootNotObserved = false) }
+        publish { it.copy(bootEnabled = enabled, bootNotObserved = false) }
         scope.launch(dispatcher) {
             try {
                 store.setBootStartEnabled(enabled, gateway.bootCount())
@@ -250,7 +254,7 @@ class LauncherSystemController(
         if (bootWrites == 0 && bootTarget == stored) bootTarget = null
         val target = bootTarget
         val automatic = startupFinished && permissionFinished && !prefs.guideSeen && !seenRequested
-        mutableState.update {
+        publish {
             it.copy(
                 bootEnabled = target ?: stored,
                 bootNotObserved = target == null && prefs.bootStart.notObserved(currentBoot),

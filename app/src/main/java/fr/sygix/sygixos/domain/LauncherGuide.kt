@@ -9,6 +9,7 @@ import fr.sygix.sygixos.model.GuideProgress
 import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.GuideStepState
 import fr.sygix.sygixos.model.GuideSummary
+import fr.sygix.sygixos.model.GuideView
 import fr.sygix.sygixos.model.LauncherSystemState
 import fr.sygix.sygixos.model.StepDetail
 import fr.sygix.sygixos.model.StepStatus
@@ -17,6 +18,18 @@ import fr.sygix.sygixos.model.SummaryStatus
 import fr.sygix.sygixos.model.SystemControlState
 
 object LauncherGuide {
+    fun view(state: LauncherSystemState): GuideView {
+        val steps = steps(state)
+        val progress = progress(steps)
+        return GuideView(
+            steps = steps,
+            progress = progress,
+            progressQuantity = progressQuantity(progress.done),
+            initialFocus = initialFocus(steps),
+            summary = summary(steps),
+        )
+    }
+
     fun steps(state: LauncherSystemState): List<GuideStepState> = buildList {
         add(accessibility(state.accessibility))
         val overlay = overlay(state)

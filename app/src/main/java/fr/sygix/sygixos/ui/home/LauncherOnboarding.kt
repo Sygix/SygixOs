@@ -72,7 +72,6 @@ import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.domain.ImageBounds
-import fr.sygix.sygixos.domain.LauncherGuide
 import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.GuideStepState
 import fr.sygix.sygixos.model.LauncherSystemState
@@ -96,8 +95,9 @@ private const val DoneTarget = "onboarding-done"
 
 @Composable
 internal fun LauncherGuidePanel(state: LauncherSystemState, actions: LauncherSystemActions) {
-    val steps = LauncherGuide.steps(state)
-    val progress = LauncherGuide.progress(steps)
+    val view = state.guideView
+    val steps = view.steps
+    val progress = view.progress
     val targets = steps.map { it.step.tag() } + DoneTarget
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
     fun requesterFor(target: String) = requesters.getOrPut(target) { FocusRequester() }
@@ -105,7 +105,7 @@ internal fun LauncherGuidePanel(state: LauncherSystemState, actions: LauncherSys
     val current by rememberUpdatedState(targets)
     LaunchedEffect(Unit) {
         withFrameNanos { }
-        requesterFor(LauncherGuide.initialFocus(steps)?.tag() ?: DoneTarget).tryRequestFocus()
+        requesterFor(view.initialFocus?.tag() ?: DoneTarget).tryRequestFocus()
     }
     LaunchedEffect(state.focusReturn, state.systemPending) {
         val target = state.focusReturn ?: return@LaunchedEffect
@@ -153,7 +153,7 @@ internal fun LauncherGuidePanel(state: LauncherSystemState, actions: LauncherSys
             Text(stringResource(R.string.launcher_guide_intro), style = SygixTypography.bodyMedium, color = SygixColors.OnDarkSecondary)
             if (progress.total > 0) {
                 Text(
-                    pluralStringResource(R.plurals.launcher_guide_progress, LauncherGuide.progressQuantity(progress.done), progress.done, progress.total),
+                    pluralStringResource(R.plurals.launcher_guide_progress, view.progressQuantity, progress.done, progress.total),
                     style = TextStyles.RowState,
                     color = SygixColors.OnDarkSecondary,
                     modifier = Modifier.testTag("onboarding-progress"),

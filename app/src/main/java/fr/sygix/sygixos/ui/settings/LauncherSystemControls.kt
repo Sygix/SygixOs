@@ -44,7 +44,6 @@ import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.SygixTypography
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
-import fr.sygix.sygixos.domain.LauncherGuide
 import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.LauncherSystemState
 import fr.sygix.sygixos.model.StepStatus
@@ -101,7 +100,7 @@ internal fun ColumnScope.LauncherSystemControls(
         withFrameNanos { }
         requester.tryRequestFocus()
     }
-    val summary = LauncherGuide.summary(LauncherGuide.steps(state))
+    val summary = state.guideView.summary
     val tag = "setting-launcher-guide"
     PreferenceRow(
         label = stringResource(R.string.launcher_guide_row),
