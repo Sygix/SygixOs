@@ -5,7 +5,13 @@
 
 package fr.sygix.sygixos.ui.home
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
+import android.content.pm.ResolveInfo
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ApplicationProvider
@@ -22,7 +28,11 @@ import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.StartupSession
+import fr.sygix.sygixos.domain.InMemoryUpNextMemory
 import fr.sygix.sygixos.domain.UpNextContent
+import fr.sygix.sygixos.domain.UpNextContentKey
+import fr.sygix.sygixos.domain.UpNextMemory
+import fr.sygix.sygixos.domain.UpNextOpener
 import fr.sygix.sygixos.domain.UpNextSource
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.UpNextContentType
@@ -45,6 +55,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class HomeViewModelUpNextTest {
@@ -80,7 +91,12 @@ class HomeViewModelUpNextTest {
     @After
     fun clear() = store.clear()
 
-    private fun viewModel(upNext: UpNextSource, key: String): HomeViewModel {
+    private fun viewModel(
+        upNext: UpNextSource,
+        key: String,
+        memory: UpNextMemory = InMemoryUpNextMemory(),
+        opener: UpNextOpener = UpNextOpener { _, _ -> false },
+    ): HomeViewModel {
         val empty = object : HeroContentProvider { override suspend fun load() = emptyList<HeroItem>() }
         return HomeViewModel(
             repo, HeroRepository(empty, empty), AppArtworkSource(context.packageManager), VisualValidator(context),
@@ -89,12 +105,54 @@ class HomeViewModelUpNextTest {
                 override fun time() = emptyFlow<String>()
             }, FakeUpdateController(), StartupSession(), FakeMotionSource(), FakeMascotSource(),
             upNextSource = upNext,
+            upNextMemory = memory,
+            upNextOpener = opener,
         ).also { store.put(key, it) }
     }
 
     private suspend fun awaitItems(expected: List<UpNextItem>, model: HomeViewModel = vm) = model.state.await {
         ((it as? HomeState.Ready)?.upNext?.content as? UpNextContent.Items)?.items == expected
     } as HomeState.Ready
+
+    @Test
+    fun `an opening is recorded on the published intent or the fallback and never on a double failure`() = runBlocking {
+        val memory = InMemoryUpNextMemory()
+        var refuseIntent = false
+        var refuseFallback = false
+        val launcher = object : ContextWrapper(context) {
+            override fun startActivity(intent: Intent) {
+                if (if (intent.data != null) refuseIntent else refuseFallback) throw ActivityNotFoundException()
+            }
+        }
+        val entry = UpNextSourceEntry("com.source", "Source", intentUri = "https://example.org/play")
+        shadowOf(context.packageManager).addResolveInfoForIntent(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setPackage(entry.packageName),
+            ResolveInfo().apply {
+                activityInfo = ActivityInfo().apply {
+                    packageName = entry.packageName
+                    name = "com.source.MainActivity"
+                    applicationInfo = ApplicationInfo().apply { packageName = entry.packageName; enabled = true }
+                    enabled = true
+                }
+            },
+        )
+        val home = viewModel(source, "routing", memory) { opened, chosen ->
+            if (chosen == null) AppLauncher.open(launcher, opened) else AppLauncher.openWith(launcher, opened, chosen)
+        }
+        fun movie(title: String) = UpNextItem(title.length.toLong(), entry, UpNextContentType.MOVIE, title)
+        val viaIntent = movie("Par intent")
+        home.openUpNext(viaIntent)
+        memory.opened.await { UpNextContentKey.of(viaIntent) in it }
+        refuseIntent = true
+        val viaFallback = movie("Repli")
+        home.openUpNext(viaFallback, entry)
+        memory.opened.await { UpNextContentKey.of(viaFallback) in it }
+        refuseFallback = true
+        val refused = movie("Refusé")
+        home.openUpNext(refused)
+        home.openUpNext(refused, entry)
+        assertEquals(setOf(UpNextContentKey.of(viaIntent), UpNextContentKey.of(viaFallback)), memory.opened.value.keys)
+    }
 
     @Test
     fun `refresh and provider signal update home without losing content on transient failure`() = runBlocking {
