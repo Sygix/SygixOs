@@ -14,6 +14,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.os.SystemClock
+import android.provider.Settings
+import fr.sygix.sygixos.data.AccessibilityConnection
+import fr.sygix.sygixos.data.AccessibilityRebindToggle
+import fr.sygix.sygixos.data.AndroidLauncherSystemGateway
+import fr.sygix.sygixos.data.LauncherSystemIntents
+import fr.sygix.sygixos.domain.AccessibilityRebind
+import fr.sygix.sygixos.domain.BootStartDispatcher
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.ConnectivityNetworkStatus
 import fr.sygix.sygixos.data.ContextSystemScreenLauncher
@@ -45,6 +55,22 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val bootStartDispatcher: BootStartDispatcher by lazy {
+        BootStartDispatcher(
+            store = launcherPrefs,
+            bootCount = { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT) },
+            sinceBootMs = SystemClock::elapsedRealtime,
+            openHome = { runCatching { startActivity(LauncherSystemIntents.boot(this)) }.isSuccess },
+        )
+    }
+    val accessibilityRebind: AccessibilityRebind by lazy {
+        AccessibilityRebind(
+            enabled = { AndroidLauncherSystemGateway.serviceEnabledIn(this) },
+            connected = AccessibilityConnection.connected,
+            toggle = { withContext(Dispatchers.IO) { AccessibilityRebindToggle.toggle(this@SygixOsApp) } },
+            scope = appScope,
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -53,9 +79,16 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
         }
         registerActivityLifecycleCallbacks(foregroundTracker)
         updateRepository.coldStart()
+        if (rebindsAccessibility && Application.getProcessName() == packageName) accessibilityRebind.check()
+    }
+
+    fun onAccessibilityConnected() {
+        appScope.launch(Dispatchers.IO) { bootStartDispatcher.dispatch() }
     }
 
     protected open val prefetchesMascot: Boolean get() = true
+
+    protected open val rebindsAccessibility: Boolean get() = true
 
     override fun onTerminate() {
         appScope.cancel()

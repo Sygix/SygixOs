@@ -20,9 +20,7 @@ class BootStartReceiver : BroadcastReceiver() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                BootStartDispatcher(app.launcherPrefs) {
-                    runCatching { context.startActivity(LauncherSystemIntents.boot(context)) }.isSuccess
-                }.handle(intent.action)
+                app.bootStartDispatcher.dispatch()
             } finally {
                 pending.finish()
             }
