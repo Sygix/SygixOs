@@ -6,6 +6,8 @@
 package fr.sygix.sygixos.data
 
 import fr.sygix.sygixos.domain.AppCatalog
+import fr.sygix.sygixos.domain.RemovedUpNextContent
+import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextPosition
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +33,10 @@ class AppCatalogRepository(
     val disabledSources: Flow<Set<String>> = prefs.disabledSources
     val upNextVisible: Flow<Boolean> = prefs.upNextVisible
     val upNextPosition: Flow<UpNextPosition> = prefs.upNextPosition
+
+    val upNextRemoved: Flow<List<RemovedUpNextContent>> = prefs.removed
+
+    suspend fun restoreUpNext(key: UpNextContentKey) = prefs.restoreRemoved(key)
 
     suspend fun setUpNextVisible(visible: Boolean) = prefs.setUpNextVisible(visible)
     suspend fun setUpNextPosition(position: UpNextPosition) = prefs.setUpNextPosition(position)

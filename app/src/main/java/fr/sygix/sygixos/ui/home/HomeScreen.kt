@@ -109,6 +109,8 @@ import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.AppCatalog
 import fr.sygix.sygixos.domain.GridScroll
 import fr.sygix.sygixos.domain.GridSections
+import fr.sygix.sygixos.domain.HiddenGroup
+import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.domain.HomePage
 import fr.sygix.sygixos.domain.StartupPhase
@@ -159,8 +161,10 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 catalog = s.catalog,
                 hero = s.hero,
                 upNext = s.upNext,
-                onOpenUpNext = { AppLauncher.open(context, it) },
-                onOpenUpNextSource = { item, source -> AppLauncher.openWith(context, item, source) },
+                onOpenUpNext = { if (AppLauncher.open(context, it)) viewModel.onUpNextOpened(it) },
+                onOpenUpNextSource = { item, source -> if (AppLauncher.openWith(context, item, source)) viewModel.onUpNextOpened(item) },
+                onRemoveUpNext = viewModel::removeUpNext,
+                onUpNextReturnHandled = viewModel::onUpNextReturnHandled,
                 onRetryUpNext = viewModel::refreshUpNext,
                 upNextUpdates = viewModel.upNextUpdates,
                 onTogglePin = viewModel::togglePin,
@@ -175,6 +179,8 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 onToggleSource = settingsViewModel::toggleSource,
                 onToggleHidden = settingsViewModel::toggleHidden,
                 onUnhideAll = settingsViewModel::unhideAll,
+                onRestoreUpNext = settingsViewModel::restoreUpNext,
+                onExpandHidden = settingsViewModel::expandHidden,
                 onSettingsCategory = settingsViewModel::enterCategory,
                 glassBlur = glassBlur,
                 clock = viewModel.clock,
@@ -368,6 +374,8 @@ internal fun LauncherHome(
     onToggleSource: (String) -> Unit = {},
     onToggleHidden: (String) -> Unit = {},
     onUnhideAll: () -> Unit = {},
+    onRestoreUpNext: (UpNextContentKey) -> Unit = {},
+    onExpandHidden: (HiddenGroup) -> Unit = {},
     onSettingsCategory: (SettingsCategory) -> Unit = {},
     initialZone: Zone = Zone.HERO,
     glassBlur: Boolean = true,
@@ -383,6 +391,8 @@ internal fun LauncherHome(
     onOpenUpNext: (UpNextItem) -> Unit = {},
     onOpenUpNextSource: (UpNextItem, UpNextSourceEntry) -> Unit = { _, _ -> },
     onRetryUpNext: () -> Unit = {},
+    onRemoveUpNext: (UpNextItem) -> Unit = {},
+    onUpNextReturnHandled: (Long) -> Unit = {},
     upNextUpdates: Flow<Unit> = emptyFlow(),
     launcherState: LauncherSystemState = LauncherSystemState(),
     launcherActions: LauncherSystemActions = LauncherSystemActions(),
@@ -592,6 +602,7 @@ internal fun LauncherHome(
                         onOpenUpNext = onOpenUpNext,
                         onUpNextMenu = { menuItem = it },
                         onRetryUpNext = onRetryUpNext,
+                        onUpNextReturnHandled = onUpNextReturnHandled,
                         modifier = Modifier.testTag("home-grid"),
                     )
                 }
@@ -621,6 +632,8 @@ internal fun LauncherHome(
                 onToggleSource = onToggleSource,
                 onToggleHidden = onToggleHidden,
                 onUnhideAll = onUnhideAll,
+                onRestoreUpNext = onRestoreUpNext,
+                onExpandHidden = onExpandHidden,
                 onCategoryEntered = onSettingsCategory,
                 update = update,
                 homeScreenActions = homeScreenActions,
@@ -630,7 +643,12 @@ internal fun LauncherHome(
             )
         }
         menuItem?.let { item ->
-            UpNextContextMenu(item, onOpen = { source -> onOpenUpNextSource(item, source); menuItem = null }, modifier = Modifier.zIndex(10f))
+            UpNextContextMenu(
+                item,
+                onOpen = { source -> onOpenUpNextSource(item, source); menuItem = null },
+                onRemove = { onRemoveUpNext(item); menuItem = null },
+                modifier = Modifier.zIndex(10f),
+            )
         }
         menuApp?.let { app ->
             AppContextMenu(

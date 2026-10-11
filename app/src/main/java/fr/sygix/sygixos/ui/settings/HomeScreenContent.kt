@@ -109,7 +109,7 @@ private fun UpNextPosition.label() = when (this) {
 }
 
 @Composable
-private fun Chevron(up: Boolean, color: Color, modifier: Modifier) {
+internal fun Chevron(up: Boolean, color: Color, modifier: Modifier) {
     Canvas(modifier) {
         val top = if (up) size.height * .65f else size.height * .35f
         val bottom = size.height - top

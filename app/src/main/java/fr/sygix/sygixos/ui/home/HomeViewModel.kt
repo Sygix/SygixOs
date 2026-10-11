@@ -32,13 +32,16 @@ import fr.sygix.sygixos.domain.StartupGate
 import fr.sygix.sygixos.domain.StartupPhase
 import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.domain.StartupTimings
+import fr.sygix.sygixos.domain.InMemoryUpNextMemory
 import fr.sygix.sygixos.domain.UpNextController
+import fr.sygix.sygixos.domain.UpNextMemory
 import fr.sygix.sygixos.domain.UpNextSource
 import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.domain.withSources
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.model.UpNextItem
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -81,6 +84,7 @@ class HomeViewModel(
     startupClock: () -> Long = SystemClock::uptimeMillis,
     startupDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     upNextSource: UpNextSource? = null,
+    upNextMemory: UpNextMemory = InMemoryUpNextMemory(),
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -103,7 +107,7 @@ class HomeViewModel(
     private var lastShelfPackage: String? = null
 
     private val upNext = upNextSource?.let {
-        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope)
+        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory)
     }
 
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
@@ -191,6 +195,12 @@ class HomeViewModel(
 
     fun refreshUpNext() { upNext?.refresh() }
 
+    fun onUpNextOpened(item: UpNextItem) { upNext?.opened(item) }
+
+    fun removeUpNext(item: UpNextItem) { upNext?.remove(item) }
+
+    fun onUpNextReturnHandled(id: Long) { upNext?.returnHandled(id) }
+
     fun onForeground() = updates.onForeground()
 
     fun onHomeShown() = updates.onHomeShown()
@@ -266,6 +276,7 @@ class HomeViewModel(
                 motion = SettingsMotionSource(app.contentResolver),
                 mascot = app.mascotAnimation,
                 upNextSource = TvProviderUpNextSource(app),
+                upNextMemory = app.launcherPrefs,
             ) as T
         }
     }

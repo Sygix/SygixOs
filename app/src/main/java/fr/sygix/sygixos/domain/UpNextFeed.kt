@@ -20,7 +20,14 @@ object UpNextFeed {
         .trim()
         .replace(Regex("\\s+"), " ")
 
-    fun build(items: List<UpNextItem>, disabledSources: Set<String> = emptySet()): List<UpNextItem> {
+    const val LIMIT = 20
+
+    fun build(
+        items: List<UpNextItem>,
+        disabledSources: Set<String> = emptySet(),
+        opened: Map<UpNextContentKey, Long> = emptyMap(),
+        removed: Collection<UpNextContentKey> = emptyList(),
+    ): List<UpNextItem> {
         val enabled = items.filter { it.source.packageName !in disabledSources }
         val years = enabled.filter { it.type == UpNextContentType.MOVIE }
             .groupBy { normalize(it.title) }.mapValues { (_, movies) -> movies.mapNotNull { it.year }.toSet() }
@@ -41,9 +48,15 @@ object UpNextFeed {
                 title == normalize(b.title) &&
                 (a.year == b.year || ((a.year == null || b.year == null) && years.getValue(title).size <= 1))
         }
-        return movies.sortedWith(compareBy<UpNextItem> { group(it.watchNextType) }
-            .thenByDescending { it.engagement }.thenBy { it.id }).take(20)
+        val kept = movies.filter { item -> removed.none { it.matches(item) } }
+        val openedAt = kept.associateWith { item -> opened.filterKeys { it.matches(item) }.values.maxOrNull() }
+        return kept.sortedWith(compareBy<UpNextItem> { if (openedAt[it] == null) 1 else 0 }
+            .thenByDescending { openedAt[it] ?: 0L }
+            .thenBy { group(it.watchNextType) }
+            .thenByDescending { it.engagement }.thenBy { it.id }).take(LIMIT)
     }
+
+    fun stillPublished(key: UpNextContentKey, items: List<UpNextItem>): Boolean = items.any { key.matches(it) }
 
     private fun exactIdentity(item: UpNextItem): String = when {
         item.internalProviderId != null -> "provider:${item.internalProviderId}"

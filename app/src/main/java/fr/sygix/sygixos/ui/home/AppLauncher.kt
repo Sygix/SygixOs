@@ -33,15 +33,15 @@ object AppLauncher {
         item.sourcePackage?.let { open(context, TvApp(it, item.sourceLabel ?: it)) }
     }
 
-    fun open(context: Context, item: UpNextItem) = open(context, item, item.sources.first(), fromMenu = false)
+    fun open(context: Context, item: UpNextItem): Boolean = open(context, item, item.sources.first(), fromMenu = false)
 
-    fun openWith(context: Context, item: UpNextItem, source: UpNextSourceEntry) = open(context, item, source, fromMenu = true)
+    fun openWith(context: Context, item: UpNextItem, source: UpNextSourceEntry): Boolean = open(context, item, source, fromMenu = true)
 
-    private fun open(context: Context, item: UpNextItem, source: UpNextSourceEntry, fromMenu: Boolean) {
+    private fun open(context: Context, item: UpNextItem, source: UpNextSourceEntry, fromMenu: Boolean): Boolean {
         val published = source.intentUri?.let { uri ->
             runCatching { Intent.parseUri(uri, Intent.URI_INTENT_SCHEME).setPackage(source.packageName) }.getOrNull()
         }
-        if (published != null && start(context, published)) return
+        if (published != null && start(context, published)) return true
         val pm = context.packageManager
         val fallback = pm.getLeanbackLaunchIntentForPackage(source.packageName)
             ?: pm.getLaunchIntentForPackage(source.packageName)
@@ -49,9 +49,10 @@ object AppLauncher {
             if (fromMenu && source.intentUri != null) {
                 Toast.makeText(context, context.getString(R.string.upnext_open_fallback, source.label), Toast.LENGTH_SHORT).show()
             }
-            return
+            return true
         }
         Toast.makeText(context, context.getString(R.string.upnext_open_error, item.displayTitle), Toast.LENGTH_SHORT).show()
+        return false
     }
 
     private fun start(context: Context, intent: Intent): Boolean = runCatching {

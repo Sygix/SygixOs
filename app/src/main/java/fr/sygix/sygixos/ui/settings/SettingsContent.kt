@@ -6,6 +6,21 @@
 package fr.sygix.sygixos.ui.settings
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.lazy.items
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import fr.sygix.sygixos.core.designsystem.SygixTypography
+import fr.sygix.sygixos.domain.HiddenGroup
+import fr.sygix.sygixos.domain.HiddenPaneLayout
+import fr.sygix.sygixos.domain.UpNextArtworkQuality
+import fr.sygix.sygixos.domain.UpNextContentKey
+import fr.sygix.sygixos.model.UpNextContentType
+import fr.sygix.sygixos.ui.home.UpNextGlyph
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -29,8 +44,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -71,7 +84,6 @@ import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.domain.ListReveal
 import fr.sygix.sygixos.model.TvApp
-import fr.sygix.sygixos.ui.home.TileFocus
 import fr.sygix.sygixos.ui.home.rememberAppArtwork
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -86,6 +98,8 @@ internal val RowVerticalPadding = 6.dp
 internal val RowGap = 12.dp
 internal val RowSpacing = 5.dp
 private val EntryButtonHeight = 42.dp
+private val UnhideAllGap = 20.dp
+private const val PlaceholderArea = 0.5f
 private const val IconHeightFraction = 0.8f
 
 internal fun programCountLabel(count: Int): String = when (count) {
@@ -192,15 +206,17 @@ private fun SourceRowLine(
 
 @Composable
 internal fun HiddenContent(
-    rows: List<HiddenRow>,
+    entries: List<HiddenEntry>,
     listState: LazyListState,
     focusEnabled: Boolean,
     contentFocus: FocusRequester,
     onToggle: (String) -> Unit,
     onUnhideAll: () -> Unit,
     modifier: Modifier = Modifier,
+    onRestore: (UpNextContentKey) -> Unit = {},
+    onExpand: (HiddenGroup) -> Unit = {},
 ) {
-    if (rows.isEmpty()) {
+    if (entries.isEmpty()) {
         Box(modifier.testTag("hidden-pane").fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
                 stringResource(R.string.hidden_empty),
@@ -211,14 +227,23 @@ internal fun HiddenContent(
         }
         return
     }
-    val packages = remember(rows) { rows.map { it.app.packageName } }
-    val rowFocus = remember { TileFocus(null) }
-    var unhideAllFocused by remember { mutableStateOf(false) }
-    val refocusActive by rememberUpdatedState(focusEnabled && !unhideAllFocused)
-    LaunchedEffect(packages) {
-        val target = rowFocus.refocus(packages, refocusActive) ?: return@LaunchedEffect
+    val focusable = remember(entries) { entries.filter { it != HiddenEntry.ContentsTitle }.map { it.key } }
+    val initial = remember(entries) { entries.firstOrNull { it is HiddenEntry.App || it is HiddenEntry.Content }?.key }
+    val requesters = remember { mutableMapOf<String, FocusRequester>() }
+    fun requesterFor(key: String) = requesters.getOrPut(key) { FocusRequester() }
+    var focusedKey by remember { mutableStateOf<String?>(null) }
+    var focusedIndex by remember { mutableIntStateOf(0) }
+    val active by rememberUpdatedState(focusEnabled)
+    val target = remember(focusable) { HiddenPaneLayout.refocus(focusable, focusedKey, focusedIndex) }
+    LaunchedEffect(focusable) {
+        if (!active || target == null) return@LaunchedEffect
         withFrameNanos { }
-        rowFocus.requesterFor(target).tryRequestFocus()
+        requesterFor(target).tryRequestFocus()
+    }
+    fun focusModifier(entry: HiddenEntry): Modifier = if (entry.key == initial) Modifier.focusRequester(contentFocus) else Modifier
+    fun onFocused(entry: HiddenEntry) {
+        focusedKey = entry.key
+        focusedIndex = focusable.indexOf(entry.key).coerceAtLeast(0)
     }
     LazyColumn(
         state = listState,
@@ -227,7 +252,7 @@ internal fun HiddenContent(
             .fillMaxWidth()
             .fillMaxHeight(),
     ) {
-        item {
+        item(key = "header") {
             Text(stringResource(R.string.settings_category_hidden), style = MaterialTheme.typography.headlineSmall, color = Color.White)
             Spacer(Modifier.height(12.dp))
             Text(
@@ -237,28 +262,162 @@ internal fun HiddenContent(
             )
             Spacer(Modifier.height(Dimens.SettingsHeaderGap))
         }
-        item {
-            SettingsEntryButton(
-                label = stringResource(R.string.hidden_unhide_all),
-                focusEnabled = focusEnabled,
-                focusRequester = null,
-                onClick = onUnhideAll,
-                onFocused = { unhideAllFocused = it },
-                modifier = Modifier.testTag("unhide-all"),
-            )
-            Spacer(Modifier.height(20.dp))
+        items(entries, key = { it.key }) { entry ->
+            when (entry) {
+                HiddenEntry.UnhideAll -> {
+                    SettingsEntryButton(
+                        label = stringResource(R.string.hidden_unhide_all),
+                        focusEnabled = focusEnabled,
+                        focusRequester = requesterFor(entry.key),
+                        onClick = onUnhideAll,
+                        onFocused = { if (it) onFocused(entry) },
+                        modifier = Modifier.testTag("unhide-all"),
+                    )
+                    Spacer(Modifier.height(UnhideAllGap))
+                }
+                is HiddenEntry.App -> {
+                    val packageName = entry.row.app.packageName
+                    HiddenRowLine(
+                        row = entry.row,
+                        focusEnabled = focusEnabled,
+                        focusRequester = requesterFor(entry.key),
+                        onFocused = { onFocused(entry) },
+                        onToggle = { onToggle(packageName) },
+                        modifier = focusModifier(entry),
+                    )
+                    Spacer(Modifier.height(RowSpacing))
+                }
+                is HiddenEntry.More -> {
+                    ShowMoreRow(
+                        entry = entry,
+                        focusEnabled = focusEnabled,
+                        focusRequester = requesterFor(entry.key),
+                        onFocused = { onFocused(entry) },
+                        onClick = { onExpand(entry.group) },
+                    )
+                    Spacer(Modifier.height(RowSpacing))
+                }
+                HiddenEntry.ContentsTitle -> Text(
+                    stringResource(R.string.hidden_group_upnext),
+                    style = SygixTypography.labelMedium,
+                    color = SygixColors.OnDarkSecondary,
+                    modifier = Modifier
+                        .testTag("hidden-group-upnext")
+                        .focusProperties { canFocus = false }
+                        .padding(start = RowPadding, top = Dimens.SettingsGroupTitleTop, bottom = Dimens.SettingsGroupTitleBottom),
+                )
+                is HiddenEntry.Content -> {
+                    HiddenContentLine(
+                        row = entry.row,
+                        focusEnabled = focusEnabled,
+                        focusRequester = requesterFor(entry.key),
+                        onFocused = { onFocused(entry) },
+                        onRestore = { onRestore(entry.row.key) },
+                        modifier = focusModifier(entry),
+                    )
+                    Spacer(Modifier.height(RowSpacing))
+                }
+            }
         }
-        itemsIndexed(rows, key = { _, row -> row.app.packageName }) { index, row ->
-            val packageName = row.app.packageName
-            HiddenRowLine(
-                row = row,
-                focusEnabled = focusEnabled,
-                focusRequester = rowFocus.requesterFor(packageName),
-                onFocused = { rowFocus.onFocused(packageName, index) },
-                onToggle = { onToggle(packageName) },
-                modifier = if (index == 0) Modifier.focusRequester(contentFocus) else Modifier,
+    }
+}
+
+@Composable
+private fun ShowMoreRow(
+    entry: HiddenEntry.More,
+    focusEnabled: Boolean,
+    focusRequester: FocusRequester,
+    onFocused: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val tag = when (entry.group) {
+        HiddenGroup.APPS -> "hidden-show-more-apps"
+        HiddenGroup.UPNEXT -> "hidden-show-more-upnext"
+    }
+    PreferenceRow(
+        label = pluralStringResource(R.plurals.hidden_show_more, entry.count, entry.count),
+        enabled = focusEnabled,
+        onClick = onClick,
+        focusRequester = focusRequester,
+        onFocused = { if (it) onFocused() },
+        modifier = Modifier.testTag(tag),
+    ) { colors ->
+        Chevron(up = false, color = colors.tertiary, modifier = Modifier.size(Dimens.SettingsChevron))
+    }
+}
+
+@Composable
+internal fun HiddenContentLine(
+    row: HiddenContentRow,
+    focusEnabled: Boolean,
+    focusRequester: FocusRequester,
+    onFocused: () -> Unit,
+    onRestore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused)
+    val key = row.key.serialized
+    val type = stringResource(
+        if (row.key.type == UpNextContentType.EPISODE) R.string.hidden_content_series else R.string.hidden_content_movie,
+    )
+    val detail = if (row.apps.isEmpty()) {
+        type
+    } else {
+        type + stringResource(R.string.hero_details_separator) + row.apps.joinToString(stringResource(R.string.hidden_content_apps_separator))
+    }
+    Row(
+        modifier
+            .testTag("hidden-content-row-$key")
+            .fillMaxWidth()
+            .tvFocusable(
+                focusRequester = focusRequester,
+                enabled = focusEnabled,
+                onFocused = {
+                    focused = it
+                    if (it) onFocused()
+                },
             )
-            Spacer(Modifier.height(RowSpacing))
+            .tvClickable(onClick = onRestore)
+            .focusPill(colors, RowShape)
+            .heightIn(min = RowHeight)
+            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ContentThumbnail(row.imageUrl, Modifier.testTag("hidden-content-thumbnail-$key"))
+        Spacer(Modifier.width(RowGap))
+        Column(Modifier.weight(1f)) {
+            Text(row.title, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(detail, style = TextStyles.RowSecondary, color = colors.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (focused) {
+            Spacer(Modifier.width(RowGap))
+            Text(
+                stringResource(R.string.hidden_content_restore),
+                style = TextStyles.RowState,
+                color = colors.tertiary,
+                modifier = Modifier.testTag("hidden-content-action-$key"),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ContentThumbnail(imageUrl: String?, modifier: Modifier = Modifier) {
+    BoxWithConstraints(
+        modifier
+            .size(Dimens.SettingsThumbWidth, Dimens.SettingsThumbHeight)
+            .clip(RoundedCornerShape(Dimens.SettingsThumbCorner))
+            .background(SygixColors.TileBackground),
+    ) {
+        val painter = rememberAsyncImagePainter(imageUrl, contentScale = ContentScale.Crop)
+        if (painter.state is AsyncImagePainter.State.Success) {
+            Image(painter, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, maxHeight.value).dp
+            Box(Modifier.fillMaxWidth().fillMaxHeight(PlaceholderArea).align(Alignment.TopCenter), contentAlignment = Alignment.Center) {
+                UpNextGlyph(false, SygixColors.PlaceholderGlyph, Modifier.size(icon))
+            }
         }
     }
 }

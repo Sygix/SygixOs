@@ -16,6 +16,9 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import fr.sygix.sygixos.domain.LauncherSystemStore
+import fr.sygix.sygixos.domain.RemovedUpNextContent
+import fr.sygix.sygixos.domain.UpNextContentKey
+import fr.sygix.sygixos.domain.UpNextMemory
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextPosition
 import fr.sygix.sygixos.model.BootStartState
@@ -29,7 +32,7 @@ internal val Context.dataStore by preferencesDataStore(name = "launcher")
 class LauncherPrefs(
     private val context: Context,
     private val clock: () -> Long = System::currentTimeMillis,
-) : LauncherSystemStore {
+) : LauncherSystemStore, UpNextMemory {
 
     private val upNextVisibleKey = booleanPreferencesKey("up_next_visible")
     private val upNextPositionKey = stringPreferencesKey("up_next_position")
@@ -47,6 +50,82 @@ class LauncherPrefs(
     suspend fun setUpNextPosition(position: UpNextPosition) {
         context.dataStore.edit { it[upNextPositionKey] = position.name }
     }
+
+    private val upNextOpenedKey = stringPreferencesKey("up_next_opened")
+    private val upNextRemovedKey = stringPreferencesKey("up_next_removed")
+
+    override val opened: Flow<Map<UpNextContentKey, Long>> = context.dataStore.data.map { readOpened(it) }
+
+    override val removed: Flow<List<RemovedUpNextContent>> = context.dataStore.data.map { readRemoved(it) }
+
+    override suspend fun recordOpened(key: UpNextContentKey, at: Long) {
+        context.dataStore.edit { prefs -> writeOpened(prefs, readOpened(prefs) + (key to at)) }
+    }
+
+    override suspend fun pruneOpened(keep: (UpNextContentKey) -> Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = readOpened(prefs)
+            val kept = current.filterKeys(keep)
+            if (kept.size != current.size) writeOpened(prefs, kept)
+        }
+    }
+
+    override suspend fun addRemoved(content: RemovedUpNextContent) {
+        context.dataStore.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == content.key } + content) }
+    }
+
+    override suspend fun restoreRemoved(key: UpNextContentKey) {
+        context.dataStore.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == key }) }
+    }
+
+    private fun readOpened(prefs: Preferences): Map<UpNextContentKey, Long> =
+        prefs[upNextOpenedKey]?.split(LINE).orEmpty().mapNotNull { line ->
+            val parts = line.split(FIELD)
+            val key = parts.firstOrNull()?.let(UpNextContentKey::parse)
+            val at = parts.getOrNull(1)?.toLongOrNull()
+            if (parts.size != 2 || key == null || at == null) null else key to at
+        }.toMap()
+
+    private fun writeOpened(prefs: MutablePreferences, opened: Map<UpNextContentKey, Long>) {
+        if (opened.isEmpty()) prefs.remove(upNextOpenedKey)
+        else prefs[upNextOpenedKey] = opened.entries.joinToString(LINE) { (key, at) -> "${key.serialized}$FIELD$at" }
+    }
+
+    private fun readRemoved(prefs: Preferences): List<RemovedUpNextContent> =
+        prefs[upNextRemovedKey]?.split(LINE).orEmpty().mapNotNull { line ->
+            val parts = line.split(FIELD)
+            val key = parts.firstOrNull()?.let(UpNextContentKey::parse)
+            val at = parts.getOrNull(4)?.toLongOrNull()
+            if (parts.size != 5 || key == null || at == null) {
+                null
+            } else {
+                RemovedUpNextContent(
+                    key = key,
+                    title = parts[1].ifEmpty { key.title },
+                    packages = parts[2].split(LIST).filter { it.isNotEmpty() },
+                    imageUrl = parts[3].ifEmpty { null },
+                    removedAt = at,
+                )
+            }
+        }.distinctBy { it.key }
+
+    private fun writeRemoved(prefs: MutablePreferences, removed: List<RemovedUpNextContent>) {
+        if (removed.isEmpty()) {
+            prefs.remove(upNextRemovedKey)
+        } else {
+            prefs[upNextRemovedKey] = removed.joinToString(LINE) { content ->
+                listOf(
+                    content.key.serialized,
+                    content.title.clean(),
+                    content.packages.joinToString(LIST),
+                    content.imageUrl.orEmpty().clean(),
+                    content.removedAt.toString(),
+                ).joinToString(FIELD)
+            }
+        }
+    }
+
+    private fun String.clean(): String = replace(Regex("[\\t\\n\\r]"), " ")
 
     private val pinnedKey = stringSetPreferencesKey("pinned_apps")
     private val orderKey = stringPreferencesKey("grid_order")
@@ -202,5 +281,6 @@ class LauncherPrefs(
     private companion object {
         const val LINE = "\n"
         const val FIELD = "\t"
+        const val LIST = ","
     }
 }

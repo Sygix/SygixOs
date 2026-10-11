@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,6 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -25,7 +32,7 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 
 @Composable
-internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> Unit, modifier: Modifier = Modifier) {
+internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier) {
     val first = remember { FocusRequester() }
     LaunchedEffect(item.key) { withFrameNanos { }; first.tryRequestFocus() }
     ContextMenuPanel(modifier.testTag("upnext-menu")) {
@@ -53,5 +60,40 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
                 }
             }
         }
+        var removeFocused by remember { mutableStateOf(false) }
+        val removeColors = animatedPillColors(removeFocused)
+        Row(
+            Modifier.testTag("upnext-menu-remove").fillMaxWidth()
+                .tvFocusable(onFocused = { removeFocused = it })
+                .tvClickable(onClick = onRemove).focusPill(removeColors, RoundedCornerShape(Dimens.PillCorner))
+                .heightIn(min = Dimens.MenuActionHeight).padding(horizontal = Dimens.MenuEntryPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.MenuEntryGap),
+        ) {
+            HiddenEyeGlyph(removeColors.content, Modifier.size(Dimens.MenuEntryIcon).testTag("upnext-menu-remove-icon"))
+            Text(stringResource(R.string.upnext_remove), style = if (removeFocused) TextStyles.RowFocused else TextStyles.Row,
+                color = removeColors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
+
+@Composable
+private fun HiddenEyeGlyph(color: Color, modifier: Modifier) {
+    Canvas(modifier) {
+        val unit = size.minDimension / EyeGrid
+        val stroke = Stroke(unit * EyeStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        val eye = Path().apply {
+            moveTo(unit * 2, unit * 12)
+            quadraticTo(unit * 12, unit * 2, unit * 22, unit * 12)
+            quadraticTo(unit * 12, unit * 22, unit * 2, unit * 12)
+            close()
+        }
+        drawPath(eye, color, style = stroke)
+        drawCircle(color, unit * EyePupil, Offset(unit * 12, unit * 12), style = stroke)
+        drawLine(color, Offset(unit * 4, unit * 4), Offset(unit * 20, unit * 20), unit * EyeStroke, StrokeCap.Round)
+    }
+}
+
+private const val EyeGrid = 24f
+private const val EyeStroke = 1.8f
+private const val EyePupil = 3f

@@ -97,6 +97,7 @@ internal fun HomeGrid(
     onOpenUpNext: (UpNextItem) -> Unit = {},
     onUpNextMenu: (UpNextItem) -> Unit = {},
     onRetryUpNext: () -> Unit = {},
+    onUpNextReturnHandled: (Long) -> Unit = {},
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
     val appPackages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
@@ -106,6 +107,16 @@ internal fun HomeGrid(
     val upNextScroll = rememberLazyListState()
     var titleHeight by remember { mutableStateOf(0f) }
     val focus = remember { TileFocus(initialShelfApp) }
+    val returnFocus = upNext?.returnFocus
+    remember(returnFocus) {
+        val index = returnFocus?.let { sections.upNextKeys.indexOf(it.key) } ?: -1
+        if (returnFocus != null && index >= 0) {
+            focus.onFocused(returnFocus.key, sections.cardOrderIndex(index), FocusFallback.CardVisit(index, afterApps = !sections.upNextFirst))
+        }
+        returnFocus
+    }
+    val returnHandled by rememberUpdatedState(onUpNextReturnHandled)
+    LaunchedEffect(returnFocus) { returnFocus?.let { returnHandled(it.id) } }
     val enabled by rememberUpdatedState(focusEnabled)
     val focusedApp = focus.focusedApp
     val entryApp = focus.gridEntry(sections)

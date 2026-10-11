@@ -53,6 +53,8 @@ import androidx.compose.ui.zIndex
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
+import fr.sygix.sygixos.domain.HiddenGroup
+import fr.sygix.sygixos.domain.UpNextContentKey
 
 enum class SettingsPane { CATEGORIES, CONTENT }
 
@@ -82,6 +84,8 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     homeScreenActions: HomeScreenActions = HomeScreenActions(),
     homeScreenRows: @Composable ColumnScope.(Boolean) -> Unit = {},
+    onRestoreUpNext: (UpNextContentKey) -> Unit = {},
+    onExpandHidden: (HiddenGroup) -> Unit = {},
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
@@ -177,12 +181,14 @@ fun SettingsScreen(
                         onToggle = onToggleSource,
                     )
                     SettingsCategory.HIDDEN -> HiddenContent(
-                        rows = state.hiddenRows,
+                        entries = state.hiddenEntries,
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
                         onToggle = onToggleHidden,
                         onUnhideAll = onUnhideAll,
+                        onRestore = onRestoreUpNext,
+                        onExpand = onExpandHidden,
                     )
                     SettingsCategory.ABOUT -> AboutContent(
                         version = state.version,
