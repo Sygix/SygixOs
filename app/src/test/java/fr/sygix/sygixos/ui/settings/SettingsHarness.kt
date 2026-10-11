@@ -155,6 +155,7 @@ internal class SettingsHarness(
                 homeScreenActions = viewModel.homeScreenActions,
                 onRestoreUpNext = { restored += it; viewModel.restoreUpNext(it) },
                 onExpandHidden = viewModel::expandHidden,
+                onHiddenFocused = viewModel::onHiddenFocused,
             )
         }
     }

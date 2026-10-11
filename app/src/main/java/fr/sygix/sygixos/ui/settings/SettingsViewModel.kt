@@ -87,6 +87,8 @@ internal fun buildHiddenEntries(apps: List<HiddenRow>, contents: List<HiddenCont
     }
 }
 
+data class HiddenRefocus(val key: String, val request: Long)
+
 data class SettingsState(
     val sources: List<SourceRow> = emptyList(),
     val hiddenRows: List<HiddenRow> = emptyList(),
@@ -96,8 +98,13 @@ data class SettingsState(
     val upNextPosition: UpNextPosition = UpNextPosition.BEFORE_APPS,
     val hiddenContents: List<HiddenContentRow> = emptyList(),
     val hiddenExpanded: Set<HiddenGroup> = emptySet(),
+    val hiddenRefocus: HiddenRefocus? = null,
 ) {
     val hiddenEntries: List<HiddenEntry> by lazy { buildHiddenEntries(hiddenRows, hiddenContents, hiddenExpanded) }
+
+    val hiddenFocusOrder: List<String> by lazy { hiddenEntries.filter { it != HiddenEntry.ContentsTitle }.map { it.key } }
+
+    val hiddenInitialFocus: String? by lazy { hiddenEntries.firstOrNull { it is HiddenEntry.App || it is HiddenEntry.Content }?.key }
 
     fun canEnter(category: SettingsCategory): Boolean = when (category) {
         SettingsCategory.SOURCES -> sources.isNotEmpty()
@@ -136,6 +143,14 @@ class SettingsViewModel(
     private val hiddenOrder = MutableStateFlow<List<String>?>(null)
 
     private val hiddenExpanded = MutableStateFlow<Set<HiddenGroup>>(emptySet())
+
+    private val hiddenVisit = MutableStateFlow(0L)
+    private var hiddenFocused: String? = null
+    private var hiddenFocusedIndex = 0
+    private var hiddenShownOrder: List<String>? = null
+    private var hiddenShownVisit = -1L
+    private var hiddenRefocus: HiddenRefocus? = null
+    private var hiddenRefocusRequests = 0L
 
     private val hiddenContents: Flow<List<HiddenContentRow>> = combine(apps.upNextRemoved.catch { emit(emptyList()) }, library) { removed, current ->
         val labels = current?.apps.orEmpty().associate { it.packageName to it.label }
@@ -184,7 +199,8 @@ class SettingsViewModel(
         state.copy(upNextVisible = preferences.first, upNextPosition = preferences.second)
     }.combine(combine(hiddenContents, hiddenExpanded) { contents, expanded -> contents to expanded }) { state, hidden ->
         state.copy(hiddenContents = hidden.first, hiddenExpanded = hidden.second)
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
+    }.combine(hiddenVisit) { state, visit -> withHiddenRefocus(state, visit) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     init {
         viewModelScope.launch {
@@ -199,6 +215,9 @@ class SettingsViewModel(
             SettingsCategory.HIDDEN -> {
                 hiddenExpanded.value = emptySet()
                 refreshHiddenRows()
+                hiddenFocused = null
+                hiddenFocusedIndex = 0
+                hiddenVisit.update { it + 1 }
             }
             SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN -> Unit
         }
@@ -216,6 +235,23 @@ class SettingsViewModel(
     private fun hiddenSnapshot(library: Library): List<String> =
         SettingsOrdering.hidden(library.apps.filter { it.packageName in library.hiddenDates }, library.hiddenDates)
             .map { it.packageName }
+
+    fun onHiddenFocused(key: String) {
+        hiddenFocused = key
+        hiddenFocusedIndex = hiddenShownOrder.orEmpty().indexOf(key).coerceAtLeast(0)
+    }
+
+    private fun withHiddenRefocus(state: SettingsState, visit: Long): SettingsState {
+        val order = state.hiddenFocusOrder
+        if (visit != hiddenShownVisit) {
+            hiddenShownVisit = visit
+            hiddenRefocus = null
+        } else if (order != hiddenShownOrder) {
+            hiddenRefocus = HiddenPaneLayout.refocus(order, hiddenFocused, hiddenFocusedIndex)?.let { HiddenRefocus(it, ++hiddenRefocusRequests) }
+        }
+        hiddenShownOrder = order
+        return state.copy(hiddenRefocus = hiddenRefocus)
+    }
 
     fun expandHidden(group: HiddenGroup) {
         hiddenExpanded.update { it + group }

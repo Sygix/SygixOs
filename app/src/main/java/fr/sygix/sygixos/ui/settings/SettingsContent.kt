@@ -8,7 +8,6 @@ package fr.sygix.sygixos.ui.settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.items
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -16,7 +15,6 @@ import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import fr.sygix.sygixos.core.designsystem.SygixTypography
 import fr.sygix.sygixos.domain.HiddenGroup
-import fr.sygix.sygixos.domain.HiddenPaneLayout
 import fr.sygix.sygixos.domain.UpNextArtworkQuality
 import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.model.UpNextContentType
@@ -215,6 +213,9 @@ internal fun HiddenContent(
     modifier: Modifier = Modifier,
     onRestore: (UpNextContentKey) -> Unit = {},
     onExpand: (HiddenGroup) -> Unit = {},
+    initialFocus: String? = null,
+    refocus: HiddenRefocus? = null,
+    onFocused: (String) -> Unit = {},
 ) {
     if (entries.isEmpty()) {
         Box(modifier.testTag("hidden-pane").fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -227,24 +228,18 @@ internal fun HiddenContent(
         }
         return
     }
-    val focusable = remember(entries) { entries.filter { it != HiddenEntry.ContentsTitle }.map { it.key } }
-    val initial = remember(entries) { entries.firstOrNull { it is HiddenEntry.App || it is HiddenEntry.Content }?.key }
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
     fun requesterFor(key: String) = requesters.getOrPut(key) { FocusRequester() }
-    var focusedKey by remember { mutableStateOf<String?>(null) }
-    var focusedIndex by remember { mutableIntStateOf(0) }
     val active by rememberUpdatedState(focusEnabled)
-    val target = remember(focusable) { HiddenPaneLayout.refocus(focusable, focusedKey, focusedIndex) }
-    LaunchedEffect(focusable) {
-        if (!active || target == null) return@LaunchedEffect
+    val focused by rememberUpdatedState(onFocused)
+    LaunchedEffect(refocus) {
+        val target = refocus?.key ?: return@LaunchedEffect
+        if (!active) return@LaunchedEffect
         withFrameNanos { }
         requesterFor(target).tryRequestFocus()
     }
-    fun focusModifier(entry: HiddenEntry): Modifier = if (entry.key == initial) Modifier.focusRequester(contentFocus) else Modifier
-    fun onFocused(entry: HiddenEntry) {
-        focusedKey = entry.key
-        focusedIndex = focusable.indexOf(entry.key).coerceAtLeast(0)
-    }
+    fun focusModifier(entry: HiddenEntry): Modifier = if (entry.key == initialFocus) Modifier.focusRequester(contentFocus) else Modifier
+    fun onFocused(entry: HiddenEntry) = focused(entry.key)
     LazyColumn(
         state = listState,
         modifier = modifier

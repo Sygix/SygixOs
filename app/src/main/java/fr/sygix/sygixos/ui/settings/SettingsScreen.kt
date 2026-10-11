@@ -86,6 +86,7 @@ fun SettingsScreen(
     homeScreenRows: @Composable ColumnScope.(Boolean) -> Unit = {},
     onRestoreUpNext: (UpNextContentKey) -> Unit = {},
     onExpandHidden: (HiddenGroup) -> Unit = {},
+    onHiddenFocused: (String) -> Unit = {},
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
@@ -189,6 +190,9 @@ fun SettingsScreen(
                         onUnhideAll = onUnhideAll,
                         onRestore = onRestoreUpNext,
                         onExpand = onExpandHidden,
+                        initialFocus = state.hiddenInitialFocus,
+                        refocus = state.hiddenRefocus,
+                        onFocused = onHiddenFocused,
                     )
                     SettingsCategory.ABOUT -> AboutContent(
                         version = state.version,
