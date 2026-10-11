@@ -142,8 +142,23 @@ Shizuku prêt et après confirmation de l'utilisateur (`settings`), SygixOs SHAL
 - **WHEN** un composant ne peut pas être remis dans son état par défaut, ou qu'une étape dépasse son délai
 - **THEN** le service privilégié est arrêté, l'état réel est relu et exposé avec l'échec, sans crash, et la procédure manuelle reste décrite dans le README
 
+### Requirement: Autorisation de démarrage automatique du constructeur
+Sur un appareil dont le constructeur fournit l'opération d'application `AUTO_START`, SygixOs SHALL, Shizuku prêt et après une action explicite de l'utilisateur, s'accorder cette opération pour son seul paquet par le service privilégié, puis la relire. Il SHALL ne rien proposer quand l'opération n'existe pas sur l'appareil, et ne SHALL jamais modifier cette opération pour un autre paquet.
+
+#### Scenario: autorisation accordée
+- **WHEN** Shizuku est prêt, que l'opération `AUTO_START` existe et vaut `ignore` pour SygixOs, et que l'utilisateur valide l'action
+- **THEN** l'opération vaut `allow` pour SygixOs à la relecture, et au redémarrage complet suivant le système relie le service d'accessibilité de SygixOs et lui délivre la diffusion de fin de démarrage
+
+#### Scenario: opération absente
+- **WHEN** l'appareil ne connaît pas l'opération `AUTO_START`
+- **THEN** aucune action d'autorisation de démarrage automatique n'est proposée
+
+#### Scenario: Shizuku indisponible
+- **WHEN** Shizuku n'est pas prêt
+- **THEN** l'état de l'autorisation reste inconnu, rien n'est modifié et le parcours guidé de P5 garde son état « Bloqué » quand le service n'est pas relié
+
 ### Requirement: Opérations privilégiées limitées
-SygixOs SHALL n'utiliser les droits fournis par Shizuku que pour les opérations sur l'accueil d'origine décrites par ce change, pour l'utilisateur courant. Il SHALL n'exécuter aucune commande arbitraire, SHALL refuser tout paquet hors de ceux que prévoit l'opération demandée (les composants de l'accueil d'origine, sauf extension décidée par la Question ouverte 1), et SHALL arrêter son service privilégié à la fin de chaque opération et à l'arrêt de son processus.
+SygixOs SHALL n'utiliser les droits fournis par Shizuku que pour les opérations de ce change (accueil d'origine, autorisation `AUTO_START` de SygixOs), pour l'utilisateur courant. Il SHALL n'exécuter aucune commande arbitraire, SHALL refuser tout paquet hors de ceux que prévoit l'opération demandée, et SHALL arrêter son service privilégié à la fin de chaque opération et à l'arrêt de son processus.
 
 #### Scenario: paquet hors de l'ensemble
 - **WHEN** une opération privilégiée reçoit un paquet absent de l'ensemble des composants de l'accueil d'origine
