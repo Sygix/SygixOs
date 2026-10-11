@@ -64,6 +64,15 @@ class LauncherSystemPrefsTest {
     }
 
     @Test
+    fun `the boot of the last service connection survives a new preferences instance and the boot start option`() = runBlocking {
+        assertNull(prefs.launcherSystem.first().accessibilityConnectedAtBoot)
+        prefs.recordAccessibilityConnected(7)
+        prefs.setBootStartEnabled(true, 7)
+        prefs.setBootStartEnabled(false, 7)
+        assertEquals(7, LauncherPrefs(context).launcherSystem.first().accessibilityConnectedAtBoot)
+    }
+
+    @Test
     fun `boot start activation persists its boot number and does not fail the current boot`() = runBlocking {
         prefs.setBootStartEnabled(true, 7)
         val boot = LauncherPrefs(context).launcherSystem.first().bootStart

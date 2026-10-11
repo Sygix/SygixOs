@@ -60,6 +60,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
             store = launcherPrefs,
             bootCount = { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT) },
             sinceBootMs = SystemClock::elapsedRealtime,
+            foreground = { foregroundTracker.isForeground },
             openHome = { runCatching { startActivity(LauncherSystemIntents.boot(this)) }.isSuccess },
         )
     }
@@ -83,7 +84,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     }
 
     fun onAccessibilityConnected() {
-        appScope.launch(Dispatchers.IO) { bootStartDispatcher.dispatch() }
+        appScope.launch(Dispatchers.IO) { bootStartDispatcher.onServiceConnected() }
     }
 
     protected open val prefetchesMascot: Boolean get() = true

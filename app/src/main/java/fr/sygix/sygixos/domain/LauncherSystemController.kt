@@ -27,6 +27,7 @@ interface LauncherSystemStore {
     suspend fun markLauncherGuideSeen()
     suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?)
     suspend fun recordBootStartObserved(currentBoot: Int?)
+    suspend fun recordAccessibilityConnected(currentBoot: Int) = Unit
 }
 
 interface LauncherSystemGateway {

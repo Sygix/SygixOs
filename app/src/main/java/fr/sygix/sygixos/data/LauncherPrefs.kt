@@ -137,6 +137,7 @@ class LauncherPrefs(
     private val bootStartEnabledKey = booleanPreferencesKey("boot_start_enabled")
     private val bootStartEnabledAtKey = intPreferencesKey("boot_start_enabled_at_boot")
     private val bootStartObservedAtKey = intPreferencesKey("boot_start_observed_at_boot")
+    private val accessibilityConnectedAtKey = intPreferencesKey("accessibility_connected_at_boot")
 
     override val launcherSystem: Flow<LauncherSystemPreferences> = context.dataStore.data.map { prefs ->
         LauncherSystemPreferences(
@@ -146,6 +147,7 @@ class LauncherPrefs(
                 enabledAtBoot = prefs[bootStartEnabledAtKey],
                 observedAtBoot = prefs[bootStartObservedAtKey],
             ),
+            accessibilityConnectedAtBoot = prefs[accessibilityConnectedAtKey],
         )
     }
 
@@ -171,6 +173,10 @@ class LauncherPrefs(
     override suspend fun recordBootStartObserved(currentBoot: Int?) {
         if (currentBoot == null) return
         context.dataStore.edit { it[bootStartObservedAtKey] = currentBoot }
+    }
+
+    override suspend fun recordAccessibilityConnected(currentBoot: Int) {
+        context.dataStore.edit { it[accessibilityConnectedAtKey] = currentBoot }
     }
 
     val pinned: Flow<Set<String>> = context.dataStore.data.map { it[pinnedKey] ?: emptySet() }

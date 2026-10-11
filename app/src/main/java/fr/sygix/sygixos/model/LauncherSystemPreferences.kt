@@ -8,6 +8,7 @@ package fr.sygix.sygixos.model
 data class LauncherSystemPreferences(
     val guideSeen: Boolean = false,
     val bootStart: BootStartState = BootStartState(),
+    val accessibilityConnectedAtBoot: Int? = null,
 )
 
 data class BootStartState(
