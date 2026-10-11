@@ -35,6 +35,7 @@ import fr.sygix.sygixos.domain.StartupTimings
 import fr.sygix.sygixos.domain.InMemoryUpNextMemory
 import fr.sygix.sygixos.domain.UpNextController
 import fr.sygix.sygixos.domain.UpNextMemory
+import fr.sygix.sygixos.domain.UpNextOpener
 import fr.sygix.sygixos.domain.UpNextSource
 import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.domain.VisualQuality
@@ -42,6 +43,7 @@ import fr.sygix.sygixos.domain.withSources
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextItem
+import fr.sygix.sygixos.model.UpNextSourceEntry
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -85,6 +87,7 @@ class HomeViewModel(
     startupDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
     upNextSource: UpNextSource? = null,
     upNextMemory: UpNextMemory = InMemoryUpNextMemory(),
+    private val upNextOpener: UpNextOpener = UpNextOpener { _, _ -> false },
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -195,7 +198,9 @@ class HomeViewModel(
 
     fun refreshUpNext() { upNext?.refresh() }
 
-    fun onUpNextOpened(item: UpNextItem) { upNext?.opened(item) }
+    fun openUpNext(item: UpNextItem, source: UpNextSourceEntry? = null) {
+        if (upNextOpener.open(item, source)) upNext?.opened(item)
+    }
 
     fun removeUpNext(item: UpNextItem) { upNext?.remove(item) }
 
@@ -277,6 +282,9 @@ class HomeViewModel(
                 mascot = app.mascotAnimation,
                 upNextSource = TvProviderUpNextSource(app),
                 upNextMemory = app.launcherPrefs,
+                upNextOpener = UpNextOpener { item, source ->
+                    if (source == null) AppLauncher.open(app, item) else AppLauncher.openWith(app, item, source)
+                },
             ) as T
         }
     }
