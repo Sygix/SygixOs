@@ -108,18 +108,18 @@ internal fun HomeGrid(
     var titleHeight by remember { mutableStateOf(0f) }
     val focus = remember { TileFocus(initialShelfApp) }
     val returnFocus = upNext?.returnFocus
-    remember(returnFocus) {
-        val index = returnFocus?.let { sections.upNextKeys.indexOf(it.key) } ?: -1
-        if (returnFocus != null && index >= 0) {
-            focus.onFocused(returnFocus.key, sections.cardOrderIndex(index), FocusFallback.CardVisit(index, afterApps = !sections.upNextFirst))
-        }
-        returnFocus
-    }
+    val returnIndex = returnFocus?.let { sections.upNextKeys.indexOf(it.key) } ?: -1
     val returnHandled by rememberUpdatedState(onUpNextReturnHandled)
-    LaunchedEffect(returnFocus) { returnFocus?.let { returnHandled(it.id) } }
+    LaunchedEffect(returnFocus) {
+        val target = returnFocus ?: return@LaunchedEffect
+        if (returnIndex >= 0) {
+            focus.onFocused(target.key, sections.cardOrderIndex(returnIndex), FocusFallback.CardVisit(returnIndex, afterApps = !sections.upNextFirst))
+        }
+        returnHandled(target.id)
+    }
     val enabled by rememberUpdatedState(focusEnabled)
     val focusedApp = focus.focusedApp
-    val entryApp = focus.gridEntry(sections)
+    val entryApp = returnFocus?.key?.takeIf { returnIndex >= 0 } ?: focus.gridEntry(sections)
     LaunchedEffect(sections.upNextKeys) { focus.track(sections) }
     LaunchedEffect(sections.focusOrder, focusEnabled) {
         if (focusEnabled && entryApp != null && entryApp !in sections.upNextKeys) {
