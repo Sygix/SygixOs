@@ -12,13 +12,18 @@ import java.text.Normalizer
 import java.util.Locale
 
 object UpNextFeed {
+    private val Marks = Regex("\\p{M}+")
+    private val Year = Regex("\\(\\d{4}\\)")
+    private val Separators = Regex("[^\\p{L}\\p{N}]+")
+    private val Spaces = Regex("\\s+")
+
     fun normalize(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKD)
         .lowercase(Locale.ROOT)
-        .replace(Regex("\\p{M}+"), "")
-        .replace(Regex("\\(\\d{4}\\)"), "")
-        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+        .replace(Marks, "")
+        .replace(Year, "")
+        .replace(Separators, " ")
         .trim()
-        .replace(Regex("\\s+"), " ")
+        .replace(Spaces, " ")
 
     const val LIMIT = 20
 
@@ -48,8 +53,12 @@ object UpNextFeed {
                 title == normalize(b.title) &&
                 (a.year == b.year || ((a.year == null || b.year == null) && years.getValue(title).size <= 1))
         }
-        val kept = movies.filter { item -> removed.none { it.matches(item) } }
-        val openedAt = kept.associateWith { item -> opened.filterKeys { it.matches(item) }.values.maxOrNull() }
+        val keys = movies.associateWith(UpNextContentKey::of)
+        val kept = movies.filter { item -> removed.none { it.matches(keys.getValue(item)) } }
+        val openedAt = kept.associateWith { item ->
+            val key = keys.getValue(item)
+            opened.entries.filter { it.key.matches(key) }.maxOfOrNull { it.value }
+        }
         return kept.sortedWith(compareBy<UpNextItem> { if (openedAt[it] == null) 1 else 0 }
             .thenByDescending { openedAt[it] ?: 0L }
             .thenBy { group(it.watchNextType) }
