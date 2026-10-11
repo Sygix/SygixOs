@@ -10,6 +10,8 @@ Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher 
 
 Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / LAUNCHER).
 
+La zone grille SHALL être découpée en sections titrées, comme les en-têtes de section de tvOS : le titre « À suivre » au-dessus de la rangée Up Next (« Rangée Up Next ») et le titre « Applications » au-dessus des rangées d'apps. Les sections se suivent dans l'ordre fixé par le réglage « Position d'À suivre » de `settings` : « À suivre » puis « Applications » quand il vaut « Avant les applications » (défaut), « Applications » puis « À suivre » quand il vaut « Après les applications ». Chaque titre SHALL être aligné à gauche sur la première carte ou tuile de sa section (`Dimens.ScreenMarginH`) et ne jamais prendre le focus. Les deux titres SHALL utiliser le style `SygixTypography.titleLarge` et la couleur `SygixColors.OnDarkSecondary` du design system (`core/designsystem`), conformément aux maquettes Penpot validées (« SygixOs Maquette », page « TV », écrans 4.1, 7.1, 7.2 et 7.5 ; composant « Titre de section ») ; le haut du premier titre est sur la marge haute de la grille (`Dimens.GridTopMargin`), un titre est séparé de sa première ligne par `Dimens.SectionTitleGap` et de la dernière ligne de la section précédente par `Dimens.GridRowSpacing`. Un titre appartient à sa section : il défile avec elle et, quand la rangée Up Next est masquée, le titre « À suivre » est masqué avec elle, sans place réservée. En erreur, la rangée n'est pas masquée : la carte d'erreur remplace son contenu (« États de la rangée » de up-next) et le titre « À suivre » reste au-dessus d'elle. Le haut de la zone grille, d'où part son défilement (« Panneau Top Shelf au focus »), est le haut du titre de sa première section.
+
 #### Scenario: affichage
 - **WHEN** le home s'ouvre
 - **THEN** toutes les apps TV installées apparaissent en grille 5 colonnes, tuiles 16:9 remplies par la bannière Android TV de l'app (`android:banner`), repli sur l'icône entière centrée sur fond sombre ; ordre et épinglage persistés (DataStore)
@@ -25,6 +27,30 @@ Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / 
 #### Scenario: navigation dans le menu
 - **WHEN** le menu contextuel s'ouvre
 - **THEN** la première action (épingler ou retirer du dock) a le focus ; haut et bas parcourent les actions dans l'ordre affiché, sans boucle aux bords ; gauche et droite ne déplacent pas le focus hors du menu ; Retour ferme le menu et rend le focus à la tuile d'origine
+
+#### Scenario: titres de section
+- **WHEN** la zone grille est affichée avec la rangée Up Next et le réglage « Position d'À suivre » vaut « Avant les applications »
+- **THEN** le titre « À suivre » est au-dessus de la rangée Up Next, puis le titre « Applications » est au-dessus de la première rangée d'apps ; avec « Après les applications », le titre « Applications » vient en premier et le titre « À suivre » est sous la dernière rangée d'apps, au-dessus de la rangée Up Next
+
+#### Scenario: titres jamais focusables
+- **WHEN** l'utilisateur passe au D-pad d'une section à l'autre (bas depuis la rangée Up Next, haut depuis la première rangée d'apps, ou l'inverse avec « Après les applications »)
+- **THEN** le focus passe directement d'une ligne à l'autre sans jamais se poser sur un titre ; le titre de la section d'arrivée est entièrement visible au-dessus de sa première ligne
+
+#### Scenario: section Up Next masquée
+- **WHEN** la rangée Up Next est masquée (réglage « Afficher À suivre » désactivé, aucun contenu ou permission refusée)
+- **THEN** le titre « À suivre » n'est pas affiché et aucune place ne lui est réservée ; « Applications » est le seul titre de la zone grille et son haut est le haut de la zone grille
+
+#### Scenario: aucune app TV détectée
+- **WHEN** aucune app TV n'est installée (maquette Penpot 4.4)
+- **THEN** la section « Applications » n'a pas de titre : seul le message « Aucune app TV détectée » est affiché, centré dans l'espace des rangées d'apps ; la section « À suivre » suit ses propres règles d'affichage
+
+#### Scenario: titre au-dessus de la carte d'erreur
+- **WHEN** la rangée Up Next est en erreur au premier chargement et que la carte d'erreur remplace son contenu
+- **THEN** le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée, et fait partie du bloc focusé quand la carte a le focus
+
+#### Scenario: style des titres
+- **WHEN** les deux titres de section sont affichés
+- **THEN** ils sont en `SygixTypography.titleLarge` et `SygixColors.OnDarkSecondary`, chacun aligné à gauche sur la première carte ou tuile de sa section, à `Dimens.SectionTitleGap` au-dessus de sa première ligne ; le second titre est à `Dimens.GridRowSpacing` sous la dernière ligne de la section précédente
 
 ### Requirement: Focus tvOS
 Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et de toute carte dont la spec renvoie à cette exigence, à la tvOS : la tuile focusée se soulève (zoom, légère montée, ombre portée douce, reflet blanc en diagonale), sans halo ni liseré, de façon à ce que la tuile active soit identifiable d'un coup d'œil. La tuile agrandie SHALL ne recouvrir aucune tuile voisine et SHALL n'être coupée par aucun conteneur.
@@ -42,10 +68,19 @@ Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et 
 - **THEN** aucun nom d'app n'est écrit sur la tuile ni sous elle ; une app sans bannière garde le repli de « Grille d'apps » (icône entière centrée sur fond sombre)
 
 ### Requirement: Rangée Up Next
-Le home SHALL afficher une rangée Up Next fusionnant Jellyfin puis BetaSeries.
+Le home SHALL afficher une rangée Up Next dans la zone grille, sous le titre de section « À suivre » (« Grille d'apps »), première ligne par défaut, dernière ligne si le réglage « Position d'À suivre » vaut « Après les applications », alimentée par le TV Provider Android, tant que le réglage « Afficher À suivre » de `settings` est activé ; son contenu, son dédoublonnage, ses cartes, ses états et l'ouverture des items sont spécifiés par la capability up-next.
 
 #### Scenario: contenu
-- **WHEN** des items Jellyfin en cours existent THEN rangée au-dessus de la grille : posters + barre de progression, fusion déterministe Jellyfin puis BetaSeries (v1.x), tri par date d'activité
+- **WHEN** des programmes watch next sont publiés dans le TV Provider et que « Afficher À suivre » est activé
+- **THEN** la rangée est affichée dans la zone grille, sous son titre « À suivre », sur le fond de la zone grille, avec ses cartes et barres de progression (« Carte Up Next » de up-next)
+
+#### Scenario: sans contenu
+- **WHEN** aucun programme n'est visible dans le TV Provider, ou que la permission est refusée
+- **THEN** la rangée et son titre sont masqués et la navigation de la zone grille commence directement par les rangées d'apps
+
+#### Scenario: réglage désactivé
+- **WHEN** « Afficher À suivre » est désactivé alors que des programmes watch next sont publiés
+- **THEN** ni la rangée ni son titre ne sont affichés, aucune place ne leur est réservée, la navigation de la zone grille ne passe que par les rangées d'apps ; réactiver le réglage réaffiche la rangée à la position réglée, sans redémarrage
 
 ### Requirement: Thème
 L'UI SHALL être toujours sombre, sur fond noir pur, avec des surfaces Liquid Glass façon tvOS 26 : verre sombre transparent (teinte sombre translucide sur l'arrière-plan flouté), fine bordure claire, fin reflet clair sur le bord haut et ombre légère sous la surface. Seules les surfaces verre (dock, capsule heure et réglages, menu contextuel, bandeau du mode déplacement) SHALL montrer un arrière-plan flouté ; aucun autre élément n'est flouté. Le verre SHALL reproduire la maquette validée : arrière-plan flouté de 28 px et saturé à 170 %, teinte sombre translucide (rgb 22, 22, 28 à 36 % pour le dock, 38 % pour la capsule), bordure de 1 px blanche à 16 %, reflet haut blanc à 32 % et reflet bas blanc à 6 %. Le flou SHALL être obtenu de deux façons selon ce qui est derrière :
@@ -115,35 +150,75 @@ Le home SHALL s'ouvrir sur un héro plein écran sans cadre : visuel d'un progra
 - **THEN** le héro joue les vidéos nature en boucle ; tant qu'aucune vidéo ne joue, un dégradé sombre animé est affiché (un seul passage lent, puis figé sur sa dernière position, comme le Ken Burns), jamais d'écran noir ni de crash
 
 ### Requirement: Navigation 3 paliers
-Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la grille suit en dessous ; passer du dock à la grille et de la grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »). Au retour dans la zone grille, la page SHALL redescendre jusqu'à la position de la grille laissée à la sortie, et non d'un écran exactement (décision de Sygix) ; à la toute première entrée, elle descend d'un écran, au début de la grille.
+Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. La zone grille comprend, sur le même fond et chacune sous son titre (« Grille d'apps »), la section « À suivre » (rangée Up Next) et la section « Applications » (rangées d'apps) : la rangée Up Next est la première ligne de la zone grille quand le réglage « Position d'À suivre » vaut « Avant les applications » (défaut), sa dernière ligne quand il vaut « Après les applications » ; elle n'est pas un palier distinct et elle est sautée, avec son titre, quand elle est masquée (réglage « Afficher À suivre » désactivé, aucun contenu, permission refusée). L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la zone grille suit en dessous ; passer du dock à la zone grille et de la zone grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »). Au retour dans la zone grille, la page SHALL redescendre jusqu'à la position de la zone grille laissée à la sortie, et non d'un écran exactement, et l'élément laissé (carte Up Next ou tuile d'app) SHALL reprendre le focus (décision de Sygix) ; à la toute première entrée, elle descend d'un écran, au début de la zone grille : le titre de la première section en haut, sa première ligne juste en dessous, quelle qu'elle soit (rangée Up Next ou première rangée d'apps). Quand la carte Up Next focusée, ou la dernière visitée, disparaît alors que d'autres cartes restent, le focus SHALL passer à la carte voisine : celle qui prend sa position dans la rangée (la suivante), ou la précédente si c'était la dernière (décision de Sygix). Si la rangée devient vide ou masquée, le repli standard de « Focus d'une app disparue » SHALL s'appliquer à la zone grille, rangée Up Next comprise.
 
 #### Scenario: descente depuis le héro
 - **WHEN** l'utilisateur presse bas depuis le héro
-- **THEN** le premier élément du dock prend le focus, ou la grille si le dock est vide (dans ce cas la page défile comme au scénario « traversée du dock »)
+- **THEN** le premier élément du dock prend le focus, ou la zone grille si le dock est vide (dans ce cas la page défile comme au scénario « traversée du dock »)
 
 #### Scenario: traversée du dock
 - **WHEN** l'utilisateur descend depuis le dock
-- **THEN** la page défile en une seule animation continue : le héro, le dock et la capsule heure et réglages (« Capsule heure et réglages » de `settings`) sortent par le haut pendant que la grille remonte jusqu'à occuper tout l'écran, d'environ un écran à la première entrée, jusqu'à la position de la grille laissée à la sortie sinon (« Panneau Top Shelf au focus », scénario « sortie et retour dans la grille ») ; la grille prend le focus (dernière tuile visitée, sinon la première) ; la lecture du héro est mise en pause
+- **THEN** la page défile en une seule animation continue : le héro, le dock et la capsule heure et réglages (« Capsule heure et réglages » de `settings`) sortent par le haut pendant que la zone grille remonte jusqu'à occuper tout l'écran, d'environ un écran à la première entrée, jusqu'à la position de la zone grille laissée à la sortie sinon (« Panneau Top Shelf au focus », scénario « sortie et retour dans la grille ») ; la zone grille prend le focus (dernière carte Up Next ou tuile visitée, sinon le premier élément de sa première ligne) ; la lecture du héro est mise en pause
+
+#### Scenario: rangée Up Next affichée en tête
+- **WHEN** l'utilisateur descend depuis le dock pour la première fois (aucune carte ni tuile de la zone grille encore visitée), le réglage vaut « Avant les applications » et la rangée Up Next est affichée
+- **THEN** le titre « À suivre » arrive en haut de la zone grille, la rangée Up Next juste en dessous, et sa première carte prend le focus ; un bas de plus passe à la première rangée d'apps, sous le titre « Applications », sans changement de fond
+
+#### Scenario: rangée masquée
+- **WHEN** l'utilisateur descend depuis le dock et que la rangée Up Next est masquée
+- **THEN** la rangée et son titre sont sautés, sans place réservée : à la première entrée, le titre « Applications » est en haut de la zone grille et la première tuile de la première rangée d'apps prend le focus ; sinon le scénario « traversée du dock » s'applique aux rangées d'apps
+
+#### Scenario: déplacements dans la rangée Up Next
+- **WHEN** l'utilisateur presse gauche ou droite alors que le focus est sur la rangée Up Next
+- **THEN** le focus reste dans la rangée, sans boucle aux bords
 
 #### Scenario: retour dans la grille à la position laissée
-- **WHEN** l'utilisateur a parcouru la grille jusqu'à une position qui n'est pas son début, la quitte (Retour, ou remontée vers le dock ou le héro), puis y redescend
-- **THEN** la page redescend en une seule animation continue jusqu'à la position de la grille laissée à la sortie, et non d'un écran exactement : la dernière tuile visitée reprend le focus à la même place à l'écran qu'au moment de la sortie
+- **WHEN** l'utilisateur a parcouru la zone grille jusqu'à un élément qui n'est pas son premier élément, carte de la rangée Up Next ou tuile d'une rangée d'apps, la quitte (Retour, ou remontée vers le dock ou le héro), puis y redescend
+- **THEN** la page redescend en une seule animation continue jusqu'à la position de la zone grille laissée à la sortie, et non d'un écran exactement : cet élément reprend le focus à la même place à l'écran qu'au moment de la sortie, qu'il soit dans la rangée Up Next ou dans les rangées d'apps
+
+#### Scenario: carte laissée disparue avant le retour
+- **WHEN** la dernière carte Up Next visitée a disparu de la rangée pendant que l'utilisateur était hors de la zone grille, puis il y redescend
+- **THEN** la carte qui occupe désormais sa position dans la rangée prend le focus, ou la précédente si la carte disparue était la dernière ; si la rangée est devenue vide ou masquée, le scénario « rangée devenue vide » s'applique
 
 #### Scenario: dock jamais visible en vue grille
 - **WHEN** la zone grille est active, pendant ou après le défilement
 - **THEN** le dock n'est visible à aucun moment au-dessus ou en travers de la grille : il quitte l'écran avec le héro et ne réapparaît qu'avec lui ; aucune position intermédiaire ne montre le dock sur la grille
 
 #### Scenario: remontée
-- **WHEN** l'utilisateur presse haut depuis la première rangée de la grille
-- **THEN** la page défile en sens inverse avec la même animation continue : la grille redescend pendant que le héro, le dock et la capsule reviennent par le haut ; le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
+- **WHEN** l'utilisateur presse haut depuis la première ligne de la zone grille (la rangée Up Next si elle est affichée en tête, sinon la première rangée d'apps)
+- **THEN** la page défile en sens inverse avec la même animation continue : la zone grille redescend pendant que le héro, le dock et la capsule reviennent par le haut ; le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
+
+#### Scenario: remontée depuis les apps
+- **WHEN** l'utilisateur presse haut depuis la première rangée d'apps
+- **THEN** la rangée Up Next prend le focus si elle est affichée en tête (dernière carte visitée, sinon la première), sans défilement vers le héro ; sinon le scénario « remontée » s'applique
+
+#### Scenario: position après les applications
+- **WHEN** le réglage « Position d'À suivre » vaut « Après les applications » et que la rangée est affichée
+- **THEN** la rangée Up Next est la dernière ligne de la zone grille, sous son titre « À suivre » : bas depuis la dernière rangée d'apps lui donne le focus, bas depuis la rangée ne fait rien, haut depuis la rangée revient à la dernière rangée d'apps, et la première ligne de la zone grille est la première rangée d'apps, sous le titre « Applications »
+
+#### Scenario: carte focusée disparue
+- **WHEN** la carte Up Next qui a le focus disparaît de la rangée (rechargement du TV Provider, app source désactivée) et qu'il reste au moins une carte
+- **THEN** la carte qui prend sa position dans la rangée (la suivante) reçoit le focus, ou la précédente si la carte disparue était la dernière ; le focus ne quitte pas la rangée et la position verticale de la page ne change pas
+
+#### Scenario: rangée devenue vide
+- **WHEN** la rangée Up Next devient vide ou masquée (dernière carte disparue, réglage « Afficher À suivre » désactivé, permission retirée) alors qu'elle a le focus, ou qu'elle porte la dernière carte visitée et que l'utilisateur revient dans la zone grille ou au launcher
+- **THEN** la rangée et son titre sont masqués et le repli de « Focus d'une app disparue » s'applique à la zone grille : la première tuile de la première rangée d'apps prend le focus si la rangée était avant les applications, la dernière tuile de la dernière rangée d'apps si elle était après ; si la zone grille ne contient aucune app, le héro reprend le focus
+
+#### Scenario: retour depuis une app
+- **WHEN** l'utilisateur revient au launcher après avoir ouvert une app depuis la rangée Up Next (carte ou menu « Ouvrir avec… »)
+- **THEN** la position verticale précédente dans la zone grille est restaurée ; le contenu ouvert est en première place de la rangée (« Contenus ouverts depuis SygixOs » de up-next), sa carte, retrouvée par la clé de contenu même si l'app publie désormais un autre épisode de la série, reçoit le focus et la rangée est ramenée à son début, sa première carte sur la marge gauche ; si ce contenu n'est plus publié, les scénarios « carte focusée disparue » (à partir de la position de la carte à l'ouverture) et « rangée devenue vide » s'appliquent ; le repli des apps disparues du dock et des rangées d'apps reste celui de « Focus d'une app disparue »
 
 #### Scenario: retour depuis la grille
-- **WHEN** l'utilisateur presse Retour depuis la grille, quelle que soit la rangée focusée
+- **WHEN** l'utilisateur presse Retour depuis la zone grille, quelle que soit la ligne focusée (rangée Up Next ou rangée d'apps)
 - **THEN** la page défile jusqu'au héro avec la même animation continue (une seule animation, même si la grille avait été parcourue en profondeur), le héro reprend le focus et sa lecture
 
 #### Scenario: continuité de l'animation
 - **WHEN** un défilement héro ↔ grille est en cours et l'utilisateur presse à nouveau haut, bas ou Retour
 - **THEN** la page repart de sa position courante vers la nouvelle cible sans saut ni retour à une position de départ
+
+#### Scenario: cohabitation avec la Top Shelf
+- **WHEN** le focus est sur la rangée Up Next
+- **THEN** aucun panneau Top Shelf n'est ouvert ; le panneau reste lié au focus des tuiles d'apps
 
 #### Scenario: couches inactives
 - **WHEN** une zone n'est pas active
@@ -226,11 +301,11 @@ Le clic sur un poster du TV Provider SHALL ouvrir le contenu via l'intent publi�
 - **THEN** une barre de progression est visible sur le poster héro
 
 ### Requirement: Panneau Top Shelf au focus
-Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focusée, et se refermer quand l'app focusée n'a rien à montrer ; aucune place n'est réservée quand il est fermé. Le défilement de la grille SHALL suivre une règle de placement unique, appliquée au bloc focusé (la rangée focusée, plus le panneau quand il est ouvert au-dessus d'elle) : le bloc reste entre la marge haute de la grille (40 dp sous le haut de l'écran) et la marge basse (32 dp au-dessus du bas de l'écran, l'espacement entre rangées). La grille ne défile que pour y ramener le bloc, et ce défilement est animé avec la durée et la courbe de l'expansion du panneau. Tant que la zone grille est active, la page ne remonte jamais au-dessus du début de la grille : le héro reste hors écran.
+Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focusée, et se refermer quand l'app focusée n'a rien à montrer ; aucune place n'est réservée quand il est fermé. Le défilement de la grille SHALL suivre une règle de placement unique, appliquée au bloc focusé : la ligne focusée de la zone grille (rangée d'apps ou rangée Up Next), plus le titre de sa section quand elle est la première ligne de sa section (« Grille d'apps »), plus le panneau quand il est ouvert au-dessus d'elle, dans l'ordre titre de section, panneau, ligne focusée (maquette Penpot 4.2 : le panneau reste immédiatement au-dessus de la rangée, sous le titre) ; le bloc reste entre la marge haute de la grille (40 dp sous le haut de l'écran) et la marge basse (32 dp au-dessus du bas de l'écran, l'espacement entre rangées). La grille ne défile que pour y ramener le bloc, et ce défilement est animé avec la durée et la courbe de l'expansion du panneau. Tant que la zone grille est active, la page ne remonte jamais au-dessus du début de la zone grille, le haut du titre de sa première section : le héro reste hors écran.
 
 #### Scenario: arrivée dans la grille
 - **WHEN** l'utilisateur descend du dock vers la grille
-- **THEN** la grille occupe tout l'écran, sans emplacement réservé ni panneau
+- **THEN** la grille occupe tout l'écran, sans emplacement réservé ni panneau ; à la première entrée, le haut du titre de la première section est sur la marge haute et sa première ligne est juste en dessous
 
 #### Scenario: insertion
 - **WHEN** le focus reste environ 3 s sur une tuile dont l'app a des visuels validés
@@ -260,13 +335,21 @@ Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focus�
 - **WHEN** le focus passe sur une autre rangée
 - **THEN** la grille ne défile pas si le bloc focusé est déjà entre les marges ; sinon elle défile juste ce qu'il faut pour l'y ramener : bas de la rangée sur la marge basse en descendant, haut du bloc sur la marge haute en montant
 
+#### Scenario: titre de section dans le bloc
+- **WHEN** le focus arrive sur la première ligne d'une section (rangée Up Next, ou première rangée d'apps), en montant ou en descendant
+- **THEN** le titre de cette section fait partie du bloc focusé : il est entièrement visible au-dessus de la ligne, entre les marges, la grille ne défilant que si le bloc n'y est pas déjà
+
+#### Scenario: panneau sous le titre de section
+- **WHEN** le panneau s'ouvre au-dessus de la première rangée d'apps alors que le titre « Applications » fait partie du bloc focusé
+- **THEN** le bloc est, de haut en bas, le titre « Applications », le panneau puis la rangée ; quand le bloc doit s'aligner sur la marge haute, c'est le haut du titre qui s'y place et la section précédente sort par le haut
+
 #### Scenario: bloc trop grand
 - **WHEN** le bloc focusé ne tient pas entre les deux marges
-- **THEN** le haut du bloc (le haut du panneau s'il est ouvert) s'aligne sur la marge haute
+- **THEN** le haut du bloc (le titre de section quand il en fait partie, sinon le haut du panneau s'il est ouvert) s'aligne sur la marge haute
 
 #### Scenario: sortie et retour dans la grille
 - **WHEN** l'utilisateur quitte la zone grille (Retour, ou remontée vers le dock ou le héro) puis y revient
-- **THEN** la page défile jusqu'au héro (« Navigation 3 paliers »), mais la position de la grille n'est pas remise à zéro : au retour, la page redescend jusqu'à la position de la grille laissée à la sortie, la rangée focusée à la même place à l'écran (le panneau éventuellement ouvert s'est refermé à la sortie), le focus va à la dernière tuile visitée (« Navigation 3 paliers »), et la grille ne défile davantage que si cette tuile est hors des marges
+- **THEN** la page défile jusqu'au héro (« Navigation 3 paliers »), mais la position de la grille n'est pas remise à zéro : au retour, la page redescend jusqu'à la position de la grille laissée à la sortie, la ligne focusée à la même place à l'écran (le panneau éventuellement ouvert s'est refermé à la sortie), le focus va au dernier élément visité, carte Up Next ou tuile (« Navigation 3 paliers »), et la grille ne défile davantage que si cet élément est hors des marges
 
 ### Requirement: Contenu du panneau
 Le panneau SHALL n'afficher que des visuels validés et chargés de l'app focus, et ne pas s'ouvrir sinon.
@@ -405,11 +488,11 @@ Le héro et le panneau Top Shelf SHALL n'afficher que des visuels de bonne quali
 - **THEN** le héro replie sur le poster du programme, puis l'écarte si le poster est aussi insuffisant
 
 ### Requirement: Sélection des apps sources
-Le launcher SHALL permettre, dans ses réglages (v1.x), de cocher les apps dont les programmes alimentent le héro et le Top Shelf ; par défaut toutes les apps installées sont retenues.
+Le launcher SHALL permettre, dans ses réglages, de cocher les apps dont les programmes alimentent le héro, le Top Shelf et la rangée Up Next ; par défaut toutes les apps installées sont retenues. L'UI de ce réglage est spécifiée par « Apps sources » de la capability settings.
 
 #### Scenario: app décochée
-- **WHEN** l'utilisateur décoche une app dans les réglages du launcher (v1.x)
-- **THEN** ses programmes n'apparaissent plus dans le héro ni dans le Top Shelf, sans redémarrage
+- **WHEN** l'utilisateur décoche une app dans les réglages du launcher
+- **THEN** ses programmes n'apparaissent plus dans le héro, le Top Shelf ni la rangée Up Next, sans redémarrage
 
 ### Requirement: Préchargement et mémoire
 Le launcher SHALL valider les visuels avant de les afficher, en bornant ce travail : les premiers visuels du héro au chargement, les affiches d'une app quand le focus s'y pose. Il SHALL aussi limiter sa consommation mémoire et GPU : chaque image SHALL être décodée à sa taille d'affichage, jamais à la résolution native de la dalle, et le héro SHALL rester fluide au repos et pendant le focus du dock sur la TV de référence (au moins 55 images par seconde et moins de 10 % d'images en retard, mesurés sur l'APK de release). La navigation dans la grille (déplacements du focus, défilement, ouverture du panneau Top Shelf) SHALL avoir moins de 10 % d'images en retard sur la même TV : un déplacement du focus ne recompose que les tuiles et la rangée concernées, et ne lance ni décodage ni vérification d'image tant que le focus ne s'est pas posé.
@@ -653,3 +736,229 @@ L'APK de release SHALL embarquer le profil de référence du code de l'app et de
 #### Scenario: mise à jour intégrée
 - **WHEN** la mise à jour intégrée installe une nouvelle version
 - **THEN** le profil est installé avec l'APK quand il est disponible et vérifié (« Installation de la mise à jour » de `self-update`)
+
+### Requirement: Rôle d'écran d'accueil
+SygixOs SHALL rester candidat au rôle système d'écran d'accueil (HOME) et SHALL permettre à l'utilisateur d'en demander l'attribution par le mécanisme officiel d'Android ou, si le rôle est indisponible ou que sa demande ne peut pas s'ouvrir, par l'écran système des applications par défaut ou de l'écran d'accueil quand l'appareil en a un, uniquement après une action explicite de sa part sur l'étape 3 « Définir SygixOs par défaut » du parcours guidé (« Parcours guidé du launcher »). SygixOs SHALL ne jamais demander ni modifier ce rôle sans cette action, et SHALL afficher l'état réellement attribué, relu auprès du système à chaque retour au premier plan. L'étape 3 est facultative : elle ne change pas la touche Home sur certaines TV, et elle SHALL être masquée quand le rôle est indisponible et qu'aucun écran système de remplacement n'existe.
+
+#### Scenario: demande après action explicite
+- **WHEN** le rôle n'est pas détenu par SygixOs et que l'utilisateur valide l'étape 3 du parcours guidé
+- **THEN** le dialogue système de demande du rôle s'ouvre et l'étape passe à « En attente… » ; aucune demande n'a lieu sans cette validation
+
+#### Scenario: rôle déjà détenu
+- **WHEN** le rôle HOME est déjà attribué à SygixOs et que l'utilisateur valide l'étape 3
+- **THEN** l'étape reste « Fait » et aucun dialogue ni écran système n'est ouvert
+
+#### Scenario: attribution acceptée
+- **WHEN** l'utilisateur accepte l'attribution dans le dialogue système
+- **THEN** au retour au premier plan, SygixOs relit le rôle et l'étape 3 affiche « Fait »
+
+#### Scenario: attribution refusée
+- **WHEN** l'utilisateur refuse ou ferme le dialogue système
+- **THEN** au retour au premier plan, l'étape 3 affiche « Facultatif », le launcher par défaut n'est pas modifié et SygixOs reste utilisable
+
+#### Scenario: rôle indisponible, écran des applications par défaut présent
+- **WHEN** le système déclare le rôle indisponible, ou que le dialogue de demande ne peut pas s'ouvrir, et que l'appareil a un écran système des applications par défaut ou de l'écran d'accueil
+- **THEN** l'étape 3 est affichée et sa validation ouvre cet écran système ; au retour au premier plan, l'état du rôle est relu et affiché, et SygixOs reste utilisable
+
+#### Scenario: écran de demande refermé aussitôt
+- **WHEN** l'écran système de demande du rôle se referme aussitôt sans interface (refus répété mémorisé par le système, résultat d'annulation moins de 700 ms après son lancement) et que le rôle n'est pas détenu
+- **THEN** SygixOs le traite comme une demande impossible à ouvrir : il ouvre l'écran système des applications par défaut ou de l'écran d'accueil quand l'appareil en a un, sinon l'étape 3 est masquée
+
+#### Scenario: rôle indisponible, sans écran de remplacement
+- **WHEN** le système déclare le rôle indisponible, ou que le dialogue de demande ne peut pas s'ouvrir, et que l'appareil n'a aucun écran système des applications par défaut ou de l'écran d'accueil
+- **THEN** l'étape 3 n'est pas affichée, aucun écran système n'est ouvert, sans crash, et les autres étapes restent utilisables
+
+#### Scenario: rôle changé hors de SygixOs
+- **WHEN** SygixOs revient au premier plan après que l'utilisateur a attribué le rôle HOME à une autre app ou à SygixOs dans les réglages système
+- **THEN** l'état affiché est le rôle courant relu auprès du système, sans valeur conservée d'avant la sortie
+
+### Requirement: Parcours guidé du launcher
+SygixOs SHALL proposer un parcours guidé « Faire de SygixOs l'écran d'accueil », panneau de verre centré par-dessus un voile, affiché automatiquement au premier lancement où il n'a encore jamais été fermé, y compris pour une installation existante mise à jour, même si elle avait fermé la présentation initiale de v0.1.0-rc.1 (le parcours a son propre drapeau), après la fin de l'écran de démarrage (« Écran de démarrage ») et après la réponse à la demande de permission « Programmes TV » (`READ_TV_LISTINGS`) quand celle-ci est affichée, jamais par-dessus un dialogue système ; il SHALL aussi s'ouvrir depuis la ligne « SygixOs comme écran d'accueil » des réglages (« Réglages du launcher système » de `settings`), par-dessus la page de réglages. Il SHALL se composer d'un en-tête (mascotte fixe de l'écran de démarrage à gauche du titre « Faire de SygixOs l'écran d'accueil », texte d'introduction « SygixOs peut remplacer l'accueil Google TV. Activez les étapes qui vous conviennent : chacune s'ouvre dans les réglages Android, puis revient ici. », progression « X étape sur Y terminée » ou « X étapes sur Y terminées »), des étapes, puis d'un pied avec l'aide « Retour : fermer » et le bouton « Terminé ». Les étapes, dans cet ordre, SHALL être : 1 « Revenir à SygixOs avec la touche Home » (service d'accessibilité, « Retour Home par le service d'accessibilité ») ; 2 « Ouvrir SygixOs à l'allumage », avec un switch (« Démarrage à l'allumage ») ; 2b « Autoriser l'ouverture au démarrage », sous-étape en retrait affichée sous l'étape 2 seulement quand l'option est activée et que l'écran système de la permission d'affichage superposé existe (« Permission d'affichage superposé pour le démarrage ») ; 3 « Définir SygixOs par défaut », facultative, affichée selon « Rôle d'écran d'accueil ». Chaque étape SHALL afficher à droite son état : « À faire », « En attente… » (écran système ouvert, ou vérification en cours), « Fait », « Bloqué » (étape 1 seulement), « Indisponible » (raison à la place du détail) ; l'étape 3 affiche « Facultatif » tant qu'elle n'est pas faite, et l'étape 2 son switch. Une étape faite SHALL remplacer son numéro par une coche ; l'étape 2 est faite quand l'option est activée et que la sous-étape 2b est « Fait » ou n'est pas affichée. La progression SHALL compter les étapes obligatoires affichées (1, 2 et 2b) qui ne sont pas « Indisponible », et parmi elles celles qui sont « Fait » ; l'étape 3 n'est jamais comptée, et la progression n'est pas affichée quand aucune étape obligatoire n'est comptée. Le parcours SHALL ne rien activer sans action explicite et SHALL pouvoir être ignoré. Navigation D-pad : focus initial sur la première étape obligatoire qui n'est pas « Fait », sinon sur « Terminé » ; haut et bas parcourent les étapes affichées puis « Terminé », sans boucle ; gauche et droite sont sans effet ; le focus SHALL rester dans le panneau tant qu'il est affiché. OK sur une étape déclenche son action ; au retour d'un écran système, le panneau est toujours affiché, les états sont relus et le focus SHALL être sur l'étape qui a ouvert cet écran. OK sur « Terminé », Retour et la touche Home ferment le parcours. Affiché automatiquement, une fois fermé quel qu'en soit le moyen, il SHALL ne plus jamais s'afficher automatiquement et l'accueil reprend avec le focus sur le héro ; ouvert depuis les réglages, sa fermeture rend le focus à la ligne « SygixOs comme écran d'accueil ». Le rendu (dimensions, jetons, états) est fixé par les maquettes Penpot 8.1 à 8.4, 8.6 et 8.7 et `design.md` (D9).
+
+#### Scenario: premier lancement
+- **WHEN** SygixOs se lance et que le parcours guidé n'a jamais été fermé, sur une TV où rien n'est encore fait
+- **THEN** à la fin de l'écran de démarrage, le parcours s'affiche sur l'accueil (maquette 8.1) : en-tête avec la mascotte à gauche du titre, introduction et « 0 étape sur 2 terminée », puis l'étape 1 « À faire », l'étape 2 avec son switch désactivé, l'étape 3 « Facultatif », sans sous-étape 2b, puis l'aide « Retour : fermer » et « Terminé » ; l'étape 1 a le focus
+
+#### Scenario: navigation dans le parcours
+- **WHEN** le parcours affiche les étapes 1, 2 et 3 et que l'utilisateur presse bas quatre fois, puis haut quatre fois, puis gauche et droite
+- **THEN** le focus passe de l'étape 1 à l'étape 2, à l'étape 3, à « Terminé », puis y reste (sans boucle) ; il remonte jusqu'à l'étape 1 et y reste ; gauche et droite ne le déplacent pas et aucun élément de l'accueil ou des réglages ne prend le focus
+
+#### Scenario: actions des étapes
+- **WHEN** l'utilisateur presse OK sur l'étape 1, sur l'étape 2, sur la sous-étape 2b ou sur l'étape 3
+- **THEN** l'étape 1 ouvre les réglages d'accessibilité du système et passe à « En attente… » ; l'étape 2 bascule son switch et persiste l'option aussitôt, le focus restant sur elle ; la sous-étape 2b ouvre l'écran système de la permission d'affichage superposé et passe à « En attente… » ; l'étape 3 demande le rôle HOME (« Rôle d'écran d'accueil ») ; le parcours reste affiché dans tous les cas
+
+#### Scenario: sous-étape 2b
+- **WHEN** l'utilisateur active l'étape 2 alors que la permission d'affichage superposé manque et que son écran système existe
+- **THEN** la sous-étape 2b « Autoriser l'ouverture au démarrage » apparaît sous l'étape 2, en retrait, avec l'état « À faire », sans autre panneau ni confirmation ; le focus reste sur l'étape 2 et la progression compte désormais 2b (maquette 8.3 : « 1 étape sur 3 terminée ») ; désactiver l'étape 2 fait disparaître 2b
+
+#### Scenario: retour d'un écran système ouvert depuis le parcours
+- **WHEN** l'utilisateur a ouvert les réglages d'accessibilité, l'écran de la permission ou le dialogue du rôle HOME depuis le parcours, puis revient dans SygixOs
+- **THEN** le parcours est toujours affiché, l'état de l'étape est relu auprès du système (plus jamais « En attente… » d'un écran fermé), la progression est recalculée et le focus est sur l'étape qui a ouvert l'écran système
+
+#### Scenario: parcours terminé
+- **WHEN** les étapes obligatoires affichées sont toutes « Fait »
+- **THEN** chacune porte une coche à la place de son numéro et l'état « Fait », la progression indique que toutes sont terminées (maquette 8.4 : « 3 étapes sur 3 terminées »), l'étape 3 reste « Facultatif » si le rôle n'est pas détenu, et le focus initial d'une nouvelle ouverture est sur « Terminé »
+
+#### Scenario: fermeture par Terminé
+- **WHEN** l'utilisateur presse OK sur « Terminé », quels que soient les états des étapes
+- **THEN** le parcours disparaît ; affiché automatiquement, il est enregistré comme fermé et l'accueil reprend avec le focus sur le héro ; ouvert depuis les réglages, le focus revient sur « SygixOs comme écran d'accueil » ; les choix déjà faits restent tels quels
+
+#### Scenario: demande de permission au premier lancement
+- **WHEN** au premier lancement, la demande de permission « Programmes TV » est affichée à la fin de l'écran de démarrage
+- **THEN** le parcours ne s'affiche pas tant que ce dialogue est à l'écran ; il s'affiche dès que l'utilisateur a accordé ou refusé la permission
+
+#### Scenario: installation existante mise à jour
+- **WHEN** SygixOs se lance pour la première fois après la mise à jour d'une installation existante, qu'elle ait ou non fermé la présentation initiale de v0.1.0-rc.1
+- **THEN** le parcours s'affiche une fois, avec les états courants (par exemple l'étape 3 « Fait » si SygixOs détient déjà le rôle HOME), puis plus jamais automatiquement une fois fermé
+
+#### Scenario: parcours ignoré
+- **WHEN** l'utilisateur ignore le parcours affiché automatiquement (« Terminé » ou Retour) sans rien valider
+- **THEN** le parcours se ferme, l'accueil reprend avec le focus sur le héro, le rôle HOME n'est pas demandé, l'option de démarrage reste désactivée et aucun écran système n'est ouvert
+
+#### Scenario: pas de nouvel affichage automatique
+- **WHEN** SygixOs se lance de nouveau après la fermeture du parcours affiché automatiquement, y compris après un redémarrage de l'appareil
+- **THEN** le parcours ne s'affiche pas ; il reste accessible depuis la ligne « SygixOs comme écran d'accueil » des réglages
+
+#### Scenario: ouverture depuis les réglages
+- **WHEN** l'utilisateur presse OK sur « SygixOs comme écran d'accueil » dans la catégorie « Écran d'accueil »
+- **THEN** le parcours s'affiche par-dessus la page de réglages (maquette 8.6), avec les états courants et le focus initial de cette exigence ; Retour ou « Terminé » le ferment et rendent le focus à la ligne, sans modifier l'état « fermé » du parcours automatique
+
+#### Scenario: étape indisponible
+- **WHEN** l'étape 1 ou l'étape 2 est « Indisponible » (réglages d'accessibilité impossibles à ouvrir, ou écran de la permission d'affichage superposé absent ou impossible à ouvrir avec l'option désactivée)
+- **THEN** l'étape reste affichée et focalisable avec l'état « Indisponible », son titre atténué hors focus et la raison à la place du détail ; OK n'ouvre rien et ne change rien ; elle n'est pas comptée dans la progression ; les autres étapes et « Terminé » restent utilisables
+
+#### Scenario: processus arrêté pendant un écran système
+- **WHEN** le système arrête le processus de SygixOs pendant qu'un écran système ouvert depuis le parcours affiché automatiquement est affiché, puis SygixOs se relance
+- **THEN** le parcours, jamais fermé, s'affiche de nouveau avec les états relus
+
+### Requirement: Démarrage à l'allumage
+SygixOs SHALL proposer une option de démarrage à l'allumage, l'étape 2 « Ouvrir SygixOs à l'allumage » du parcours guidé, désactivée tant que l'utilisateur ne l'a pas activée. Option activée, SygixOs SHALL demander l'ouverture de son accueil par les seuls mécanismes autorisés par Android, sans contourner ses restrictions, par deux chemins : la réception de la fin du démarrage du système, et la connexion de son service d'accessibilité peu après le démarrage (moins de 5 minutes après lui, valeur à valider sur la TV), quand le service est activé par l'utilisateur. Le premier chemin qui aboutit SHALL ouvrir SygixOs ; SygixOs SHALL s'ouvrir une seule fois par démarrage, l'autre chemin ne faisant rien si l'ouverture a déjà été observée. Une connexion du service plus tardive (activation ou réactivation par l'utilisateur) SHALL ne rien ouvrir. SygixOs SHALL enregistrer, pour chaque démarrage de l'appareil, si cette ouverture a été observée ; l'état « démarrage automatique non observé » qui en découle remplace le détail de l'étape 2 par « SygixOs ne s'est pas ouvert automatiquement à ce démarrage », le switch restant activé. Option désactivée, SygixOs SHALL ne demander aucune ouverture au démarrage. L'option ne vise que le démarrage à froid de l'appareil ; la sortie de veille n'est pas couverte par cette exigence.
+
+#### Scenario: ouverture au démarrage observée
+- **WHEN** l'appareil démarre, que l'option est activée et que la demande d'ouverture aboutit
+- **THEN** l'accueil de SygixOs s'affiche au premier plan et l'ouverture est enregistrée comme observée pour ce démarrage
+
+#### Scenario: diffusion bloquée, service connecté
+- **WHEN** l'appareil démarre, que l'option est activée, que la fin du démarrage n'est pas transmise à SygixOs mais que le service d'accessibilité activé se connecte moins de 5 minutes après le démarrage
+- **THEN** le service ouvre l'accueil de SygixOs et l'ouverture est enregistrée comme observée pour ce démarrage
+
+#### Scenario: deux chemins dans le même démarrage
+- **WHEN** la fin du démarrage est reçue et que le service d'accessibilité se connecte peu après, option activée
+- **THEN** SygixOs s'ouvre une seule fois : le chemin qui arrive après l'ouverture observée ne demande rien, et une seconde demande arrivée avant elle n'a aucun effet visible
+
+#### Scenario: connexion tardive du service
+- **WHEN** le service d'accessibilité se connecte plus de 5 minutes après le démarrage (activation ou réactivation par l'utilisateur dans les réglages d'accessibilité), option activée
+- **THEN** aucune ouverture au démarrage n'est demandée
+
+#### Scenario: option désactivée
+- **WHEN** l'appareil démarre et que l'option est désactivée
+- **THEN** SygixOs ne demande pas son ouverture, ni par le récepteur ni par le service, et n'enregistre aucun échec
+
+#### Scenario: fin du démarrage non reçue
+- **WHEN** l'option était activée avant le démarrage, que le système ou le constructeur ne transmet pas la fin du démarrage à SygixOs et que le service d'accessibilité ne se connecte pas non plus
+- **THEN** aucune ouverture n'est observée pour ce démarrage ; au lancement suivant de SygixOs, l'état « démarrage automatique non observé » est affiché par l'étape 2
+
+#### Scenario: ouverture refusée par le système
+- **WHEN** l'option était activée avant le démarrage, qu'un chemin d'ouverture est déclenché mais qu'Android refuse l'ouverture de l'activité
+- **THEN** aucune ouverture n'est observée par ce chemin, aucun crash n'a lieu, l'autre chemin reste possible, et au lancement suivant l'état « démarrage automatique non observé » est affiché si aucune ouverture n'a été observée
+
+#### Scenario: option activée après le démarrage
+- **WHEN** l'utilisateur active l'option alors que l'appareil a déjà démarré
+- **THEN** le démarrage courant n'est pas compté comme un échec ; seul le prochain démarrage est évalué
+
+### Requirement: Permission d'affichage superposé pour le démarrage
+SygixOs SHALL proposer la permission système « Afficher par-dessus d'autres applis » pour permettre le démarrage hors des autres exemptions Android, par la sous-étape 2b « Autoriser l'ouverture au démarrage » du parcours guidé, détail « Android l'exige : dans la liste, choisissez SygixOs puis activez « Afficher par-dessus d'autres applis ». », affichée sous l'étape 2 quand l'option de démarrage est activée et que l'écran système de la permission existe, sans panneau de confirmation intermédiaire. La sous-étape SHALL afficher « À faire » tant que la permission manque, « En attente… » pendant l'écran système, « Fait » quand le système la déclare accordée. OK SHALL ouvrir l'écran système de la permission pour SygixOs ; SygixOs SHALL ne jamais accorder la permission lui-même ni la supposer accordée ; au retour au premier plan, son état SHALL être relu auprès du système. Un refus de l'utilisateur SHALL ne pas bloquer l'utilisation de SygixOs ni effacer son choix de démarrage. Quand l'écran système de la permission n'existe pas sur l'appareil, ou ne peut pas s'ouvrir, l'étape 2 SHALL devenir « Indisponible », avec la raison « Cette TV ne permet pas d'autoriser l'ouverture au démarrage » à la place du détail, la sous-étape 2b SHALL disparaître et l'option SHALL ne pas s'activer : le passage de désactivé à activé est refusé, et une option activée juste avant l'échec revient à désactivé ; SygixOs reste utilisable sans crash. Cet état dure jusqu'au prochain lancement du processus, sauf si le système déclare ensuite la permission accordée ; une option déjà activée auparavant reste désactivable. Une permission accordée SHALL ne pas être présentée comme une garantie d'ouverture au démarrage sur tous les appareils.
+
+#### Scenario: sous-étape affichée à l'activation
+- **WHEN** l'utilisateur fait passer l'étape 2 de désactivé à activé alors que la permission manque et que son écran existe
+- **THEN** l'option est persistée activée, la sous-étape 2b apparaît avec « À faire », aucun écran système ne s'ouvre avant OK sur 2b et le focus reste sur l'étape 2
+
+#### Scenario: ouverture de l'écran de la permission
+- **WHEN** l'utilisateur presse OK sur la sous-étape 2b
+- **THEN** l'écran système de la permission s'ouvre et 2b passe à « En attente… » ; au retour, 2b affiche « Fait » seulement si le système déclare la permission accordée, et le focus est sur 2b
+
+#### Scenario: permission refusée
+- **WHEN** l'utilisateur revient de l'écran système sans accorder la permission
+- **THEN** SygixOs reste utilisable sans crash, ne suppose aucune permission accordée, conserve l'option activée et 2b affiche « À faire »
+
+#### Scenario: permission déjà accordée
+- **WHEN** l'option est activée alors que la permission est déjà accordée
+- **THEN** la sous-étape 2b est affichée avec l'état « Fait »
+
+#### Scenario: écran de la permission absent
+- **WHEN** l'appareil n'a pas d'écran système pour la permission et que l'option de démarrage est désactivée
+- **THEN** l'étape 2 est affichée « Indisponible », sans switch, avec la raison « Cette TV ne permet pas d'autoriser l'ouverture au démarrage » ; OK ne l'active pas, aucune sous-étape ni écran système n'apparaît et l'étape garde le focus
+
+#### Scenario: écran de la permission impossible à ouvrir
+- **WHEN** l'utilisateur valide la sous-étape 2b et que l'écran système ne peut pas s'ouvrir
+- **THEN** la sous-étape disparaît, l'option revient à désactivé et l'étape 2 devient « Indisponible » avec sa raison, focalisée ; une nouvelle activation est refusée jusqu'au prochain lancement, sauf si la permission est ensuite déclarée accordée
+
+### Requirement: Retour Home par le service d'accessibilité
+SygixOs SHALL fournir un service d'accessibilité qui, une fois activé par l'utilisateur dans les réglages d'accessibilité du système, ramène SygixOs au premier plan sur son accueil à chaque appui sur la touche Home. SygixOs SHALL ne jamais activer ni désactiver ce service lui-même : l'étape 1 du parcours guidé ouvre seulement les réglages d'accessibilité du système, quel que soit l'état du service. Après un refus, le service SHALL n'être proposé de nouveau que par le parcours guidé ouvert depuis les réglages, sans relance automatique. Le service SHALL observer uniquement la touche Home via `AccessibilityService.onKeyEvent`, sans lecture du contenu des fenêtres, et ne rien conserver. Tant que la redirection Home est active, c'est-à-dire tant que le service est connecté, il SHALL consommer tous les événements de la touche Home (appui, répétitions et relâchement), pour que le système et le launcher du constructeur ne la reçoivent jamais, et SHALL ouvrir SygixOs aussitôt au relâchement non annulé, sans délai ; un appui long SHALL être traité comme un appui court. Service non activé, désactivé ou arrêté, aucune touche n'est consommée et SygixOs SHALL rester pleinement utilisable. Quand le service est activé dans les réglages du système mais n'est pas connecté, au lancement du processus SygixOs ou au retour au premier plan, SygixOs SHALL attendre sa connexion pendant un délai borné, sans jamais tenter de le faire relier lui-même ni toucher au service ou aux réglages du système. L'étape 1 SHALL afficher « Fait » quand le service est activé et connecté, « À faire » quand il n'est pas activé, « En attente… » pendant les réglages d'accessibilité ouverts et tant que cette attente n'a pas conclu, « Bloqué » quand il est activé mais toujours non connecté au terme de l'attente, jusqu'à sa connexion ou sa désactivation, avec le détail « La TV a bloqué ce service au démarrage. Désactivez-le puis réactivez-le dans Accessibilité ; si la TV le propose, autorisez aussi le démarrage automatique de SygixOs. », et « Indisponible » quand les réglages d'accessibilité ne peuvent pas s'ouvrir, avec la raison « Les réglages d'accessibilité ne peuvent pas s'ouvrir sur cette TV ». Le service SHALL être livré même si un appareil ne lui transmet pas la touche Home, et ne rien faire dans ce cas.
+
+#### Scenario: activation par l'utilisateur
+- **WHEN** l'utilisateur valide l'étape 1 du parcours guidé
+- **THEN** les réglages d'accessibilité du système s'ouvrent ; au retour au premier plan, l'étape affiche « Fait » seulement si le système déclare le service activé et qu'il est connecté
+
+#### Scenario: service refusé
+- **WHEN** l'utilisateur revient des réglages d'accessibilité sans avoir activé le service, ou ferme le parcours sans l'ouvrir
+- **THEN** l'étape 1 affiche « À faire », SygixOs reste utilisable et aucune nouvelle proposition ne s'affiche automatiquement, à ce lancement comme aux suivants
+
+#### Scenario: touche Home, SygixOs en arrière-plan
+- **WHEN** le service est connecté, que SygixOs est en arrière-plan et que l'utilisateur presse Home
+- **THEN** le service consomme l'appui et le relâchement, l'accueil du constructeur ne s'affiche à aucun moment, et SygixOs revient au premier plan sur son accueil dès le relâchement, selon les règles de retour existantes (« Écran de démarrage », scénario « retour sur le launcher »)
+
+#### Scenario: touche Home, SygixOs au premier plan
+- **WHEN** le service est connecté, que SygixOs est au premier plan et que l'utilisateur presse Home
+- **THEN** la touche est consommée et SygixOs applique « Touche Home avec SygixOs au premier plan »
+
+#### Scenario: appui long sur Home
+- **WHEN** le service est connecté et que l'utilisateur maintient la touche Home (répétitions ou maintien au-delà du délai d'appui long)
+- **THEN** tous les événements sont consommés, aucun comportement système d'appui long (tableau de bord Google TV) ne s'applique, et SygixOs s'ouvre au relâchement comme pour un appui court
+
+#### Scenario: relâchement annulé
+- **WHEN** le système annule l'appui sur Home en cours (relâchement marqué annulé)
+- **THEN** l'événement est consommé et SygixOs n'est pas ouvert
+
+#### Scenario: signal Home absent
+- **WHEN** l'appareil ne transmet aucune touche Home au service, même connecté
+- **THEN** le service reste livré, ne lit aucun contenu de fenêtre, ne demande aucune ouverture et laisse le comportement système inchangé
+
+#### Scenario: service désactivé ou arrêté
+- **WHEN** l'utilisateur désactive le service dans les réglages système, ou que le système l'arrête
+- **THEN** aucune touche n'est consommée, l'appui sur Home suit le comportement du système, aucune erreur n'est affichée, et au retour au premier plan l'étape 1 affiche « À faire » (désactivé) ou suit le scénario « service bloqué » (activé mais arrêté)
+
+#### Scenario: service non lié au lancement
+- **WHEN** après un redémarrage complet, le gestionnaire d'auto-démarrage du constructeur a empêché la liaison du service activé, et que l'utilisateur lance SygixOs
+- **THEN** l'étape 1 affiche « En attente… » pendant l'attente bornée, puis « Bloqué » si le service ne s'est pas connecté ; SygixOs ne demande aucune nouvelle liaison et ne modifie ni ses composants, ni le service, ni les réglages du système
+
+#### Scenario: service bloqué
+- **WHEN** le service est activé dans les réglages du système mais n'est toujours pas connecté au terme de l'attente bornée
+- **THEN** l'étape 1 affiche « Bloqué » avec son explication (maquette 8.7), reste focalisable, et OK ouvre les réglages d'accessibilité du système ; la ligne des réglages indique « Touche Home bloquée par la TV » ; quand l'utilisateur a désactivé puis réactivé le service et que le système le relie, l'étape 1 affiche « Fait » au retour au premier plan
+
+### Requirement: Touche Home avec SygixOs au premier plan
+Quand la touche Home atteint SygixOs alors qu'il est déjà au premier plan, ou quand le service d'accessibilité signale un appui sur Home alors que SygixOs était au premier plan à l'appui (« Retour Home par le service d'accessibilité »), SygixOs SHALL fermer entièrement la page de réglages en une seule fois, quel que soit l'élément ouvert ou focalisé dans les réglages (y compris la liste déroulante « Position d'À suivre » de `settings`, que Retour ne ferait que refermer), fermer toute surcouche de l'accueil comme le ferait Retour sur cette surcouche, y compris le parcours guidé, ramener la page de l'accueil en haut, donner le focus au héro et reprendre sa lecture. L'ouverture au démarrage (« Démarrage à l'allumage ») n'est jamais traitée comme une touche Home. Hors premier plan, les règles de retour existantes s'appliquent sans changement (« Écran de démarrage », scénario « retour sur le launcher »).
+
+#### Scenario: depuis la grille
+- **WHEN** le focus est dans la zone grille et que la touche Home atteint SygixOs
+- **THEN** la page défile jusqu'au héro comme au scénario « retour depuis la grille » de « Navigation 3 paliers », le héro prend le focus et sa lecture reprend
+
+#### Scenario: depuis les réglages
+- **WHEN** la page de réglages est ouverte, quelle que soit la catégorie ou la ligne focalisée, et que la touche Home atteint SygixOs
+- **THEN** les réglages se ferment en une fois, la page de l'accueil est en haut, le héro a le focus et sa lecture reprend
+
+#### Scenario: depuis la liste déroulante « Position d'À suivre »
+- **WHEN** la liste déroulante « Position d'À suivre » est ouverte dans les réglages et que la touche Home atteint SygixOs
+- **THEN** la liste se ferme sans changer la valeur et les réglages se ferment dans le même temps, sans étape intermédiaire sur la ligne « Position d'À suivre » ; la page de l'accueil est en haut, le héro a le focus et sa lecture reprend ; à la réouverture des réglages, la liste est fermée et la valeur persistée inchangée
+
+#### Scenario: depuis une surcouche
+- **WHEN** le menu contextuel d'une tuile, le mode « Déplacer » ou le parcours guidé est affiché et que la touche Home atteint SygixOs
+- **THEN** la surcouche se ferme comme par Retour (déplacement annulé ; parcours enregistré comme fermé s'il avait été affiché automatiquement), les réglages éventuellement ouverts dessous se ferment aussi, la page de l'accueil est en haut et le héro a le focus
+
+#### Scenario: déjà sur le héro
+- **WHEN** le héro a déjà le focus, sans surcouche, et que la touche Home atteint SygixOs
+- **THEN** le héro garde le focus et rien d'autre ne change
+
+#### Scenario: pendant l'écran de démarrage
+- **WHEN** la touche Home atteint SygixOs pendant l'écran de démarrage
+- **THEN** l'écran de démarrage se poursuit sans changement et le héro prend le focus à son fondu de sortie (« Écran de démarrage »)

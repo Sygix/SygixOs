@@ -55,8 +55,8 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 | Polish | tvOS 26 dark glass, focus, readability, concentric corners and smoother grid | ✅ delivered in v0.0.1; historical TV checks still pending documentation |
 | P3 | Logo and animated startup splash | ✅ delivered in v0.0.1; splash cadence follow-up remains |
 | P4 | Built-in updates from GitHub releases | ✅ delivered in v0.0.1; manufacturer-blocked relaunch to be checked with the HOME role in P5 |
-| P5 | Replacing the system launcher | [Implementation](openspec/changes/p5-real-launcher/tasks.md) in progress; real-TV acceptance pending |
-| P6 | "À suivre" row (all apps, deduplication, opened contents first, removal) | [Implementation](openspec/changes/up-next/tasks.md) in progress; independent review and real-TV acceptance pending |
+| P5 | Replacing the system launcher (guided setup, Home key, boot opening) | ✅ delivered in v0.1.0-rc.2 and archived; boot opening not verifiable on the reference TV (manufacturer auto-start manager) |
+| P6 | "À suivre" row (all apps, deduplication, opened contents first, removal) | ✅ delivered in v0.1.0-rc.2 and archived |
 | P7 | Search | planned |
 | P8 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
 

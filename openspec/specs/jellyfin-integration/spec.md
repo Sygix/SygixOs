@@ -4,23 +4,21 @@
 Intégration Jellyfin par le TV Provider Android (client installé) : consommation des contenus qu'il publie pour la rangée Up Next ; aucune connexion directe au serveur.
 
 ## Requirements
-### Requirement: Configuration
-Les credentials SHALL être saisis dans Settings et persistés localement.
-
-#### Scenario: réglage
-- **WHEN** l'utilisateur ouvre Settings > Jellyfin THEN il saisit URL du serveur et s'authentifie via le mécanisme applicatif Jellyfin (pas d'API developer) ; credentials persistés localement
 
 ### Requirement: Continue watching / Up Next
-Le home SHALL afficher les items en cours Jellyfin avec progression et reprise.
+Le client Jellyfin SHALL être consommé exclusivement via les programmes qu'il publie dans le TV Provider Android (`WatchNextPrograms`) ; l'affichage, les états et l'ouverture des contenus sont spécifiés par la capability up-next.
 
 #### Scenario: reprise
-- **WHEN** des items sont en cours THEN le home affiche posters, progression et reprise de lecture via deep link vers le client Jellyfin
+- **WHEN** un client Jellyfin installé publie des programmes watch next avec position de lecture
+- **THEN** le launcher lit ces programmes dans le TV Provider avec les champs publiés (titre, poster, progression, intent), sans aucun appel direct au serveur Jellyfin ; l'affichage et l'ouverture suivent up-next
+
+#### Scenario: aucun client Jellyfin
+- **WHEN** aucun programme Jellyfin n'est présent dans le TV Provider (client absent, non authentifié ou sans contenu en cours)
+- **THEN** l'état affiché suit « États de la rangée » de up-next, sans erreur ni invitation à configurer quoi que ce soit
 
 ### Requirement: Résilience
-L'app SHALL tolérer un serveur injoignable sans crash, avec état erreur + retry.
-
-- **WHEN** le serveur est injoignable THEN état UI erreur + retry, jamais de crash ; délai de réponse borné
+L'app SHALL tolérer un TV Provider vide ou indisponible sans crash ; les états affichés dans ces cas sont ceux spécifiés par la capability up-next.
 
 #### Scenario: comportement
-- **WHEN** la capability est utilisée
-- **THEN** les exigences listées ci-dessus s'appliquent
+- **WHEN** la requête vers le TV Provider échoue ou que le provider est absent
+- **THEN** aucun crash et l'état affiché suit l'exigence « États de la rangée » de up-next

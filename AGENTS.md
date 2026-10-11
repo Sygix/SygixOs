@@ -6,8 +6,8 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
 ## Feuille de route
 - P3 — Logo et écran de démarrage animé : livré (v0.0.1) ; cadence de la mascotte en suivi
 - P4 — Mises à jour intégrées depuis les releases GitHub : livré (v0.0.1) ; relance au premier plan bloquée par le constructeur, reprise manuelle, résolution différée à P5
-- P5 — Remplacement du launcher système : change actif `openspec/changes/p5-real-launcher`, implémentation en cours, validation sur la TV en attente ; procédure ADB manuelle conservée dans le README
-- P6 — Rangée Up Next : change actif `openspec/changes/up-next` (ex-`p2c-upnext`), questions ouvertes dans sa proposal ; embarque `jellyfin-tvprovider-only`
+- P5 — Remplacement du launcher système : livré (v0.1.0-rc.2), archivé (`archive/2026-10-11-p5-real-launcher`) ; ouverture à l'allumage non vérifiable sur la TV de référence (gestionnaire d'auto-démarrage du constructeur), relance après mise à jour toujours en suivi (backlog, sujet 9) ; procédure ADB manuelle conservée dans le README
+- P6 — Rangée Up Next : livrée (v0.1.0-rc.2), archivée avec `jellyfin-tvprovider-only` (`archive/2026-10-11-up-next`, `archive/2026-10-11-jellyfin-tvprovider-only`)
 - P7 — Recherche : planifié
 - P8 — BetaSeries (OAuth) : planifié
 Les archives historiques (`openspec/changes/archive/`) conservent leur numérotation d'époque : ne pas les renuméroter.
