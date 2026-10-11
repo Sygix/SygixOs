@@ -41,4 +41,23 @@ class UpNextScrollTest {
         assertEquals(0, UpNextScroll.revealDelta(1412, 396, 1824, 16))
         assertEquals(-20, UpNextScroll.revealDelta(-20, 396, 1824, 16))
     }
+
+    @Test
+    fun `the last card aligns its slot on the right grid margin and other cards keep the zoom inset`() {
+        assertEquals(96, UpNextScroll.endInset(7, 8, 16, 96))
+        assertEquals(16, UpNextScroll.endInset(6, 8, 16, 96))
+        val viewportEnd = 1920 - 96
+        val delta = UpNextScroll.revealDelta(1428, 396, viewportEnd, 96)
+        assertEquals(96, delta)
+        assertEquals(1920 - 96, 96 + 1428 - delta + 396)
+    }
+
+    @Test
+    fun `a row that fits between the margins never scrolls`() {
+        val viewportEnd = 1920 - 96
+        listOf(0, 444, 888).forEachIndexed { index, offset ->
+            val inset = UpNextScroll.endInset(index, 3, 16, 96)
+            assertEquals(0, UpNextScroll.revealDelta(offset, 396, viewportEnd, inset))
+        }
+    }
 }

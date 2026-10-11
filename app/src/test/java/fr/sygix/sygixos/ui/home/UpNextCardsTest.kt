@@ -270,6 +270,10 @@ class UpNextCardsTest {
         repeat(2) { press(Key.DirectionDown) }
         compose.onNodeWithTag(entries[2]).assertIsFocused()
         press(Key.DirectionDown)
+        compose.onNodeWithTag("upnext-menu-remove").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("upnext-menu-remove").assertIsFocused()
+        press(Key.DirectionUp)
         compose.onNodeWithTag(entries[2]).assertIsFocused()
         press(Key.Enter)
         assertEquals(third, chosen)
@@ -291,12 +295,13 @@ class UpNextCardsTest {
         assertTrue(lifted("upnext-card-art-com.app:6").right <= 960f + 0.5f)
         press(Key.DirectionRight)
         compose.onNodeWithTag("upnext-card-com.app:7").assertIsFocused()
-        assertEquals(end, rect("upnext-card-com.app:7").right, 1f)
+        val margin = 960f - Dimens.ScreenMarginH.value
+        assertEquals(margin, rect("upnext-card-com.app:7").right, 1f)
         assertTrue(lifted("upnext-card-art-com.app:7").right <= 960f + 0.5f)
         assertTrue(lifted("upnext-card-art-com.app:7").left >= 0f)
         repeat(3) { press(Key.DirectionLeft) }
         compose.onNodeWithTag("upnext-card-com.app:4").assertIsFocused()
-        assertEquals(end, rect("upnext-card-com.app:7").right, 1f)
+        assertEquals(margin, rect("upnext-card-com.app:7").right, 1f)
         press(Key.DirectionLeft)
         compose.onNodeWithTag("upnext-card-com.app:3").assertIsFocused()
         assertEquals(Dimens.ScreenMarginH.value, rect("upnext-card-com.app:3").left, 1f)
@@ -304,6 +309,68 @@ class UpNextCardsTest {
         compose.onNodeWithTag("upnext-card-com.app:1").assertIsFocused()
         assertEquals(Dimens.ScreenMarginH.value, rect("upnext-card-com.app:1").left, 1f)
         assertTrue(lifted("upnext-card-art-com.app:1").left >= 0f)
+    }
+
+    @Test
+    fun `the last card of an eight card row ends on the right grid margin like the first starts on the left one`() {
+        home(UpNextContent.Items((1L..8L).map(::movie)))
+        assertEquals(Dimens.ScreenMarginH.value, rect("upnext-card-com.app:1").left, 0.5f)
+        repeat(7) { press(Key.DirectionRight) }
+        compose.onNodeWithTag("upnext-card-com.app:8").assertIsFocused()
+        assertEquals(960f - Dimens.ScreenMarginH.value, rect("upnext-card-com.app:8").right, 1f)
+        val zoomed = lifted("upnext-card-art-com.app:8")
+        assertEquals(960f - Dimens.ScreenMarginH.value, (zoomed.left + zoomed.right) / 2f + cardWidth / 2f, 1f)
+        assertTrue(zoomed.right > 960f - Dimens.ScreenMarginH.value)
+        assertEquals(cardWidth, rect("upnext-card-com.app:7").width, 0.5f)
+        assertEquals(960f - Dimens.ScreenMarginH.value - cardWidth - Dimens.GridSpacing.value, rect("upnext-card-com.app:7").right, 1f)
+    }
+
+    @Test
+    fun `a row that fits between the margins never scrolls`() {
+        home(UpNextContent.Items((1L..3L).map(::movie)))
+        val first = rect("upnext-card-com.app:1").left
+        repeat(2) { press(Key.DirectionRight) }
+        compose.onNodeWithTag("upnext-card-com.app:3").assertIsFocused()
+        assertEquals(first, rect("upnext-card-com.app:1").left, 0.5f)
+    }
+
+    @Test
+    fun `menu ends with remove from up next which removes the card and moves the focus to the next one`() {
+        var removed: UpNextItem? = null
+        val items = mutableStateOf((1L..3L).map(::movie))
+        row.value = UpNextState(UpNextContent.Items(items.value), UpNextPosition.BEFORE_APPS)
+        compose.setContent {
+            val pm = LocalContext.current.packageManager
+            val artwork = remember(pm) { AppArtworkSource(pm, Dispatchers.Unconfined) }
+            CompositionLocalProvider(LocalAppArtwork provides artwork) {
+                MaterialTheme {
+                    LauncherHome(
+                        catalog = catalogOf(emptyList(), listOf(app("com.app", "Source App"))),
+                        hero = heroStateOf(emptyList()), onTogglePin = {}, glassBlur = false,
+                        upNext = UpNextState(UpNextContent.Items(items.value), UpNextPosition.BEFORE_APPS),
+                        onRemoveUpNext = { item -> removed = item; items.value = items.value - item },
+                    )
+                }
+            }
+        }
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("upnext-card-com.app:2").assertIsFocused()
+        longPress()
+        compose.onNodeWithTag("upnext-menu-entry-com.app").assertIsFocused()
+        assertTrue(rect("upnext-menu-entry-com.app").bottom <= rect("upnext-menu-remove").top + 0.5f)
+        compose.onNodeWithTag("upnext-menu-remove-icon", useUnmergedTree = true).assertExists()
+        assertTrue(texts("upnext-menu-remove").contains(context.getString(fr.sygix.sygixos.R.string.upnext_remove)))
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("upnext-menu-remove").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("upnext-menu-remove").assertIsFocused()
+        press(Key.Enter)
+        assertEquals(2L, removed?.id)
+        compose.onNodeWithTag("upnext-menu").assertDoesNotExist()
+        compose.onNodeWithTag("upnext-card-com.app:2").assertDoesNotExist()
+        compose.onNodeWithTag("upnext-card-com.app:3").assertIsFocused()
     }
 
     @Test

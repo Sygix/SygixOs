@@ -45,7 +45,7 @@ class UpNextLauncherTest {
             .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setPackage(source.packageName), info)
     }
     @Test fun `published intent opens first constrained to selected package`() {
-        AppLauncher.open(context(), item)
+        assertTrue(AppLauncher.open(context(), item))
         assertEquals(1, started.size)
         assertEquals(source.packageName, started.single().`package`)
         assertEquals("https://example.org/play", started.single().data.toString())
@@ -60,7 +60,7 @@ class UpNextLauncherTest {
     }
     @Test fun `activity not found on a card falls back silently without crashing`() {
         fallback()
-        AppLauncher.open(context(ActivityNotFoundException()), item)
+        assertTrue(AppLauncher.open(context(ActivityNotFoundException()), item))
         assertEquals(2, started.size)
         assertEquals(source.packageName, started.last().component?.packageName)
         assertEquals(0, ShadowToast.shownToastCount())
@@ -73,12 +73,12 @@ class UpNextLauncherTest {
         assertEquals(0, ShadowToast.shownToastCount())
     }
     @Test fun `failed published intent and missing package show toast`() {
-        AppLauncher.open(context(SecurityException()), item)
+        assertFalse(AppLauncher.open(context(SecurityException()), item))
         assertEquals(base.getString(R.string.upnext_open_error, item.displayTitle), ShadowToast.getTextOfLatestToast())
     }
     @Test fun `failed intent chosen from the menu launches the source app and shows a toast`() {
         fallback()
-        AppLauncher.openWith(context(ActivityNotFoundException()), item, source)
+        assertTrue(AppLauncher.openWith(context(ActivityNotFoundException()), item, source))
         assertEquals(2, started.size)
         assertEquals(source.packageName, started.last().component?.packageName)
         assertEquals(base.getString(R.string.upnext_open_fallback, source.label), ShadowToast.getTextOfLatestToast())

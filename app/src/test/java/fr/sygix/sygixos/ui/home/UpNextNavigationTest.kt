@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
@@ -24,6 +25,7 @@ import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.domain.UpNextContent
+import fr.sygix.sygixos.domain.UpNextReturn
 import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
@@ -206,6 +208,57 @@ class UpNextNavigationTest {
         compose.runOnIdle { row.value = UpNextState(cards(1, 2, 4, 5, 6), UpNextPosition.BEFORE_APPS) }
         compose.waitForIdle()
         compose.onNodeWithTag(card(1)).assertIsFocused()
+        assertEquals(position, rect("zone-upnext").top, 1f)
+    }
+
+    private fun openCard(position: Int, content: UpNextContent): Float {
+        home(content = content)
+        press(Key.DirectionDown)
+        press(Key.DirectionDown)
+        repeat(position - 1) { press(Key.DirectionRight) }
+        press(Key.Enter)
+        return rect("zone-upnext").top
+    }
+
+    private fun returnWith(content: UpNextContent, focus: UpNextReturn?) {
+        compose.runOnIdle { row.value = UpNextState(content, UpNextPosition.BEFORE_APPS, focus) }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun `returning from the fourth card puts its content first with the focus at the start of the row`() {
+        val position = openCard(4, cards(1, 2, 3, 4, 5, 6))
+        assertEquals(listOf(4L), opened.map { it.id })
+        returnWith(cards(4, 1, 2, 3, 5, 6), UpNextReturn(card(4).removePrefix("upnext-card-"), 1))
+        compose.onNodeWithTag(card(4)).assertIsFocused()
+        assertEquals(Dimens.ScreenMarginH.value, rect(card(4)).left, 1f)
+        assertEquals(position, rect("zone-upnext").top, 1f)
+    }
+
+    @Test
+    fun `returning from a scrolled card brings the row back to its start`() {
+        val position = openCard(7, cards(1, 2, 3, 4, 5, 6, 7, 8))
+        assertTrue(compose.onAllNodesWithTag(card(1)).fetchSemanticsNodes().isEmpty() || rect(card(1)).left < Dimens.ScreenMarginH.value)
+        returnWith(cards(7, 1, 2, 3, 4, 5, 6, 8), UpNextReturn(card(7).removePrefix("upnext-card-"), 2))
+        compose.onNodeWithTag(card(7)).assertIsFocused()
+        assertEquals(Dimens.ScreenMarginH.value, rect(card(7)).left, 1f)
+        assertEquals(position, rect("zone-upnext").top, 1f)
+    }
+
+    @Test
+    fun `returning after the app published another episode focuses the series under its new card key`() {
+        val position = openCard(4, cards(1, 2, 3, 4, 5, 6))
+        returnWith(cards(9, 1, 2, 3, 5, 6), UpNextReturn(card(9).removePrefix("upnext-card-"), 3))
+        compose.onNodeWithTag(card(9)).assertIsFocused()
+        assertEquals(Dimens.ScreenMarginH.value, rect(card(9)).left, 1f)
+        assertEquals(position, rect("zone-upnext").top, 1f)
+    }
+
+    @Test
+    fun `returning after the opened content disappeared focuses the card now at its position`() {
+        val position = openCard(4, cards(1, 2, 3, 4, 5, 6))
+        returnWith(cards(1, 2, 3, 5, 6), null)
+        compose.onNodeWithTag(card(5)).assertIsFocused()
         assertEquals(position, rect("zone-upnext").top, 1f)
     }
 

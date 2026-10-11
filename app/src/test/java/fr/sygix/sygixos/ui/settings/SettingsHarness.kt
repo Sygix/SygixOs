@@ -30,6 +30,9 @@ import fr.sygix.sygixos.data.FakeUpdateController
 import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
+import fr.sygix.sygixos.domain.RemovedUpNextContent
+import fr.sygix.sygixos.domain.UpNextContentKey
+import fr.sygix.sygixos.model.UpNextContentType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -47,6 +50,7 @@ internal class SettingsHarness(
     val prefs = LauncherPrefs(context) { now }
     val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
     val toggled = mutableListOf<String>()
+    val restored = mutableListOf<UpNextContentKey>()
     var unhideAllCalls = 0
     var backs = 0
     var open by mutableStateOf(false)
@@ -59,6 +63,7 @@ internal class SettingsHarness(
             prefs.setPinned(emptySet())
             prefs.setGridOrder(emptyList())
             prefs.setCachedApps(emptyList())
+            prefs.removed.first().forEach { prefs.restoreRemoved(it.key) }
         }
     }
 
@@ -112,6 +117,15 @@ internal class SettingsHarness(
 
     fun hiddenNow(): Set<String> = runBlocking { prefs.hidden.first() }
 
+    fun removeContent(title: String, type: UpNextContentType = UpNextContentType.EPISODE, vararg packages: String): UpNextContentKey = runBlocking {
+        now += 1_000
+        val key = UpNextContentKey(type, title.lowercase(), if (type == UpNextContentType.MOVIE) 2001 else null)
+        prefs.addRemoved(RemovedUpNextContent(key, title, packages.toList(), null, now))
+        key
+    }
+
+    fun removedNow(): List<UpNextContentKey> = runBlocking { prefs.removed.first().map { it.key } }
+
     fun openSettings() {
         viewModel.enterCategory(SettingsCategory.Initial)
         open = true
@@ -139,6 +153,8 @@ internal class SettingsHarness(
                 update = viewModel.updateActions,
                 onBack = { backs++; open = false },
                 homeScreenActions = viewModel.homeScreenActions,
+                onRestoreUpNext = { restored += it; viewModel.restoreUpNext(it) },
+                onExpandHidden = viewModel::expandHidden,
             )
         }
     }

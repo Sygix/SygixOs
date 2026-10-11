@@ -47,7 +47,7 @@ class SettingsHeaderGapTest {
         harness.hideInOrder("Beta")
         compose.showSettings(harness)
         val expected = Dimens.SettingsHeaderGap.value
-        assertEquals(expected, gap(hasText("Choisissez les applications qui alimentent le héro, le Top Shelf et Up Next."), "source-row-com.alpha"), 0.5f)
+        assertEquals(expected, gap(hasText("Choisissez les applications qui alimentent le héro, le Top Shelf et À suivre."), "source-row-com.alpha"), 0.5f)
         press(Key.DirectionDown)
         assertEquals(expected, gap(hasText("Les applications cachées n'apparaissent plus dans la grille ni dans le dock."), "unhide-all"), 0.5f)
         press(Key.DirectionDown)

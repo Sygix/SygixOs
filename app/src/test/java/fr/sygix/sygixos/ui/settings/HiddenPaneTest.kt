@@ -203,8 +203,13 @@ class HiddenPaneTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("hidden-row-com.app01").fetchSemanticsNodes().isNotEmpty() }
         press(Key.DirectionRight)
         compose.onNodeWithTag("hidden-row-com.app01").assertIsFocused().assertIsDisplayed()
-        compose.onNodeWithTag("hidden-row-com.app16").assertDoesNotExist()
-        repeat(labels.size - 1) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("hidden-row-com.app04").assertDoesNotExist()
+        repeat(3) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("hidden-show-more-apps").assertIsFocused().assertIsDisplayed()
+        press(Key.Enter)
+        compose.onNodeWithTag("hidden-show-more-apps").assertDoesNotExist()
+        compose.onNodeWithTag("hidden-row-com.app04").assertIsFocused().assertIsDisplayed()
+        repeat(labels.size - 4) { press(Key.DirectionDown) }
         compose.onNodeWithTag("hidden-row-com.app16").assertIsFocused().assertIsDisplayed()
         repeat(labels.size) { press(Key.DirectionUp) }
         compose.onNodeWithTag("unhide-all").assertIsFocused().assertIsDisplayed()
