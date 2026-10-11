@@ -233,7 +233,7 @@ private fun StepMarker(step: GuideStepState, colors: PillColors, tag: String) {
         }
     } else {
         Box(marker.border(Dimens.GuideMarkerStroke, colors.tertiary, CircleShape), contentAlignment = Alignment.Center) {
-            Text(stepNumber(step.step), style = TextStyles.RowState, color = colors.tertiary)
+            Text(stepNumber(step.step), style = if (sub) TextStyles.RowSecondary else TextStyles.RowState, color = colors.tertiary)
         }
     }
     Spacer(Modifier.width(Dimens.GuideMarkerGap))
