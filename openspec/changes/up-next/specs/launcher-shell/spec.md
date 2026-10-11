@@ -7,7 +7,7 @@ Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher 
 
 Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / LAUNCHER).
 
-La zone grille SHALL être découpée en sections titrées, comme les en-têtes de section de tvOS : le titre « À suivre » au-dessus de la rangée Up Next (« Rangée Up Next ») et le titre « Applications » au-dessus des rangées d'apps. Les sections se suivent dans l'ordre fixé par le réglage « Position d'Up Next » de `settings` : « À suivre » puis « Applications » quand il vaut « Avant les applications » (défaut), « Applications » puis « À suivre » quand il vaut « Après les applications ». Chaque titre SHALL être aligné à gauche sur la première carte ou tuile de sa section (`Dimens.ScreenMarginH`) et ne jamais prendre le focus. Les deux titres SHALL utiliser le style `SygixTypography.titleLarge` et la couleur `SygixColors.OnDarkSecondary` du design system (`core/designsystem`), conformément aux maquettes Penpot validées (« SygixOs Maquette », page « TV », écrans 4.1, 7.1, 7.2 et 7.5 ; composant « Titre de section ») ; le haut du premier titre est sur la marge haute de la grille (`Dimens.GridTopMargin`), un titre est séparé de sa première ligne par `Dimens.SectionTitleGap` et de la dernière ligne de la section précédente par `Dimens.GridRowSpacing`. Un titre appartient à sa section : il défile avec elle et, quand la rangée Up Next est masquée, le titre « À suivre » est masqué avec elle, sans place réservée. En erreur, la rangée n'est pas masquée : la carte d'erreur remplace son contenu (« États de la rangée » de up-next) et le titre « À suivre » reste au-dessus d'elle. Le haut de la zone grille, d'où part son défilement (« Panneau Top Shelf au focus »), est le haut du titre de sa première section.
+La zone grille SHALL être découpée en sections titrées, comme les en-têtes de section de tvOS : le titre « À suivre » au-dessus de la rangée Up Next (« Rangée Up Next ») et le titre « Applications » au-dessus des rangées d'apps. Les sections se suivent dans l'ordre fixé par le réglage « Position d'À suivre » de `settings` : « À suivre » puis « Applications » quand il vaut « Avant les applications » (défaut), « Applications » puis « À suivre » quand il vaut « Après les applications ». Chaque titre SHALL être aligné à gauche sur la première carte ou tuile de sa section (`Dimens.ScreenMarginH`) et ne jamais prendre le focus. Les deux titres SHALL utiliser le style `SygixTypography.titleLarge` et la couleur `SygixColors.OnDarkSecondary` du design system (`core/designsystem`), conformément aux maquettes Penpot validées (« SygixOs Maquette », page « TV », écrans 4.1, 7.1, 7.2 et 7.5 ; composant « Titre de section ») ; le haut du premier titre est sur la marge haute de la grille (`Dimens.GridTopMargin`), un titre est séparé de sa première ligne par `Dimens.SectionTitleGap` et de la dernière ligne de la section précédente par `Dimens.GridRowSpacing`. Un titre appartient à sa section : il défile avec elle et, quand la rangée Up Next est masquée, le titre « À suivre » est masqué avec elle, sans place réservée. En erreur, la rangée n'est pas masquée : la carte d'erreur remplace son contenu (« États de la rangée » de up-next) et le titre « À suivre » reste au-dessus d'elle. Le haut de la zone grille, d'où part son défilement (« Panneau Top Shelf au focus »), est le haut du titre de sa première section.
 
 #### Scenario: affichage
 - **WHEN** le home s'ouvre
@@ -26,7 +26,7 @@ La zone grille SHALL être découpée en sections titrées, comme les en-têtes 
 - **THEN** la première action (épingler ou retirer du dock) a le focus ; haut et bas parcourent les actions dans l'ordre affiché, sans boucle aux bords ; gauche et droite ne déplacent pas le focus hors du menu ; Retour ferme le menu et rend le focus à la tuile d'origine
 
 #### Scenario: titres de section
-- **WHEN** la zone grille est affichée avec la rangée Up Next et le réglage « Position d'Up Next » vaut « Avant les applications »
+- **WHEN** la zone grille est affichée avec la rangée Up Next et le réglage « Position d'À suivre » vaut « Avant les applications »
 - **THEN** le titre « À suivre » est au-dessus de la rangée Up Next, puis le titre « Applications » est au-dessus de la première rangée d'apps ; avec « Après les applications », le titre « Applications » vient en premier et le titre « À suivre » est sous la dernière rangée d'apps, au-dessus de la rangée Up Next
 
 #### Scenario: titres jamais focusables
@@ -34,7 +34,7 @@ La zone grille SHALL être découpée en sections titrées, comme les en-têtes 
 - **THEN** le focus passe directement d'une ligne à l'autre sans jamais se poser sur un titre ; le titre de la section d'arrivée est entièrement visible au-dessus de sa première ligne
 
 #### Scenario: section Up Next masquée
-- **WHEN** la rangée Up Next est masquée (réglage « Afficher Up Next » désactivé, aucun contenu ou permission refusée)
+- **WHEN** la rangée Up Next est masquée (réglage « Afficher À suivre » désactivé, aucun contenu ou permission refusée)
 - **THEN** le titre « À suivre » n'est pas affiché et aucune place ne lui est réservée ; « Applications » est le seul titre de la zone grille et son haut est le haut de la zone grille
 
 #### Scenario: aucune app TV détectée
@@ -50,7 +50,7 @@ La zone grille SHALL être découpée en sections titrées, comme les en-têtes 
 - **THEN** ils sont en `SygixTypography.titleLarge` et `SygixColors.OnDarkSecondary`, chacun aligné à gauche sur la première carte ou tuile de sa section, à `Dimens.SectionTitleGap` au-dessus de sa première ligne ; le second titre est à `Dimens.GridRowSpacing` sous la dernière ligne de la section précédente
 
 ### Requirement: Navigation 3 paliers
-Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. La zone grille comprend, sur le même fond et chacune sous son titre (« Grille d'apps »), la section « À suivre » (rangée Up Next) et la section « Applications » (rangées d'apps) : la rangée Up Next est la première ligne de la zone grille quand le réglage « Position d'Up Next » vaut « Avant les applications » (défaut), sa dernière ligne quand il vaut « Après les applications » ; elle n'est pas un palier distinct et elle est sautée, avec son titre, quand elle est masquée (réglage « Afficher Up Next » désactivé, aucun contenu, permission refusée). L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la zone grille suit en dessous ; passer du dock à la zone grille et de la zone grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »). Au retour dans la zone grille, la page SHALL redescendre jusqu'à la position de la zone grille laissée à la sortie, et non d'un écran exactement, et l'élément laissé (carte Up Next ou tuile d'app) SHALL reprendre le focus (décision de Sygix) ; à la toute première entrée, elle descend d'un écran, au début de la zone grille : le titre de la première section en haut, sa première ligne juste en dessous, quelle qu'elle soit (rangée Up Next ou première rangée d'apps). Quand la carte Up Next focusée, ou la dernière visitée, disparaît alors que d'autres cartes restent, le focus SHALL passer à la carte voisine : celle qui prend sa position dans la rangée (la suivante), ou la précédente si c'était la dernière (décision de Sygix). Si la rangée devient vide ou masquée, le repli standard de « Focus d'une app disparue » SHALL s'appliquer à la zone grille, rangée Up Next comprise.
+Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock → héro (monte) de façon déterministe : seule la zone active est focusable. La zone grille comprend, sur le même fond et chacune sous son titre (« Grille d'apps »), la section « À suivre » (rangée Up Next) et la section « Applications » (rangées d'apps) : la rangée Up Next est la première ligne de la zone grille quand le réglage « Position d'À suivre » vaut « Avant les applications » (défaut), sa dernière ligne quand il vaut « Après les applications » ; elle n'est pas un palier distinct et elle est sautée, avec son titre, quand elle est masquée (réglage « Afficher À suivre » désactivé, aucun contenu, permission refusée). L'accueil SHALL être une page d'un seul tenant qui défile verticalement : le héro (avec le dock en overlay) occupe le premier écran, la zone grille suit en dessous ; passer du dock à la zone grille et de la zone grille au dock est un défilement continu de la page, sans fondu ni saut, avec la courbe et la durée du design system (« Focus tvOS »). Au retour dans la zone grille, la page SHALL redescendre jusqu'à la position de la zone grille laissée à la sortie, et non d'un écran exactement, et l'élément laissé (carte Up Next ou tuile d'app) SHALL reprendre le focus (décision de Sygix) ; à la toute première entrée, elle descend d'un écran, au début de la zone grille : le titre de la première section en haut, sa première ligne juste en dessous, quelle qu'elle soit (rangée Up Next ou première rangée d'apps). Quand la carte Up Next focusée, ou la dernière visitée, disparaît alors que d'autres cartes restent, le focus SHALL passer à la carte voisine : celle qui prend sa position dans la rangée (la suivante), ou la précédente si c'était la dernière (décision de Sygix). Si la rangée devient vide ou masquée, le repli standard de « Focus d'une app disparue » SHALL s'appliquer à la zone grille, rangée Up Next comprise.
 
 #### Scenario: descente depuis le héro
 - **WHEN** l'utilisateur presse bas depuis le héro
@@ -93,7 +93,7 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 - **THEN** la rangée Up Next prend le focus si elle est affichée en tête (dernière carte visitée, sinon la première), sans défilement vers le héro ; sinon le scénario « remontée » s'applique
 
 #### Scenario: position après les applications
-- **WHEN** le réglage « Position d'Up Next » vaut « Après les applications » et que la rangée est affichée
+- **WHEN** le réglage « Position d'À suivre » vaut « Après les applications » et que la rangée est affichée
 - **THEN** la rangée Up Next est la dernière ligne de la zone grille, sous son titre « À suivre » : bas depuis la dernière rangée d'apps lui donne le focus, bas depuis la rangée ne fait rien, haut depuis la rangée revient à la dernière rangée d'apps, et la première ligne de la zone grille est la première rangée d'apps, sous le titre « Applications »
 
 #### Scenario: carte focusée disparue
@@ -101,12 +101,12 @@ Le DPAD SHALL naviguer héro → dock → grille (descend) et grille → dock �
 - **THEN** la carte qui prend sa position dans la rangée (la suivante) reçoit le focus, ou la précédente si la carte disparue était la dernière ; le focus ne quitte pas la rangée et la position verticale de la page ne change pas
 
 #### Scenario: rangée devenue vide
-- **WHEN** la rangée Up Next devient vide ou masquée (dernière carte disparue, réglage « Afficher Up Next » désactivé, permission retirée) alors qu'elle a le focus, ou qu'elle porte la dernière carte visitée et que l'utilisateur revient dans la zone grille ou au launcher
+- **WHEN** la rangée Up Next devient vide ou masquée (dernière carte disparue, réglage « Afficher À suivre » désactivé, permission retirée) alors qu'elle a le focus, ou qu'elle porte la dernière carte visitée et que l'utilisateur revient dans la zone grille ou au launcher
 - **THEN** la rangée et son titre sont masqués et le repli de « Focus d'une app disparue » s'applique à la zone grille : la première tuile de la première rangée d'apps prend le focus si la rangée était avant les applications, la dernière tuile de la dernière rangée d'apps si elle était après ; si la zone grille ne contient aucune app, le héro reprend le focus
 
 #### Scenario: retour depuis une app
-- **WHEN** l'utilisateur revient au launcher après avoir ouvert une app depuis la rangée Up Next
-- **THEN** la position précédente dans la zone grille est restaurée et le focus revient sur la carte d'origine, même si le rechargement l'a déplacée dans la rangée ; si cette carte a disparu, les scénarios « carte focusée disparue » et « rangée devenue vide » s'appliquent ; le repli des apps disparues du dock et des rangées d'apps reste celui de « Focus d'une app disparue »
+- **WHEN** l'utilisateur revient au launcher après avoir ouvert une app depuis la rangée Up Next (carte ou menu « Ouvrir avec… »)
+- **THEN** la position verticale précédente dans la zone grille est restaurée ; le contenu ouvert est en première place de la rangée (« Contenus ouverts depuis SygixOs » de up-next), sa carte, retrouvée par la clé de contenu même si l'app publie désormais un autre épisode de la série, reçoit le focus et la rangée est ramenée à son début, sa première carte sur la marge gauche ; si ce contenu n'est plus publié, les scénarios « carte focusée disparue » (à partir de la position de la carte à l'ouverture) et « rangée devenue vide » s'appliquent ; le repli des apps disparues du dock et des rangées d'apps reste celui de « Focus d'une app disparue »
 
 #### Scenario: retour depuis la grille
 - **WHEN** l'utilisateur presse Retour depuis la zone grille, quelle que soit la ligne focusée (rangée Up Next ou rangée d'apps)
@@ -176,10 +176,10 @@ Le panneau d'aperçu SHALL s'ouvrir à la demande au-dessus de la rangée focus�
 - **THEN** la page défile jusqu'au héro (« Navigation 3 paliers »), mais la position de la grille n'est pas remise à zéro : au retour, la page redescend jusqu'à la position de la grille laissée à la sortie, la ligne focusée à la même place à l'écran (le panneau éventuellement ouvert s'est refermé à la sortie), le focus va au dernier élément visité, carte Up Next ou tuile (« Navigation 3 paliers »), et la grille ne défile davantage que si cet élément est hors des marges
 
 ### Requirement: Rangée Up Next
-Le home SHALL afficher une rangée Up Next dans la zone grille, sous le titre de section « À suivre » (« Grille d'apps »), première ligne par défaut, dernière ligne si le réglage « Position d'Up Next » vaut « Après les applications », alimentée par le TV Provider Android, tant que le réglage « Afficher Up Next » de `settings` est activé ; son contenu, son dédoublonnage, ses cartes, ses états et l'ouverture des items sont spécifiés par la capability up-next.
+Le home SHALL afficher une rangée Up Next dans la zone grille, sous le titre de section « À suivre » (« Grille d'apps »), première ligne par défaut, dernière ligne si le réglage « Position d'À suivre » vaut « Après les applications », alimentée par le TV Provider Android, tant que le réglage « Afficher À suivre » de `settings` est activé ; son contenu, son dédoublonnage, ses cartes, ses états et l'ouverture des items sont spécifiés par la capability up-next.
 
 #### Scenario: contenu
-- **WHEN** des programmes watch next sont publiés dans le TV Provider et que « Afficher Up Next » est activé
+- **WHEN** des programmes watch next sont publiés dans le TV Provider et que « Afficher À suivre » est activé
 - **THEN** la rangée est affichée dans la zone grille, sous son titre « À suivre », sur le fond de la zone grille, avec ses cartes et barres de progression (« Carte Up Next » de up-next)
 
 #### Scenario: sans contenu
@@ -187,7 +187,7 @@ Le home SHALL afficher une rangée Up Next dans la zone grille, sous le titre de
 - **THEN** la rangée et son titre sont masqués et la navigation de la zone grille commence directement par les rangées d'apps
 
 #### Scenario: réglage désactivé
-- **WHEN** « Afficher Up Next » est désactivé alors que des programmes watch next sont publiés
+- **WHEN** « Afficher À suivre » est désactivé alors que des programmes watch next sont publiés
 - **THEN** ni la rangée ni son titre ne sont affichés, aucune place ne leur est réservée, la navigation de la zone grille ne passe que par les rangées d'apps ; réactiver le réglage réaffiche la rangée à la position réglée, sans redémarrage
 
 ### Requirement: Sélection des apps sources
