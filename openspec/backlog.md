@@ -78,6 +78,8 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 **Décision du propriétaire** : attendre P5 (remplacement du launcher système) avant de traiter ce point. La spec courante `self-update` décrit la demande de relance sous réserve de l'autorisation du système et la réouverture manuelle lorsque le constructeur la bloque ; le change est synchronisé et archivé (sujet 12). La limitation n'est pas résolue par cet archivage.
 
+**Suite P5 (2026-10-11)** : P5 est livré dans v0.1.0-rc.2 et archivé sans relevé de la relance après mise à jour avec le rôle HOME (tâche 1.4 de `p5-real-launcher`, laissée ouverte) ; aucun nouveau mécanisme de relance (décision 31). Le sujet reste ouvert.
+
 ## 10. Guidage vers l'autorisation « Installer des applis inconnues »
 
 **Constat** : sur la TV TCL de référence, l'écran système ouvert par `MANAGE_UNKNOWN_APP_SOURCES` affiche la liste générale des apps et non la page de SygixOs ; la liste paraît vide une à quatre secondes, puis le focus tombe sur l'interrupteur d'une autre app (une pression réflexe sur OK change l'autorisation de cette autre app).
