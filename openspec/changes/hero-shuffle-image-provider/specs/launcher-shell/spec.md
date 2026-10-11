@@ -39,7 +39,7 @@ L'ordre des programmes du héro SHALL être tiré au hasard une fois par lanceme
 - **THEN** il est inséré à une position tirée au hasard après le programme affiché, sans réordonner les autres
 
 ### Requirement: Images d'autres applications sans dépendance forte
-SygixOs SHALL ouvrir les images `content://` publiées par d'autres applications (visuels du héro, du Top Shelf et d'À suivre) par une référence instable au fournisseur de contenu, avec un délai borné, de sorte que l'arrêt ou le blocage du processus de ce fournisseur ne puisse jamais arrêter SygixOs. Une image dont le fournisseur meurt, ne répond pas dans le délai ou renvoie une erreur SHALL être traitée comme une image en échec (espace réservé), sans plantage.
+SygixOs SHALL charger les images `content://` des apps tierces via une référence instable et un pool borné, de sorte qu'un fournisseur bloqué ne bloque pas le rendu ni n'arrête SygixOs. Les erreurs ou dépassements de délai SHALL produire un échec d'image et un espace réservé.
 
 #### Scenario: fournisseur bloqué puis arrêté par le système
 - **WHEN** le fournisseur d'images d'une application ne répond pas (serveur de l'application injoignable) et que le système arrête cette application pour ANR pendant qu'une de ses images est en cours d'ouverture
@@ -47,7 +47,15 @@ SygixOs SHALL ouvrir les images `content://` publiées par d'autres applications
 
 #### Scenario: délai dépassé
 - **WHEN** l'ouverture d'une image `content://` d'une autre application dépasse le délai
-- **THEN** l'ouverture est annulée, la référence au fournisseur et le descripteur sont libérés et l'image passe en échec
+- **THEN** la requête Coil reçoit un résultat d'échec au plus tard à l'échéance, le signal d'annulation est déclenché hors du worker bloqué, et l'image passe en échec sans bloquer le rendu
+
+#### Scenario: appel Binder bloqué et résultat tardif
+- **WHEN** `openTypedAssetFile` reste bloqué après l'échéance malgré la demande d'annulation, puis retourne un descripteur
+- **THEN** le résultat du chargement a déjà échoué, l'image de remplacement reste affichée, le descripteur tardif et le client sont fermés dès la sortie du worker, et ce résultat n'est jamais transmis à Coil
+
+#### Scenario: pool de lecture saturé
+- **WHEN** tous les workers bornés sont encore bloqués dans des appels de fournisseurs
+- **THEN** une nouvelle requête échoue rapidement en espace réservé, sans créer de thread ou de file d'attente non bornés et sans bloquer le rendu
 
 #### Scenario: image disponible
 - **WHEN** le fournisseur répond dans le délai

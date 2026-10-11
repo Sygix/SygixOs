@@ -5,15 +5,15 @@ Les catégories et lignes existantes viennent des changes `up-next` (catégorie 
 ## ADDED Requirements
 
 ### Requirement: Réglage de l'accueil d'origine
-La catégorie « Écran d'accueil » SHALL contenir, après les lignes de « Réglages du launcher système », une ligne de réglage focalisable pour l'accueil d'origine, au rendu de ces lignes, qui affiche l'état de l'accueil d'origine et de Shizuku (`launcher-shell`) et déclenche par OK l'action de l'état courant. Placement exact (dans le groupe « Launcher système » ou sous un intertitre propre) et libellés : Question ouverte 3 de `design.md` ; rendu : maquettes à valider.
+La catégorie « Écran d'accueil » SHALL exposer l'action de désactivation/rétablissement de l'accueil d'origine dans le mode avancé, avec son état et celui de Shizuku (`launcher-shell`). L'ensemble des composants visés est celui présenté dans la confirmation.
 
 #### Scenario: lecture en cours
 - **WHEN** l'état de Shizuku ou de l'accueil d'origine est « en cours de lecture » et que l'utilisateur presse OK sur la ligne
 - **THEN** rien ne se passe ; l'action devient disponible à la fin de la lecture
 
 #### Scenario: Shizuku absent
-- **WHEN** l'état de Shizuku est « absent » et que l'utilisateur presse OK sur la ligne
-- **THEN** SygixOs propose l'installation de Shizuku (moyen : Question ouverte 5 de `design.md`) et ne modifie rien ; le cas échéant, au retour au premier plan, l'état est relu et le focus est sur la ligne
+- **WHEN** l'état de Shizuku est « absent » et que l'utilisateur presse OK sur l'entrée d'aide
+- **THEN** le panneau d'aide explique l'installation d'un gestionnaire compatible et aucune opération privilégiée n'a lieu
 
 #### Scenario: Shizuku arrêté
 - **WHEN** l'état de Shizuku est « arrêté » et que l'utilisateur presse OK sur la ligne
@@ -47,8 +47,59 @@ La catégorie « Écran d'accueil » SHALL contenir, après les lignes de « Ré
 - **WHEN** la ligne a le focus et que l'utilisateur presse droite
 - **THEN** rien ne se passe, comme sur les lignes de « Réglages du launcher système »
 
+### Requirement: Mode avancé Shizuku
+Après la ligne P5 « SygixOs comme écran d'accueil », les réglages SHALL afficher directement le groupe d'actions avancées quand un gestionnaire compatible est reconnu ; sans gestionnaire reconnu, ils SHALL afficher une quatrième ligne d'aide expliquant l'installation et les capacités. L'entrée et l'aide de l'onboarding sont définies par « Parcours guidé du launcher » de `launcher-shell`. Le détail visuel est fixé par la maquette Penpot.
+
+#### Scenario: gestionnaire reconnu dans les réglages
+- **WHEN** un gestionnaire compatible est installé, que son service soit démarré ou arrêté, et que son état est lu
+- **THEN** après la ligne P5 « SygixOs comme écran d'accueil », le groupe avancé expose directement les actions d'accueil d'origine, d'affichage superposé et d'accessibilité ; `AUTO_START` est affiché seulement si l'opération existe
+
+#### Scenario: ordre et navigation des actions avancées
+- **WHEN** le groupe avancé est affiché avec un gestionnaire reconnu et prêt
+- **THEN** les actions focalisables suivent l'ordre accueil d'origine, affichage superposé, accessibilité, puis `AUTO_START` si disponible ; l'intertitre du groupe n'est pas focalisable, le focus initial de la catégorie reste celui de P5, haut/bas parcourent les actions sans boucle, droite est sans effet, gauche revient aux catégories et Retour ferme les réglages
+
+#### Scenario: gestionnaire absent
+- **WHEN** aucun gestionnaire compatible n'est installé ou reconnu
+- **THEN** une quatrième ligne focalisable explique l'installation et les fonctions du mode avancé ; OK ouvre le panneau d'aide et ne lance aucune opération privilégiée
+
+#### Scenario: gestionnaire arrêté
+- **WHEN** un gestionnaire compatible est installé mais son service est arrêté
+- **THEN** le groupe avancé reste affiché avec l'état « Shizuku arrêté » ; OK sur une action ouvre l'application du gestionnaire afin que l'utilisateur le démarre, puis au retour le focus revient à l'action qui a demandé son ouverture
+
+#### Scenario: autorisation AUTO_START nécessaire
+- **WHEN** `AUTO_START` existe pour SygixOs, vaut `ignore` et Shizuku est prêt
+- **THEN** une action `AUTO_START` distincte est affichée ; OK l'exécute sans confirmation supplémentaire, puis l'état passe à « En attente… » jusqu'à relecture
+
+#### Scenario: autorisation AUTO_START déjà accordée
+- **WHEN** `AUTO_START` existe et vaut déjà `allow` pour SygixOs
+- **THEN** l'état accordé est affiché après relecture et aucune opération n'est relancée automatiquement
+
+#### Scenario: échec AUTO_START
+- **WHEN** l'action `AUTO_START` est refusée, dépasse son délai ou sa relecture échoue
+- **THEN** aucun succès n'est affiché, l'erreur ou l'état inconnu est présenté et une nouvelle tentative exige une action explicite
+
+#### Scenario: aide Shizuku
+- **WHEN** l'utilisateur ouvre le panneau d'aide depuis les réglages
+- **THEN** le panneau décrit l'installation et le démarrage d'un gestionnaire compatible, recommande Shevery avec son lien officiel, offre une action pour ouvrir ce lien si possible et un bouton de fermeture ; le focus initial est sur le bouton de fermeture, haut/bas parcourent les contrôles sans boucle, gauche/droite sont sans effet, Retour ferme le panneau et le focus revient à son entrée
+
+#### Scenario: retour au premier plan
+- **WHEN** l'utilisateur revient d'un gestionnaire Shizuku ouvert depuis le mode avancé
+- **THEN** SygixOs relit l'état et actualise les actions ; si le gestionnaire est encore reconnu, le focus revient à l'action qui l'a ouvert, et si cette action a disparu, il revient à l'entrée d'aide conditionnelle
+
 ### Requirement: Confirmation de l'accueil d'origine
-Avant de désactiver ou de rétablir l'accueil d'origine, SygixOs SHALL afficher une confirmation distincte par-dessus les réglages : explication de l'effet, des conséquences et du moyen de revenir en arrière, un bouton de confirmation et un bouton d'annulation. Haut et bas passent d'un bouton à l'autre sans boucle, gauche et droite sont sans effet, Retour annule ; le focus reste dans la confirmation tant qu'elle est affichée. Textes et focus initial : Question ouverte 7 de `design.md`.
+Avant de désactiver ou de rétablir l'accueil d'origine, SygixOs SHALL afficher une confirmation qui explique l'effet, les conséquences et le moyen de revenir en arrière. Chaque confirmation possède un bouton de confirmation et un bouton d'annulation, avec le focus initial défini dans cette exigence.
+
+#### Scenario: textes et focus de désactivation
+- **WHEN** l'utilisateur demande la désactivation
+- **THEN** le titre est « Désactiver l'accueil Google TV ? », le texte est « SygixOs deviendra le seul écran d'accueil. Les recommandations et menus de l'accueil Google TV ne seront plus disponibles. Avant de désinstaller SygixOs, rétablissez l'accueil d'origine depuis ce réglage. », les boutons sont « Désactiver » et « Annuler », et « Annuler » a le focus initial
+
+#### Scenario: textes et focus de rétablissement
+- **WHEN** l'utilisateur demande le rétablissement
+- **THEN** le titre est « Rétablir l'accueil Google TV ? », le texte est « L'accueil Google TV sera réactivé. La touche Home peut continuer d'ouvrir SygixOs tant qu'il reste l'écran d'accueil par défaut. », les boutons sont « Rétablir » et « Annuler », et « Rétablir » a le focus initial
+
+#### Scenario: navigation de la confirmation
+- **WHEN** une confirmation est affichée
+- **THEN** haut et bas passent d'un bouton à l'autre sans boucle, gauche et droite sont sans effet, Retour annule et le focus reste dans le panneau
 
 #### Scenario: confirmation de la désactivation
 - **WHEN** l'utilisateur presse le bouton de confirmation de la désactivation
@@ -81,8 +132,23 @@ Pendant une désactivation ou un rétablissement, la ligne SHALL afficher « En 
 - **WHEN** l'utilisateur ferme les réglages par Retour ou par la touche Home pendant l'opération, puis les rouvre après sa fin
 - **THEN** l'opération s'est terminée ou a atteint son délai, et la ligne affiche l'état relu et, le cas échéant, l'échec
 
+### Requirement: Confirmation des autorisations P5
+SygixOs SHALL afficher une confirmation distincte avant d'accorder par Shizuku la permission d'affichage superposé ou d'activer son service d'accessibilité. Chaque confirmation explique l'action et propose une validation et une annulation ; « Annuler » reçoit le focus initial, haut/bas passent entre les deux boutons sans boucle, gauche/droite sont sans effet, Retour annule, et le focus est restauré sur l'action d'origine après fermeture.
+
+#### Scenario: annulation d'une autorisation
+- **WHEN** l'utilisateur annule ou presse Retour dans la confirmation
+- **THEN** aucune opération privilégiée n'est lancée et le focus revient à l'action
+
+#### Scenario: autorisation confirmée
+- **WHEN** l'utilisateur valide la confirmation d'une permission
+- **THEN** seule l'opération confirmée est lancée, la ligne indique « En attente… » jusqu'à relecture système, puis affiche l'état réel et le focus revient à l'action
+
+#### Scenario: focus de l'action conditionnelle disparue
+- **WHEN** le gestionnaire compatible n'est plus reconnu à la fermeture de la confirmation
+- **THEN** le focus revient à la quatrième ligne d'aide qui remplace les actions avancées
+
 ### Requirement: États affichés de l'accueil d'origine
-La ligne SHALL réutiliser le rendu des états de « Réglages du launcher système » (pastilles, « En attente… », « Indisponible » avec raison et titre atténué, aucun succès affiché avant relecture). La correspondance entre l'état de l'accueil d'origine et le libellé d'état suit le libellé de la ligne (Question ouverte 3). Le détail SHALL indiquer l'état de Shizuku quand il empêche l'action, l'état partiel, et l'échec de la dernière opération jusqu'à la prochaine action ou au prochain lancement.
+La ligne SHALL réutiliser le rendu des états de « Réglages du launcher système ». Elle SHALL ne présenter aucun succès avant relecture système et SHALL indiquer dans son détail l'état de Shizuku bloquant l'action, l'état partiel ou l'échec de la dernière opération.
 
 #### Scenario: accueil d'origine désactivé, Shizuku arrêté
 - **WHEN** l'accueil d'origine est désactivé et que Shizuku est arrêté
@@ -100,47 +166,59 @@ La ligne SHALL réutiliser le rendu des états de « Réglages du launcher syst�
 - **WHEN** l'utilisateur revient dans SygixOs après un écran de Shizuku ouvert depuis la ligne
 - **THEN** « En attente… » est remplacé par l'état relu et le focus est sur la ligne
 
+#### Scenario: rappel de débogage sans fil
+- **WHEN** une opération privilégiée réussit après utilisation du débogage sans fil
+- **THEN** le détail rappelle que l'auto-démarrage de Shizuku peut réactiver le débogage sans fil après chaque redémarrage et conseille de le désactiver après usage
+
 ## MODIFIED Requirements
 
 ### Requirement: Réglages du launcher système
-La catégorie « Écran d'accueil » SHALL contenir, après « Afficher Up Next » et « Position d'Up Next » et sans changer son focus initial (« Afficher Up Next » reste son premier contrôle), un intertitre « Launcher système » jamais focusable puis trois lignes de réglage, dans cet ordre : « Remplacer le launcher », détail « SygixOs devient l'écran d'accueil de la TV », qui affiche l'état du rôle HOME et en déclenche la demande (« Rôle d'écran d'accueil » de `launcher-shell`) ; « Démarrer à l'allumage », détail « Ouvrir SygixOs quand la TV s'allume », avec un switch Apple comme « Afficher Up Next » (« Démarrage à l'allumage » de `launcher-shell`) ; « Retour à l'accueil », détail « Revenir à SygixOs quand la touche Home ouvre l'accueil du constructeur », pour le service d'accessibilité (« Retour Home par le service d'accessibilité » de `launcher-shell`). Aucune autre catégorie ne SHALL porter ces contrôles. Les lignes SHALL avoir le rendu des lignes de « Page de réglages » (pilule de focus, sans zoom) ; libellés, détails et états SHALL être les mêmes chaînes que dans la présentation initiale de `launcher-shell`. « Remplacer le launcher » et « Retour à l'accueil » SHALL afficher à droite l'un des états suivants : « Actif » (rôle détenu ou service activé, selon le système), précédé d'une pastille ronde verte ; « En attente… » (action système en attente), précédé d'une pastille ronde bleue ; « Inactif », sans pastille ; « Indisponible » (capacité absente de l'appareil sans écran système de remplacement, ou aucun écran système ne peut s'ouvrir), sans pastille, avec le titre atténué hors focus et, à la place du détail, la raison : « Cette TV ne permet pas de changer l'écran d'accueil » pour le rôle, « Les réglages d'accessibilité ne peuvent pas s'ouvrir sur cette TV » pour l'accessibilité ; une ligne « Indisponible » reste focalisable, sa raison lisible au focus, et OK y est sans effet. L'état « En attente… » SHALL commencer quand SygixOs ouvre un dialogue ou un écran système pour ce contrôle et SHALL prendre fin au retour au premier plan suivant, qui relit l'état réel ; il n'est jamais persisté ni présenté comme un succès. « Démarrer à l'allumage » SHALL être un réglage activé ou désactivé, persisté dans DataStore, désactivé par défaut ; quand l'écran système de la permission d'affichage superposé est absent ou n'a pas pu s'ouvrir (« Permission d'affichage superposé pour le démarrage » de `launcher-shell`) et que l'option est désactivée, la ligne SHALL afficher « Indisponible » à la place du switch, sans pastille, avec le titre atténué hors focus et la raison « Cette TV ne permet pas d'autoriser l'ouverture au démarrage » à la place du détail, OK y étant sans effet ; quand l'état « démarrage automatique non observé » de `launcher-shell` est vrai, son détail SHALL devenir « SygixOs ne s'est pas ouvert automatiquement à ce démarrage », dans la couleur du détail normal, le switch restant activé, sans autre indicateur. Navigation D-pad : haut et bas parcourent toutes les lignes de la catégorie sans boucle (« Afficher Up Next », « Position d'Up Next », « Remplacer le launcher », « Démarrer à l'allumage », « Retour à l'accueil », puis la ligne de « Réglage de l'accueil d'origine »), l'intertitre étant sauté ; droite est sans effet ; gauche et Retour se comportent comme pour « Afficher Up Next ». Dimensions et jetons : maquettes Penpot 8.5 et 8.6 et `design.md` (D10).
+La catégorie « Écran d'accueil » SHALL conserver, après « Afficher À suivre » et « Position d'À suivre », l'intertitre non focalisable « Launcher système » et la ligne P5 « SygixOs comme écran d'accueil », avec sa synthèse de parcours et son focus initial P5. P7 ajoute après cette ligne les actions avancées si un gestionnaire est reconnu, ou une quatrième ligne d'aide sinon. Aucune autre catégorie ne SHALL porter les contrôles P5/P7. Le focus initial reste « Afficher À suivre » ; le rendu des lignes et états P5 est conservé. P7 n'altère pas la synthèse P5 et ajoute l'ordre D-pad et le retour focus des actions avancées définis ci-dessous.
 
 #### Scenario: emplacement
 - **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil »
-- **THEN** le volet droit présente, dans cet ordre, « Afficher Up Next », « Position d'Up Next », l'intertitre « Launcher système », « Remplacer le launcher », « Démarrer à l'allumage », « Retour à l'accueil » puis la ligne de « Réglage de l'accueil d'origine », chacune avec son détail et son état ; le focus initial reste sur « Afficher Up Next » ; aucune autre catégorie (dont « Apps sources ») ne les contient et aucune nouvelle catégorie n'apparaît dans le volet gauche
+- **THEN** le volet droit présente « Afficher À suivre », « Position d'À suivre », l'intertitre « Launcher système » puis « SygixOs comme écran d'accueil » ; après cette ligne P5, les actions avancées sont directement affichées si un gestionnaire est reconnu, sinon une quatrième ligne explique l'installation et ouvre l'aide. Le focus initial reste sur « Afficher À suivre » et aucune autre catégorie ne porte ces contrôles
 
-#### Scenario: navigation D-pad des lignes P5
-- **WHEN** le focus est sur « Position d'Up Next » (liste fermée) et l'utilisateur presse bas quatre fois, puis bas encore, puis haut cinq fois, puis droite, puis gauche
-- **THEN** le focus passe à « Remplacer le launcher » (l'intertitre n'est jamais focalisé), « Démarrer à l'allumage », « Retour à l'accueil », la ligne de « Réglage de l'accueil d'origine », puis y reste (dernière ligne, sans boucle) ; il remonte jusqu'à « Afficher Up Next » ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » ; Retour depuis l'une de ces lignes ferme les réglages (« Page de réglages », scénario « retour »)
+#### Scenario: navigation D-pad de la ligne P5
+- **WHEN** le focus est sur « Position d'À suivre » (liste fermée) et l'utilisateur presse bas, puis bas encore, puis haut deux fois, puis bas, droite, puis gauche
+- **THEN** le focus passe à « SygixOs comme écran d'accueil », puis, si le gestionnaire est reconnu, au groupe et à ses actions ; sinon il passe à l'aide, quatrième contrôle focalisable. Haut remonte l'ordre affiché sans boucle ; droite ne fait rien ; gauche rend le focus au volet des catégories sur « Écran d'accueil » ; Retour ferme les réglages
 
-#### Scenario: rendu des états
-- **WHEN** « Remplacer le launcher » ou « Retour à l'accueil » est affiché dans chacun de ses états
-- **THEN** « Actif » et « En attente… » sont précédés d'une pastille ronde, verte puis bleue ; « Inactif » et « Indisponible » n'en ont pas ; en « Indisponible », le titre est atténué hors focus et le détail est remplacé par la raison propre au contrôle ; le libellé d'état et sa couleur suivent la pilule de focus de la ligne
+#### Scenario: ouverture du parcours
+- **WHEN** l'utilisateur presse OK sur « SygixOs comme écran d'accueil »
+- **THEN** le parcours guidé P5 s'affiche par-dessus les réglages ; Retour ou « Terminé » le ferme, conserve les réglages ouverts, rend le focus à la ligne et recalcule sa synthèse
 
-#### Scenario: action système en attente
-- **WHEN** l'utilisateur valide « Remplacer le launcher » ou le contrôle d'accessibilité et que l'écran système correspondant s'ouvre
-- **THEN** le contrôle passe à l'état « En attente… » jusqu'au retour au premier plan, sans jamais afficher « Actif » avant la relecture
+#### Scenario: synthèse partielle
+- **WHEN** l'étape 1 du parcours est « Fait » et que l'option de démarrage est désactivée
+- **THEN** la ligne P5 affiche « Partiel », sans pastille, et le détail « Démarrage à l'allumage à terminer »
+
+#### Scenario: synthèse terminée
+- **WHEN** l'étape 1 est « Fait », le démarrage est activé et la sous-étape 2b est « Fait » ou absente, quel que soit le rôle HOME
+- **THEN** la ligne P5 affiche « Terminé » avec pastille verte et le détail « Toutes les étapes sont faites »
+
+#### Scenario: touche Home bloquée
+- **WHEN** l'étape 1 du parcours est « Bloqué »
+- **THEN** la ligne P5 affiche « Bloqué », sans pastille, et le détail « Touche Home bloquée par la TV », quels que soient les autres états
+
+#### Scenario: rien de fait
+- **WHEN** aucune étape obligatoire du parcours n'est « Fait »
+- **THEN** la ligne P5 affiche « À faire » et le détail « Touche Home et démarrage à l'allumage à terminer », ou la seule étape disponible qui reste
 
 #### Scenario: état relu au retour
-- **WHEN** SygixOs revient au premier plan après un dialogue ou un écran système, ou après tout passage en arrière-plan
-- **THEN** l'état du rôle HOME et celui du service d'accessibilité sont relus auprès du système et affichés, l'état « En attente… » disparaît et le focus est sur le contrôle qui a ouvert l'écran système
+- **WHEN** SygixOs revient au premier plan après un écran système ouvert depuis le parcours ou après un passage en arrière-plan
+- **THEN** l'état du service d'accessibilité, de la permission et du rôle HOME est relu auprès du système, la synthèse de la ligne P5 est recalculée sans valeur périmée et le focus revient à la ligne appelante
 
-#### Scenario: écran système impossible à ouvrir
-- **WHEN** les réglages d'accessibilité du système ne peuvent pas s'ouvrir, ou que ni le dialogue du rôle HOME ni l'écran système des applications par défaut ou de l'écran d'accueil ne peuvent s'ouvrir (« Rôle d'écran d'accueil » de `launcher-shell`)
-- **THEN** le contrôle affiche « Indisponible » avec sa raison à la place du détail, sans crash, le focus reste sur lui, OK n'y a plus d'effet, et les autres contrôles et catégories restent utilisables
+#### Scenario: navigation D-pad des actions avancées
+- **WHEN** un gestionnaire est reconnu et le focus parcourt le groupe avancé après la ligne P5
+- **THEN** il passe à l'accueil d'origine, à la superposition, à l'accessibilité puis à `AUTO_START` si disponible ; l'intertitre est sauté, les bords ne bouclent pas, gauche rend le focus aux catégories et Retour ferme les réglages
 
-#### Scenario: service d'accessibilité depuis les réglages
-- **WHEN** l'utilisateur valide le contrôle d'accessibilité, que le service soit actif ou non
-- **THEN** les réglages d'accessibilité du système s'ouvrent ; SygixOs n'active ni ne désactive le service lui-même ; un service déjà activé reste affiché « Actif » au retour tant que le système le déclare activé
+#### Scenario: gestionnaire absent
+- **WHEN** aucun gestionnaire compatible n'est reconnu
+- **THEN** la quatrième ligne d'aide suit « SygixOs comme écran d'accueil » ; OK ouvre l'aide et le focus revient à cette ligne à sa fermeture
 
-#### Scenario: bascule du démarrage à l'allumage
-- **WHEN** l'utilisateur presse OK sur « Démarrer à l'allumage »
-- **THEN** le switch bascule avec l'animation Apple, l'état est persisté (DataStore) et restauré au lancement suivant, et le focus reste sur la ligne ; à l'activation, la confirmation de « Permission d'affichage superposé pour le démarrage » de `launcher-shell` peut s'afficher, et le focus revient sur la ligne à sa fermeture
+#### Scenario: gestionnaire arrêté et retour focus
+- **WHEN** un gestionnaire reconnu est arrêté, l'utilisateur valide une action P7 puis revient après l'avoir démarré
+- **THEN** l'application du gestionnaire s'ouvre ; si elle reste reconnue, le focus revient à l'action P7, sinon à la quatrième ligne d'aide
 
-#### Scenario: démarrage automatique non observé
-- **WHEN** la catégorie est affichée alors que l'option est activée et que l'état « démarrage automatique non observé » de `launcher-shell` est vrai pour le démarrage courant
-- **THEN** le détail de « Démarrer à l'allumage » est « SygixOs ne s'est pas ouvert automatiquement à ce démarrage », son switch reste activé et aucun autre indicateur n'est ajouté (maquette 8.6)
-
-#### Scenario: démarrage automatique observé ou option désactivée
-- **WHEN** l'ouverture au démarrage a été observée pour le démarrage courant, ou que l'option est désactivée
-- **THEN** le détail de « Démarrer à l'allumage » est « Ouvrir SygixOs quand la TV s'allume »
+#### Scenario: Shizuku prêt, écran de superposition indisponible
+- **WHEN** l'écran Android de superposition est absent ou a échoué à s'ouvrir, mais Shizuku est prêt
+- **THEN** l'action P7 d'octroi reste disponible ; après succès et relecture, le parcours P5 permet de réactiver le démarrage explicitement s'il avait été rendu indisponible
