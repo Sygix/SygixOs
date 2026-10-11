@@ -6,7 +6,7 @@
 package fr.sygix.sygixos.model
 
 data class LauncherSystemPreferences(
-    val onboardingDismissed: Boolean = false,
+    val guideSeen: Boolean = false,
     val bootStart: BootStartState = BootStartState(),
 )
 

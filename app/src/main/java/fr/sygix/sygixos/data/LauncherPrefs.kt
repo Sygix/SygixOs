@@ -133,14 +133,14 @@ class LauncherPrefs(
     private val disabledSourcesKey = stringSetPreferencesKey("disabled_sources")
     private val hiddenKey = stringSetPreferencesKey("hidden_apps")
     private val hiddenDatesKey = stringPreferencesKey("hidden_apps_dates")
-    private val onboardingDismissedKey = booleanPreferencesKey("launcher_onboarding_dismissed")
+    private val guideSeenKey = booleanPreferencesKey("launcher_guide_seen")
     private val bootStartEnabledKey = booleanPreferencesKey("boot_start_enabled")
     private val bootStartEnabledAtKey = intPreferencesKey("boot_start_enabled_at_boot")
     private val bootStartObservedAtKey = intPreferencesKey("boot_start_observed_at_boot")
 
     override val launcherSystem: Flow<LauncherSystemPreferences> = context.dataStore.data.map { prefs ->
         LauncherSystemPreferences(
-            onboardingDismissed = prefs[onboardingDismissedKey] ?: false,
+            guideSeen = prefs[guideSeenKey] ?: false,
             bootStart = BootStartState(
                 enabled = prefs[bootStartEnabledKey] ?: false,
                 enabledAtBoot = prefs[bootStartEnabledAtKey],
@@ -149,8 +149,8 @@ class LauncherPrefs(
         )
     }
 
-    override suspend fun dismissLauncherOnboarding() {
-        context.dataStore.edit { it[onboardingDismissedKey] = true }
+    override suspend fun markLauncherGuideSeen() {
+        context.dataStore.edit { it[guideSeenKey] = true }
     }
 
     override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {

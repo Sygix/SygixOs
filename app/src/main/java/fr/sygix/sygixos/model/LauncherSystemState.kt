@@ -5,20 +5,43 @@
 
 package fr.sygix.sygixos.model
 
-enum class SystemControlState { ACTIVE, INACTIVE, UNAVAILABLE, PENDING }
+enum class SystemControlState { ACTIVE, INACTIVE, UNAVAILABLE, PENDING, BLOCKED }
 
-enum class SystemControl { HOME_ROLE, BOOT_START, ACCESSIBILITY }
+enum class GuideStep { ACCESSIBILITY, BOOT, OVERLAY, HOME_ROLE }
 
-enum class SystemRowDetail { HOME_ROLE, HOME_ROLE_UNAVAILABLE, BOOT_START, BOOT_NOT_OBSERVED, BOOT_UNAVAILABLE, ACCESSIBILITY, ACCESSIBILITY_UNAVAILABLE }
+enum class GuideOrigin { AUTOMATIC, SETTINGS }
 
-data class SystemRow(
-    val control: SystemControl,
-    val detail: SystemRowDetail,
-    val state: SystemControlState? = null,
+enum class StepStatus { TODO, PENDING, DONE, BLOCKED, UNAVAILABLE, OPTIONAL }
+
+enum class StepDetail {
+    ACCESSIBILITY,
+    ACCESSIBILITY_BLOCKED,
+    ACCESSIBILITY_UNAVAILABLE,
+    BOOT,
+    BOOT_NOT_OBSERVED,
+    BOOT_UNAVAILABLE,
+    OVERLAY,
+    HOME_ROLE,
+}
+
+data class GuideStepState(
+    val step: GuideStep,
+    val status: StepStatus,
+    val detail: StepDetail,
     val checked: Boolean? = null,
 ) {
-    val dimmed: Boolean get() = state == SystemControlState.UNAVAILABLE
+    val done: Boolean get() = status == StepStatus.DONE
+    val mandatory: Boolean get() = step != GuideStep.HOME_ROLE
+    val dimmed: Boolean get() = status == StepStatus.UNAVAILABLE
 }
+
+data class GuideProgress(val done: Int, val total: Int)
+
+enum class SummaryStatus { DONE, PARTIAL, TODO, BLOCKED, UNAVAILABLE }
+
+enum class SummaryDetail { ALL_DONE, HOME_KEY, BOOT, HOME_KEY_AND_BOOT, BLOCKED, UNAVAILABLE }
+
+data class GuideSummary(val status: SummaryStatus, val detail: SummaryDetail)
 
 data class LauncherSystemState(
     val homeRole: SystemControlState = SystemControlState.UNAVAILABLE,
@@ -26,40 +49,17 @@ data class LauncherSystemState(
     val overlay: SystemControlState = SystemControlState.UNAVAILABLE,
     val bootEnabled: Boolean = false,
     val bootNotObserved: Boolean = false,
-    val showOnboarding: Boolean = false,
-    val showOverlayConfirmation: Boolean = false,
+    val guide: GuideOrigin? = null,
     val homeRequest: Long = 0,
-    val focusReturn: SystemControl? = null,
+    val focusReturn: GuideStep? = null,
+    val settingsFocus: Long = 0,
     val preferencesLoaded: Boolean = false,
 ) {
     val systemPending: Boolean
         get() = homeRole == SystemControlState.PENDING || accessibility == SystemControlState.PENDING ||
             overlay == SystemControlState.PENDING
 
-    val overlayShown: Boolean get() = showOnboarding || showOverlayConfirmation
+    val guideShown: Boolean get() = guide != null
 
     val bootBlocked: Boolean get() = !bootEnabled && overlay == SystemControlState.UNAVAILABLE
-
-    val rows: List<SystemRow>
-        get() = listOf(
-            SystemRow(
-                SystemControl.HOME_ROLE,
-                if (homeRole == SystemControlState.UNAVAILABLE) SystemRowDetail.HOME_ROLE_UNAVAILABLE else SystemRowDetail.HOME_ROLE,
-                state = homeRole,
-            ),
-            if (bootBlocked) {
-                SystemRow(SystemControl.BOOT_START, SystemRowDetail.BOOT_UNAVAILABLE, state = SystemControlState.UNAVAILABLE)
-            } else {
-                SystemRow(
-                    SystemControl.BOOT_START,
-                    if (bootEnabled && bootNotObserved) SystemRowDetail.BOOT_NOT_OBSERVED else SystemRowDetail.BOOT_START,
-                    checked = bootEnabled,
-                )
-            },
-            SystemRow(
-                SystemControl.ACCESSIBILITY,
-                if (accessibility == SystemControlState.UNAVAILABLE) SystemRowDetail.ACCESSIBILITY_UNAVAILABLE else SystemRowDetail.ACCESSIBILITY,
-                state = accessibility,
-            ),
-        )
 }

@@ -5,9 +5,10 @@
 
 package fr.sygix.sygixos.domain
 
+import fr.sygix.sygixos.model.GuideOrigin
+import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.LauncherSystemPreferences
 import fr.sygix.sygixos.model.LauncherSystemState
-import fr.sygix.sygixos.model.SystemControl
 import fr.sygix.sygixos.model.SystemControlState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -17,12 +18,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 interface LauncherSystemStore {
     val launcherSystem: Flow<LauncherSystemPreferences>
-    suspend fun dismissLauncherOnboarding()
+    suspend fun markLauncherGuideSeen()
     suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?)
     suspend fun recordBootStartObserved(currentBoot: Int?)
 }
@@ -36,6 +38,8 @@ interface LauncherSystemGateway {
     fun openHomeRoleFallback(): Boolean
     fun openAccessibility(): Boolean
     fun openOverlay(): Boolean
+    fun verifyAccessibility() = Unit
+    fun accessibilityChanges(): Flow<Unit> = emptyFlow()
 }
 
 class LauncherSystemController(
@@ -57,12 +61,14 @@ class LauncherSystemController(
     private var preferences: LauncherSystemPreferences? = null
     private var startupFinished = false
     private var permissionFinished = false
-    private var dismissalRequested = false
+    private var seenRequested = false
+    private var openedFromSettings = false
     private var bootTarget: Boolean? = null
     private var bootWrites = 0
     private val failed = mutableSetOf<Screen>()
     private var currentBoot = gateway.bootCount()
     private var roleRequestedAt: Long? = null
+    private var accessibilityScreenOpen = false
 
     init {
         onResume()
@@ -79,10 +85,23 @@ class LauncherSystemController(
                 publishPreferences()
             }
         }
+        scope.launch(dispatcher) {
+            try {
+                gateway.accessibilityChanges().collect {
+                    if (!accessibilityScreenOpen) mutableState.update { it.copy(accessibility = read(Screen.ACCESSIBILITY)) }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                Unit
+            }
+        }
     }
 
     fun onResume() {
+        accessibilityScreenOpen = false
         currentBoot = gateway.bootCount()
+        runCatching(gateway::verifyAccessibility)
         mutableState.update {
             it.copy(homeRole = read(Screen.HOME_ROLE), accessibility = read(Screen.ACCESSIBILITY), overlay = read(Screen.OVERLAY))
         }
@@ -99,30 +118,30 @@ class LauncherSystemController(
         publishPreferences()
     }
 
-    fun activate(control: SystemControl) = when (control) {
-        SystemControl.HOME_ROLE -> requestHomeRole()
-        SystemControl.BOOT_START -> toggleBootStart()
-        SystemControl.ACCESSIBILITY -> requestAccessibility()
+    fun activate(step: GuideStep) = when (step) {
+        GuideStep.ACCESSIBILITY -> requestAccessibility()
+        GuideStep.BOOT -> toggleBootStart()
+        GuideStep.OVERLAY -> requestOverlay()
+        GuideStep.HOME_ROLE -> requestHomeRole()
     }
 
-    fun dismissOnboarding() {
-        if (dismissalRequested) return
-        dismissalRequested = true
-        mutableState.update { it.copy(showOverlayConfirmation = false) }
+    fun openGuide() {
+        if (state.value.guide != null) return
+        openedFromSettings = true
+        mutableState.update { it.copy(focusReturn = null) }
         publishPreferences()
-        persist { store.dismissLauncherOnboarding() }
     }
 
-    fun confirmOverlay() {
-        if (!state.value.showOverlayConfirmation) return
-        val next = if (state.value.overlay == SystemControlState.INACTIVE) open(Screen.OVERLAY) else state.value.overlay
-        mutableState.update { it.copy(overlay = next, showOverlayConfirmation = false, focusReturn = SystemControl.BOOT_START) }
-        if (next == SystemControlState.UNAVAILABLE && state.value.bootEnabled) writeBootStart(false)
-    }
-
-    fun declineOverlay() {
-        if (!state.value.showOverlayConfirmation) return
-        mutableState.update { it.copy(showOverlayConfirmation = false, focusReturn = SystemControl.BOOT_START) }
+    fun closeGuide() {
+        when (state.value.guide) {
+            GuideOrigin.AUTOMATIC -> markSeen()
+            GuideOrigin.SETTINGS -> {
+                openedFromSettings = false
+                mutableState.update { it.copy(focusReturn = null, settingsFocus = it.settingsFocus + 1) }
+                publishPreferences()
+            }
+            null -> Unit
+        }
     }
 
     fun focusReturned() {
@@ -131,8 +150,10 @@ class LauncherSystemController(
 
     fun onHome() {
         if (!startupFinished) return
-        if (state.value.showOnboarding) dismissOnboarding()
-        mutableState.update { it.copy(showOverlayConfirmation = false, focusReturn = null, homeRequest = it.homeRequest + 1) }
+        if (state.value.guide == GuideOrigin.AUTOMATIC) markSeen()
+        openedFromSettings = false
+        mutableState.update { it.copy(focusReturn = null, homeRequest = it.homeRequest + 1) }
+        publishPreferences()
     }
 
     fun recordBootObserved() {
@@ -148,14 +169,22 @@ class LauncherSystemController(
         val next = if (opened) SystemControlState.PENDING else read(Screen.HOME_ROLE).let {
             if (it == SystemControlState.ACTIVE) it else SystemControlState.UNAVAILABLE.also { failed += Screen.HOME_ROLE }
         }
-        mutableState.update { it.copy(homeRole = next, focusReturn = SystemControl.HOME_ROLE) }
+        mutableState.update { it.copy(homeRole = next, focusReturn = if (opened) GuideStep.HOME_ROLE else null) }
+    }
+
+    private fun markSeen() {
+        if (seenRequested) return
+        seenRequested = true
+        mutableState.update { it.copy(focusReturn = null) }
+        publishPreferences()
+        persist { store.markLauncherGuideSeen() }
     }
 
     private fun requestHomeRole() {
         if (state.value.homeRole != SystemControlState.INACTIVE) return
         val next = open(Screen.HOME_ROLE)
         roleRequestedAt = if (next == SystemControlState.PENDING) clock() else null
-        mutableState.update { it.copy(homeRole = next, focusReturn = if (next == SystemControlState.PENDING) SystemControl.HOME_ROLE else it.focusReturn) }
+        mutableState.update { it.copy(homeRole = next, focusReturn = if (next == SystemControlState.PENDING) GuideStep.HOME_ROLE else it.focusReturn) }
     }
 
     private fun persist(write: suspend () -> Unit) {
@@ -171,10 +200,22 @@ class LauncherSystemController(
     }
 
     private fun requestAccessibility() {
-        if (state.value.accessibility == SystemControlState.UNAVAILABLE || state.value.accessibility == SystemControlState.PENDING) return
+        if (state.value.accessibility == SystemControlState.UNAVAILABLE || accessibilityScreenOpen) return
         val next = open(Screen.ACCESSIBILITY)
+        accessibilityScreenOpen = next == SystemControlState.PENDING
         mutableState.update {
-            it.copy(accessibility = next, focusReturn = if (next == SystemControlState.PENDING) SystemControl.ACCESSIBILITY else it.focusReturn)
+            it.copy(accessibility = next, focusReturn = if (next == SystemControlState.PENDING) GuideStep.ACCESSIBILITY else it.focusReturn)
+        }
+    }
+
+    private fun requestOverlay() {
+        if (!state.value.bootEnabled || state.value.overlay != SystemControlState.INACTIVE) return
+        val next = open(Screen.OVERLAY)
+        if (next == SystemControlState.UNAVAILABLE) {
+            mutableState.update { it.copy(overlay = next, focusReturn = GuideStep.BOOT) }
+            writeBootStart(false)
+        } else {
+            mutableState.update { it.copy(overlay = next, focusReturn = GuideStep.OVERLAY) }
         }
     }
 
@@ -187,13 +228,7 @@ class LauncherSystemController(
     private fun writeBootStart(enabled: Boolean) {
         bootTarget = enabled
         bootWrites++
-        mutableState.update {
-            it.copy(
-                bootEnabled = enabled,
-                bootNotObserved = false,
-                showOverlayConfirmation = enabled && it.overlay == SystemControlState.INACTIVE,
-            )
-        }
+        mutableState.update { it.copy(bootEnabled = enabled, bootNotObserved = false) }
         scope.launch(dispatcher) {
             try {
                 store.setBootStartEnabled(enabled, gateway.bootCount())
@@ -213,11 +248,16 @@ class LauncherSystemController(
         val stored = prefs.bootStart.enabled
         if (bootWrites == 0 && bootTarget == stored) bootTarget = null
         val target = bootTarget
+        val automatic = startupFinished && permissionFinished && !prefs.guideSeen && !seenRequested
         mutableState.update {
             it.copy(
                 bootEnabled = target ?: stored,
                 bootNotObserved = target == null && prefs.bootStart.notObserved(currentBoot),
-                showOnboarding = startupFinished && permissionFinished && !prefs.onboardingDismissed && !dismissalRequested,
+                guide = when {
+                    openedFromSettings -> GuideOrigin.SETTINGS
+                    automatic -> GuideOrigin.AUTOMATIC
+                    else -> null
+                },
                 preferencesLoaded = true,
             )
         }

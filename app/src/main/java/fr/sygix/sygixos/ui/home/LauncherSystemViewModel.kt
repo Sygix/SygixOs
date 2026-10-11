@@ -30,9 +30,8 @@ class LauncherSystemViewModel(
     val state: StateFlow<LauncherSystemState> = controller.state
     val actions = LauncherSystemActions(
         activate = controller::activate,
-        dismiss = controller::dismissOnboarding,
-        confirmOverlay = controller::confirmOverlay,
-        declineOverlay = controller::declineOverlay,
+        close = controller::closeGuide,
+        openGuide = controller::openGuide,
         focusReturned = controller::focusReturned,
     )
 
@@ -57,7 +56,7 @@ class LauncherSystemViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val app = context.applicationContext as SygixOsApp
             val roleRequests = RoleRequestLauncher()
-            val gateway = AndroidLauncherSystemGateway(app, AndroidHomeRoleGateway(app, roleRequests::launch))
+            val gateway = AndroidLauncherSystemGateway(app, AndroidHomeRoleGateway(app, roleRequests::launch), rebind = app.accessibilityRebind)
             return LauncherSystemViewModel(app.launcherPrefs, gateway, roleRequests) as T
         }
     }

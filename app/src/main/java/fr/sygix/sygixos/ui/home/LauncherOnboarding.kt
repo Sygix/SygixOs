@@ -7,32 +7,39 @@ package fr.sygix.sygixos.ui.home
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -42,12 +49,20 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.zIndex
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.GlassLook
 import fr.sygix.sygixos.core.designsystem.GlassSurface
+import fr.sygix.sygixos.core.designsystem.PillColors
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.SygixTypography
 import fr.sygix.sygixos.core.designsystem.TextStyles
@@ -57,33 +72,60 @@ import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.domain.ImageBounds
+import fr.sygix.sygixos.domain.LauncherGuide
+import fr.sygix.sygixos.model.GuideStep
+import fr.sygix.sygixos.model.GuideStepState
 import fr.sygix.sygixos.model.LauncherSystemState
-import fr.sygix.sygixos.ui.settings.LauncherRowTags
+import fr.sygix.sygixos.model.StepStatus
+import fr.sygix.sygixos.ui.settings.AppleSwitch
 import fr.sygix.sygixos.ui.settings.LauncherSystemActions
-import fr.sygix.sygixos.ui.settings.LauncherSystemRows
+import fr.sygix.sygixos.ui.settings.PreferenceRow
+import fr.sygix.sygixos.ui.settings.RowGap
+import fr.sygix.sygixos.ui.settings.StateLabel
+import fr.sygix.sygixos.ui.settings.dotColor
+import fr.sygix.sygixos.ui.settings.labelRes
+import fr.sygix.sygixos.ui.settings.tag
+import fr.sygix.sygixos.ui.settings.textRes
+import fr.sygix.sygixos.ui.settings.titleRes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 internal const val LauncherPanelZ = 30f
 
+private const val DoneTarget = "onboarding-done"
+
 @Composable
-internal fun LauncherOnboarding(state: LauncherSystemState, actions: LauncherSystemActions) {
-    val rowCount = state.rows.size
-    val requesters = remember { List(rowCount + 1) { FocusRequester() } }
-    var focused by remember { mutableIntStateOf(0) }
-    val enabled = !state.showOverlayConfirmation
-    LaunchedEffect(Unit) { requesters[0].tryRequestFocus() }
+internal fun LauncherGuidePanel(state: LauncherSystemState, actions: LauncherSystemActions) {
+    val steps = LauncherGuide.steps(state)
+    val progress = LauncherGuide.progress(steps)
+    val targets = steps.map { it.step.tag() } + DoneTarget
+    val requesters = remember { mutableMapOf<String, FocusRequester>() }
+    fun requesterFor(target: String) = requesters.getOrPut(target) { FocusRequester() }
+    var focused by remember { mutableStateOf<String?>(null) }
+    val current by rememberUpdatedState(targets)
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        requesterFor(LauncherGuide.initialFocus(steps)?.tag() ?: DoneTarget).tryRequestFocus()
+    }
+    LaunchedEffect(state.focusReturn, state.systemPending) {
+        val target = state.focusReturn ?: return@LaunchedEffect
+        if (state.systemPending) return@LaunchedEffect
+        withFrameNanos { }
+        requesterFor(if (target.tag() in current) target.tag() else DoneTarget).tryRequestFocus()
+        actions.focusReturned()
+    }
     LauncherGlassPanel("onboarding-launcher", Modifier.onPreviewKeyEvent { event ->
-        if (!enabled || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
         when (event.key) {
             Key.DirectionDown, Key.DirectionUp -> {
-                val next = (focused + if (event.key == Key.DirectionDown) 1 else -1).coerceIn(0, rowCount)
-                requesters[next].tryRequestFocus()
+                val index = current.indexOf(focused).coerceAtLeast(0)
+                val next = (index + if (event.key == Key.DirectionDown) 1 else -1).coerceIn(0, current.lastIndex)
+                requesterFor(current[next]).tryRequestFocus()
                 true
             }
             Key.DirectionLeft, Key.DirectionRight -> true
             Key.Back -> {
-                actions.dismiss()
+                actions.close()
                 true
             }
             else -> false
@@ -98,39 +140,139 @@ internal fun LauncherOnboarding(state: LauncherSystemState, actions: LauncherSys
             ),
             verticalArrangement = Arrangement.spacedBy(Dimens.OnboardingHeaderSpacing),
         ) {
-            OnboardingMascot()
-            Text(stringResource(R.string.launcher_onboarding_title), style = TextStyles.SettingsTitle, color = SygixColors.OnDark)
-            Text(stringResource(R.string.launcher_onboarding_description), style = SygixTypography.bodyMedium, color = SygixColors.OnDarkSecondary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OnboardingMascot()
+                Spacer(Modifier.width(Dimens.GuideMascotGap))
+                Text(
+                    stringResource(R.string.launcher_guide_title),
+                    style = TextStyles.SettingsTitle,
+                    color = SygixColors.OnDark,
+                    modifier = Modifier.testTag("onboarding-title"),
+                )
+            }
+            Text(stringResource(R.string.launcher_guide_intro), style = SygixTypography.bodyMedium, color = SygixColors.OnDarkSecondary)
+            if (progress.total > 0) {
+                Text(
+                    pluralStringResource(R.plurals.launcher_guide_progress, LauncherGuide.progressQuantity(progress.done), progress.done, progress.total),
+                    style = TextStyles.RowState,
+                    color = SygixColors.OnDarkSecondary,
+                    modifier = Modifier.testTag("onboarding-progress"),
+                )
+            }
         }
-        LauncherSystemRows(
-            state = state,
-            actions = actions,
-            tags = LauncherRowTags.Onboarding,
-            spacing = Dimens.OnboardingSpacing,
-            focusEnabled = enabled,
-            requesters = requesters.take(rowCount),
-            onFocused = { focused = it },
-        )
+        steps.forEach { step ->
+            GuideStepRow(
+                step = step,
+                requester = requesterFor(step.step.tag()),
+                onFocused = { focused = step.step.tag() },
+                onClick = { actions.activate(step.step) },
+            )
+        }
         Row(
             Modifier.fillMaxWidth().padding(start = Dimens.OnboardingHeaderInsetH, top = Dimens.OnboardingFooterTop),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(
-                stringResource(R.string.launcher_onboarding_hint),
+                stringResource(R.string.launcher_guide_hint),
                 style = TextStyles.RowSecondary,
                 color = SygixColors.OnDarkSecondary,
                 modifier = Modifier.testTag("onboarding-hint"),
             )
-            LauncherDialogButton(
-                label = stringResource(R.string.launcher_continue),
-                tag = "onboarding-continue",
-                requester = requesters[rowCount],
-                enabled = enabled,
-                onFocused = { focused = rowCount },
-                onClick = actions.dismiss,
+            GuideDoneButton(
+                requester = requesterFor(DoneTarget),
+                onFocused = { focused = DoneTarget },
+                onClick = actions.close,
             )
         }
+    }
+}
+
+@Composable
+private fun GuideStepRow(step: GuideStepState, requester: FocusRequester, onFocused: () -> Unit, onClick: () -> Unit) {
+    val tag = step.step.tag()
+    PreferenceRow(
+        label = stringResource(step.step.titleRes()),
+        enabled = true,
+        onClick = onClick,
+        focusRequester = requester,
+        detail = stringResource(step.detail.textRes()),
+        partsTag = tag,
+        dimmed = step.dimmed,
+        onFocused = { if (it) onFocused() },
+        leading = { colors -> StepMarker(step, colors, tag) },
+        modifier = Modifier
+            .testTag(tag)
+            .semantics(mergeDescendants = true) {
+                step.checked?.let {
+                    role = Role.Switch
+                    toggleableState = ToggleableState(it)
+                }
+                onClick { onClick(); true }
+            },
+    ) { colors ->
+        Spacer(Modifier.width(RowGap))
+        val checked = step.checked
+        if (checked != null) {
+            AppleSwitch(checked, tag = "$tag-switch")
+        } else {
+            StateLabel(stringResource(step.status.labelRes()), step.status.dotColor(), colors.tertiary, tag)
+        }
+    }
+}
+
+@Composable
+private fun StepMarker(step: GuideStepState, colors: PillColors, tag: String) {
+    val sub = step.step == GuideStep.OVERLAY
+    if (sub) Spacer(Modifier.width(Dimens.GuideSubStepIndent))
+    val size = if (sub) Dimens.GuideSubStepMarker else Dimens.GuideStepMarker
+    val marker = Modifier.testTag("$tag-marker").size(size)
+    if (step.status == StepStatus.DONE) {
+        Box(marker.background(SygixColors.SwitchOn, CircleShape), contentAlignment = Alignment.Center) {
+            CheckMark(Modifier.fillMaxSize().testTag("$tag-check"))
+        }
+    } else {
+        Box(marker.border(Dimens.GuideMarkerStroke, colors.tertiary, CircleShape), contentAlignment = Alignment.Center) {
+            Text(stepNumber(step.step), style = TextStyles.RowState, color = colors.tertiary)
+        }
+    }
+    Spacer(Modifier.width(Dimens.GuideMarkerGap))
+}
+
+@Composable
+private fun stepNumber(step: GuideStep): String = when (step) {
+    GuideStep.ACCESSIBILITY -> 1.toString()
+    GuideStep.BOOT -> 2.toString()
+    GuideStep.OVERLAY -> stringResource(R.string.launcher_step_overlay_marker)
+    GuideStep.HOME_ROLE -> 3.toString()
+}
+
+@Composable
+private fun CheckMark(modifier: Modifier) {
+    Canvas(modifier) {
+        val stroke = Dimens.GuideMarkerStroke.toPx() * CheckStrokeScale
+        drawLine(SygixColors.OnDark, Offset(size.width * .3f, size.height * .52f), Offset(size.width * .45f, size.height * .66f), stroke, StrokeCap.Round)
+        drawLine(SygixColors.OnDark, Offset(size.width * .45f, size.height * .66f), Offset(size.width * .72f, size.height * .36f), stroke, StrokeCap.Round)
+    }
+}
+
+private const val CheckStrokeScale = 1.4f
+
+@Composable
+private fun GuideDoneButton(requester: FocusRequester, onFocused: () -> Unit, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused, rest = SygixColors.PillRest)
+    Box(
+        Modifier
+            .testTag(DoneTarget)
+            .tvFocusable(focusRequester = requester, onFocused = { focused = it; if (it) onFocused() })
+            .tvClickable(onClick = onClick)
+            .focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
+            .height(Dimens.MenuActionHeight)
+            .padding(horizontal = Dimens.OnboardingButtonPaddingH),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(stringResource(R.string.launcher_guide_done), style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
     }
 }
 
@@ -156,47 +298,6 @@ private fun OnboardingMascot() {
 }
 
 @Composable
-internal fun OverlayPermissionConfirmation(actions: LauncherSystemActions) {
-    val requesters = remember { List(2) { FocusRequester() } }
-    var focused by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) { requesters[0].tryRequestFocus() }
-    LauncherGlassPanel("launcher-overlay-confirmation", Modifier.onPreviewKeyEvent {
-        if (it.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-        when (it.key) {
-            Key.Back -> {
-                actions.declineOverlay()
-                true
-            }
-            Key.DirectionDown, Key.DirectionUp -> {
-                requesters[(focused + if (it.key == Key.DirectionDown) 1 else -1).coerceIn(0, 1)].tryRequestFocus()
-                true
-            }
-            Key.DirectionLeft, Key.DirectionRight -> true
-            else -> false
-        }
-    }) {
-        Text(stringResource(R.string.launcher_overlay_title), style = TextStyles.SettingsTitle, color = SygixColors.OnDark)
-        Text(stringResource(R.string.launcher_overlay_description), style = SygixTypography.bodyMedium, color = SygixColors.OnDarkSecondary)
-        LauncherDialogButton(
-            label = stringResource(R.string.launcher_overlay_open),
-            tag = "launcher-overlay-open",
-            requester = requesters[0],
-            enabled = true,
-            onFocused = { focused = 0 },
-            onClick = actions.confirmOverlay,
-        )
-        LauncherDialogButton(
-            label = stringResource(R.string.launcher_overlay_decline),
-            tag = "launcher-overlay-decline",
-            requester = requesters[1],
-            enabled = true,
-            onFocused = { focused = 1 },
-            onClick = actions.declineOverlay,
-        )
-    }
-}
-
-@Composable
 private fun LauncherGlassPanel(tag: String, modifier: Modifier, content: @Composable ColumnScope.() -> Unit) {
     Box(
         modifier.testTag(tag).fillMaxSize().zIndex(LauncherPanelZ).background(SygixColors.Scrim),
@@ -205,30 +306,5 @@ private fun LauncherGlassPanel(tag: String, modifier: Modifier, content: @Compos
         GlassSurface(Modifier.width(Dimens.OnboardingWidth), shape = RoundedCornerShape(Dimens.OnboardingCorner), look = GlassLook.Menu) {
             Column(Modifier.padding(Dimens.OnboardingPadding), verticalArrangement = Arrangement.spacedBy(Dimens.OnboardingSpacing), content = content)
         }
-    }
-}
-
-@Composable
-private fun LauncherDialogButton(
-    label: String,
-    tag: String,
-    requester: FocusRequester,
-    enabled: Boolean,
-    onFocused: () -> Unit,
-    onClick: () -> Unit,
-) {
-    var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused, rest = SygixColors.PillRest)
-    Box(
-        Modifier
-            .testTag(tag)
-            .tvFocusable(focusRequester = requester, enabled = enabled, onFocused = { focused = it; if (it) onFocused() })
-            .tvClickable(onClick = { if (enabled) onClick() })
-            .focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
-            .height(Dimens.MenuActionHeight)
-            .padding(horizontal = Dimens.OnboardingButtonPaddingH),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
     }
 }

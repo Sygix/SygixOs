@@ -418,7 +418,7 @@ internal fun LauncherHome(
     LaunchedEffect(upNextUpdates, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { upNextUpdates.collect() }
     }
-    val launcherOverlay = launcherState.overlayShown
+    val launcherOverlay = launcherState.guideShown
     var handledHome by remember { mutableStateOf(launcherState.homeRequest) }
     LaunchedEffect(launcherState.homeRequest) {
         if (handledHome == launcherState.homeRequest) return@LaunchedEffect
@@ -668,8 +668,7 @@ internal fun LauncherHome(
                 modifier = Modifier.zIndex(10f),
             )
         }
-        if (launcherState.showOnboarding) LauncherOnboarding(launcherState, launcherActions)
-        if (launcherState.showOverlayConfirmation) OverlayPermissionConfirmation(launcherActions)
+        if (launcherState.guideShown) LauncherGuidePanel(launcherState, launcherActions)
     }
     }
 }

@@ -56,6 +56,7 @@ internal fun PreferenceRow(
     partsTag: String? = null,
     dimmed: Boolean = false,
     onFocused: (Boolean) -> Unit = {},
+    leading: (@Composable (PillColors) -> Unit)? = null,
     trailing: @Composable (PillColors) -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -71,6 +72,7 @@ internal fun PreferenceRow(
             .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        leading?.invoke(colors)
         Column(Modifier.weight(1f)) {
             Text(
                 label,

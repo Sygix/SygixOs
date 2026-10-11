@@ -134,6 +134,12 @@ object Dimens {
     val OnboardingMascot = 64.dp
     val OnboardingFooterTop = 10.dp
     val OnboardingButtonPaddingH = 20.dp
+    val GuideMascotGap = 12.dp
+    val GuideStepMarker = 22.dp
+    val GuideSubStepMarker = 18.dp
+    val GuideMarkerGap = 12.dp
+    val GuideSubStepIndent = 34.dp
+    val GuideMarkerStroke = 1.5.dp
     val SettingsRowCorner = 14.dp
     val SettingsRowHeight = 48.dp
     val SettingsRowPadding = 14.dp
