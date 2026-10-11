@@ -27,7 +27,7 @@ Les parcours P5 SHALL être couverts par des tests déterministes, sans environn
 
 #### Scenario: filtre de la touche Home
 - **WHEN** le test transmet au filtre du service, service connecté, une séquence pressé puis relâché courte, une séquence avec répétitions maintenue au-delà du délai d'appui long, une séquence dont le relâchement est annulé, et une autre touche
-- **THEN** tous les événements Home sont consommés (le filtre renvoie vrai pour l'appui, chaque répétition et le relâchement) ; les deux premières séquences demandent l'ouverture de l'accueil une seule fois chacune, au relâchement, sans délai, avec l'état « au premier plan » capturé à l'appui ; le relâchement annulé ne demande rien ; l'autre touche n'est pas consommée ; service non connecté, aucun événement n'est consommé
+- **THEN** tous les événements Home sont consommés (le filtre renvoie vrai pour l'appui, chaque répétition et le relâchement ; un relâchement sans appui consommé reste au système) ; les deux premières séquences demandent l'ouverture de l'accueil une seule fois chacune, au relâchement, sans délai, avec l'état « au premier plan » capturé à l'appui ; le relâchement annulé ne demande rien ; l'autre touche n'est pas consommée ; service non connecté, aucun événement n'est consommé
 
 #### Scenario: service d'accessibilité non activé par l'utilisateur
 - **WHEN** le double déclare le service non activé, ou désactivé

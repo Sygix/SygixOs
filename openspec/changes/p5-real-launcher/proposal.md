@@ -85,6 +85,7 @@ Après l'essai de v0.1.0-rc.1 sur la TV de référence (détail et justification
 43. Parcours guidé « Faire de SygixOs l'écran d'accueil » à la place de la présentation initiale, des trois lignes des réglages et de la confirmation d'affichage superposé (sous-étape 2b en ligne).
 44. Étapes affichées selon l'appareil et les options ; états « À faire », « En attente… », « Fait », « Bloqué », « Indisponible », « Facultatif » (étape 3) ; progression sur les étapes obligatoires.
 45. Une seule ligne « SygixOs comme écran d'accueil » dans « Écran d'accueil », qui résume le parcours (« Terminé », « Partiel » ou « À faire » avec ce qui reste, « Touche Home bloquée par la TV ») et l'ouvre.
+46. Le parcours guidé a son propre drapeau « vu » (`launcher_guide_seen`), distinct de `launcher_onboarding_dismissed` de la présentation de v0.1.0-rc.1 : une installation qui avait fermé cette présentation voit le parcours une fois automatiquement.
 
 ## Capabilities
 
