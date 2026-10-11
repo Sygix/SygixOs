@@ -7,7 +7,11 @@ package fr.sygix.sygixos.domain
 
 import fr.sygix.sygixos.model.LauncherSystemPreferences
 import fr.sygix.sygixos.model.GuideOrigin
+import fr.sygix.sygixos.model.GuideProgress
 import fr.sygix.sygixos.model.GuideStep
+import fr.sygix.sygixos.model.GuideSummary
+import fr.sygix.sygixos.model.SummaryDetail
+import fr.sygix.sygixos.model.SummaryStatus
 import fr.sygix.sygixos.model.SystemControlState
 import kotlinx.coroutines.CompletableDeferred
 import java.io.IOException
@@ -81,6 +85,34 @@ class LauncherSystemControllerTest {
 
     private fun TestScope.controller(store: LauncherSystemStore = Store(), platform: Platform = Platform()) =
         LauncherSystemController(store, platform, backgroundScope, UnconfinedTestDispatcher(testScheduler), clock = { now })
+
+    @Test
+    fun `the controller computes the steps progress initial focus and summary of every published state`() = runTest {
+        val platform = Platform()
+        val controller = controller(platform = platform)
+        val fresh = controller.state.value.guideView
+        assertEquals(listOf(GuideStep.ACCESSIBILITY, GuideStep.BOOT, GuideStep.HOME_ROLE), fresh.steps.map { it.step })
+        assertEquals(GuideProgress(0, 2), fresh.progress)
+        assertEquals(1, fresh.progressQuantity)
+        assertEquals(GuideStep.ACCESSIBILITY, fresh.initialFocus)
+        assertEquals(GuideSummary(SummaryStatus.TODO, SummaryDetail.HOME_KEY_AND_BOOT), fresh.summary)
+        platform.accessibility = SystemControlState.ACTIVE
+        controller.onResume()
+        controller.activate(GuideStep.BOOT)
+        val booting = controller.state.value.guideView
+        assertEquals(listOf(GuideStep.ACCESSIBILITY, GuideStep.BOOT, GuideStep.OVERLAY, GuideStep.HOME_ROLE), booting.steps.map { it.step })
+        assertEquals(GuideProgress(1, 3), booting.progress)
+        assertEquals(GuideStep.BOOT, booting.initialFocus)
+        assertEquals(GuideSummary(SummaryStatus.PARTIAL, SummaryDetail.BOOT), booting.summary)
+        platform.overlay = SystemControlState.ACTIVE
+        controller.onResume()
+        val done = controller.state.value.guideView
+        assertEquals(GuideProgress(3, 3), done.progress)
+        assertEquals(3, done.progressQuantity)
+        assertNull(done.initialFocus)
+        assertEquals(GuideSummary(SummaryStatus.DONE, SummaryDetail.ALL_DONE), done.summary)
+        assertEquals(LauncherGuide.view(controller.state.value), done)
+    }
 
     @Test
     fun `role screen closing at once without the role offers the default apps screen`() = runTest {
@@ -279,7 +311,7 @@ class LauncherSystemControllerTest {
         controller.activate(GuideStep.BOOT)
         assertTrue(store.launcherSystem.value.bootStart.enabled)
         assertTrue(platform.opened.isEmpty())
-        assertTrue(GuideStep.OVERLAY in LauncherGuide.steps(controller.state.value).map { it.step })
+        assertTrue(GuideStep.OVERLAY in controller.state.value.guideView.steps.map { it.step })
         controller.activate(GuideStep.OVERLAY)
         assertEquals(SystemControlState.PENDING, controller.state.value.overlay)
         assertEquals(GuideStep.OVERLAY, controller.state.value.focusReturn)
@@ -292,7 +324,7 @@ class LauncherSystemControllerTest {
         controller.activate(GuideStep.OVERLAY)
         assertEquals(1, platform.opened.size)
         controller.activate(GuideStep.BOOT)
-        assertFalse(GuideStep.OVERLAY in LauncherGuide.steps(controller.state.value).map { it.step })
+        assertFalse(GuideStep.OVERLAY in controller.state.value.guideView.steps.map { it.step })
     }
 
     @Test
