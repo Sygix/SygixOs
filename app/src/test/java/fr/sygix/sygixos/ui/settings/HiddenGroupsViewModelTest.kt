@@ -16,6 +16,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -66,11 +67,16 @@ class HiddenGroupsViewModelTest {
         val second = harness.removeContent("Second")
         val vm = harness.viewModel
         vm.enterCategory(SettingsCategory.HIDDEN)
-        val before = vm.state.await { it.hiddenContents.size == 2 && it.hiddenRows.size == 1 }.keys().filter { it != "contents-title" }
+        val before = vm.state.await { it.hiddenContents.size == 2 && it.hiddenRows.size == 1 }
+        assertEquals(before.keys().filter { it != "contents-title" }, before.hiddenFocusOrder)
+        assertEquals("app:com.a", before.hiddenInitialFocus)
+        assertNull(before.hiddenRefocus)
+        vm.onHiddenFocused("content:${second.serialized}")
         vm.restoreUpNext(second)
-        val after = vm.state.await { it.hiddenContents.size == 1 && it.hiddenRows.size == 1 }.keys().filter { it != "contents-title" }
-        val index = before.indexOf("content:${second.serialized}")
-        assertEquals("content:${first.serialized}", HiddenPaneLayout.refocus(after, "content:${second.serialized}", index))
+        val after = vm.state.await { it.hiddenContents.size == 1 && it.hiddenRows.size == 1 }
+        assertEquals("content:${first.serialized}", after.hiddenRefocus?.key)
+        vm.enterCategory(SettingsCategory.HIDDEN)
+        assertNull(vm.state.await { it.hiddenRefocus == null }.hiddenRefocus)
         vm.restoreUpNext(first)
         val emptied = vm.state.await { it.hiddenContents.isEmpty() }
         assertFalse(emptied.keys().contains("contents-title"))
