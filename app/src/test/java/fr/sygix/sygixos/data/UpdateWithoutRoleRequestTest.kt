@@ -54,7 +54,7 @@ class UpdateWithoutRoleRequestTest {
 
     private class Store : LauncherSystemStore {
         override val launcherSystem = MutableStateFlow(LauncherSystemPreferences())
-        override suspend fun dismissLauncherOnboarding() = Unit
+        override suspend fun markLauncherGuideSeen() = Unit
         override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) = Unit
         override suspend fun recordBootStartObserved(currentBoot: Int?) = Unit
     }

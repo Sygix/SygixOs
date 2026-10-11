@@ -6,10 +6,13 @@
 package fr.sygix.sygixos.domain
 
 import fr.sygix.sygixos.model.LauncherSystemPreferences
-import fr.sygix.sygixos.model.SystemControl
+import fr.sygix.sygixos.model.GuideOrigin
+import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.SystemControlState
 import kotlinx.coroutines.CompletableDeferred
 import java.io.IOException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.TestScope
@@ -26,8 +29,10 @@ class LauncherSystemControllerTest {
         override val launcherSystem = MutableStateFlow(LauncherSystemPreferences())
         var gate: CompletableDeferred<Unit>? = null
         var bootWrites = 0
-        override suspend fun dismissLauncherOnboarding() {
-            launcherSystem.value = launcherSystem.value.copy(onboardingDismissed = true)
+        var seenWrites = 0
+        override suspend fun markLauncherGuideSeen() {
+            seenWrites++
+            launcherSystem.value = launcherSystem.value.copy(guideSeen = true)
         }
         override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {
             bootWrites++
@@ -46,6 +51,10 @@ class LauncherSystemControllerTest {
         val opened = mutableListOf<String>()
         var succeeds = true
         var onOpen: () -> Unit = {}
+        var verifications = 0
+        val changes = MutableSharedFlow<Unit>()
+        override fun verifyAccessibility() { verifications++ }
+        override fun accessibilityChanges(): Flow<Unit> = changes
         override fun homeRoleState() = home
         override fun accessibilityState() = accessibility
         override fun overlayState() = overlay
@@ -63,7 +72,7 @@ class LauncherSystemControllerTest {
 
     private class FailingStore : LauncherSystemStore {
         override val launcherSystem = flow<LauncherSystemPreferences> { throw IOException("unreadable") }
-        override suspend fun dismissLauncherOnboarding() = throw IOException("read only")
+        override suspend fun markLauncherGuideSeen() = throw IOException("read only")
         override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) = throw IOException("read only")
         override suspend fun recordBootStartObserved(currentBoot: Int?) = throw IOException("read only")
     }
@@ -78,12 +87,12 @@ class LauncherSystemControllerTest {
         val platform = Platform()
         val controller = controller(platform = platform)
         now = 1_000
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         now = 1_150
         controller.onHomeRoleResult(granted = false)
         assertEquals(listOf("home", "home-fallback"), platform.opened)
         assertEquals(SystemControlState.PENDING, controller.state.value.homeRole)
-        assertEquals(SystemControl.HOME_ROLE, controller.state.value.focusReturn)
+        assertEquals(GuideStep.HOME_ROLE, controller.state.value.focusReturn)
         controller.onHomeRoleResult(granted = false)
         assertEquals(2, platform.opened.size)
     }
@@ -93,16 +102,16 @@ class LauncherSystemControllerTest {
         val platform = Platform()
         val controller = controller(platform = platform)
         now = 0
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         now = 5_000
         controller.onHomeRoleResult(granted = false)
         controller.onResume()
         now = 6_000
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         controller.onHomeRoleResult(granted = true)
         controller.onResume()
         platform.home = SystemControlState.INACTIVE
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         platform.home = SystemControlState.ACTIVE
         controller.onHomeRoleResult(granted = false)
         assertEquals(listOf("home", "home", "home"), platform.opened)
@@ -114,7 +123,7 @@ class LauncherSystemControllerTest {
     fun `fallback that cannot open after an automatic refusal shows unavailable`() = runTest {
         val platform = Platform()
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         platform.succeeds = false
         controller.onHomeRoleResult(granted = false)
         assertEquals(SystemControlState.UNAVAILABLE, controller.state.value.homeRole)
@@ -128,22 +137,22 @@ class LauncherSystemControllerTest {
         controller.onStartupFinished()
         controller.onPermissionFinished()
         assertTrue(controller.state.value.preferencesLoaded)
-        assertTrue(controller.state.value.showOnboarding)
-        controller.activate(SystemControl.BOOT_START)
+        assertTrue(controller.state.value.guideShown)
+        controller.activate(GuideStep.BOOT)
         assertFalse(controller.state.value.bootEnabled)
         controller.recordBootObserved()
-        controller.dismissOnboarding()
-        assertFalse(controller.state.value.showOnboarding)
+        controller.closeGuide()
+        assertFalse(controller.state.value.guideShown)
     }
 
     @Test
     fun `refused role request passes through pending and never claims success`() = runTest {
         val platform = Platform()
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         assertEquals(listOf("home"), platform.opened)
         assertEquals(SystemControlState.PENDING, controller.state.value.homeRole)
-        assertEquals(SystemControl.HOME_ROLE, controller.state.value.focusReturn)
+        assertEquals(GuideStep.HOME_ROLE, controller.state.value.focusReturn)
         controller.onResume()
         assertEquals(SystemControlState.INACTIVE, controller.state.value.homeRole)
         platform.home = SystemControlState.ACTIVE
@@ -155,7 +164,7 @@ class LauncherSystemControllerTest {
     fun `held role is a no-op that stays active`() = runTest {
         val platform = Platform().apply { home = SystemControlState.ACTIVE }
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         assertTrue(platform.opened.isEmpty())
         assertEquals(SystemControlState.ACTIVE, controller.state.value.homeRole)
         assertNull(controller.state.value.focusReturn)
@@ -166,7 +175,7 @@ class LauncherSystemControllerTest {
         val platform = Platform().apply { succeeds = false }
         platform.onOpen = { platform.home = SystemControlState.ACTIVE }
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         assertEquals(SystemControlState.ACTIVE, controller.state.value.homeRole)
         controller.onResume()
         assertEquals(SystemControlState.ACTIVE, controller.state.value.homeRole)
@@ -176,14 +185,14 @@ class LauncherSystemControllerTest {
     fun `failed system screen stays unavailable after resume and becomes inert`() = runTest {
         val platform = Platform().apply { succeeds = false }
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.ACCESSIBILITY)
+        controller.activate(GuideStep.ACCESSIBILITY)
         assertEquals(SystemControlState.UNAVAILABLE, controller.state.value.accessibility)
         assertNull(controller.state.value.focusReturn)
         controller.onResume()
         assertEquals(SystemControlState.UNAVAILABLE, controller.state.value.accessibility)
-        controller.activate(SystemControl.ACCESSIBILITY)
+        controller.activate(GuideStep.ACCESSIBILITY)
         assertEquals(listOf("accessibility"), platform.opened)
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         controller.onResume()
         assertEquals(SystemControlState.UNAVAILABLE, controller.state.value.homeRole)
         platform.home = SystemControlState.ACTIVE
@@ -198,8 +207,8 @@ class LauncherSystemControllerTest {
             accessibility = SystemControlState.UNAVAILABLE
         }
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.HOME_ROLE)
-        controller.activate(SystemControl.ACCESSIBILITY)
+        controller.activate(GuideStep.HOME_ROLE)
+        controller.activate(GuideStep.ACCESSIBILITY)
         assertTrue(platform.opened.isEmpty())
     }
 
@@ -207,9 +216,9 @@ class LauncherSystemControllerTest {
     fun `enabled accessibility still opens system settings and rereads changes`() = runTest {
         val platform = Platform().apply { accessibility = SystemControlState.ACTIVE }
         val controller = controller(platform = platform)
-        controller.activate(SystemControl.ACCESSIBILITY)
+        controller.activate(GuideStep.ACCESSIBILITY)
         assertEquals(SystemControlState.PENDING, controller.state.value.accessibility)
-        controller.activate(SystemControl.ACCESSIBILITY)
+        controller.activate(GuideStep.ACCESSIBILITY)
         assertEquals(1, platform.opened.size)
         platform.accessibility = SystemControlState.INACTIVE
         controller.onResume()
@@ -219,8 +228,8 @@ class LauncherSystemControllerTest {
     @Test
     fun `focus return is one shot`() = runTest {
         val controller = controller()
-        controller.activate(SystemControl.ACCESSIBILITY)
-        assertEquals(SystemControl.ACCESSIBILITY, controller.state.value.focusReturn)
+        controller.activate(GuideStep.ACCESSIBILITY)
+        assertEquals(GuideStep.ACCESSIBILITY, controller.state.value.focusReturn)
         controller.focusReturned()
         assertNull(controller.state.value.focusReturn)
         controller.onResume()
@@ -232,18 +241,18 @@ class LauncherSystemControllerTest {
         val store = Store()
         val platform = Platform()
         val controller = controller(store, platform)
-        assertFalse(controller.state.value.showOnboarding)
+        assertFalse(controller.state.value.guideShown)
         controller.onStartupFinished()
-        assertFalse(controller.state.value.showOnboarding)
+        assertFalse(controller.state.value.guideShown)
         controller.onPermissionFinished()
-        assertTrue(controller.state.value.showOnboarding)
-        controller.dismissOnboarding()
-        assertFalse(controller.state.value.showOnboarding)
-        assertTrue(store.launcherSystem.value.onboardingDismissed)
+        assertTrue(controller.state.value.guideShown)
+        controller.closeGuide()
+        assertFalse(controller.state.value.guideShown)
+        assertTrue(store.launcherSystem.value.guideSeen)
         val recreated = controller(store, platform)
         recreated.onStartupFinished()
         recreated.onPermissionFinished()
-        assertFalse(recreated.state.value.showOnboarding)
+        assertFalse(recreated.state.value.guideShown)
         assertTrue(platform.opened.isEmpty())
     }
 
@@ -254,7 +263,7 @@ class LauncherSystemControllerTest {
         val platform = Platform()
         val controller = controller(store, platform)
         assertTrue(controller.state.value.bootNotObserved)
-        controller.activate(SystemControl.HOME_ROLE)
+        controller.activate(GuideStep.HOME_ROLE)
         val recreated = controller(store, platform)
         assertEquals(SystemControlState.INACTIVE, recreated.state.value.homeRole)
         controller.recordBootObserved()
@@ -263,45 +272,36 @@ class LauncherSystemControllerTest {
     }
 
     @Test
-    fun `boot opt in asks for overlay permission and refusal keeps the choice`() = runTest {
+    fun `boot opt in shows the overlay sub step without opening anything and refusal keeps the choice`() = runTest {
         val store = Store()
         val platform = Platform()
         val controller = controller(store, platform)
-        controller.activate(SystemControl.BOOT_START)
-        assertTrue(controller.state.value.showOverlayConfirmation)
+        controller.activate(GuideStep.BOOT)
         assertTrue(store.launcherSystem.value.bootStart.enabled)
         assertTrue(platform.opened.isEmpty())
-        controller.declineOverlay()
-        assertFalse(controller.state.value.showOverlayConfirmation)
-        assertTrue(controller.state.value.bootEnabled)
-        assertTrue(store.launcherSystem.value.bootStart.enabled)
-        assertEquals(SystemControl.BOOT_START, controller.state.value.focusReturn)
-        controller.activate(SystemControl.BOOT_START)
-        assertFalse(controller.state.value.showOverlayConfirmation)
-        controller.activate(SystemControl.BOOT_START)
-        assertTrue(controller.state.value.showOverlayConfirmation)
-        controller.confirmOverlay()
-        assertFalse(controller.state.value.showOverlayConfirmation)
+        assertTrue(GuideStep.OVERLAY in LauncherGuide.steps(controller.state.value).map { it.step })
+        controller.activate(GuideStep.OVERLAY)
         assertEquals(SystemControlState.PENDING, controller.state.value.overlay)
+        assertEquals(GuideStep.OVERLAY, controller.state.value.focusReturn)
         assertEquals(listOf("overlay"), platform.opened)
         controller.onResume()
         assertEquals(SystemControlState.INACTIVE, controller.state.value.overlay)
         assertTrue(store.launcherSystem.value.bootStart.enabled)
         platform.overlay = SystemControlState.ACTIVE
         controller.onResume()
-        controller.activate(SystemControl.BOOT_START)
-        controller.activate(SystemControl.BOOT_START)
-        assertFalse(controller.state.value.showOverlayConfirmation)
+        controller.activate(GuideStep.OVERLAY)
+        assertEquals(1, platform.opened.size)
+        controller.activate(GuideStep.BOOT)
+        assertFalse(GuideStep.OVERLAY in LauncherGuide.steps(controller.state.value).map { it.step })
     }
 
     @Test
-    fun `missing overlay screen refuses boot opt in without a confirmation`() = runTest {
+    fun `missing overlay screen refuses boot opt in`() = runTest {
         val store = Store()
         val platform = Platform().apply { overlay = SystemControlState.UNAVAILABLE }
         val controller = controller(store, platform)
         assertTrue(controller.state.value.bootBlocked)
-        controller.activate(SystemControl.BOOT_START)
-        assertFalse(controller.state.value.showOverlayConfirmation)
+        controller.activate(GuideStep.BOOT)
         assertFalse(controller.state.value.bootEnabled)
         assertFalse(store.launcherSystem.value.bootStart.enabled)
         assertEquals(0, store.bootWrites)
@@ -309,9 +309,8 @@ class LauncherSystemControllerTest {
         platform.overlay = SystemControlState.ACTIVE
         controller.onResume()
         assertFalse(controller.state.value.bootBlocked)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertTrue(controller.state.value.bootEnabled)
-        assertFalse(controller.state.value.showOverlayConfirmation)
     }
 
     @Test
@@ -319,20 +318,18 @@ class LauncherSystemControllerTest {
         val store = Store()
         val platform = Platform().apply { succeeds = false }
         val controller = controller(store, platform)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertTrue(store.launcherSystem.value.bootStart.enabled)
-        controller.confirmOverlay()
+        controller.activate(GuideStep.OVERLAY)
         assertEquals(SystemControlState.UNAVAILABLE, controller.state.value.overlay)
-        assertFalse(controller.state.value.showOverlayConfirmation)
-        assertEquals(SystemControl.BOOT_START, controller.state.value.focusReturn)
+        assertEquals(GuideStep.BOOT, controller.state.value.focusReturn)
         assertFalse(controller.state.value.bootEnabled)
         assertFalse(store.launcherSystem.value.bootStart.enabled)
         assertTrue(controller.state.value.bootBlocked)
         controller.onResume()
         assertEquals(SystemControlState.UNAVAILABLE, controller.state.value.overlay)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertFalse(controller.state.value.bootEnabled)
-        assertFalse(controller.state.value.showOverlayConfirmation)
         assertEquals(1, platform.opened.size)
         platform.overlay = SystemControlState.ACTIVE
         controller.onResume()
@@ -348,7 +345,7 @@ class LauncherSystemControllerTest {
         val controller = controller(store, Platform().apply { overlay = SystemControlState.UNAVAILABLE })
         assertTrue(controller.state.value.bootEnabled)
         assertFalse(controller.state.value.bootBlocked)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertFalse(store.launcherSystem.value.bootStart.enabled)
         assertTrue(controller.state.value.bootBlocked)
     }
@@ -357,14 +354,14 @@ class LauncherSystemControllerTest {
     fun `rapid toggles follow each press while writes are pending`() = runTest {
         val store = Store().apply { gate = CompletableDeferred() }
         val controller = controller(store)
-        controller.activate(SystemControl.BOOT_START)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
+        controller.activate(GuideStep.BOOT)
         assertFalse(controller.state.value.bootEnabled)
         assertEquals(2, store.bootWrites)
         store.gate!!.complete(Unit)
         assertFalse(store.launcherSystem.value.bootStart.enabled)
         assertFalse(controller.state.value.bootEnabled)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertTrue(controller.state.value.bootEnabled)
         assertTrue(store.launcherSystem.value.bootStart.enabled)
     }
@@ -373,35 +370,83 @@ class LauncherSystemControllerTest {
     fun `boot toggle records the current boot and never reports the current boot as failed`() = runTest {
         val store = Store()
         val controller = controller(store)
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertEquals(8, store.launcherSystem.value.bootStart.enabledAtBoot)
         assertFalse(controller.state.value.bootNotObserved)
-        controller.declineOverlay()
-        controller.activate(SystemControl.BOOT_START)
+        controller.activate(GuideStep.BOOT)
         assertFalse(controller.state.value.bootEnabled)
         assertFalse(store.launcherSystem.value.bootStart.enabled)
     }
 
     @Test
-    fun `foreground home is ignored during startup then closes onboarding and confirmation`() = runTest {
+    fun `foreground home is ignored during startup then closes the automatic guide for good`() = runTest {
         val store = Store()
         val platform = Platform()
         val controller = controller(store, platform)
         controller.onHome()
         assertEquals(0L, controller.state.value.homeRequest)
-        assertFalse(store.launcherSystem.value.onboardingDismissed)
+        assertFalse(store.launcherSystem.value.guideSeen)
         controller.onStartupFinished()
         controller.onPermissionFinished()
-        assertTrue(controller.state.value.showOnboarding)
-        controller.activate(SystemControl.BOOT_START)
-        assertTrue(controller.state.value.showOverlayConfirmation)
+        assertEquals(GuideOrigin.AUTOMATIC, controller.state.value.guide)
         controller.onHome()
         assertEquals(1L, controller.state.value.homeRequest)
-        assertFalse(controller.state.value.showOnboarding)
-        assertFalse(controller.state.value.showOverlayConfirmation)
-        assertTrue(store.launcherSystem.value.onboardingDismissed)
+        assertFalse(controller.state.value.guideShown)
+        assertTrue(store.launcherSystem.value.guideSeen)
         controller.onHome()
         assertEquals(2L, controller.state.value.homeRequest)
         assertTrue(platform.opened.isEmpty())
+    }
+
+    @Test
+    fun `the guide opened from the settings closes back to the line without marking the automatic guide seen`() = runTest {
+        val store = Store().apply { launcherSystem.value = launcherSystem.value.copy(guideSeen = true) }
+        val controller = controller(store)
+        controller.onStartupFinished()
+        controller.onPermissionFinished()
+        assertNull(controller.state.value.guide)
+        controller.openGuide()
+        assertEquals(GuideOrigin.SETTINGS, controller.state.value.guide)
+        controller.closeGuide()
+        assertNull(controller.state.value.guide)
+        assertEquals(1L, controller.state.value.settingsFocus)
+        assertEquals(0, store.seenWrites)
+        controller.openGuide()
+        controller.onHome()
+        assertNull(controller.state.value.guide)
+        assertEquals(0, store.seenWrites)
+    }
+
+    @Test
+    fun `the automatic guide closed from settings origin never shows again and a new seen flag is written once`() = runTest {
+        val store = Store()
+        val controller = controller(store)
+        controller.onStartupFinished()
+        controller.onPermissionFinished()
+        controller.closeGuide()
+        controller.closeGuide()
+        assertEquals(1, store.seenWrites)
+        assertNull(controller.state.value.guide)
+    }
+
+    @Test
+    fun `accessibility is verified on resume and reread on connection changes unless its screen is open`() = runTest {
+        val platform = Platform()
+        val controller = controller(platform = platform)
+        val before = platform.verifications
+        controller.onResume()
+        assertEquals(before + 1, platform.verifications)
+        platform.accessibility = SystemControlState.BLOCKED
+        platform.changes.emit(Unit)
+        assertEquals(SystemControlState.BLOCKED, controller.state.value.accessibility)
+        controller.activate(GuideStep.ACCESSIBILITY)
+        assertEquals(SystemControlState.PENDING, controller.state.value.accessibility)
+        platform.accessibility = SystemControlState.ACTIVE
+        platform.changes.emit(Unit)
+        assertEquals(SystemControlState.PENDING, controller.state.value.accessibility)
+        controller.activate(GuideStep.ACCESSIBILITY)
+        assertEquals(1, platform.opened.size)
+        controller.onResume()
+        assertEquals(SystemControlState.ACTIVE, controller.state.value.accessibility)
     }
 }

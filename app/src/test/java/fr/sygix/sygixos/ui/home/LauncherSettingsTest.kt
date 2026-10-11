@@ -13,8 +13,6 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -23,11 +21,9 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.model.BootStartState
-import fr.sygix.sygixos.model.LauncherSystemPreferences
 import fr.sygix.sygixos.model.SystemControlState
 import fr.sygix.sygixos.ui.settings.SettingsCategory
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -39,7 +35,7 @@ import org.robolectric.annotation.Config
 class LauncherSettingsTest {
     @get:Rule val compose = createComposeRule()
     @get:Rule val viewModels = LauncherViewModelRule()
-    private val launcherRows = listOf("setting-home-role", "setting-boot-start", "setting-accessibility-home")
+    private val row = "setting-launcher-guide"
     private lateinit var launcher: LauncherSystemViewModel
 
     private fun open(store: FakeLauncherStore = FakeLauncherStore(), gateway: FakeLauncherGateway = FakeLauncherGateway()) {
@@ -68,89 +64,130 @@ class LauncherSettingsTest {
 
     private fun top(tag: String) = compose.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.top
 
+    private fun resume() {
+        compose.runOnIdle { launcher.onResume() }
+        compose.waitForIdle()
+    }
+
     private fun detail(tag: String) = compose.onNodeWithTag("$tag-detail", useUnmergedTree = true)
 
     private fun state(tag: String) = compose.onNodeWithTag("$tag-state", useUnmergedTree = true)
 
     @Test
-    fun `launcher rows follow up next rows in order and fit the TV screen`() {
+    fun `the launcher line follows the up next rows under its group title and fits the TV screen`() {
         open()
-        val order = listOf("setting-upnext-visible", "setting-upnext-position", "setting-launcher-group") + launcherRows
+        val order = listOf("setting-upnext-visible", "setting-upnext-position", "setting-launcher-group", row)
         order.zipWithNext().forEach { (above, below) -> assertTrue("$above above $below", top(above) < top(below)) }
         val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot.bottom
         val density = compose.density.density
         val position = compose.onNodeWithTag("setting-upnext-position").fetchSemanticsNode().boundsInRoot
         val title = compose.onNodeWithTag("setting-launcher-group", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-        val firstRow = compose.onNodeWithTag(launcherRows.first()).fetchSemanticsNode().boundsInRoot
+        val line = compose.onNodeWithTag(row).fetchSemanticsNode().boundsInRoot
         assertEquals(position.bottom, title.top, 1f)
-        assertEquals(title.bottom, firstRow.top, 1f)
+        assertEquals(title.bottom, line.top, 1f)
         val textHeight = title.height / density - (Dimens.SettingsGroupTitleTop + Dimens.SettingsGroupTitleBottom).value
         assertTrue("group title text $textHeight dp", textHeight in 10f..24f)
-        assertTrue(compose.onNodeWithTag(launcherRows.last()).fetchSemanticsNode().boundsInRoot.bottom <= screen)
+        assertTrue(line.bottom <= screen)
         compose.onNodeWithTag("setting-launcher-group", useUnmergedTree = true)
             .assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.Focused))
-        compose.onNodeWithTag("setting-boot-start").assertIsOff()
-        detail("setting-home-role").assertTextEquals("SygixOs devient l’écran d’accueil de la TV")
-        detail("setting-boot-start").assertTextEquals("Ouvrir SygixOs quand la TV s’allume")
-        detail("setting-accessibility-home").assertTextEquals("Revenir à SygixOs quand la touche Home ouvre l’accueil du constructeur")
-        state("setting-home-role").assertTextEquals("Inactif")
-        state("setting-accessibility-home").assertTextEquals("Inactif")
+        listOf("setting-home-role", "setting-boot-start", "setting-accessibility-home", "onboarding-row-boot").forEach {
+            compose.onNodeWithTag(it).assertDoesNotExist()
+        }
         assertEquals(listOf(SettingsCategory.SOURCES, SettingsCategory.HIDDEN, SettingsCategory.HOME_SCREEN, SettingsCategory.ABOUT), SettingsCategory.entries)
     }
 
     @Test
-    fun `dpad walks every row without the group title wrapping or escaping`() {
+    fun `dpad walks every line without the group title wrapping or escaping`() {
         open()
         press(Key.DirectionDown)
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
-        repeat(4) { index ->
+        repeat(2) {
             press(Key.DirectionDown)
-            compose.onNodeWithTag(launcherRows[index.coerceAtMost(2)]).assertIsFocused()
+            compose.onNodeWithTag(row).assertIsFocused()
         }
-        val up = listOf("setting-boot-start", "setting-home-role", "setting-upnext-position", "setting-upnext-visible")
-        up.forEach { tag ->
-            press(Key.DirectionUp)
-            compose.onNodeWithTag(tag).assertIsFocused()
-        }
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("setting-upnext-visible").assertIsFocused()
         repeat(2) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("setting-home-role").assertIsFocused()
+        compose.onNodeWithTag(row).assertIsFocused()
         press(Key.DirectionRight)
-        compose.onNodeWithTag("setting-home-role").assertIsFocused()
+        compose.onNodeWithTag(row).assertIsFocused()
         press(Key.DirectionLeft)
         compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
         press(Key.DirectionRight)
         repeat(2) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("setting-home-role").assertIsFocused()
+        compose.onNodeWithTag(row).assertIsFocused()
         press(Key.Back)
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
     }
 
     @Test
-    fun `state is reread on return and focus comes back to the opener`() {
-        val gateway = FakeLauncherGateway()
-        open(gateway = gateway)
-        repeat(4) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("setting-accessibility-home").assertIsFocused()
+    fun `the guide opens over the settings and gives the focus back to the line without touching the seen flag`() {
+        val store = FakeLauncherStore()
+        open(store)
+        repeat(2) { press(Key.DirectionDown) }
         press(Key.DirectionCenter)
-        state("setting-accessibility-home").assertTextEquals("En attente…")
-        compose.onNodeWithTag("setting-accessibility-home-dot", useUnmergedTree = true).assertExists()
-        compose.runOnIdle {
-            gateway.accessibility = SystemControlState.ACTIVE
-            gateway.home = SystemControlState.ACTIVE
-            launcher.onResume()
-        }
+        compose.onNodeWithTag("onboarding-launcher").assertExists()
+        compose.onNodeWithTag("settings-home-screen").assertExists()
+        compose.onNodeWithTag("onboarding-step-accessibility").assertIsFocused()
+        press(Key.Back)
+        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag("settings-screen").assertExists()
+        compose.onNodeWithTag(row).assertIsFocused()
+        press(Key.DirectionCenter)
+        compose.onNodeWithTag("onboarding-launcher").assertExists()
+        repeat(3) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("onboarding-done").assertIsFocused()
+        press(Key.DirectionCenter)
+        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag(row).assertIsFocused()
         compose.waitForIdle()
-        state("setting-accessibility-home").assertTextEquals("Actif")
-        state("setting-home-role").assertTextEquals("Actif")
-        compose.onNodeWithTag("setting-accessibility-home").assertIsFocused()
-        assertEquals(listOf("accessibility"), gateway.opened)
+        assertEquals(0, store.seenWrites)
     }
 
     @Test
-    fun `closing the position dropdown never pulls focus to a launcher row`() {
+    fun `home while the guide is open over the settings closes everything`() {
         open()
         repeat(2) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("setting-home-role").assertIsFocused()
+        press(Key.DirectionCenter)
+        compose.runOnIdle { launcher.onHome() }
+        compose.waitForIdle()
+        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag("settings-screen").assertDoesNotExist()
+        compose.onNodeWithTag("zone-hero").assertIsFocused()
+    }
+
+    @Test
+    fun `the line sums up the guide`() {
+        val gateway = FakeLauncherGateway(accessibility = SystemControlState.ACTIVE)
+        val store = FakeLauncherStore()
+        open(store, gateway)
+        state(row).assertTextEquals("Partiel")
+        detail(row).assertTextEquals("Démarrage à l’allumage à terminer")
+        compose.onNodeWithTag("$row-dot", useUnmergedTree = true).assertDoesNotExist()
+        gateway.overlay = SystemControlState.ACTIVE
+        compose.runOnIdle { store.launcherSystem.value = store.launcherSystem.value.copy(bootStart = BootStartState(enabled = true)) }
+        resume()
+        state(row).assertTextEquals("Terminé")
+        detail(row).assertTextEquals("Toutes les étapes sont faites")
+        compose.onNodeWithTag("$row-dot", useUnmergedTree = true).assertExists()
+        gateway.accessibility = SystemControlState.BLOCKED
+        resume()
+        state(row).assertTextEquals("Bloqué")
+        detail(row).assertTextEquals("Touche Home bloquée par la TV")
+        gateway.accessibility = SystemControlState.INACTIVE
+        compose.runOnIdle { store.launcherSystem.value = store.launcherSystem.value.copy(bootStart = BootStartState()) }
+        resume()
+        state(row).assertTextEquals("À faire")
+        detail(row).assertTextEquals("Touche Home et démarrage à l’allumage à terminer")
+    }
+
+    @Test
+    fun `closing the position dropdown never pulls focus to the launcher line`() {
+        open()
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag(row).assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
         press(Key.DirectionCenter)
@@ -158,107 +195,6 @@ class LauncherSettingsTest {
         compose.waitForIdle()
         compose.onNodeWithTag("setting-upnext-position-list").assertDoesNotExist()
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
-        compose.onNodeWithTag("setting-home-role").assertIsNotFocused()
-    }
-
-    @Test
-    fun `system screen that cannot open turns the control unavailable and inert`() {
-        val gateway = FakeLauncherGateway(succeeds = false)
-        open(gateway = gateway)
-        repeat(4) { press(Key.DirectionDown) }
-        press(Key.DirectionCenter)
-        state("setting-accessibility-home").assertTextEquals("Indisponible")
-        detail("setting-accessibility-home").assertTextEquals("Les réglages d’accessibilité ne peuvent pas s’ouvrir sur cette TV")
-        compose.onNodeWithTag("setting-accessibility-home").assertIsFocused()
-        compose.runOnIdle { launcher.onResume() }
-        compose.waitForIdle()
-        state("setting-accessibility-home").assertTextEquals("Indisponible")
-        press(Key.DirectionCenter)
-        assertEquals(listOf("accessibility"), gateway.opened)
-        press(Key.DirectionUp)
-        press(Key.DirectionUp)
-        press(Key.DirectionCenter)
-        state("setting-home-role").assertTextEquals("Indisponible")
-        detail("setting-home-role").assertTextEquals("Cette TV ne permet pas de changer l’écran d’accueil")
-        press(Key.DirectionUp)
-        compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
-    }
-
-    @Test
-    fun `unobserved automatic start only changes the boot detail`() {
-        val store = FakeLauncherStore(LauncherSystemPreferences(bootStart = BootStartState(enabled = true, enabledAtBoot = 7)))
-        val gateway = FakeLauncherGateway(boot = 8)
-        open(store, gateway)
-        detail("setting-boot-start").assertTextEquals("SygixOs ne s’est pas ouvert automatiquement à ce démarrage")
-        compose.onNodeWithTag("setting-boot-start").assertIsOn()
-        compose.runOnIdle { launcher.onBootObserved() }
-        compose.waitForIdle()
-        detail("setting-boot-start").assertTextEquals("Ouvrir SygixOs quand la TV s’allume")
-        compose.runOnIdle {
-            gateway.boot = 9
-            launcher.onResume()
-        }
-        compose.waitForIdle()
-        detail("setting-boot-start").assertTextEquals("SygixOs ne s’est pas ouvert automatiquement à ce démarrage")
-        repeat(3) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("setting-boot-start").assertIsFocused()
-        press(Key.DirectionCenter)
-        compose.onNodeWithTag("setting-boot-start").assertIsOff().assertIsFocused()
-        detail("setting-boot-start").assertTextEquals("Ouvrir SygixOs quand la TV s’allume")
-        press(Key.DirectionCenter)
-        compose.onNodeWithTag("launcher-overlay-decline").assertExists()
-        press(Key.Back)
-        compose.onNodeWithTag("setting-boot-start").assertIsOn().assertIsFocused()
-        detail("setting-boot-start").assertTextEquals("Ouvrir SygixOs quand la TV s’allume")
-        assertEquals(9, store.boot.enabledAtBoot)
-    }
-
-    @Test
-    fun `boot start is unavailable and refused without an overlay settings screen`() {
-        val store = FakeLauncherStore()
-        val gateway = FakeLauncherGateway(overlay = SystemControlState.UNAVAILABLE)
-        open(store, gateway)
-        repeat(3) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("setting-boot-start").assertIsFocused()
-        state("setting-boot-start").assertTextEquals("Indisponible")
-        detail("setting-boot-start").assertTextEquals("Cette TV ne permet pas d’autoriser l’ouverture au démarrage")
-        compose.onNodeWithTag("setting-boot-start-switch", useUnmergedTree = true).assertDoesNotExist()
-        compose.onNodeWithTag("setting-boot-start-dot", useUnmergedTree = true).assertDoesNotExist()
-        press(Key.DirectionCenter)
-        compose.onNodeWithTag("launcher-overlay-confirmation").assertDoesNotExist()
-        compose.onNodeWithTag("setting-boot-start").assertIsFocused()
-        state("setting-boot-start").assertTextEquals("Indisponible")
-        assertFalse(store.boot.enabled)
-        assertTrue(gateway.opened.isEmpty())
-    }
-
-    @Test
-    fun `inactive accessibility service never prompts again by itself`() {
-        val gateway = FakeLauncherGateway(accessibility = SystemControlState.INACTIVE)
-        open(gateway = gateway)
-        state("setting-accessibility-home").assertTextEquals("Inactif")
-        compose.runOnIdle { launcher.onResume() }
-        compose.waitForIdle()
-        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
-        compose.onNodeWithTag("launcher-overlay-confirmation").assertDoesNotExist()
-        state("setting-accessibility-home").assertTextEquals("Inactif")
-        assertTrue(gateway.opened.isEmpty())
-        repeat(3) { press(Key.DirectionDown) }
-        press(Key.DirectionCenter)
-        compose.onNodeWithTag("setting-boot-start").assertIsOn()
-    }
-
-    @Test
-    fun `active accessibility service is shown active and still opens system settings`() {
-        val gateway = FakeLauncherGateway(accessibility = SystemControlState.ACTIVE)
-        open(gateway = gateway)
-        state("setting-accessibility-home").assertTextEquals("Actif")
-        compose.onNodeWithTag("setting-accessibility-home-dot", useUnmergedTree = true).assertExists()
-        repeat(4) { press(Key.DirectionDown) }
-        press(Key.DirectionCenter)
-        assertEquals(listOf("accessibility"), gateway.opened)
-        compose.runOnIdle { launcher.onResume() }
-        compose.waitForIdle()
-        state("setting-accessibility-home").assertTextEquals("Actif")
+        compose.onNodeWithTag(row).assertIsNotFocused()
     }
 }

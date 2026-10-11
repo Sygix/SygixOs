@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.flow.first
@@ -34,7 +35,7 @@ class LauncherSystemPrefsTest {
         prefs.setPinned(setOf("com.example.tv"))
         val before = context.dataStore.data.first()
         val state = prefs.launcherSystem.first()
-        assertFalse(state.onboardingDismissed)
+        assertFalse(state.guideSeen)
         assertFalse(state.bootStart.enabled)
         assertNull(state.bootStart.enabledAtBoot)
         assertNull(state.bootStart.observedAtBoot)
@@ -43,12 +44,20 @@ class LauncherSystemPrefsTest {
     }
 
     @Test
+    fun `an installation that closed the former presentation still sees the guided setup once`() = runBlocking {
+        context.dataStore.edit { it[booleanPreferencesKey("launcher_onboarding_dismissed")] = true }
+        assertFalse(prefs.launcherSystem.first().guideSeen)
+        prefs.markLauncherGuideSeen()
+        assertTrue(LauncherPrefs(context).launcherSystem.first().guideSeen)
+    }
+
+    @Test
     fun `onboarding dismissal survives a new preferences instance without changing user choices`() = runBlocking {
         prefs.setPinned(setOf("com.example.tv"))
         prefs.setBootStartEnabled(true, 7)
-        prefs.dismissLauncherOnboarding()
+        prefs.markLauncherGuideSeen()
         val state = LauncherPrefs(context).launcherSystem.first()
-        assertTrue(state.onboardingDismissed)
+        assertTrue(state.guideSeen)
         assertTrue(state.bootStart.enabled)
         assertEquals(7, state.bootStart.enabledAtBoot)
         assertEquals(setOf("com.example.tv"), prefs.pinned.first())
@@ -62,7 +71,7 @@ class LauncherSystemPrefsTest {
         assertEquals(7, boot.enabledAtBoot)
         assertFalse(boot.notObserved(7))
         assertTrue(boot.notObserved(8))
-        assertFalse(prefs.launcherSystem.first().onboardingDismissed)
+        assertFalse(prefs.launcherSystem.first().guideSeen)
     }
 
     @Test
@@ -108,6 +117,6 @@ class LauncherSystemPrefsTest {
         val state = prefs.launcherSystem.first()
         assertFalse(state.bootStart.enabled)
         assertFalse(state.bootStart.notObserved(8))
-        assertFalse(state.onboardingDismissed)
+        assertFalse(state.guideSeen)
     }
 }

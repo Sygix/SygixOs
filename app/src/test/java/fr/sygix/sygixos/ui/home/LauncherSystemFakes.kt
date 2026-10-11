@@ -18,11 +18,14 @@ import org.junit.rules.ExternalResource
 
 internal class FakeLauncherStore(prefs: LauncherSystemPreferences = LauncherSystemPreferences()) : LauncherSystemStore {
     override val launcherSystem = MutableStateFlow(prefs)
-    val dismissed: Boolean get() = launcherSystem.value.onboardingDismissed
+    val dismissed: Boolean get() = launcherSystem.value.guideSeen
     val boot: BootStartState get() = launcherSystem.value.bootStart
 
-    override suspend fun dismissLauncherOnboarding() {
-        launcherSystem.value = launcherSystem.value.copy(onboardingDismissed = true)
+    var seenWrites = 0
+
+    override suspend fun markLauncherGuideSeen() {
+        seenWrites++
+        launcherSystem.value = launcherSystem.value.copy(guideSeen = true)
     }
 
     override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {
@@ -44,6 +47,10 @@ internal class FakeLauncherGateway(
     var succeeds: Boolean = true,
 ) : LauncherSystemGateway {
     val opened = mutableListOf<String>()
+    val accessibilityUpdates = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    var verifications = 0
+    override fun verifyAccessibility() { verifications++ }
+    override fun accessibilityChanges() = accessibilityUpdates
     override fun homeRoleState() = home
     override fun accessibilityState() = accessibility
     override fun overlayState() = overlay
@@ -70,7 +77,7 @@ class LauncherViewModelRule : ExternalResource() {
         onboarding: Boolean = false,
     ): LauncherSystemViewModel {
         if (!onboarding && store is FakeLauncherStore) {
-            store.launcherSystem.value = store.launcherSystem.value.copy(onboardingDismissed = true)
+            store.launcherSystem.value = store.launcherSystem.value.copy(guideSeen = true)
         }
         val factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

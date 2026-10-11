@@ -167,7 +167,7 @@ class UpNextSettingsHomeTest {
         press(Key.DirectionDown)
         node("setting-upnext-position").assertIsFocused()
         press(Key.DirectionDown)
-        node("setting-home-role").assertIsFocused()
+        node("setting-launcher-guide").assertIsFocused()
         press(Key.DirectionUp)
         node("setting-upnext-position").assertIsFocused()
         press(Key.DirectionRight)

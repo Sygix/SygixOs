@@ -23,7 +23,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.data.dataStore
-import fr.sygix.sygixos.model.SystemControl
+import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.SystemControlState
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -158,6 +158,17 @@ class MainActivityLauncherTest {
     }
 
     @Test
+    fun `a boot opening received in front is never handled as the home key`() {
+        val controller = launch()
+        val launcher = launcherOf(controller)
+        launcher.onStartupFinished()
+        controller.deliverInFront(LauncherSystemIntents.boot(context))
+        assertEquals(0L, launcher.state.value.homeRequest)
+        controller.deliverInFront(LauncherSystemIntents.home(context, wasForeground = true))
+        assertEquals(1L, launcher.state.value.homeRequest)
+    }
+
+    @Test
     fun `boot intents record the observed opening at creation and on new intent`() {
         Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 5)
         onIo { prefs.setBootStartEnabled(true, 4) }
@@ -175,12 +186,12 @@ class MainActivityLauncherTest {
         val launcher = launcherOf(controller)
         launcher.onStartupFinished()
         awaitMain { launcher.state.value.bootEnabled }
-        assertFalse(launcher.state.value.showOnboarding)
+        assertFalse(launcher.state.value.guideShown)
         val request = shadowOf(controller.get()).lastRequestedPermission
         assertNotNull(request)
         controller.get().onRequestPermissionsResult(request.requestCode, request.requestedPermissions, intArrayOf(PackageManager.PERMISSION_DENIED))
-        awaitMain { launcher.state.value.showOnboarding }
-        assertTrue(launcher.state.value.showOnboarding)
+        awaitMain { launcher.state.value.guideShown }
+        assertTrue(launcher.state.value.guideShown)
     }
 
     @Test
@@ -190,7 +201,7 @@ class MainActivityLauncherTest {
         val controller = launch()
         val launcher = launcherOf(controller)
         assertEquals(SystemControlState.INACTIVE, launcher.state.value.homeRole)
-        launcher.actions.activate(SystemControl.HOME_ROLE)
+        launcher.actions.activate(GuideStep.HOME_ROLE)
         val started = shadowOf(controller.get()).nextStartedActivityForResult
         assertNotNull(started)
         assertEquals("android.app.role.action.REQUEST_ROLE", started.intent.action)
@@ -233,7 +244,7 @@ class MainActivityLauncherTest {
         )
         val controller = launch()
         val launcher = launcherOf(controller)
-        launcher.actions.activate(SystemControl.HOME_ROLE)
+        launcher.actions.activate(GuideStep.HOME_ROLE)
         val started = shadowOf(controller.get()).nextStartedActivityForResult
         assertEquals("android.app.role.action.REQUEST_ROLE", started.intent.action)
         shadowOf(context as Application).clearNextStartedActivities()

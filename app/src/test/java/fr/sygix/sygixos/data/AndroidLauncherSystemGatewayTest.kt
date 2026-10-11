@@ -8,12 +8,20 @@ package fr.sygix.sygixos.data
 import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
+import android.provider.Settings
+import fr.sygix.sygixos.domain.AccessibilityRebind
 import fr.sygix.sygixos.model.SystemControlState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class AndroidLauncherSystemGatewayTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
@@ -24,17 +32,35 @@ class AndroidLauncherSystemGatewayTest {
     }
 
     @Test
-    fun `service must be enabled and running and states are always reread`() {
+    fun `service must be enabled and running, pending while the launch check runs and blocked after it`() = runTest {
         var enabled = false
-        var running = false
-        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { true }, { enabled }, { running }, { false }, { 2 })
+        val connected = MutableStateFlow(false)
+        val rebind = AccessibilityRebind({ enabled }, connected, {}, backgroundScope)
+        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { true }, { enabled }, { connected.value }, { false }, { 2 }, rebind)
         assertEquals(SystemControlState.INACTIVE, gateway.accessibilityState())
         enabled = true
-        assertEquals(SystemControlState.INACTIVE, gateway.accessibilityState())
-        running = true
+        assertEquals(SystemControlState.PENDING, gateway.accessibilityState())
+        gateway.verifyAccessibility()
+        advanceTimeBy(AccessibilityRebind.WAIT_MS * 2 + 1)
+        runCurrent()
+        assertEquals(SystemControlState.BLOCKED, gateway.accessibilityState())
+        connected.value = true
         assertEquals(SystemControlState.ACTIVE, gateway.accessibilityState())
         enabled = false
         assertEquals(SystemControlState.INACTIVE, gateway.accessibilityState())
+    }
+
+    @Test
+    fun `the secure setting decides whether the service is enabled`() {
+        val resolver = context.contentResolver
+        Settings.Secure.putString(resolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, "")
+        assertFalse(AndroidLauncherSystemGateway.serviceEnabledIn(context))
+        Settings.Secure.putString(
+            resolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+            "${context.packageName}/${HomeAccessibilityService::class.java.name}",
+        )
+        assertTrue(AndroidLauncherSystemGateway.serviceEnabledIn(context))
     }
 
     @Test

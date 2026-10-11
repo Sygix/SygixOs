@@ -74,17 +74,17 @@ class LauncherOnboardingFlowTest {
             launcher!!.state.value.preferencesLoaded
         }
         compose.waitForIdle()
-        assertFalse(launcher!!.state.value.showOnboarding)
+        assertFalse(launcher!!.state.value.guideShown)
         assertFalse(onboardingShown())
         compose.runOnIdle { launcher!!.onPermissionFinished() }
         compose.waitUntil(5_000) { onboardingShown() }
-        compose.onNodeWithTag("onboarding-row-home-role").assertIsFocused()
+        compose.onNodeWithTag("onboarding-step-accessibility").assertIsFocused()
         press(Key.Back)
         compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         compose.waitUntil(5_000) {
             compose.waitForIdle()
-            runBlocking { prefs.launcherSystem.first() }.onboardingDismissed
+            runBlocking { prefs.launcherSystem.first() }.guideSeen
         }
         assertTrue(gateway.opened.isEmpty())
         assertFalse(runBlocking { prefs.launcherSystem.first() }.bootStart.enabled)
@@ -99,7 +99,7 @@ class LauncherOnboardingFlowTest {
             launcher!!.state.value.bootEnabled
         }
         compose.waitForIdle()
-        assertFalse(launcher!!.state.value.showOnboarding)
+        assertFalse(launcher!!.state.value.guideShown)
         assertFalse(onboardingShown())
         assertTrue(gateway.opened.isEmpty())
     }
