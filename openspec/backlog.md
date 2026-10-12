@@ -114,3 +114,13 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 **Acceptation historique** : le 6 octobre 2026, Sygix a confirmé « J’ai aussi validé ces anciens changes sur la TV » pour le polish, le démarrage, les mises à jour intégrées et rc5/rc6 ; sa confirmation antérieure couvre `startup-fade-back`. Il s'agit d'une acceptation rapportée par le propriétaire, pas de tests exécutés par l'agente, ni de nouvelles mesures. Les tâches historiques exigeant un relevé ou une consignation détaillée restent non cochées dans les archives, avec cette réserve explicite. La cadence de la mascotte reste un écart accepté (sujet 2) ; la relance après mise à jour reste reportée (sujet 9).
 
 **Reste documentaire** : autorisation de la mise à jour protégée de `AGENTS.md`, publication de la PR, relecture indépendante et CI sur son SHA exact ; aucun nouveau choix produit.
+
+## 13. Autorisation de démarrage du constructeur réinitialisée au démarrage
+
+**Constat** (vérifications de `p7-default-launcher`, 2026-10-12/13, TV de référence TCL, Android 14) : le gestionnaire d'auto-démarrage du constructeur lit une politique (`AppBootPolicy`, fournisseur de contenu du constructeur) dont les listes `autoStartWhiteList` et `assocStartWhiteList` peuvent être modifiées par le shell (`content update`, deux-points échappés) et persistent après un redémarrage ; y inscrire SygixOs n'a pourtant aucun effet : sans l'opération `AUTO_START`, la liaison du service d'accessibilité et la fin du démarrage restent refusées. Sur cette TV, `AUTO_START` accordée par le shell persiste après un redémarrage complet. Des retours publics signalent d'autres firmwares TCL où `AUTO_START` revient à `ignore` à chaque démarrage.
+
+**Pistes** :
+- sur une TV qui réinitialise `AUTO_START`, vérifier si l'inscription dans les listes blanches de la politique devient utile, avec sauvegarde de la valeur d'origine et relecture ;
+- sinon, réaccorder `AUTO_START` à chaque configuration relancée, ce que P7 permet déjà.
+
+**Décision du propriétaire** : retiré de P7 le 2026-10-13 ; à reprendre seulement si une TV réinitialise `AUTO_START`.
