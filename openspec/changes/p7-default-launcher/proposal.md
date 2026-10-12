@@ -62,4 +62,4 @@ Nouvelle dépendance : un client ADB en Kotlin pour la connexion locale (`dev.mo
 
 ## Questions ouvertes
 
-Aucune. Les textes définitifs sont ceux de la maquette « 8. Launcher principal » (écrans 8.1 à 8.17), vérifiés le 2026-10-12. Les décisions du propriétaire du 2026-10-12 sont dans `design.md`, section « Décisions du propriétaire ».
+Aucune. Les textes définitifs sont ceux de la maquette « 8. Launcher principal » (page « TV · Launcher principal », écrans 8.1 à 8.21), vérifiés le 2026-10-12. Les décisions du propriétaire du 2026-10-12 sont dans `design.md`, section « Décisions du propriétaire ».

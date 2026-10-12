@@ -1,6 +1,6 @@
 # Spec Delta
 
-Le parcours, le panneau « Launcher principal » et leurs effets sont décrits par `launcher-shell` (« Parcours de l'écran d'accueil », « Panneau Launcher principal ») ; ce delta ne décrit que la ligne de la catégorie « Écran d'accueil » (maquette 8.15).
+Le parcours, le panneau « Launcher principal » et leurs effets sont décrits par `launcher-shell` (« Parcours de l'écran d'accueil », « Panneau Launcher principal ») ; ce delta ne décrit que la ligne de la catégorie « Écran d'accueil » (maquette 8.15 et ses états 8.18 à 8.20).
 
 ## MODIFIED Requirements
 
@@ -21,7 +21,7 @@ La catégorie « Écran d'accueil » SHALL contenir, après « Afficher À suivr
 
 #### Scenario: synthèse partielle
 - **WHEN** la voie automatique est à configurer et qu'une partie seulement des lignes de la voie par autorisations est faite
-- **THEN** la ligne affiche l'état « En partie », sans pastille, et le détail « Automatique : à configurer · Par autorisations : en partie »
+- **THEN** la ligne affiche l'état « En partie », sans pastille, et le détail « Automatique : à configurer · Par autorisations : en partie » (maquette 8.18)
 
 #### Scenario: synthèse terminée
 - **WHEN** la voie automatique est active et que la voie par autorisations n'est pas utilisée
@@ -29,11 +29,11 @@ La catégorie « Écran d'accueil » SHALL contenir, après « Afficher À suivr
 
 #### Scenario: touche Home bloquée
 - **WHEN** la voie par autorisations est bloquée et que la voie automatique est à configurer
-- **THEN** la ligne affiche l'état « Bloqué », sans pastille, et le détail « Automatique : à configurer · Par autorisations : bloquée »
+- **THEN** la ligne affiche l'état « Bloqué », sans pastille, et le détail « Automatique : à configurer · Par autorisations : bloquée » (maquette 8.19)
 
 #### Scenario: rien de fait
 - **WHEN** aucune voie n'est utilisée
-- **THEN** la ligne affiche l'état « À configurer », sans pastille, et le détail « Automatique : à configurer · Par autorisations : à faire »
+- **THEN** la ligne affiche l'état « À configurer », sans pastille, et le détail « Automatique : à configurer · Par autorisations : à faire » (maquette 8.20)
 
 #### Scenario: état relu au retour
 - **WHEN** SygixOs revient au premier plan après un écran système ouvert depuis le parcours, après tout passage en arrière-plan, ou à la fin d'une séquence de la configuration automatique

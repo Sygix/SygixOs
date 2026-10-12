@@ -16,7 +16,7 @@ Les tâches 1.1 à 1.8 précèdent toute implémentation. Chaque résultat est c
 ## 2. Décisions et maquettes
 
 - [x] 2.1 Vérifier que les quatre deltas MODIFIED conservent les scénarios des specs principales `launcher-shell`, `settings`, `ui-testing` et `up-next` qui restent valables ; `openspec validate p7-default-launcher --strict` passe.
-- [ ] 2.2 Maquettes Penpot : rangée « 8. Launcher principal » (écrans 8.1 à 8.17) réalisée et textes vérifiés et reportés dans la spec le 2026-10-12 ; reste la validation du propriétaire sur la version « Textes vérifiés (Claude, 2026-10-12) », puis les dimensions finales dans `design.md` (D7) ; tout libellé corrigé par les tâches 1.x est reporté dans la maquette et la spec.
+- [ ] 2.2 Maquettes Penpot : rangée « 8. Launcher principal » de la page « TV · Launcher principal » (écrans 8.1 à 8.21) réalisée et textes vérifiés et reportés dans la spec le 2026-10-12 ; reste la validation du propriétaire sur la version « Textes vérifiés (Claude, 2026-10-12) », puis les dimensions finales dans `design.md` (D7) ; tout libellé corrigé par les tâches 1.x est reporté dans la maquette et la spec.
 
 ## 3. Socle d'accès
 
