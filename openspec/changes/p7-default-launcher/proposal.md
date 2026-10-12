@@ -14,8 +14,8 @@ Terme : l'**accueil d'origine** désigne l'écran d'accueil fourni avec la TV (l
 
 - Le parcours guidé « Faire de SygixOs l'écran d'accueil » devient un choix entre deux voies, présenté au premier lancement (avec « Plus tard ») et rouvert depuis les réglages :
   - **Configuration automatique** (recommandée) : un guide en étapes numérotées fait activer le débogage, SygixOs se connecte à l'ADB de l'appareil et l'utilisateur accepte sa clé une fois ; SygixOs enchaîne ensuite, sur une seule action, l'autorisation de démarrage automatique du constructeur, sa définition comme écran d'accueil par le système puis la vérification de l'écran d'accueil effectif. Si l'accueil d'origine garde la main, SygixOs propose de le désactiver, avec une confirmation qui dit ce qui sera perdu ; si l'utilisateur refuse ou que c'est impossible, SygixOs pose automatiquement les solutions de repli (service d'accessibilité pour la touche Home, affichage superposé et ouverture à l'allumage).
-  - **Par autorisations** : les étapes P5 (touche Home, ouverture à l'allumage, écran d'accueil par défaut), nommées par leur effet, avec la limite annoncée : sur certaines TV, après un redémarrage complet, il faut appuyer une fois sur Home.
-- Les réglages gardent une seule ligne, « Configurer SygixOs comme launcher principal », qui résume l'état des deux voies et rouvre le parcours ; la configuration automatique peut y être relancée et l'accueil d'origine rétabli.
+  - **Par autorisations** : les étapes P5 de la touche Home et de l'ouverture à l'allumage, nommées par leur effet, plus l'écran d'auto-démarrage du constructeur quand la TV en a un, avec la limite annoncée : sur certaines TV, l'accueil Google TV peut reprendre la main après un redémarrage complet. L'étape facultative « Définir SygixOs par défaut » disparaît : l'écran d'accueil est défini par la configuration automatique.
+- Les réglages gardent une seule ligne, « Configurer SygixOs comme launcher principal », qui résume l'état des deux voies et ouvre le panneau « Launcher principal » : état de chaque voie, « Relancer la configuration », « Rétablir l'accueil Google TV ».
 - Un lien « Détails » liste, en clair, ce que SygixOs a modifié ou va modifier (opérations, composants, autorisations) ; l'interface principale ne parle que des effets pour l'utilisateur.
 - Sur les TV TCL dont l'autorisation de démarrage se réinitialise, la configuration automatique ajoute aussi SygixOs aux listes blanches de la politique d'auto-démarrage du constructeur, après sauvegarde de la valeur d'origine et avec relecture ; une mise à jour du constructeur peut l'écraser, la configuration peut être relancée.
 - Sur une TV dont le débogage n'expose pas de port ADB réseau, la voie automatique est « Indisponible sur cette TV » et renvoie à la voie « Par autorisations ».
@@ -35,9 +35,9 @@ Terme : l'**accueil d'origine** désigne l'écran d'accueil fourni avec la TV (l
 
 ### Modified Capabilities
 
-- `launcher-shell` : accès par le débogage, configuration automatique, état de l'écran d'accueil, désactivation et rétablissement de l'accueil d'origine, démarrage automatique du constructeur, opérations privilégiées limitées, détails des modifications, débogage après la configuration (ADDED) ; parcours guidé, rôle d'écran d'accueil, démarrage à l'allumage, permission d'affichage superposé et service d'accessibilité (MODIFIED : choix des deux voies, accord par la configuration automatique).
-- `settings` : « Réglages du launcher système » (MODIFIED : ligne « Configurer SygixOs comme launcher principal » et synthèse des deux voies).
-- `ui-testing` : couverture de la configuration automatique (ADDED) ; « Couverture des parcours du launcher système » et « Sélecteurs du launcher système » (MODIFIED).
+- `launcher-shell` : parcours de l'écran d'accueil, accès par le débogage, écrans du débogage, configuration automatique, page « Par autorisations », panneau « Launcher principal », état de l'écran d'accueil, désactivation et rétablissement de l'accueil d'origine, démarrage automatique du constructeur, opérations privilégiées limitées, détails des modifications, débogage après la configuration (ADDED) ; démarrage à l'allumage, permission d'affichage superposé et service d'accessibilité (MODIFIED) ; « Parcours guidé du launcher » et « Rôle d'écran d'accueil » (REMOVED, remplacés).
+- `settings` : « Réglages du launcher système » (MODIFIED : ligne « Configurer SygixOs comme launcher principal », synthèse des deux voies, ouverture du panneau « Launcher principal »).
+- `ui-testing` : couverture du parcours de l'écran d'accueil, couverture de la configuration automatique, sélecteurs de l'écran d'accueil (ADDED) ; « Couverture des parcours du launcher système » et « Sélecteurs du launcher système » (REMOVED, remplacées).
 - `up-next` : MODIFIED « Modèle canonique » et « Dédoublonnage en niveaux » ; l'enrichissement BetaSeries devient P9 après l'insertion de P7 et de la recherche en P8.
 
 ### Dépendances
@@ -62,4 +62,4 @@ Nouvelle dépendance : un client ADB en Kotlin pour la connexion locale (`dev.mo
 
 ## Questions ouvertes
 
-Seuls les textes et libellés définitifs restent ouverts, jusqu'à la maquette (`design.md`, « Questions ouvertes »). Les décisions du propriétaire du 2026-10-12 sont dans `design.md`, section « Décisions du propriétaire ».
+Aucune. Les textes définitifs sont ceux de la maquette « 8. Launcher principal » (écrans 8.1 à 8.17), vérifiés le 2026-10-12. Les décisions du propriétaire du 2026-10-12 sont dans `design.md`, section « Décisions du propriétaire ».
