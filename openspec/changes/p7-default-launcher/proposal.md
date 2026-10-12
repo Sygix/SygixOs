@@ -17,6 +17,9 @@ Terme : l'**accueil d'origine** désigne l'écran d'accueil fourni avec la TV (l
   - **Par autorisations** : les étapes P5 (touche Home, ouverture à l'allumage, écran d'accueil par défaut), nommées par leur effet, avec la limite annoncée : sur certaines TV, après un redémarrage complet, il faut appuyer une fois sur Home.
 - Les réglages gardent une seule ligne, « Configurer SygixOs comme launcher principal », qui résume l'état des deux voies et rouvre le parcours ; la configuration automatique peut y être relancée et l'accueil d'origine rétabli.
 - Un lien « Détails » liste, en clair, ce que SygixOs a modifié ou va modifier (opérations, composants, autorisations) ; l'interface principale ne parle que des effets pour l'utilisateur.
+- Sur les TV TCL dont l'autorisation de démarrage se réinitialise, la configuration automatique ajoute aussi SygixOs aux listes blanches de la politique d'auto-démarrage du constructeur, après sauvegarde de la valeur d'origine et avec relecture ; une mise à jour du constructeur peut l'écraser, la configuration peut être relancée.
+- Sur une TV dont le débogage n'expose pas de port ADB réseau, la voie automatique est « Indisponible sur cette TV » et renvoie à la voie « Par autorisations ».
+- « Rétablir l'accueil Google TV » réactive l'accueil d'origine et rend l'écran d'accueil précédent ; les autorisations accordées restent, révocables dans Android.
 - Les opérations privilégiées sont fixes et limitées au paquet SygixOs et à l'ensemble fermé des composants de l'accueil d'origine ; aucune commande libre. La connexion ADB est ouverte seulement pendant une séquence demandée par l'utilisateur et sa clé ne quitte pas l'appareil.
 - Après une configuration réussie, SygixOs conseille de désactiver le débogage et explique qu'il faudra le réactiver pour rétablir l'accueil d'origine depuis SygixOs.
 - L'état (écran d'accueil effectif, accueil d'origine, rustines) est relu auprès du système à chaque retour au premier plan, sans débogage.
@@ -48,15 +51,15 @@ Nouvelle dépendance : un client ADB en Kotlin pour la connexion locale (`dev.mo
 
 ## Non-goals
 
-- Shizuku et ses gestionnaires compatibles : la passerelle d'accès privilégié est conçue pour accueillir plus tard un second moyen d'accès (gestionnaire compatible Shizuku utilisable sur TV), hors P7 ; voir « Questions ouvertes ».
-- Association par le débogage sans fil (appairage par code) : hors P7 ; P7 utilise le port ADB réseau ouvert par le débogage quand l'appareil l'expose.
-- Révoquer une autorisation accordée par SygixOs ou désactiver le service d'accessibilité lors du rétablissement : hors P7 (l'utilisateur peut le faire dans Android) ; voir « Questions ouvertes ».
+- Shizuku et ses gestionnaires compatibles : la passerelle d'accès privilégié est conçue pour accueillir plus tard un second moyen d'accès (gestionnaire compatible Shizuku utilisable sur TV), hors P7.
+- Association par le débogage sans fil (appairage par code) : hors P7 ; P7 utilise le port ADB réseau ouvert par le débogage quand l'appareil l'expose, sinon la voie automatique est indisponible.
+- Révoquer une autorisation accordée par SygixOs, désactiver le service d'accessibilité ou retirer SygixOs de la politique du constructeur lors du rétablissement : hors P7 (l'utilisateur peut révoquer l'accessibilité et l'affichage superposé dans Android).
 - Exécuter des commandes arbitraires, proposer un terminal, désactiver d'autres applications système (publicités, services Google) : sans phase prévue.
 - Réappliquer automatiquement la configuration quand le système ou une mise à jour la défait : hors P7 ; l'état est relu et affiché, et la configuration peut être relancée.
-- Modifier la politique d'auto-démarrage du constructeur au-delà de l'autorisation de SygixOs (fichier de politique du constructeur) : hors P7 sauf décision contraire, voir « Questions ouvertes ».
+- Modifier la politique d'auto-démarrage du constructeur au-delà de l'inscription de SygixOs dans ses deux listes blanches : sans phase prévue.
 - Garantir le comportement sur tous les appareils : P7 décrit le comportement sur les appareils vérifiés et affiche « Indisponible » ailleurs.
 - Recherche : P8. BetaSeries : P9.
 
 ## Questions ouvertes
 
-Les questions et leurs défauts conservateurs sont dans `design.md`, section « Questions ouvertes ». Les décisions du propriétaire du 2026-10-12 sont dans `design.md`, section « Décisions du propriétaire ».
+Seuls les textes et libellés définitifs restent ouverts, jusqu'à la maquette (`design.md`, « Questions ouvertes »). Les décisions du propriétaire du 2026-10-12 sont dans `design.md`, section « Décisions du propriétaire ».
