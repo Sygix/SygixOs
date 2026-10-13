@@ -33,7 +33,7 @@
     <string name="launcher_summary_partial">Partiel</string>
     <string name="launcher_guide_hint">Retour : fermer</string>
     <string name="launcher_guide_done">Terminé</string>
-    <string name="launcher_guide_row">SygixOs comme écran d’accueil</string>
+    <string name="launcher_guide_row">Configurer SygixOs comme launcher principal</string>
     <string name="launcher_summary_all_done">Toutes les étapes sont faites</string>
     <string name="launcher_summary_home_key">Touche Home à terminer</string>
     <string name="launcher_summary_boot">Démarrage à l’allumage à terminer</string>

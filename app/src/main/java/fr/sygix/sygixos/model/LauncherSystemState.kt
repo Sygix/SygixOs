@@ -63,6 +63,7 @@ data class LauncherSystemState(
     val settingsFocus: Long = 0,
     val preferencesLoaded: Boolean = false,
     val guideView: GuideView = GuideView(),
+    val defaultLauncher: DefaultLauncherState? = null,
 ) {
     val systemPending: Boolean
         get() = homeRole == SystemControlState.PENDING || accessibility == SystemControlState.PENDING ||

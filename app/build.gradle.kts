@@ -126,6 +126,7 @@ aboutLibraries {
 }
 
 dependencies {
+    implementation(libs.dadb)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -159,4 +160,3 @@ tasks.withType<Test>().configureEach {
         "--add-opens=java.base/java.util=ALL-UNNAMED",
     )
 }
-

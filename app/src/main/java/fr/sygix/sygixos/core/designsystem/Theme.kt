@@ -52,6 +52,7 @@ object SygixColors {
     val SwitchOn = Color(0xFF34C759)
     val SwitchOff = Color(120, 120, 128, 140)
     val Badge = Color(0xFF0A84FF)
+    val Error = Color(0xFFFF453A)
     val QrLight = Color.White
     val QrDark = Color.Black
     val Veil = Color.Black

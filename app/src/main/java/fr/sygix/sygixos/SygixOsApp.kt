@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import android.os.SystemClock
 import android.provider.Settings
 import fr.sygix.sygixos.data.AccessibilityConnection
@@ -53,6 +54,33 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    val defaultLauncherController by lazy {
+        val reader = fr.sygix.sygixos.data.HomeScreenStateReader(this)
+        val access = fr.sygix.sygixos.data.AdbAccessGateway.create(this)
+        val store = fr.sygix.sygixos.data.DefaultLauncherPrefs(this)
+        val operations = fr.sygix.sygixos.data.PrivilegedShell(
+            access, reader, fr.sygix.sygixos.data.HomeScreenStateReader.currentUser(),
+            { Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES) },
+            { Settings.Secure.getInt(contentResolver, Settings.Secure.ACCESSIBILITY_ENABLED, 0) == 1 },
+            { store.loadMemory().previousHome },
+        )
+        fr.sygix.sygixos.domain.DefaultLauncherController(
+            access, operations, reader, store, appScope,
+            enableBoot = {
+                launcherPrefs.setBootStartEnabled(true, Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT))
+                kotlinx.coroutines.withTimeout(10_000) { launcherPrefs.launcherSystem.first { it.bootStart.enabled } }
+            },
+            refreshManual = {},
+            openDebug = {
+                listOf(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, Settings.ACTION_DEVICE_INFO_SETTINGS).any { action ->
+                    runCatching {
+                        val intent = android.content.Intent(action).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        if (packageManager.resolveActivity(intent, 0) == null) false else { startActivity(intent); true }
+                    }.getOrDefault(false)
+                }
+            },
+        )
+    }
     val bootStartDispatcher: BootStartDispatcher by lazy {
         BootStartDispatcher(
             store = launcherPrefs,

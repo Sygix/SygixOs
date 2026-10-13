@@ -240,7 +240,9 @@ class UpNextSettingsHomeTest {
         press(Key.DirectionRight)
         press(Key.DirectionDown)
         press(Key.Enter)
+        node("setting-upnext-position-BEFORE_APPS").assertIsFocused()
         press(Key.DirectionDown, "setting-upnext-position-list")
+        node("setting-upnext-position-AFTER_APPS").assertIsFocused()
         press(Key.Enter, "setting-upnext-position-list")
         node("setting-upnext-position").assertIsFocused()
         compose.waitUntil(5_000) { runBlocking { harness.prefs.upNextPosition.first() } == UpNextPosition.AFTER_APPS }

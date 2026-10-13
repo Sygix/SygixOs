@@ -54,6 +54,7 @@ class LauncherSystemActions(
     val close: () -> Unit = {},
     val openGuide: () -> Unit = {},
     val focusReturned: () -> Unit = {},
+    val setup: (fr.sygix.sygixos.ui.home.SetupAction) -> Unit = {},
 )
 
 internal val StateDotColor = SemanticsPropertyKey<Color>("StateDotColor")
@@ -107,13 +108,15 @@ internal fun ColumnScope.LauncherSystemControls(
         enabled = focusEnabled,
         onClick = actions.openGuide,
         focusRequester = requester,
-        detail = stringResource(summary.detail.textRes()),
+        detail = state.defaultLauncher?.let { launcherSummaryDetail(it, state) } ?: stringResource(summary.detail.textRes()),
         partsTag = tag,
         modifier = Modifier
             .testTag(tag)
             .onPreviewKeyEvent { it.type == KeyEventType.KeyDown && (it.key == Key.DirectionRight || it.key == Key.DirectionDown) },
     ) { colors ->
         Spacer(Modifier.width(RowGap))
-        StateLabel(stringResource(summary.status.labelRes()), summary.status.dotColor(), colors.tertiary, tag)
+        val p7 = state.defaultLauncher
+        if (p7 == null) StateLabel(stringResource(summary.status.labelRes()), summary.status.dotColor(), colors.tertiary, tag)
+        else StateLabel(stringResource(launcherSummaryLabel(p7, state)), launcherSummaryDot(p7, state), colors.tertiary, tag)
     }
 }

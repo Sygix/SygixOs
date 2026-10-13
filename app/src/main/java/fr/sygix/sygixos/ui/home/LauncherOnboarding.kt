@@ -95,6 +95,10 @@ private const val DoneTarget = "onboarding-done"
 
 @Composable
 internal fun LauncherGuidePanel(state: LauncherSystemState, actions: LauncherSystemActions) {
+    if (state.defaultLauncher != null) {
+        DefaultLauncherPanel(state, actions)
+        return
+    }
     val view = state.guideView
     val steps = view.steps
     val progress = view.progress
@@ -277,7 +281,7 @@ private fun GuideDoneButton(requester: FocusRequester, onFocused: () -> Unit, on
 }
 
 @Composable
-private fun OnboardingMascot() {
+internal fun OnboardingMascot(tag: String = "onboarding-mascot") {
     val resources = LocalContext.current.resources
     val target = with(LocalDensity.current) { Dimens.OnboardingMascot.roundToPx() }
     val bitmap by produceState<Bitmap?>(null, resources, target) {
@@ -292,7 +296,7 @@ private fun OnboardingMascot() {
             }.getOrNull()
         }
     }
-    Box(Modifier.size(Dimens.OnboardingMascot).testTag("onboarding-mascot")) {
+    Box(Modifier.size(Dimens.OnboardingMascot).testTag(tag)) {
         bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, modifier = Modifier.fillMaxSize()) }
     }
 }

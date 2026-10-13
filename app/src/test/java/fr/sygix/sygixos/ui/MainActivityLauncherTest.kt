@@ -102,6 +102,7 @@ class MainActivityLauncherTest {
         pause()
         newIntent(intent)
         resume()
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     private fun ActivityController<MainActivity>.deliverFromBackground(intent: Intent) {
@@ -109,6 +110,7 @@ class MainActivityLauncherTest {
         restart()
         newIntent(intent)
         resume()
+        shadowOf(Looper.getMainLooper()).idle()
     }
 
     @Test
@@ -202,6 +204,7 @@ class MainActivityLauncherTest {
         val launcher = launcherOf(controller)
         assertEquals(SystemControlState.INACTIVE, launcher.state.value.homeRole)
         launcher.actions.activate(GuideStep.HOME_ROLE)
+        awaitMain { launcher.state.value.homeRole == SystemControlState.PENDING }
         val started = shadowOf(controller.get()).nextStartedActivityForResult
         assertNotNull(started)
         assertEquals("android.app.role.action.REQUEST_ROLE", started.intent.action)
@@ -209,10 +212,12 @@ class MainActivityLauncherTest {
         assertEquals(SystemControlState.PENDING, launcher.state.value.homeRole)
         controller.pause()
         controller.resume()
+        awaitMain { launcher.state.value.homeRole == SystemControlState.INACTIVE }
         assertEquals(SystemControlState.INACTIVE, launcher.state.value.homeRole)
         shadowOf(roles).addHeldRole(RoleManager.ROLE_HOME)
         controller.pause()
         controller.resume()
+        awaitMain { launcher.state.value.homeRole == SystemControlState.ACTIVE }
         assertEquals(SystemControlState.ACTIVE, launcher.state.value.homeRole)
     }
 
@@ -249,6 +254,7 @@ class MainActivityLauncherTest {
         assertEquals("android.app.role.action.REQUEST_ROLE", started.intent.action)
         shadowOf(context as Application).clearNextStartedActivities()
         shadowOf(controller.get()).receiveResult(started.intent, Activity.RESULT_CANCELED, null)
+        awaitMain { launcher.state.value.homeRole == SystemControlState.PENDING }
         assertEquals(Settings.ACTION_HOME_SETTINGS, shadowOf(context as Application).nextStartedActivity?.action)
         assertEquals(SystemControlState.PENDING, launcher.state.value.homeRole)
     }
