@@ -52,11 +52,11 @@ data class DefaultLauncherState(
         else -> AutomaticHomeState.TODO
     }
 
-    fun manual(legacy: LauncherSystemState): ManualHomeState = when {
+    fun manual(system: LauncherSystemState): ManualHomeState = when {
         readFailed -> ManualHomeState.TODO
-        legacy.accessibility == SystemControlState.BLOCKED -> ManualHomeState.BLOCKED
-        legacy.accessibility == SystemControlState.ACTIVE && legacy.bootEnabled && legacy.overlay == SystemControlState.ACTIVE && !legacy.bootNotObserved -> ManualHomeState.ACTIVE
-        legacy.accessibility != SystemControlState.INACTIVE && legacy.accessibility != SystemControlState.UNAVAILABLE || legacy.bootEnabled -> ManualHomeState.PARTIAL
+        system.accessibility == SystemControlState.BLOCKED -> ManualHomeState.BLOCKED
+        system.accessibility == SystemControlState.ACTIVE && system.bootEnabled && system.overlay == SystemControlState.ACTIVE && !system.bootNotObserved -> ManualHomeState.ACTIVE
+        system.accessibility != SystemControlState.INACTIVE && system.accessibility != SystemControlState.UNAVAILABLE || system.bootEnabled -> ManualHomeState.PARTIAL
         automatic == AutomaticHomeState.ACTIVE -> ManualHomeState.UNUSED
         else -> ManualHomeState.TODO
     }

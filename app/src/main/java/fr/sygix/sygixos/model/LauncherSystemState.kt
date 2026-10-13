@@ -7,52 +7,11 @@ package fr.sygix.sygixos.model
 
 enum class SystemControlState { ACTIVE, INACTIVE, UNAVAILABLE, PENDING, BLOCKED }
 
-enum class GuideStep { ACCESSIBILITY, BOOT, OVERLAY, HOME_ROLE }
+enum class GuideStep { ACCESSIBILITY, BOOT, OVERLAY }
 
 enum class GuideOrigin { AUTOMATIC, SETTINGS }
 
-enum class StepStatus { TODO, PENDING, DONE, BLOCKED, UNAVAILABLE, OPTIONAL }
-
-enum class StepDetail {
-    ACCESSIBILITY,
-    ACCESSIBILITY_BLOCKED,
-    ACCESSIBILITY_UNAVAILABLE,
-    BOOT,
-    BOOT_NOT_OBSERVED,
-    BOOT_UNAVAILABLE,
-    OVERLAY,
-    HOME_ROLE,
-}
-
-data class GuideStepState(
-    val step: GuideStep,
-    val status: StepStatus,
-    val detail: StepDetail,
-    val checked: Boolean? = null,
-) {
-    val done: Boolean get() = status == StepStatus.DONE
-    val mandatory: Boolean get() = step != GuideStep.HOME_ROLE
-    val dimmed: Boolean get() = status == StepStatus.UNAVAILABLE
-}
-
-data class GuideProgress(val done: Int, val total: Int)
-
-enum class SummaryStatus { DONE, PARTIAL, TODO, BLOCKED, UNAVAILABLE }
-
-enum class SummaryDetail { ALL_DONE, HOME_KEY, BOOT, HOME_KEY_AND_BOOT, BLOCKED, UNAVAILABLE }
-
-data class GuideSummary(val status: SummaryStatus, val detail: SummaryDetail)
-
-data class GuideView(
-    val steps: List<GuideStepState> = emptyList(),
-    val progress: GuideProgress = GuideProgress(0, 0),
-    val progressQuantity: Int = 1,
-    val initialFocus: GuideStep? = null,
-    val summary: GuideSummary = GuideSummary(SummaryStatus.UNAVAILABLE, SummaryDetail.UNAVAILABLE),
-)
-
 data class LauncherSystemState(
-    val homeRole: SystemControlState = SystemControlState.UNAVAILABLE,
     val accessibility: SystemControlState = SystemControlState.UNAVAILABLE,
     val overlay: SystemControlState = SystemControlState.UNAVAILABLE,
     val bootEnabled: Boolean = false,
@@ -62,12 +21,10 @@ data class LauncherSystemState(
     val focusReturn: GuideStep? = null,
     val settingsFocus: Long = 0,
     val preferencesLoaded: Boolean = false,
-    val guideView: GuideView = GuideView(),
-    val defaultLauncher: DefaultLauncherState? = null,
+    val defaultLauncher: DefaultLauncherState = DefaultLauncherState(),
 ) {
     val systemPending: Boolean
-        get() = homeRole == SystemControlState.PENDING || accessibility == SystemControlState.PENDING ||
-            overlay == SystemControlState.PENDING
+        get() = accessibility == SystemControlState.PENDING || overlay == SystemControlState.PENDING
 
     val guideShown: Boolean get() = guide != null
 

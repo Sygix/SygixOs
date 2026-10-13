@@ -671,7 +671,7 @@ internal fun LauncherHome(
                 modifier = Modifier.zIndex(10f),
             )
         }
-        if (launcherState.guideShown) LauncherGuidePanel(launcherState, launcherActions)
+        if (launcherState.guideShown) DefaultLauncherPanel(launcherState, launcherActions)
     }
     }
 }

@@ -44,14 +44,9 @@ import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.SygixTypography
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
-import fr.sygix.sygixos.model.GuideStep
 import fr.sygix.sygixos.model.LauncherSystemState
-import fr.sygix.sygixos.model.StepStatus
-import fr.sygix.sygixos.model.SummaryStatus
 
 class LauncherSystemActions(
-    val activate: (GuideStep) -> Unit = {},
-    val close: () -> Unit = {},
     val openGuide: () -> Unit = {},
     val focusReturned: () -> Unit = {},
     val setup: (fr.sygix.sygixos.ui.home.SetupAction) -> Unit = {},
@@ -59,14 +54,6 @@ class LauncherSystemActions(
 
 internal val StateDotColor = SemanticsPropertyKey<Color>("StateDotColor")
 private var SemanticsPropertyReceiver.stateDotColor by StateDotColor
-
-internal fun StepStatus.dotColor(): Color? = when (this) {
-    StepStatus.DONE -> SygixColors.SwitchOn
-    StepStatus.PENDING -> SygixColors.Badge
-    else -> null
-}
-
-internal fun SummaryStatus.dotColor(): Color? = if (this == SummaryStatus.DONE) SygixColors.SwitchOn else null
 
 @Composable
 internal fun StateLabel(label: String, dot: Color?, color: Color, tag: String) {
@@ -101,14 +88,13 @@ internal fun ColumnScope.LauncherSystemControls(
         withFrameNanos { }
         requester.tryRequestFocus()
     }
-    val summary = state.guideView.summary
     val tag = "setting-launcher-guide"
     PreferenceRow(
         label = stringResource(R.string.launcher_guide_row),
         enabled = focusEnabled,
         onClick = actions.openGuide,
         focusRequester = requester,
-        detail = state.defaultLauncher?.let { launcherSummaryDetail(it, state) } ?: stringResource(summary.detail.textRes()),
+        detail = launcherSummaryDetail(state.defaultLauncher, state),
         partsTag = tag,
         modifier = Modifier
             .testTag(tag)
@@ -116,7 +102,6 @@ internal fun ColumnScope.LauncherSystemControls(
     ) { colors ->
         Spacer(Modifier.width(RowGap))
         val p7 = state.defaultLauncher
-        if (p7 == null) StateLabel(stringResource(summary.status.labelRes()), summary.status.dotColor(), colors.tertiary, tag)
-        else StateLabel(stringResource(launcherSummaryLabel(p7, state)), launcherSummaryDot(p7, state), colors.tertiary, tag)
+        StateLabel(stringResource(launcherSummaryLabel(p7, state)), launcherSummaryDot(p7, state), colors.tertiary, tag)
     }
 }

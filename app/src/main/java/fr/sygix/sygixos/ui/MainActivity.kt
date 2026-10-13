@@ -5,7 +5,6 @@
 
 package fr.sygix.sygixos.ui
 
-import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -38,18 +37,11 @@ class MainActivity : ComponentActivity() {
             launcher.onPermissionFinished()
         }
 
-    private val roleRequest = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        launcher.onHomeRoleResult(it.resultCode == Activity.RESULT_OK)
-    }
-
-    private val launchRoleRequest: (Intent) -> Unit = { roleRequest.launch(it) }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         splashScreen.setOnExitAnimationListener { it.remove() }
         viewModel = ViewModelProvider(this, HomeViewModel.Factory(applicationContext))[HomeViewModel::class.java]
         launcher = ViewModelProvider(this, LauncherSystemViewModel.Factory(applicationContext))[LauncherSystemViewModel::class.java]
-        launcher.bindRoleRequest(launchRoleRequest)
         if (LauncherSystemIntents.isBoot(intent)) launcher.onBootObserved()
         val glassBlur = !intent.getBooleanExtra(EXTRA_NO_GLASS, false)
         setContent {
@@ -72,11 +64,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         shownSinceStop = false
         super.onStop()
-    }
-
-    override fun onDestroy() {
-        launcher.unbindRoleRequest(launchRoleRequest)
-        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {

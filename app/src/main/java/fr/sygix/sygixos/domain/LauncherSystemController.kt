@@ -31,12 +31,9 @@ interface LauncherSystemStore {
 }
 
 interface LauncherSystemGateway {
-    fun homeRoleState(): SystemControlState
     fun accessibilityState(): SystemControlState
     fun overlayState(): SystemControlState
     fun bootCount(): Int?
-    fun openHomeRole(): Boolean
-    fun openHomeRoleFallback(): Boolean
     fun openAccessibility(): Boolean
     fun openOverlay(): Boolean
     fun verifyAccessibility() = Unit
@@ -48,16 +45,10 @@ class LauncherSystemController(
     private val gateway: LauncherSystemGateway,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
-    private val clock: () -> Long = { System.nanoTime() / NANOS_PER_MILLI },
 ) {
-    private enum class Screen { HOME_ROLE, ACCESSIBILITY, OVERLAY }
+    private enum class Screen { ACCESSIBILITY, OVERLAY }
 
-    private companion object {
-        const val NANOS_PER_MILLI = 1_000_000L
-        const val ROLE_AUTO_DENIAL_MS = 700L
-    }
-
-    private val mutableState = MutableStateFlow(LauncherSystemState().let { it.copy(guideView = LauncherGuide.view(it)) })
+    private val mutableState = MutableStateFlow(LauncherSystemState())
     val state: StateFlow<LauncherSystemState> = mutableState.asStateFlow()
     private var preferences: LauncherSystemPreferences? = null
     private var startupFinished = false
@@ -68,7 +59,6 @@ class LauncherSystemController(
     private var bootWrites = 0
     private val failed = mutableSetOf<Screen>()
     private var currentBoot = gateway.bootCount()
-    private var roleRequestedAt: Long? = null
     private var accessibilityScreenOpen = false
 
     init {
@@ -104,7 +94,7 @@ class LauncherSystemController(
         currentBoot = gateway.bootCount()
         runCatching(gateway::verifyAccessibility)
         publish {
-            it.copy(homeRole = read(Screen.HOME_ROLE), accessibility = read(Screen.ACCESSIBILITY), overlay = read(Screen.OVERLAY))
+            it.copy(accessibility = read(Screen.ACCESSIBILITY), overlay = read(Screen.OVERLAY))
         }
         publishPreferences()
     }
@@ -123,7 +113,6 @@ class LauncherSystemController(
         GuideStep.ACCESSIBILITY -> requestAccessibility()
         GuideStep.BOOT -> toggleBootStart()
         GuideStep.OVERLAY -> requestOverlay()
-        GuideStep.HOME_ROLE -> requestHomeRole()
     }
 
     fun openGuide() {
@@ -161,20 +150,8 @@ class LauncherSystemController(
         persist { store.recordBootStartObserved(gateway.bootCount()) }
     }
 
-    fun onHomeRoleResult(granted: Boolean) {
-        val requestedAt = roleRequestedAt ?: return
-        roleRequestedAt = null
-        if (granted || clock() - requestedAt >= ROLE_AUTO_DENIAL_MS) return
-        if (read(Screen.HOME_ROLE) == SystemControlState.ACTIVE) return
-        val opened = runCatching(gateway::openHomeRoleFallback).getOrDefault(false)
-        val next = if (opened) SystemControlState.PENDING else read(Screen.HOME_ROLE).let {
-            if (it == SystemControlState.ACTIVE) it else SystemControlState.UNAVAILABLE.also { failed += Screen.HOME_ROLE }
-        }
-        publish { it.copy(homeRole = next, focusReturn = if (opened) GuideStep.HOME_ROLE else null) }
-    }
-
     private fun publish(transform: (LauncherSystemState) -> LauncherSystemState) {
-        mutableState.update { transform(it).let { next -> next.copy(guideView = LauncherGuide.view(next)) } }
+        mutableState.update(transform)
     }
 
     private fun markSeen() {
@@ -183,13 +160,6 @@ class LauncherSystemController(
         publish { it.copy(focusReturn = null) }
         publishPreferences()
         persist { store.markLauncherGuideSeen() }
-    }
-
-    private fun requestHomeRole() {
-        if (state.value.homeRole != SystemControlState.INACTIVE) return
-        val next = open(Screen.HOME_ROLE)
-        roleRequestedAt = if (next == SystemControlState.PENDING) clock() else null
-        publish { it.copy(homeRole = next, focusReturn = if (next == SystemControlState.PENDING) GuideStep.HOME_ROLE else it.focusReturn) }
     }
 
     private fun persist(write: suspend () -> Unit) {
@@ -271,7 +241,6 @@ class LauncherSystemController(
     private fun read(screen: Screen): SystemControlState {
         val current = runCatching {
             when (screen) {
-                Screen.HOME_ROLE -> gateway.homeRoleState()
                 Screen.ACCESSIBILITY -> gateway.accessibilityState()
                 Screen.OVERLAY -> gateway.overlayState()
             }
@@ -282,7 +251,6 @@ class LauncherSystemController(
     private fun open(screen: Screen): SystemControlState {
         val opened = runCatching {
             when (screen) {
-                Screen.HOME_ROLE -> gateway.openHomeRole()
                 Screen.ACCESSIBILITY -> gateway.openAccessibility()
                 Screen.OVERLAY -> gateway.openOverlay()
             }

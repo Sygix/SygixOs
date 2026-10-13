@@ -5,15 +5,10 @@
 
 package fr.sygix.sygixos.ui
 
-import android.app.Activity
 import android.app.Application
-import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
-import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
 import android.os.Looper
 import android.provider.Settings
 import androidx.datastore.preferences.core.edit
@@ -23,8 +18,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.data.dataStore
-import fr.sygix.sygixos.model.GuideStep
-import fr.sygix.sygixos.model.SystemControlState
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +38,6 @@ import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
-import org.robolectric.shadows.ShadowRoleManager
 
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -62,7 +54,6 @@ class MainActivityLauncherTest {
             context.dataStore.edit { it.clear() }
             (context as SygixOsApp).updatePrefs.setLastCheckAt(System.currentTimeMillis())
         }
-        ShadowRoleManager.reset()
     }
 
     @After
@@ -194,69 +185,6 @@ class MainActivityLauncherTest {
         controller.get().onRequestPermissionsResult(request.requestCode, request.requestedPermissions, intArrayOf(PackageManager.PERMISSION_DENIED))
         awaitMain { launcher.state.value.guideShown }
         assertTrue(launcher.state.value.guideShown)
-    }
-
-    @Test
-    fun `role dialogue is started for a result by the activity`() {
-        val roles = context.getSystemService(RoleManager::class.java)
-        shadowOf(roles).addAvailableRole(RoleManager.ROLE_HOME)
-        val controller = launch()
-        val launcher = launcherOf(controller)
-        assertEquals(SystemControlState.INACTIVE, launcher.state.value.homeRole)
-        launcher.actions.activate(GuideStep.HOME_ROLE)
-        awaitMain { launcher.state.value.homeRole == SystemControlState.PENDING }
-        val started = shadowOf(controller.get()).nextStartedActivityForResult
-        assertNotNull(started)
-        assertEquals("android.app.role.action.REQUEST_ROLE", started.intent.action)
-        assertEquals(0, started.intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK)
-        assertEquals(SystemControlState.PENDING, launcher.state.value.homeRole)
-        controller.pause()
-        controller.resume()
-        awaitMain { launcher.state.value.homeRole == SystemControlState.INACTIVE }
-        assertEquals(SystemControlState.INACTIVE, launcher.state.value.homeRole)
-        shadowOf(roles).addHeldRole(RoleManager.ROLE_HOME)
-        controller.pause()
-        controller.resume()
-        awaitMain { launcher.state.value.homeRole == SystemControlState.ACTIVE }
-        assertEquals(SystemControlState.ACTIVE, launcher.state.value.homeRole)
-    }
-
-    @Test
-    fun `role screen refused at once falls back to the home settings screen`() {
-        val roles = context.getSystemService(RoleManager::class.java)
-        shadowOf(roles).addAvailableRole(RoleManager.ROLE_HOME)
-        shadowOf(context.packageManager).addResolveInfoForIntent(
-            Intent(Settings.ACTION_HOME_SETTINGS),
-            ResolveInfo().apply {
-                activityInfo = ActivityInfo().apply {
-                    packageName = "com.android.tv.settings"
-                    name = "com.android.tv.settings.HomeSettings"
-                    applicationInfo = ApplicationInfo().apply { packageName = "com.android.tv.settings" }
-                }
-            },
-        )
-        shadowOf(context.packageManager).addResolveInfoForIntent(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
-            ResolveInfo().apply {
-                priority = 1_000
-                isDefault = true
-                activityInfo = ActivityInfo().apply {
-                    packageName = "com.vendor.launcher"
-                    name = "com.vendor.launcher.Home"
-                    applicationInfo = ApplicationInfo().apply { packageName = "com.vendor.launcher" }
-                }
-            },
-        )
-        val controller = launch()
-        val launcher = launcherOf(controller)
-        launcher.actions.activate(GuideStep.HOME_ROLE)
-        val started = shadowOf(controller.get()).nextStartedActivityForResult
-        assertEquals("android.app.role.action.REQUEST_ROLE", started.intent.action)
-        shadowOf(context as Application).clearNextStartedActivities()
-        shadowOf(controller.get()).receiveResult(started.intent, Activity.RESULT_CANCELED, null)
-        awaitMain { launcher.state.value.homeRole == SystemControlState.PENDING }
-        assertEquals(Settings.ACTION_HOME_SETTINGS, shadowOf(context as Application).nextStartedActivity?.action)
-        assertEquals(SystemControlState.PENDING, launcher.state.value.homeRole)
     }
 
     private companion object {

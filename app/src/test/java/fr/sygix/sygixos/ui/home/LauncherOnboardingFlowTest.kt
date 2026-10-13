@@ -52,7 +52,7 @@ class LauncherOnboardingFlowTest {
         compose.waitForIdle()
     }
 
-    private fun onboardingShown() = compose.onAllNodesWithTag("onboarding-launcher").fetchSemanticsNodes().isNotEmpty()
+    private fun onboardingShown() = compose.onAllNodesWithTag("setup-panel").fetchSemanticsNodes().isNotEmpty()
 
     @Test
     fun `ignored onboarding appears after the permission answer and is never shown again`() {
@@ -78,9 +78,9 @@ class LauncherOnboardingFlowTest {
         assertFalse(onboardingShown())
         compose.runOnIdle { launcher!!.onPermissionFinished() }
         compose.waitUntil(5_000) { onboardingShown() }
-        compose.onNodeWithTag("onboarding-step-accessibility").assertIsFocused()
+        compose.onNodeWithTag("setup-choice-auto").assertIsFocused()
         press(Key.Back)
-        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag("setup-panel").assertDoesNotExist()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
         compose.waitUntil(5_000) {
             compose.waitForIdle()

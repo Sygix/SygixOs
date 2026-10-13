@@ -33,7 +33,7 @@ class DefaultLauncherPanelTest {
     private val state = mutableStateOf(LauncherSystemState(accessibility = SystemControlState.INACTIVE, overlay = SystemControlState.INACTIVE, defaultLauncher = DefaultLauncherState(snapshot = HomeScreenSnapshot())))
     private val actions = mutableListOf<SetupAction>()
     private fun show(screen: SetupScreen = SetupScreen.CHOICE) {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(screen = screen))
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(screen = screen))
         compose.setContent { SygixOsTheme { Box(Modifier.fillMaxSize()) { DefaultLauncherPanel(state.value, LauncherSystemActions(setup = { actions += it })) } } }
         compose.waitForIdle()
     }
@@ -52,7 +52,7 @@ class DefaultLauncherPanelTest {
     }
 
     @Test fun unavailableChoiceFocusesManualAndAutoDoesNothing() {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(access = AdbAccessState.UNREACHABLE))
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(access = AdbAccessState.UNREACHABLE))
         show()
         compose.onNodeWithTag("setup-choice-manual").assertIsFocused()
         key(Key.DirectionUp); key(Key.DirectionCenter)
@@ -66,13 +66,13 @@ class DefaultLauncherPanelTest {
         compose.onNodeWithTag("setup-debug-step-1").assertExists()
         key(Key.DirectionUp); key(Key.DirectionDown)
         compose.onNodeWithTag("setup-debug-open").assertIsFocused()
-        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(screen = SetupScreen.AUTHORIZE, debugEnabled = true)) }
+        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(screen = SetupScreen.AUTHORIZE, debugEnabled = true)) }
         compose.onNodeWithTag("setup-authorize-continue").assertIsFocused()
         key(Key.DirectionCenter); assertEquals(listOf(SetupAction.AUTHORIZE), actions)
     }
 
     @Test fun rejectedAuthorizationHasErrorAndRetryFocus() {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(error = true))
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(error = true))
         show(SetupScreen.AUTHORIZE)
         compose.onNodeWithTag("setup-error-title").assertTextEquals("Autorisation refusée")
         compose.onNodeWithTag("setup-authorize-retry").assertIsFocused()
@@ -87,13 +87,13 @@ class DefaultLauncherPanelTest {
         compose.onNodeWithTag("setup-mascot").assertDoesNotExist()
         key(Key.DirectionRight); key(Key.DirectionCenter)
         assertEquals(listOf(SetupAction.DISABLE), actions)
-        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(screen = SetupScreen.RESTORE)) }
+        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(screen = SetupScreen.RESTORE)) }
         compose.onNodeWithTag("confirm-restore-accept").assertIsFocused()
         key(Key.DirectionRight); compose.onNodeWithTag("confirm-restore-accept").assertIsFocused()
     }
 
     @Test fun manualRowsAndOverlayAreOrderedWithVendorUnavailable() {
-        state.value = state.value.copy(bootEnabled = true, defaultLauncher = state.value.defaultLauncher!!.copy(snapshot = HomeScreenSnapshot(vendorManager = true)))
+        state.value = state.value.copy(bootEnabled = true, defaultLauncher = state.value.defaultLauncher.copy(snapshot = HomeScreenSnapshot(vendorManager = true)))
         show(SetupScreen.MANUAL)
         compose.onNodeWithTag("setup-manual-home").assertIsFocused()
         key(Key.DirectionDown); compose.onNodeWithTag("setup-manual-boot").assertIsFocused()
@@ -114,7 +114,7 @@ class DefaultLauncherPanelTest {
         show(SetupScreen.PANEL)
         compose.onNodeWithTag("launcher-panel-relaunch").assertIsFocused()
         compose.onNodeWithTag("launcher-panel-restore").assertDoesNotExist()
-        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(snapshot = HomeScreenSnapshot(stock = mapOf("com.google.android.apps.tv.launcherx" to StockHomeState.DISABLED_USER)))) }
+        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(snapshot = HomeScreenSnapshot(stock = mapOf("com.google.android.apps.tv.launcherx" to StockHomeState.DISABLED_USER)))) }
         key(Key.DirectionDown)
         compose.onNodeWithTag("launcher-panel-restore").assertIsFocused()
     }
@@ -130,7 +130,7 @@ class DefaultLauncherPanelTest {
     }
 
     @Test fun detailsShowOnlyRecordedChangesAndStock() {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(modifications = setOf(SetupStep.HOME)))
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(modifications = setOf(SetupStep.HOME)))
         show(SetupScreen.DETAILS)
         compose.onNodeWithTag("setup-details-close").assertIsFocused()
         compose.onNodeWithTag("setup-details-item-home").assertExists()
@@ -140,7 +140,7 @@ class DefaultLauncherPanelTest {
     }
 
     @Test fun failedStepShowsCancellationAndRetry() {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(steps = mapOf(SetupStep.HOME to SetupStepState.FAILED, SetupStep.VERIFY to SetupStepState.CANCELLED)))
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(steps = mapOf(SetupStep.HOME to SetupStepState.FAILED, SetupStep.VERIFY to SetupStepState.CANCELLED)))
         show(SetupScreen.FAILED)
         compose.onNodeWithTag("setup-failed-retry").assertIsFocused()
         compose.onNodeWithTag("setup-step-home-state").assertTextEquals("Échec")
@@ -148,7 +148,7 @@ class DefaultLauncherPanelTest {
     }
 
     @Test fun vendorFailureAfterFallbackIsExplainedAndControlsFitTvViewport() {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(steps = mapOf(
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(steps = mapOf(
             SetupStep.VENDOR_BOOT to SetupStepState.FAILED, SetupStep.HOME to SetupStepState.DONE, SetupStep.VERIFY to SetupStepState.FAILED,
             SetupStep.ACCESSIBILITY to SetupStepState.DONE, SetupStep.OVERLAY to SetupStepState.DONE, SetupStep.BOOT to SetupStepState.DONE,
         )))
@@ -162,11 +162,11 @@ class DefaultLauncherPanelTest {
     }
 
     @Test fun successTipDisappearsWhenDebugIsDisabled() {
-        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(debugEnabled = true, snapshot = HomeScreenSnapshot(effective = true)))
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(debugEnabled = true, snapshot = HomeScreenSnapshot(effective = true)))
         show(SetupScreen.DONE)
         compose.onNodeWithTag("setup-done-finish").assertIsFocused()
         compose.onNodeWithTag("setup-done-tip").assertExists()
-        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(debugEnabled = false)) }
+        compose.runOnIdle { state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher.copy(debugEnabled = false)) }
         compose.onNodeWithTag("setup-done-tip").assertDoesNotExist()
     }
 
@@ -191,7 +191,7 @@ class DefaultLauncherPanelTest {
         detail.assertTextEquals("Automatique : à configurer · Par autorisations : bloquée")
         label.assertTextEquals("Bloqué")
         compose.onNodeWithTag("setting-launcher-guide-dot", useUnmergedTree = true).assertDoesNotExist()
-        compose.runOnIdle { state.value = state.value.copy(accessibility = SystemControlState.INACTIVE, bootEnabled = false, defaultLauncher = state.value.defaultLauncher!!.copy(snapshot = HomeScreenSnapshot(effective = true))) }
+        compose.runOnIdle { state.value = state.value.copy(accessibility = SystemControlState.INACTIVE, bootEnabled = false, defaultLauncher = state.value.defaultLauncher.copy(snapshot = HomeScreenSnapshot(effective = true))) }
         detail.assertTextEquals("Automatique : actif · Par autorisations : non utilisée")
         label.assertTextEquals("Actif")
         compose.onNodeWithTag("setting-launcher-guide-dot", useUnmergedTree = true).assertExists()

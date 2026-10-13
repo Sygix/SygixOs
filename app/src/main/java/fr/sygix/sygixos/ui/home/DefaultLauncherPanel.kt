@@ -26,9 +26,11 @@ import fr.sygix.sygixos.ui.settings.LauncherSystemActions
 import fr.sygix.sygixos.ui.settings.PreferenceRow
 import fr.sygix.sygixos.ui.settings.StateLabel
 
+internal const val LauncherPanelZ = 30f
+
 @Composable
 internal fun DefaultLauncherPanel(state: LauncherSystemState, actions: LauncherSystemActions) {
-    val p7 = requireNotNull(state.defaultLauncher)
+    val p7 = state.defaultLauncher
     val view = defaultLauncherView(state)
     val targets = (view.rows.filter { it.action != null }.map { it.tag } + view.buttons.map { it.tag }).ifEmpty { listOf("setup-progress-focus") }
     val requesters = remember { mutableMapOf<String, FocusRequester>() }
@@ -71,7 +73,7 @@ internal fun DefaultLauncherPanel(state: LauncherSystemState, actions: LauncherS
             Column(Modifier.padding(Dimens.OnboardingPadding), verticalArrangement = Arrangement.spacedBy(Dimens.OnboardingSpacing)) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = Dimens.OnboardingHeaderInsetH, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (view.mascot) { OnboardingMascot("setup-mascot"); Spacer(Modifier.width(Dimens.GuideMascotGap)) }
+                        if (view.mascot) { SetupMascot(); Spacer(Modifier.width(Dimens.GuideMascotGap)) }
                         Text(stringResource(view.title), style = TextStyles.SettingsTitle, color = SygixColors.OnDark,
                             modifier = Modifier.testTag(if (view.tag.startsWith("confirm-")) "${view.tag}-title" else "setup-title"))
                     }

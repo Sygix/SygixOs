@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.map
 
 class AndroidLauncherSystemGateway(
     private val context: Context,
-    private val homeRole: HomeRoleGateway,
     private val resolves: (Intent) -> Boolean = { context.packageManager.resolveActivity(it, PackageManager.MATCH_DEFAULT_ONLY) != null },
     private val open: (Intent) -> Boolean = { runCatching { context.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess },
     private val serviceEnabled: () -> Boolean = { serviceEnabledIn(context) },
@@ -35,7 +34,6 @@ class AndroidLauncherSystemGateway(
     private fun overlayIntent() = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:${context.packageName}".toUri())
     private fun resolved(intent: Intent) = runCatching { resolves(intent) }.getOrDefault(false)
 
-    override fun homeRoleState(): SystemControlState = homeRole.state()
     override fun accessibilityState(): SystemControlState {
         val enabled = runCatching(serviceEnabled).getOrDefault(false)
         if (enabled && runCatching(serviceRunning).getOrDefault(false)) return SystemControlState.ACTIVE
@@ -47,8 +45,6 @@ class AndroidLauncherSystemGateway(
         return if (resolved(overlayIntent())) SystemControlState.INACTIVE else SystemControlState.UNAVAILABLE
     }
     override fun bootCount(): Int? = runCatching(readBootCount).getOrNull()?.takeIf { it >= 0 }
-    override fun openHomeRole() = homeRole.request()
-    override fun openHomeRoleFallback() = homeRole.fallback()
     override fun openAccessibility() = openResolved(accessibilityIntent())
     override fun openOverlay() = openResolved(overlayIntent())
     override fun verifyAccessibility() {

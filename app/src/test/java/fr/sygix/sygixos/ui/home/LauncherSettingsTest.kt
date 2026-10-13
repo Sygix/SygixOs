@@ -128,19 +128,23 @@ class LauncherSettingsTest {
         open(store)
         repeat(2) { press(Key.DirectionDown) }
         press(Key.DirectionCenter)
-        compose.onNodeWithTag("onboarding-launcher").assertExists()
+        compose.onNodeWithTag("launcher-panel").assertExists()
         compose.onNodeWithTag("settings-home-screen").assertExists()
-        compose.onNodeWithTag("onboarding-step-accessibility").assertIsFocused()
+        compose.onNodeWithTag("launcher-panel-relaunch").assertIsFocused()
         press(Key.Back)
-        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag("setup-panel").assertDoesNotExist()
         compose.onNodeWithTag("settings-screen").assertExists()
         compose.onNodeWithTag(row).assertIsFocused()
         press(Key.DirectionCenter)
-        compose.onNodeWithTag("onboarding-launcher").assertExists()
-        repeat(3) { press(Key.DirectionDown) }
-        compose.onNodeWithTag("onboarding-done").assertIsFocused()
+        compose.onNodeWithTag("launcher-panel").assertExists()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("launcher-panel-manual").assertIsFocused()
         press(Key.DirectionCenter)
-        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag("setup-manual-home").assertIsFocused()
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("setup-manual-finish").assertIsFocused()
+        press(Key.DirectionCenter)
+        compose.onNodeWithTag("setup-panel").assertDoesNotExist()
         compose.onNodeWithTag(row).assertIsFocused()
         compose.waitForIdle()
         assertEquals(0, store.seenWrites)
@@ -153,7 +157,7 @@ class LauncherSettingsTest {
         press(Key.DirectionCenter)
         compose.runOnIdle { launcher.onHome() }
         compose.waitForIdle()
-        compose.onNodeWithTag("onboarding-launcher").assertDoesNotExist()
+        compose.onNodeWithTag("setup-panel").assertDoesNotExist()
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
     }
@@ -163,24 +167,24 @@ class LauncherSettingsTest {
         val gateway = FakeLauncherGateway(accessibility = SystemControlState.ACTIVE)
         val store = FakeLauncherStore()
         open(store, gateway)
-        state(row).assertTextEquals("Partiel")
-        detail(row).assertTextEquals("Démarrage à l’allumage à terminer")
+        state(row).assertTextEquals("En partie")
+        detail(row).assertTextEquals("Automatique : à configurer · Par autorisations : en partie")
         compose.onNodeWithTag("$row-dot", useUnmergedTree = true).assertDoesNotExist()
         gateway.overlay = SystemControlState.ACTIVE
         compose.runOnIdle { store.launcherSystem.value = store.launcherSystem.value.copy(bootStart = BootStartState(enabled = true)) }
         resume()
-        state(row).assertTextEquals("Terminé")
-        detail(row).assertTextEquals("Toutes les étapes sont faites")
+        state(row).assertTextEquals("Actif")
+        detail(row).assertTextEquals("Automatique : à configurer · Par autorisations : active")
         compose.onNodeWithTag("$row-dot", useUnmergedTree = true).assertExists()
         gateway.accessibility = SystemControlState.BLOCKED
         resume()
         state(row).assertTextEquals("Bloqué")
-        detail(row).assertTextEquals("Touche Home bloquée par la TV")
+        detail(row).assertTextEquals("Automatique : à configurer · Par autorisations : bloquée")
         gateway.accessibility = SystemControlState.INACTIVE
         compose.runOnIdle { store.launcherSystem.value = store.launcherSystem.value.copy(bootStart = BootStartState()) }
         resume()
-        state(row).assertTextEquals("À faire")
-        detail(row).assertTextEquals("Touche Home et démarrage à l’allumage à terminer")
+        state(row).assertTextEquals("À configurer")
+        detail(row).assertTextEquals("Automatique : à configurer · Par autorisations : à faire")
     }
 
     @Test

@@ -66,7 +66,7 @@ class ForegroundHomeTest {
         compose.runOnIdle { launcher.onHome() }
         compose.waitForIdle()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
-        listOf("app-menu", "upnext-menu", "move-banner", "settings-screen", "setting-upnext-position-list", "onboarding-launcher")
+        listOf("app-menu", "upnext-menu", "move-banner", "settings-screen", "setting-upnext-position-list", "setup-panel")
             .forEach { compose.onNodeWithTag(it).assertDoesNotExist() }
     }
 
@@ -157,7 +157,7 @@ class ForegroundHomeTest {
     @Test
     fun `home closes the onboarding for good`() {
         content(onboarding = true)
-        compose.onNodeWithTag("onboarding-launcher").assertExists()
+        compose.onNodeWithTag("setup-choice").assertExists()
         home()
         compose.waitUntil(5_000) { store.dismissed }
     }

@@ -13,7 +13,6 @@ import androidx.test.core.app.ApplicationProvider
 import fr.sygix.sygixos.domain.LauncherSystemController
 import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.model.LauncherSystemPreferences
-import fr.sygix.sygixos.model.SystemControlState
 import fr.sygix.sygixos.ui.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -39,19 +38,6 @@ class UpdateWithoutRoleRequestTest {
     @get:Rule val folder = TemporaryFolder()
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    private class RecordingHomeRole : HomeRoleGateway {
-        var requests = 0
-        override fun state() = SystemControlState.INACTIVE
-        override fun request(): Boolean {
-            requests++
-            return true
-        }
-        override fun fallback(): Boolean {
-            requests++
-            return true
-        }
-    }
-
     private class Store : LauncherSystemStore {
         override val launcherSystem = MutableStateFlow(LauncherSystemPreferences())
         override suspend fun markLauncherGuideSeen() = Unit
@@ -65,8 +51,7 @@ class UpdateWithoutRoleRequestTest {
     fun `self update up to the relaunch never requests the home role`() = runTest {
         val application = shadowOf(context as Application)
         application.clearNextStartedActivities()
-        val role = RecordingHomeRole()
-        val system = AndroidLauncherSystemGateway(context, role)
+        val system = AndroidLauncherSystemGateway(context)
         val launcher = LauncherSystemController(Store(), system, backgroundScope, UnconfinedTestDispatcher(testScheduler))
         launcher.onStartupFinished()
         launcher.onPermissionFinished()
@@ -92,11 +77,9 @@ class UpdateWithoutRoleRequestTest {
         relaunched.onStartupFinished()
         relaunched.onPermissionFinished()
         relaunched.onResume()
-        assertEquals(0, role.requests)
         assertEquals(listOf("confirm"), h.screens.launched.map { it.action })
         assertTrue(h.screens.launched.none { it.action in roleActions })
         assertTrue(relaunch?.action !in roleActions)
         assertEquals(null, application.nextStartedActivity)
-        assertEquals(SystemControlState.INACTIVE, relaunched.state.value.homeRole)
     }
 }

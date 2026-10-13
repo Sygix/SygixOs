@@ -25,18 +25,13 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class AndroidLauncherSystemGatewayTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val home = object : HomeRoleGateway {
-        override fun state() = SystemControlState.INACTIVE
-        override fun request() = true
-        override fun fallback() = true
-    }
 
     @Test
     fun `service must be enabled and running, pending while the launch check runs and blocked after it`() = runTest {
         var enabled = false
         val connected = MutableStateFlow(false)
         val check = AccessibilityCheck({ enabled }, connected, backgroundScope)
-        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { true }, { enabled }, { connected.value }, { false }, { 2 }, check)
+        val gateway = AndroidLauncherSystemGateway(context, { true }, { true }, { enabled }, { connected.value }, { false }, { 2 }, check)
         assertEquals(SystemControlState.INACTIVE, gateway.accessibilityState())
         enabled = true
         assertEquals(SystemControlState.PENDING, gateway.accessibilityState())
@@ -69,7 +64,7 @@ class AndroidLauncherSystemGatewayTest {
     fun `overlay opt in opens only when explicitly requested and never implies grant`() {
         var granted = false
         val opened = mutableListOf<Intent>()
-        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { opened.add(it); true }, { false }, { false }, { granted }, { 2 })
+        val gateway = AndroidLauncherSystemGateway(context, { true }, { opened.add(it); true }, { false }, { false }, { granted }, { 2 })
         assertEquals(SystemControlState.INACTIVE, gateway.overlayState())
         assertTrue(opened.isEmpty())
         assertTrue(gateway.openOverlay())
@@ -82,7 +77,7 @@ class AndroidLauncherSystemGatewayTest {
     @Test
     fun `missing settings and denied provider access are safe and do not open screens`() {
         var opens = 0
-        val gateway = AndroidLauncherSystemGateway(context, home, { throw SecurityException() }, { opens++; true }, { throw SecurityException() }, { false }, { throw SecurityException() }, { throw SecurityException() })
+        val gateway = AndroidLauncherSystemGateway(context, { throw SecurityException() }, { opens++; true }, { throw SecurityException() }, { false }, { throw SecurityException() }, { throw SecurityException() })
         assertEquals(SystemControlState.UNAVAILABLE, gateway.accessibilityState())
         assertEquals(SystemControlState.UNAVAILABLE, gateway.overlayState())
         assertNull(gateway.bootCount())
@@ -93,7 +88,7 @@ class AndroidLauncherSystemGatewayTest {
 
     @Test
     fun `settings launch failure cannot crash or report permission as granted`() {
-        val gateway = AndroidLauncherSystemGateway(context, home, { true }, { throw SecurityException() }, { false }, { false }, { false }, { -1 })
+        val gateway = AndroidLauncherSystemGateway(context, { true }, { throw SecurityException() }, { false }, { false }, { false }, { -1 })
         assertFalse(gateway.openAccessibility())
         assertFalse(gateway.openOverlay())
         assertEquals(SystemControlState.INACTIVE, gateway.overlayState())

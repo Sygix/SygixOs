@@ -66,10 +66,10 @@ private fun stepRow(step: SetupStep, state: DefaultLauncherState): SetupRow {
     return SetupRow(tag, title, if (status == SetupStepState.CANCELLED) R.string.setup_not_done else detail, status.label())
 }
 
-fun defaultLauncherView(legacy: LauncherSystemState): SetupPanelView {
-    val state = requireNotNull(legacy.defaultLauncher)
+fun defaultLauncherView(system: LauncherSystemState): SetupPanelView {
+    val state = system.defaultLauncher
     val automatic = state.automatic
-    val manual = state.manual(legacy)
+    val manual = state.manual(system)
     fun button(tag: String, label: Int, action: SetupAction) = SetupButton(tag, label, action)
     val done = listOf(button("setup-done-details", R.string.setup_details, SetupAction.DETAILS), button("setup-done-finish", R.string.setup_finish, SetupAction.CLOSE))
     val debugStatus = SetupRow("setup-debug-status", R.string.setup_debug_label, if (state.screen == SetupScreen.AUTHORIZE) R.string.setup_authorize_status_detail else R.string.setup_debug_status_detail, if (state.debugEnabled) R.string.setup_debug_enabled else R.string.setup_debug_disabled)
@@ -113,7 +113,7 @@ fun defaultLauncherView(legacy: LauncherSystemState): SetupPanelView {
         SetupScreen.RESTORE -> SetupPanelView("confirm-restore", R.string.setup_restore_title, R.string.setup_restore_description, emptyList(),
             listOf(button("confirm-restore-cancel", R.string.setup_cancel, SetupAction.BACK), button("confirm-restore-accept", R.string.setup_restore_accept, SetupAction.RESTORE)), "confirm-restore-accept", R.string.setup_hint_cancel, mascot = false)
         SetupScreen.FALLBACK -> SetupPanelView("setup-fallback", R.string.setup_fallback_title, R.string.setup_fallback_description,
-            listOf(SetupRow("setup-fallback-home", R.string.setup_home_key, R.string.setup_home_key_detail, legacy.accessibility.setupLabel()), SetupRow("setup-fallback-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, legacy.overlay.setupLabel()), SetupRow("setup-fallback-boot", R.string.setup_boot, R.string.setup_boot_detail, if (legacy.bootEnabled && !legacy.bootNotObserved) R.string.setup_state_done else R.string.setup_state_todo), SetupRow("setup-fallback-tip", R.string.setup_tip, R.string.setup_tip_detail)),
+            listOf(SetupRow("setup-fallback-home", R.string.setup_home_key, R.string.setup_home_key_detail, system.accessibility.setupLabel()), SetupRow("setup-fallback-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, system.overlay.setupLabel()), SetupRow("setup-fallback-boot", R.string.setup_boot, R.string.setup_boot_detail, if (system.bootEnabled && !system.bootNotObserved) R.string.setup_state_done else R.string.setup_state_todo), SetupRow("setup-fallback-tip", R.string.setup_tip, R.string.setup_tip_detail)),
             listOf(button("setup-fallback-details", R.string.setup_details, SetupAction.DETAILS), button("setup-fallback-finish", R.string.setup_finish, SetupAction.CLOSE)), "setup-fallback-finish")
         SetupScreen.FAILED -> SetupPanelView("setup-failed", R.string.setup_failed_title, R.string.setup_failed_description,
             state.steps.keys.map { step -> stepRow(step, state).let { if (state.steps[step] == SetupStepState.CANCELLED) it else it.copy(detail = 0) } }, listOf(button("setup-failed-close", R.string.setup_close, SetupAction.CLOSE), button("setup-failed-retry", R.string.setup_retry, SetupAction.RETRY)), "setup-failed-retry",
@@ -121,13 +121,13 @@ fun defaultLauncherView(legacy: LauncherSystemState): SetupPanelView {
             errorDetail = when { state.steps[SetupStep.HOME] == SetupStepState.FAILED -> R.string.setup_home_error_detail; state.steps[SetupStep.VENDOR_BOOT] == SetupStepState.FAILED -> R.string.setup_vendor_boot_error_detail; else -> R.string.setup_generic_error_detail })
         SetupScreen.MANUAL -> {
             val rows = buildList {
-                add(SetupRow("setup-manual-home", R.string.setup_manual_home, when (legacy.accessibility) { SystemControlState.BLOCKED -> R.string.setup_manual_home_blocked; SystemControlState.UNAVAILABLE -> R.string.setup_manual_home_unavailable; else -> R.string.setup_manual_home_detail }, legacy.accessibility.setupLabel(), if (legacy.accessibility == SystemControlState.UNAVAILABLE) SetupAction.NONE else SetupAction.HOME_KEY))
-                add(SetupRow("setup-manual-boot", R.string.setup_manual_boot, when { legacy.bootBlocked -> R.string.setup_manual_boot_unavailable; legacy.bootNotObserved -> R.string.setup_manual_boot_not_observed; else -> R.string.setup_boot_detail }, when { legacy.bootBlocked -> R.string.setup_state_unavailable; legacy.bootEnabled && legacy.overlay == SystemControlState.ACTIVE -> R.string.setup_state_done; else -> R.string.setup_state_todo }, if (legacy.bootBlocked) SetupAction.NONE else SetupAction.BOOT))
-                if (legacy.bootEnabled && legacy.overlay in setOf(SystemControlState.INACTIVE, SystemControlState.PENDING)) add(SetupRow("setup-manual-overlay", R.string.setup_manual_overlay, R.string.setup_manual_overlay_detail, legacy.overlay.setupLabel(), SetupAction.OVERLAY))
+                add(SetupRow("setup-manual-home", R.string.setup_manual_home, when (system.accessibility) { SystemControlState.BLOCKED -> R.string.setup_manual_home_blocked; SystemControlState.UNAVAILABLE -> R.string.setup_manual_home_unavailable; else -> R.string.setup_manual_home_detail }, system.accessibility.setupLabel(), if (system.accessibility == SystemControlState.UNAVAILABLE) SetupAction.NONE else SetupAction.HOME_KEY))
+                add(SetupRow("setup-manual-boot", R.string.setup_manual_boot, when { system.bootBlocked -> R.string.setup_manual_boot_unavailable; system.bootNotObserved -> R.string.setup_manual_boot_not_observed; else -> R.string.setup_boot_detail }, when { system.bootBlocked -> R.string.setup_state_unavailable; system.bootEnabled && system.overlay == SystemControlState.ACTIVE -> R.string.setup_state_done; else -> R.string.setup_state_todo }, if (system.bootBlocked) SetupAction.NONE else SetupAction.BOOT))
+                if (system.bootEnabled && system.overlay in setOf(SystemControlState.INACTIVE, SystemControlState.PENDING)) add(SetupRow("setup-manual-overlay", R.string.setup_manual_overlay, R.string.setup_manual_overlay_detail, system.overlay.setupLabel(), SetupAction.OVERLAY))
                 if (state.snapshot?.vendorManager == true) add(SetupRow("setup-manual-vendor-boot", R.string.setup_manual_vendor, R.string.setup_manual_vendor_detail, R.string.setup_state_unavailable, SetupAction.NONE))
                 add(SetupRow("setup-manual-tip", R.string.setup_tip, R.string.setup_tip_detail))
             }
-            val returned = legacy.focusReturn?.let { when (it) { GuideStep.ACCESSIBILITY -> "setup-manual-home"; GuideStep.BOOT -> "setup-manual-boot"; GuideStep.OVERLAY -> if (rows.any { r -> r.tag == "setup-manual-overlay" }) "setup-manual-overlay" else "setup-manual-boot"; else -> null } }
+            val returned = system.focusReturn?.let { when (it) { GuideStep.ACCESSIBILITY -> "setup-manual-home"; GuideStep.BOOT -> "setup-manual-boot"; GuideStep.OVERLAY -> if (rows.any { r -> r.tag == "setup-manual-overlay" }) "setup-manual-overlay" else "setup-manual-boot" } }
             SetupPanelView("setup-manual", R.string.setup_manual_title, R.string.setup_manual_description, rows, listOf(button("setup-manual-finish", R.string.setup_finish, SetupAction.CLOSE)), returned ?: rows.firstOrNull { it.action != null && it.status != R.string.setup_state_done }?.tag ?: "setup-manual-finish", verticalNavigation = true)
         }
         SetupScreen.PANEL -> {
@@ -143,8 +143,8 @@ fun defaultLauncherView(legacy: LauncherSystemState): SetupPanelView {
             val rows = buildList {
                 if (SetupStep.VENDOR_BOOT in state.modifications) add(stepRow(SetupStep.VENDOR_BOOT, state).copy(tag = "setup-details-item-boot"))
                 if (SetupStep.HOME in state.modifications) add(SetupRow("setup-details-item-home", R.string.setup_home, R.string.setup_details_home_detail, if (state.snapshot?.roleHolder == "fr.sygix.sygixos" && !state.readFailed) R.string.setup_state_done else R.string.setup_state_todo))
-                if (SetupStep.OVERLAY in state.modifications) add(SetupRow("setup-details-item-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, legacy.overlay.setupLabel()))
-                if (SetupStep.ACCESSIBILITY in state.modifications) add(SetupRow("setup-details-item-accessibility", R.string.setup_home_key, R.string.setup_details_home_key_detail, legacy.accessibility.setupLabel()))
+                if (SetupStep.OVERLAY in state.modifications) add(SetupRow("setup-details-item-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, system.overlay.setupLabel()))
+                if (SetupStep.ACCESSIBILITY in state.modifications) add(SetupRow("setup-details-item-accessibility", R.string.setup_home_key, R.string.setup_details_home_key_detail, system.accessibility.setupLabel()))
                 add(SetupRow("setup-details-item-stock", R.string.setup_stock, if (state.snapshot?.canRestore == true) R.string.setup_stock_disabled else R.string.setup_stock_unchanged, if (state.snapshot?.canRestore == true) R.string.setup_state_done else R.string.setup_state_unchanged))
             }
             SetupPanelView("setup-details", R.string.setup_details_title, R.string.setup_details_description, rows, listOf(button("setup-details-close", R.string.setup_close, SetupAction.BACK)), "setup-details-close", mascot = false)
