@@ -96,6 +96,17 @@ class DefaultLauncherControllerTest {
         assertEquals(SetupScreen.FAILED, f.controller.state.value.screen)
     }
 
+    @Test fun vendorFailureRemainsVisibleAfterKeepingStockAndApplyingFallback() = runTest {
+        val f = Fixture(backgroundScope).apply { vendorFailure = true; effectiveAfterHome = false }
+        f.controller.automatic(); runCurrent(); advanceTimeBy(400); runCurrent()
+        assertEquals(SetupScreen.MORE, f.controller.state.value.screen)
+        f.controller.fallback(); runCurrent()
+        assertEquals(SetupScreen.FAILED, f.controller.state.value.screen)
+        assertEquals(SetupStepState.FAILED, f.controller.state.value.steps[SetupStep.VENDOR_BOOT])
+        assertEquals(SetupStepState.DONE, f.controller.state.value.steps[SetupStep.OVERLAY])
+        assertTrue(f.boot)
+    }
+
     @Test fun homeFailureCancelsVerificationWithoutRetry() = runTest {
         val f = Fixture(backgroundScope).apply { homeFailure = true }
         f.controller.automatic(); runCurrent()

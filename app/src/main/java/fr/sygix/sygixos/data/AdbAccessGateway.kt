@@ -8,12 +8,12 @@ package fr.sygix.sygixos.data
 import android.content.Context
 import android.provider.Settings
 import dadb.AdbKeyPair
-import dadb.Dadb
 import fr.sygix.sygixos.model.AdbAccessState
 import java.io.File
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 interface LocalAdbTransport : AutoCloseable {
     suspend fun reachable(): Boolean
@@ -100,6 +102,7 @@ class AdbAccessGateway(
         try {
             Result.success(work.await())
         } catch (cancelled: CancellationException) {
+            transport.close()
             if (cancelled.message != "Local ADB deadline") throw cancelled
             Result.failure(cancelled)
         } catch (failure: Exception) {
@@ -124,36 +127,75 @@ class AdbAccessGateway(
     }
 }
 
-class DadbLocalTransport(private val directory: File) : LocalAdbTransport {
+internal class DadbLocalTransport(private val directory: File, private val port: Int = 5555) : LocalAdbTransport {
     private val address = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
-    @Volatile private var connection: Dadb? = null
+    private val session = AtomicReference<OwnedAdbSession?>()
     override suspend fun reachable() = withContext(Dispatchers.IO) {
         runCatching {
-            Socket().use { it.connect(InetSocketAddress(address, 5555), 3_000) }
+            Socket().use { it.connect(InetSocketAddress(address, port), 3_000) }
         }.isSuccess
     }
 
     override suspend fun authenticate(): String = withContext(Dispatchers.IO) {
-        val privateKey = File(directory, "local-adb-key")
-        val publicKey = File(directory, "local-adb-key.pub")
-        if (!privateKey.exists()) AdbKeyPair.generate(privateKey, publicKey)
-        check(publicKey.exists())
-        val adb = Dadb.create(address.hostAddress!!, 5555, AdbKeyPair.read(privateKey, publicKey), 3_000, 60_000)
-        connection = adb
-        val identity = adb.shell("id")
-        check(identity.exitCode == 0)
-        identity.output
+        val current = OwnedAdbSession()
+        session.getAndSet(current)?.close()
+        try {
+            val privateKey = File(directory, "local-adb-key")
+            val publicKey = File(directory, "local-adb-key.pub")
+            if (!privateKey.exists() || !publicKey.exists()) AdbKeyPair.generate(privateKey, publicKey)
+            currentCoroutineContext().ensureActive()
+            current.connect(address, port, AdbKeyPair.read(privateKey, publicKey))
+            val identity = current.shell("id")
+            check(identity.exitCode == 0)
+            currentCoroutineContext().ensureActive()
+            identity.output
+        } catch (failure: Throwable) {
+            session.compareAndSet(current, null)
+            current.close()
+            throw failure
+        }
     }
 
     override suspend fun command(command: String): String = withContext(Dispatchers.IO) {
-        val response = checkNotNull(connection).shell(command)
+        val response = checkNotNull(session.get()).shell(command)
         if (response.exitCode != 0) throw ShellOperationFailure(response.allOutput)
         response.output.trim()
     }
 
     override fun close() {
-        val current = connection
-        connection = null
-        runCatching { current?.close() }
+        session.getAndSet(null)?.close()
+    }
+}
+
+private class OwnedAdbSession : AutoCloseable {
+    private val socket = Socket()
+    private var connection: SocketAdbConnection? = null
+    private var closed = false
+
+    fun connect(address: InetAddress, port: Int, keyPair: AdbKeyPair) {
+        socket.soTimeout = 60_000
+        socket.connect(InetSocketAddress(address, port), 3_000)
+        val established = SocketAdbConnection.connect(socket, keyPair)
+        synchronized(this) {
+            if (closed) {
+                established.close()
+                error("Local ADB session closed")
+            }
+            connection = established
+        }
+    }
+
+    fun shell(command: String): dadb.AdbShellResponse {
+        val current = synchronized(this) { check(!closed); checkNotNull(connection) }
+        return current.shell(command)
+    }
+
+    override fun close() {
+        val established = synchronized(this) {
+            closed = true
+            connection.also { connection = null }
+        }
+        runCatching { socket.close() }
+        runCatching { established?.close() }
     }
 }

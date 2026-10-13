@@ -77,6 +77,8 @@
     <string name="setup_home_error_detail">"La touche Home ouvre encore l'accueil Google TV. Vérifiez que le débogage est toujours activé, puis réessayez."</string>
     <string name="setup_generic_error">"Un réglage n'a pas pu être confirmé"</string>
     <string name="setup_generic_error_detail">"Vérifiez que le débogage est toujours activé, puis réessayez. Les états affichés viennent de la TV."</string>
+    <string name="setup_vendor_boot_error">"Le démarrage automatique n'a pas pu être autorisé"</string>
+    <string name="setup_vendor_boot_error_detail">"La TV peut bloquer SygixOs au prochain redémarrage. Vérifiez que le débogage est activé, puis réessayez."</string>
     <string name="setup_restore_error">"L'accueil Google TV n'a pas pu être rétabli"</string>
     <string name="setup_close">"Fermer"</string>
     <string name="setup_manual_title">"Par autorisations"</string>

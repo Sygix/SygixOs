@@ -147,6 +147,20 @@ class DefaultLauncherPanelTest {
         compose.onNodeWithTag("setup-step-verify-state").assertTextEquals("Annulée")
     }
 
+    @Test fun vendorFailureAfterFallbackIsExplainedAndControlsFitTvViewport() {
+        state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(steps = mapOf(
+            SetupStep.VENDOR_BOOT to SetupStepState.FAILED, SetupStep.HOME to SetupStepState.DONE, SetupStep.VERIFY to SetupStepState.FAILED,
+            SetupStep.ACCESSIBILITY to SetupStepState.DONE, SetupStep.OVERLAY to SetupStepState.DONE, SetupStep.BOOT to SetupStepState.DONE,
+        )))
+        show(SetupScreen.FAILED)
+        compose.onNodeWithTag("setup-error-title").assertTextEquals("Le démarrage automatique n'a pas pu être autorisé")
+        compose.onNodeWithTag("setup-step-boot-state").assertTextEquals("Échec")
+        compose.onNodeWithTag("setup-failed-retry").assertIsFocused().assertIsDisplayed()
+        val button = compose.onNodeWithTag("setup-failed-retry").fetchSemanticsNode().boundsInRoot
+        val viewport = compose.onNodeWithTag("setup-panel").fetchSemanticsNode().boundsInRoot
+        assertTrue(button.bottom <= viewport.bottom)
+    }
+
     @Test fun successTipDisappearsWhenDebugIsDisabled() {
         state.value = state.value.copy(defaultLauncher = state.value.defaultLauncher!!.copy(debugEnabled = true, snapshot = HomeScreenSnapshot(effective = true)))
         show(SetupScreen.DONE)

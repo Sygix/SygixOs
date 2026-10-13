@@ -260,6 +260,7 @@ class UpNextSettingsHomeTest {
         press(Key.Enter)
         node("setting-upnext-position-AFTER_APPS").assertIsFocused()
         press(Key.DirectionUp, "setting-upnext-position-list")
+        node("setting-upnext-position-BEFORE_APPS").assertIsFocused()
         press(Key.Enter, "setting-upnext-position-list")
         compose.waitUntil(5_000) { runBlocking { harness.prefs.upNextPosition.first() } == UpNextPosition.BEFORE_APPS }
         press(Key.Back)

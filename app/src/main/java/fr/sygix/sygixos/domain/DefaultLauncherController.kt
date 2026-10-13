@@ -95,7 +95,7 @@ class DefaultLauncherController(
         if (access.previouslyAuthorized()) configure()
     }
 
-    fun configure() = runSequence {
+    fun configure() = runSequence(clearErrors = true) {
         if (!connect()) return@runSequence
         mutableState.update { it.copy(steps = emptyMap(), error = false) }
         show(SetupScreen.PROGRESS)
@@ -175,7 +175,7 @@ class DefaultLauncherController(
     private fun authorizeRestore() = runSequence { if (connect()) show(SetupScreen.RESTORE) }
     fun authorize() { if (state.value.restoring) authorizeRestore() else configure() }
 
-    fun restore() = runSequence {
+    fun restore() = runSequence(clearErrors = true) {
         if (!connect()) return@runSequence
         show(SetupScreen.PROGRESS)
         var success = true
@@ -197,9 +197,9 @@ class DefaultLauncherController(
         }
     }
 
-    private fun runSequence(block: suspend () -> Unit) {
+    private fun runSequence(clearErrors: Boolean = false, block: suspend () -> Unit) {
         if (job?.isActive == true) return
-        mutableState.update { it.copy(busy = true, error = false) }
+        mutableState.update { it.copy(busy = true, error = if (clearErrors) false else it.error) }
         job = scope.launch {
             try {
                 block()
