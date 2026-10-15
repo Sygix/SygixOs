@@ -43,6 +43,7 @@ class DefaultLauncherController(
     val state: StateFlow<DefaultLauncherState> = mutableState
     private var job: Job? = null
     private var refreshJob: Job? = null
+    private var snapshotRequest = 0L
     private var resultPending = false
 
     init {
@@ -67,8 +68,10 @@ class DefaultLauncherController(
     }
 
     private suspend fun refreshSnapshot() {
+        val request = ++snapshotRequest
         val debug = runCatching(access::debugEnabled).getOrDefault(false)
         val result = reader.read()
+        if (request != snapshotRequest) return
         mutableState.update {
             it.copy(debugEnabled = debug, snapshot = result.getOrNull(), readFailed = result.isFailure,
                 screen = if (!it.busy && it.screen == SetupScreen.DEBUG && debug) SetupScreen.AUTHORIZE else it.screen)
@@ -223,8 +226,8 @@ class DefaultLauncherController(
             } finally {
                 refreshJob?.cancel()
                 access.close()
-                val read = reader.read()
-                mutableState.update { it.copy(busy = false, snapshot = read.getOrNull(), readFailed = read.isFailure) }
+                refreshSnapshot()
+                mutableState.update { it.copy(busy = false) }
                 refreshManual()
             }
         }
