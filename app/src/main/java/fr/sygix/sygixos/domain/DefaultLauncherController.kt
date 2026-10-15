@@ -42,6 +42,7 @@ class DefaultLauncherController(
     private val mutableState = MutableStateFlow(DefaultLauncherState())
     val state: StateFlow<DefaultLauncherState> = mutableState
     private var job: Job? = null
+    private var snapshotRequest = 0L
     private var resultPending = false
 
     init {
@@ -51,19 +52,25 @@ class DefaultLauncherController(
 
     fun onResume() {
         val debug = runCatching(access::debugEnabled).getOrDefault(false)
-        val result = reader.read()
         mutableState.update {
-            it.copy(debugEnabled = debug, snapshot = result.getOrNull(), readFailed = result.isFailure,
-                screen = if (!it.busy && it.screen == SetupScreen.DEBUG && debug) SetupScreen.AUTHORIZE else it.screen)
+            it.copy(debugEnabled = debug, screen = if (!it.busy && it.screen == SetupScreen.DEBUG && debug) SetupScreen.AUTHORIZE else it.screen)
         }
-        refreshManual()
         scope.launch {
+            refreshSnapshot()
+            refreshManual()
             try {
                 val memory = store.loadMemory()
                 mutableState.update { it.copy(modifications = memory.modifications) }
             } catch (_: Exception) {
                 mutableState.update { it.copy(error = true) }
             }
+        }
+    }
+
+    private suspend fun refreshSnapshot(): Result<HomeScreenSnapshot> {
+        val request = ++snapshotRequest
+        return reader.read().also { result ->
+            if (request == snapshotRequest) mutableState.update { it.copy(snapshot = result.getOrNull(), readFailed = result.isFailure) }
         }
     }
 
@@ -108,10 +115,10 @@ class DefaultLauncherController(
             return@runSequence
         }
         setStep(SetupStep.VERIFY, SetupStepState.RUNNING)
-        val effective = verifyHome()
-        setStep(SetupStep.VERIFY, if (effective) SetupStepState.DONE else SetupStepState.FAILED)
-        if (effective) show(if (state.value.error) SetupScreen.FAILED else SetupScreen.DONE)
-        else if (state.value.snapshot?.canDisable == true) show(SetupScreen.MORE)
+        val verified = verifyHome()
+        setStep(SetupStep.VERIFY, if (verified.effective) SetupStepState.DONE else SetupStepState.FAILED)
+        if (verified.effective) show(if (state.value.error) SetupScreen.FAILED else SetupScreen.DONE)
+        else if (verified.canDisable) show(SetupScreen.MORE)
         else fallbackConnected()
     }
 
@@ -130,7 +137,7 @@ class DefaultLauncherController(
                 changed += packageName
                 if (operations.disable(packageName).isFailure) { succeeded = false; break }
             }
-            if (succeeded) succeeded = verifyHome()
+            if (succeeded) succeeded = verifyHome().effective
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -160,8 +167,7 @@ class DefaultLauncherController(
         step(SetupStep.OVERLAY) { operations.grantOverlay() }
         step(SetupStep.BOOT) { enableBoot(); mutableState.update { it.copy(bootEnabled = true) }; Result.success(Unit) }
         refreshManual()
-        val snapshot = reader.read()
-        mutableState.update { it.copy(snapshot = snapshot.getOrNull(), readFailed = snapshot.isFailure) }
+        refreshSnapshot()
         show(if (state.value.error) SetupScreen.FAILED else SetupScreen.FALLBACK)
     }
 
@@ -185,8 +191,7 @@ class DefaultLauncherController(
         val snapshot = reader.read().getOrThrow()
         val previous = store.loadMemory().previousHome
         if (success && previous != null && previous in snapshot.enabledHomes) success = operations.setHome(previous).isSuccess
-        onResume()
-        show(if (success && state.value.snapshot?.canRestore == false) SetupScreen.PANEL else SetupScreen.FAILED)
+        show(if (success && refreshSnapshot().getOrNull()?.canRestore == false) SetupScreen.PANEL else SetupScreen.FAILED)
     }
 
     fun retry() {
@@ -213,8 +218,8 @@ class DefaultLauncherController(
                 show(SetupScreen.FAILED)
             } finally {
                 access.close()
-                val read = reader.read()
-                mutableState.update { it.copy(busy = false, snapshot = read.getOrNull(), readFailed = read.isFailure) }
+                refreshSnapshot()
+                mutableState.update { it.copy(busy = false) }
                 refreshManual()
             }
         }
@@ -267,13 +272,11 @@ class DefaultLauncherController(
         mutableState.update { it.copy(modifications = it.modifications + step) }
     }
 
-    private suspend fun verifyHome(): Boolean {
+    private suspend fun verifyHome(): HomeScreenSnapshot {
         var waited = 0L
         while (true) {
-            val result = reader.read()
-            mutableState.update { it.copy(snapshot = result.getOrNull(), readFailed = result.isFailure) }
-            if (result.getOrThrow().effective) return true
-            if (waited >= verificationMs) return false
+            val snapshot = refreshSnapshot().getOrThrow()
+            if (snapshot.effective || waited >= verificationMs) return snapshot
             delay(100)
             waited += 100
         }

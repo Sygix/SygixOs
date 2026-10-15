@@ -33,6 +33,7 @@ class DefaultLauncherControllerTest {
         var memory = DefaultLauncherMemory()
         var boot = false
         var closed = 0
+        val readReplies = ArrayDeque<CompletableDeferred<Result<HomeScreenSnapshot>>>()
         val calls = mutableListOf<String>()
         val controller = DefaultLauncherController(this, this, this, this, scope, { boot = true }, {}, { true }, verificationMs = 300)
         override fun debugEnabled() = debug
@@ -40,7 +41,10 @@ class DefaultLauncherControllerTest {
         override suspend fun connect(): Result<Unit> { calls += "connect"; state.value = if (connectFailure) AdbAccessState.UNREACHABLE else AdbAccessState.READY; return if (connectFailure) Result.failure(IllegalStateException()) else Result.success(Unit) }
         override suspend fun execute(command: String) = Result.success("")
         override fun close() { closed++; if (state.value == AdbAccessState.READY) state.value = AdbAccessState.LOST }
-        override fun read() = if (readFailure) Result.failure(IllegalStateException()) else Result.success(snapshot)
+        override suspend fun read(): Result<HomeScreenSnapshot> {
+            readReplies.removeFirstOrNull()?.let { return it.await() }
+            return if (readFailure) Result.failure(IllegalStateException()) else Result.success(snapshot)
+        }
         override suspend fun loadMemory(): DefaultLauncherMemory = memory
         override suspend fun rememberPrevious(component: String) { if (memory.previousHome == null) memory = memory.copy(previousHome = component) }
         override suspend fun record(step: SetupStep) { memory = memory.copy(modifications = memory.modifications + step) }
@@ -51,6 +55,84 @@ class DefaultLauncherControllerTest {
         override suspend fun restore(packageName: String): Result<Unit> { calls += "restore:$packageName"; if (packageName == failRestore) return Result.failure(IllegalStateException()); snapshot = snapshot.copy(stock = snapshot.stock + (packageName to StockHomeState.ACTIVE), effective = false); return Result.success(Unit) }
         override suspend fun grantOverlay(): Result<Unit> { calls += "overlay"; snapshot = snapshot.copy(overlay = true); return Result.success(Unit) }
         override suspend fun enableAccessibility(): Result<Unit> { calls += "accessibility"; snapshot = snapshot.copy(accessibilityEnabled = true, accessibilityConnected = true); return Result.success(Unit) }
+    }
+
+    @Test fun anOlderResumeReadCannotOverwriteANewerOne() = runTest {
+        val f = Fixture(backgroundScope)
+        val stale = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        f.readReplies += stale
+        runCurrent()
+        assertNull(f.controller.state.value.snapshot)
+        f.snapshot = f.snapshot.copy(overlay = true)
+        f.controller.onResume(); runCurrent()
+        assertEquals(f.snapshot, f.controller.state.value.snapshot)
+        stale.complete(Result.success(f.snapshot.copy(overlay = false)))
+        runCurrent()
+        assertEquals(f.snapshot, f.controller.state.value.snapshot)
+    }
+
+    @Test fun restoreDecidesOnItsOwnReadWhileAResumeIsPending() = runTest {
+        val previous = "com.google.android.apps.tv.launcherx/.home.HomeActivity"
+        val f = Fixture(backgroundScope).apply { wait = CompletableDeferred(); memory = DefaultLauncherMemory(previous) }
+        f.snapshot = f.snapshot.copy(stock = StockHomePackages.associateWith { StockHomeState.DISABLED_USER }, enabledHomes = setOf(previous))
+        runCurrent()
+        f.controller.restore(); runCurrent()
+        val decision = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        val resumed = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        f.readReplies.addAll(listOf(decision, resumed))
+        f.wait!!.complete(Unit); runCurrent()
+        f.controller.onResume(); runCurrent()
+        decision.complete(Result.success(f.snapshot))
+        runCurrent()
+        assertEquals(SetupScreen.PANEL, f.controller.state.value.screen)
+        resumed.complete(Result.success(f.snapshot))
+        runCurrent()
+        assertEquals(SetupScreen.PANEL, f.controller.state.value.screen)
+        assertFalse(f.controller.state.value.busy)
+    }
+
+    @Test fun sequenceFinalReadCannotOverwriteANewerResume() = runTest {
+        val f = Fixture(backgroundScope).apply { homeFailure = true; wait = CompletableDeferred() }
+        f.controller.automatic()
+        runCurrent()
+        val finalRead = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        val resumedRead = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        f.readReplies.addAll(listOf(finalRead, resumedRead))
+        f.wait!!.complete(Unit)
+        runCurrent()
+        assertTrue(f.controller.state.value.busy)
+        f.controller.onResume()
+        runCurrent()
+        val current = f.snapshot.copy(overlay = true)
+        resumedRead.complete(Result.success(current))
+        runCurrent()
+        assertEquals(current, f.controller.state.value.snapshot)
+        finalRead.complete(Result.success(f.snapshot))
+        runCurrent()
+        assertEquals(current, f.controller.state.value.snapshot)
+        assertFalse(f.controller.state.value.busy)
+    }
+
+    @Test fun verificationReadCannotOverwriteANewerResume() = runTest {
+        val f = Fixture(backgroundScope).apply { wait = CompletableDeferred() }
+        f.controller.automatic()
+        runCurrent()
+        val verification = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        val resumedRead = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        f.readReplies.addAll(listOf(verification, resumedRead))
+        f.wait!!.complete(Unit)
+        runCurrent()
+        f.controller.onResume()
+        runCurrent()
+        f.snapshot = f.snapshot.copy(overlay = true)
+        resumedRead.complete(Result.success(f.snapshot))
+        runCurrent()
+        verification.complete(Result.success(f.snapshot.copy(overlay = false, effective = false)))
+        runCurrent()
+        assertEquals(f.snapshot, f.controller.state.value.snapshot)
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(SetupScreen.DONE, f.controller.state.value.screen)
     }
 
     @Test fun configurationUsesLeastIntrusiveSequenceAndCloses() = runTest {

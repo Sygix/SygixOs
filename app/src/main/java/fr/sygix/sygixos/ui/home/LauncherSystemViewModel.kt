@@ -19,6 +19,7 @@ import fr.sygix.sygixos.ui.settings.LauncherSystemActions
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import fr.sygix.sygixos.domain.DefaultLauncherController
@@ -34,7 +35,10 @@ class LauncherSystemViewModel(
             manual.copy(defaultLauncher = automatic.copy(bootEnabled = manual.bootEnabled))
         }.stateIn(viewModelScope, SharingStarted.Eagerly, controller.state.value.copy(defaultLauncher = defaultLauncher.state.value))
     val actions = LauncherSystemActions(
-        openGuide = { defaultLauncher.onResume(); defaultLauncher.openPanel(); controller.openGuide() },
+        openGuide = {
+            defaultLauncher.onResume()
+            viewModelScope.launch { defaultLauncher.state.first { it.snapshot != null || it.readFailed }; defaultLauncher.openPanel(); controller.openGuide() }
+        },
         focusReturned = controller::focusReturned,
         setup = ::setup,
     )
