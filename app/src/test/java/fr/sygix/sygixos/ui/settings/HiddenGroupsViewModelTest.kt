@@ -28,7 +28,7 @@ class HiddenGroupsViewModelTest {
     @get:Rule
     val mainDispatcher = MainDispatcherRule()
 
-    private val harness = SettingsHarness()
+    private val harness = SettingsHarness(track = mainDispatcher::track)
 
     @After
     fun clear() = harness.clear()

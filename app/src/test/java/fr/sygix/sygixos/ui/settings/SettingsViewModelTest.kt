@@ -42,7 +42,7 @@ class SettingsViewModelTest {
     fun clearViewModels() = harnesses.forEach { it.clear() }
 
     private fun harness(counts: Flow<Map<String, Int>> = flowOf(emptyMap())) =
-        SettingsHarness(counts).also { harnesses += it }
+        SettingsHarness(counts, track = mainDispatcher::track).also { harnesses += it }
 
     private fun CoroutineScope.counting(vm: SettingsViewModel): Job =
         launch(Dispatchers.Unconfined) { vm.counts.collect { } }
