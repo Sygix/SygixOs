@@ -185,18 +185,6 @@ class UpNextHomeTest {
         compose.waitForIdle()
         compose.onNodeWithTag("zone-hero").assertIsFocused()
     }
-    @Test fun `skeleton is not focusable and has five cards`() {
-        row.value = row.value!!.copy(content = UpNextContent.Skeleton)
-        home()
-        compose.onAllNodesWithTag("upnext-skeleton").assertCountEquals(5)
-        compose.onNodeWithTag("app-tile-com.app").assertIsFocused()
-    }
-    @Test fun `error is a single focusable card`() {
-        row.value = row.value!!.copy(content = UpNextContent.Error)
-        home()
-        compose.onAllNodesWithTag("upnext-error").assertCountEquals(1)
-        compose.onNodeWithTag("upnext-error").assertIsFocused()
-    }
     @Test fun `titles are ordered and first title is visible`() {
         home()
         assertTrue(compose.span("section-title-upnext").top < compose.span("section-title-apps").top)

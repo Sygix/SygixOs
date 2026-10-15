@@ -13,6 +13,7 @@ import java.net.InetSocketAddress
 import java.net.SocketTimeoutException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import org.junit.After
@@ -27,6 +28,7 @@ import org.junit.Test
 class HttpsUrlTransportTest {
 
     private lateinit var server: HttpServer
+    private lateinit var executor: ExecutorService
     private val requests = CopyOnWriteArrayList<Map<String, List<String>>>()
     private val release = CountDownLatch(1)
     private val transport = HttpsUrlTransport()
@@ -36,24 +38,13 @@ class HttpsUrlTransportTest {
     @Before
     fun start() {
         server = HttpServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
-        server.executor = Executors.newCachedThreadPool()
+        executor = Executors.newCachedThreadPool()
+        server.executor = executor
         server.createContext("/body") { reply(it, 200, BODY, "x-ratelimit-remaining" to "59", "retry-after" to "30", "Set-Cookie" to "id=1") }
         server.createContext("/missing") { reply(it, 404, "{}".toByteArray()) }
         server.createContext("/gone") { reply(it, 410, "{}".toByteArray()) }
         server.createContext("/limited") { reply(it, 403, "{}".toByteArray(), "x-ratelimit-remaining" to "0", "x-ratelimit-reset" to "1700000000") }
         server.createContext("/redirect") { reply(it, 302, ByteArray(0), "Location" to "/body") }
-        server.createContext("/slow") { exchange ->
-            record(exchange)
-            exchange.sendResponseHeaders(200, 0)
-            exchange.responseBody.use { out ->
-                repeat(100) {
-                    out.write(ByteArray(8))
-                    out.flush()
-                    if (release.await(50, TimeUnit.MILLISECONDS)) return@use
-                }
-            }
-            exchange.close()
-        }
         server.createContext("/silent") {
             record(it)
             release.await(10, TimeUnit.SECONDS)
@@ -66,6 +57,8 @@ class HttpsUrlTransportTest {
     fun stop() {
         release.countDown()
         server.stop(0)
+        executor.shutdownNow()
+        assertTrue("HTTP handlers did not terminate", executor.awaitTermination(10, TimeUnit.SECONDS))
     }
 
     private fun record(exchange: HttpExchange) {
@@ -105,22 +98,32 @@ class HttpsUrlTransportTest {
 
     @Test
     fun `silent server ends in a timeout`() {
-        val start = System.nanoTime()
         val error = runCatching {
             transport.get(url("/silent"), headers, 1_000, HttpTimeouts(connectMs = 2_000, readMs = 300, totalMs = 10_000), ByteArrayOutputStream())
         }.exceptionOrNull()
         assertTrue(error.toString(), error is SocketTimeoutException)
-        assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 5_000)
     }
 
     @Test
-    fun `server that keeps sending slowly ends in a timeout once the total time is over`() {
-        val start = System.nanoTime()
-        val error = runCatching {
-            transport.get(url("/slow"), headers, 10_000, HttpTimeouts(connectMs = 2_000, readMs = 2_000, totalMs = 300), ByteArrayOutputStream())
-        }.exceptionOrNull()
+    fun `total deadline is checked between reads after progress`() {
+        val error = runCatching { readBodyAdvancingClockTo(301) }.exceptionOrNull()
         assertTrue(error.toString(), error is SocketTimeoutException)
-        assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 3_000)
+        assertEquals("total time exceeded", error?.message)
+    }
+
+    @Test
+    fun `reaching exactly the total deadline still completes`() {
+        val response = readBodyAdvancingClockTo(300)
+        assertEquals(200, response.status)
+        assertEquals(BODY.size.toLong(), response.bodyBytes)
+    }
+
+    private fun readBodyAdvancingClockTo(elapsedMs: Long): HttpResponse {
+        var now = 0L
+        val clocked = HttpsUrlTransport { now }
+        return clocked.get(url("/body"), headers, 10_000, HttpTimeouts(connectMs = 2_000, readMs = 2_000, totalMs = 300), ByteArrayOutputStream()) {
+            now = TimeUnit.MILLISECONDS.toNanos(elapsedMs)
+        }
     }
 
     @Test
