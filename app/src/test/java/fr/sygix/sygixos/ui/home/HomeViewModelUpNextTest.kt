@@ -98,7 +98,7 @@ class HomeViewModelUpNextTest {
         opener: UpNextOpener = UpNextOpener { _, _ -> false },
     ): HomeViewModel {
         val empty = object : HeroContentProvider { override suspend fun load() = emptyList<HeroItem>() }
-        return HomeViewModel(
+        return mainDispatcher.track(HomeViewModel(
             repo, HeroRepository(empty, empty), AppArtworkSource(context.packageManager), VisualValidator(context),
             object : ClockSource {
                 override fun current() = ""
@@ -107,7 +107,7 @@ class HomeViewModelUpNextTest {
             upNextSource = upNext,
             upNextMemory = memory,
             upNextOpener = opener,
-        ).also { store.put(key, it) }
+        )).also { store.put(key, it) }
     }
 
     private suspend fun awaitItems(expected: List<UpNextItem>, model: HomeViewModel = vm) = model.state.await {

@@ -42,6 +42,7 @@ import org.robolectric.Shadows
 internal class SettingsHarness(
     private val counts: Flow<Map<String, Int>> = flowOf(emptyMap()),
     val updates: UpdateController = FakeUpdateController(),
+    private val track: (SettingsViewModel) -> SettingsViewModel = { it },
 ) {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val leanback = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
@@ -78,7 +79,7 @@ internal class SettingsHarness(
                 updates = updates,
             ) as T
         }
-        ViewModelProvider(store, factory)[SettingsViewModel::class.java]
+        track(ViewModelProvider(store, factory)[SettingsViewModel::class.java])
     }
 
     fun packageOf(label: String) = "com.${label.lowercase()}"

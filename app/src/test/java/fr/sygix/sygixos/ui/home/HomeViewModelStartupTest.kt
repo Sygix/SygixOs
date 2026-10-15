@@ -75,7 +75,7 @@ class HomeViewModelStartupTest {
         session: StartupSession,
         motion: FakeMotionSource = FakeMotionSource(),
         dispatcher: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
-    ) = HomeViewModel(
+    ) = mainDispatcher.track(HomeViewModel(
         apps = repo,
         hero = HeroRepository(EmptyFeed(), EmptyFeed()),
         artwork = AppArtworkSource(context.packageManager),
@@ -90,7 +90,7 @@ class HomeViewModelStartupTest {
         mascot = FakeMascotSource(),
         startupClock = { testScheduler.currentTime },
         startupDispatcher = dispatcher,
-    )
+    ))
 
     @Test
     fun `first home of the process starts on the splash and a second one does not`() = runTest {
