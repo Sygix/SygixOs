@@ -34,7 +34,7 @@ interface HttpTransport {
     ): HttpResponse
 }
 
-class HttpsUrlTransport : HttpTransport {
+class HttpsUrlTransport(private val nanoTime: () -> Long = System::nanoTime) : HttpTransport {
 
     override fun get(
         url: String,
@@ -44,7 +44,7 @@ class HttpsUrlTransport : HttpTransport {
         sink: OutputStream,
         onBytes: (Long) -> Unit,
     ): HttpResponse {
-        val deadline = System.nanoTime() + timeouts.totalMs * 1_000_000
+        val deadline = nanoTime() + timeouts.totalMs * 1_000_000
         val connection = URL(url).openConnection() as HttpURLConnection
         try {
             connection.instanceFollowRedirects = true
@@ -70,7 +70,7 @@ class HttpsUrlTransport : HttpTransport {
         val buffer = ByteArray(BUFFER_SIZE)
         var total = 0L
         while (true) {
-            if (System.nanoTime() > deadline) throw SocketTimeoutException("total time exceeded")
+            if (nanoTime() > deadline) throw SocketTimeoutException("total time exceeded")
             val room = maxBytes - total
             if (room <= 0) return total to (input.read() != -1)
             val read = input.read(buffer, 0, minOf(buffer.size.toLong(), room).toInt())
