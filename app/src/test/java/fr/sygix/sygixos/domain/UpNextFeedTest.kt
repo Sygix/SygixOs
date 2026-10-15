@@ -125,6 +125,22 @@ class UpNextFeedTest {
         assertEquals(2, UpNextFeed.build(listOf(a, b)).size)
     }
 
+    @Test
+    fun `a different app bridges same app rows without changing stable source preference`() {
+        val sameApp = listOf(movie(1, "app.a"), movie(2, "app.a"))
+        assertEquals(listOf(1L, 2L), UpNextFeed.build(sameApp).map { it.id })
+        val bridge = movie(3, "app.b")
+        val merged = UpNextFeed.build(sameApp + bridge).single()
+        assertEquals(1L, merged.id)
+        assertEquals(listOf("intent://1", "intent://3"), merged.sources.map { it.intentUri })
+    }
+
+    @Test
+    fun `unmerged equal keys retain input order among other equal priority rows`() {
+        val items = listOf(movie(1, "app.a"), movie(1, "app.b", title = "Other"), movie(3, "app.a"))
+        assertEquals(listOf("app.a", "app.b", "app.a"), UpNextFeed.build(items).map { it.source.packageName })
+    }
+
     private fun <T> permutations(items: List<T>): List<List<T>> =
         if (items.isEmpty()) listOf(emptyList()) else items.indices.flatMap { index ->
             permutations(items.filterIndexed { i, _ -> i != index }).map { listOf(items[index]) + it }
