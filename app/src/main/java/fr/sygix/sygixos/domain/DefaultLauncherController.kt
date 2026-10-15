@@ -42,6 +42,7 @@ class DefaultLauncherController(
     private val mutableState = MutableStateFlow(DefaultLauncherState())
     val state: StateFlow<DefaultLauncherState> = mutableState
     private var job: Job? = null
+    private var refreshJob: Job? = null
     private var resultPending = false
 
     init {
@@ -50,20 +51,27 @@ class DefaultLauncherController(
     }
 
     fun onResume() {
+        refreshJob?.cancel()
+        refreshJob = scope.launch {
+            refreshSnapshot()
+            refreshManual()
+            try {
+                val memory = store.loadMemory()
+                mutableState.update { it.copy(modifications = memory.modifications) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableState.update { it.copy(error = true) }
+            }
+        }
+    }
+
+    private suspend fun refreshSnapshot() {
         val debug = runCatching(access::debugEnabled).getOrDefault(false)
         val result = reader.read()
         mutableState.update {
             it.copy(debugEnabled = debug, snapshot = result.getOrNull(), readFailed = result.isFailure,
                 screen = if (!it.busy && it.screen == SetupScreen.DEBUG && debug) SetupScreen.AUTHORIZE else it.screen)
-        }
-        refreshManual()
-        scope.launch {
-            try {
-                val memory = store.loadMemory()
-                mutableState.update { it.copy(modifications = memory.modifications) }
-            } catch (_: Exception) {
-                mutableState.update { it.copy(error = true) }
-            }
         }
     }
 
@@ -185,7 +193,7 @@ class DefaultLauncherController(
         val snapshot = reader.read().getOrThrow()
         val previous = store.loadMemory().previousHome
         if (success && previous != null && previous in snapshot.enabledHomes) success = operations.setHome(previous).isSuccess
-        onResume()
+        refreshSnapshot()
         show(if (success && state.value.snapshot?.canRestore == false) SetupScreen.PANEL else SetupScreen.FAILED)
     }
 
@@ -199,6 +207,7 @@ class DefaultLauncherController(
 
     private fun runSequence(clearErrors: Boolean = false, block: suspend () -> Unit) {
         if (job?.isActive == true) return
+        refreshJob?.cancel()
         mutableState.update { it.copy(busy = true, error = if (clearErrors) false else it.error) }
         job = scope.launch {
             try {
@@ -212,6 +221,7 @@ class DefaultLauncherController(
                 }
                 show(SetupScreen.FAILED)
             } finally {
+                refreshJob?.cancel()
                 access.close()
                 val read = reader.read()
                 mutableState.update { it.copy(busy = false, snapshot = read.getOrNull(), readFailed = read.isFailure) }

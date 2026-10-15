@@ -30,7 +30,7 @@ class PrivilegedShell(
     init { require(user >= 0) }
 
     private suspend fun command(value: String): String = access.execute(value).getOrThrow()
-    private fun snapshot() = reader.read().getOrThrow()
+    private suspend fun snapshot() = reader.read().getOrThrow()
     private suspend fun <T> operation(block: suspend () -> T): Result<T> = try {
         Result.success(block())
     } catch (cancelled: kotlinx.coroutines.CancellationException) {

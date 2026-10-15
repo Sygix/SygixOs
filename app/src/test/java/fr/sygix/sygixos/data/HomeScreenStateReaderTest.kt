@@ -23,6 +23,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import android.os.Looper
+import kotlinx.coroutines.test.runTest
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -33,13 +35,13 @@ class HomeScreenStateReaderTest {
         applicationInfo = ApplicationInfo().apply { this.packageName = packageName; enabled = true }
     })
 
-    @Test fun missingStockPackagesAreAbsenceNotFailedReading() {
+    @Test fun missingStockPackagesAreAbsenceNotFailedReading() = runTest {
         val state = HomeScreenStateReader(context).read().getOrThrow()
         assertTrue(state.stock.values.all { it == StockHomeState.ABSENT })
         assertFalse(state.canDisable)
     }
 
-    @Test fun disabledUserDiffersFromSystemDisabledAndCanBeRestored() {
+    @Test fun disabledUserDiffersFromSystemDisabledAndCanBeRestored() = runTest {
         StockHomePackages.forEach(::install)
         context.packageManager.setApplicationEnabledSetting(StockHomePackages.first(), PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER, 0)
         context.packageManager.setApplicationEnabledSetting(StockHomePackages.last(), PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0)
@@ -50,7 +52,7 @@ class HomeScreenStateReaderTest {
         assertFalse(state.canDisable)
     }
 
-    @Test fun failedPackageReadIsNotEmptyOrActive() {
+    @Test fun failedPackageReadIsNotEmptyOrActive() = runTest {
         val denied = object : ContextWrapper(context) {
             override fun getPackageManager(): PackageManager = throw SecurityException()
         }
@@ -59,7 +61,7 @@ class HomeScreenStateReaderTest {
         assertNull(result.getOrNull())
     }
 
-    @Test fun disabledOwnHomeCannotPassDisableGuardsEvenWhenProvisioned() {
+    @Test fun disabledOwnHomeCannotPassDisableGuardsEvenWhenProvisioned() = runTest {
         StockHomePackages.forEach(::install)
         context.packageManager.setComponentEnabledSetting(ComponentName(context.packageName, "fr.sygix.sygixos.ui.MainActivity"), PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER, 0)
         Settings.Global.putInt(context.contentResolver, Settings.Global.DEVICE_PROVISIONED, 1)
@@ -70,7 +72,7 @@ class HomeScreenStateReaderTest {
         assertFalse(state.canDisable)
     }
 
-    @Test fun higherPriorityStockPreventsEffectiveHomeEvenWithOwnResolution() {
+    @Test fun higherPriorityStockPreventsEffectiveHomeEvenWithOwnResolution() = runTest {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         fun home(packageName: String, priority: Int) = ResolveInfo().apply {
             this.priority = priority
@@ -84,5 +86,17 @@ class HomeScreenStateReaderTest {
         }
         shadowOf(context.packageManager).setResolveInfosForIntent(intent, listOf(home(context.packageName, 0), home(StockHomePackages.last(), 2)))
         assertFalse(HomeScreenStateReader(context).read().getOrThrow().effective)
+    }
+
+    @Test fun packageReadsRunOffTheMainThread() = runTest {
+        var mainThread: Boolean? = null
+        val observed = object : ContextWrapper(context) {
+            override fun getPackageManager(): PackageManager {
+                mainThread = Looper.myLooper() == Looper.getMainLooper()
+                return super.getPackageManager()
+            }
+        }
+        HomeScreenStateReader(observed).read().getOrThrow()
+        assertEquals(false, mainThread)
     }
 }
