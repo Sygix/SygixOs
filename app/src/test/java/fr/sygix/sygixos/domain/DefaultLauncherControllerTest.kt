@@ -33,6 +33,8 @@ class DefaultLauncherControllerTest {
         var memory = DefaultLauncherMemory()
         var boot = false
         var closed = 0
+        var reads = 0
+        var readWait: CompletableDeferred<Unit>? = null
         val calls = mutableListOf<String>()
         val controller = DefaultLauncherController(this, this, this, this, scope, { boot = true }, {}, { true }, verificationMs = 300)
         override fun debugEnabled() = debug
@@ -40,7 +42,11 @@ class DefaultLauncherControllerTest {
         override suspend fun connect(): Result<Unit> { calls += "connect"; state.value = if (connectFailure) AdbAccessState.UNREACHABLE else AdbAccessState.READY; return if (connectFailure) Result.failure(IllegalStateException()) else Result.success(Unit) }
         override suspend fun execute(command: String) = Result.success("")
         override fun close() { closed++; if (state.value == AdbAccessState.READY) state.value = AdbAccessState.LOST }
-        override fun read() = if (readFailure) Result.failure(IllegalStateException()) else Result.success(snapshot)
+        override suspend fun read(): Result<HomeScreenSnapshot> {
+            reads++
+            readWait?.await()
+            return if (readFailure) Result.failure(IllegalStateException()) else Result.success(snapshot)
+        }
         override suspend fun loadMemory(): DefaultLauncherMemory = memory
         override suspend fun rememberPrevious(component: String) { if (memory.previousHome == null) memory = memory.copy(previousHome = component) }
         override suspend fun record(step: SetupStep) { memory = memory.copy(modifications = memory.modifications + step) }
@@ -51,6 +57,35 @@ class DefaultLauncherControllerTest {
         override suspend fun restore(packageName: String): Result<Unit> { calls += "restore:$packageName"; if (packageName == failRestore) return Result.failure(IllegalStateException()); snapshot = snapshot.copy(stock = snapshot.stock + (packageName to StockHomeState.ACTIVE), effective = false); return Result.success(Unit) }
         override suspend fun grantOverlay(): Result<Unit> { calls += "overlay"; snapshot = snapshot.copy(overlay = true); return Result.success(Unit) }
         override suspend fun enableAccessibility(): Result<Unit> { calls += "accessibility"; snapshot = snapshot.copy(accessibilityEnabled = true, accessibilityConnected = true); return Result.success(Unit) }
+    }
+
+    @Test fun resumeDefersSnapshotReadsUntilScheduled() = runTest {
+        val f = Fixture(backgroundScope)
+        f.controller.onResume()
+        f.controller.onResume()
+        assertEquals(0, f.reads)
+        runCurrent()
+        assertEquals(1, f.reads)
+        assertEquals(f.snapshot, f.controller.state.value.snapshot)
+    }
+
+    @Test fun aNewResumeCancelsThePreviousRead() = runTest {
+        val f = Fixture(backgroundScope)
+        val blocked = CompletableDeferred<Unit>()
+        f.readWait = blocked
+        runCurrent()
+        assertEquals(1, f.reads)
+        assertNull(f.controller.state.value.snapshot)
+        f.readWait = null
+        f.snapshot = f.snapshot.copy(overlay = true)
+        f.controller.onResume()
+        runCurrent()
+        assertEquals(2, f.reads)
+        assertEquals(f.snapshot, f.controller.state.value.snapshot)
+        blocked.complete(Unit)
+        runCurrent()
+        assertEquals(2, f.reads)
+        assertFalse(f.controller.state.value.error)
     }
 
     @Test fun configurationUsesLeastIntrusiveSequenceAndCloses() = runTest {
@@ -75,7 +110,7 @@ class DefaultLauncherControllerTest {
         f.controller.automatic(); runCurrent()
         assertEquals(SetupScreen.DEBUG, f.controller.state.value.screen)
         assertTrue(f.calls.isEmpty())
-        f.debug = true; f.controller.onResume()
+        f.debug = true; f.controller.onResume(); runCurrent()
         assertEquals(SetupScreen.AUTHORIZE, f.controller.state.value.screen)
         assertTrue(f.calls.isEmpty())
     }

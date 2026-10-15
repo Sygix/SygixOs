@@ -14,13 +14,17 @@ import android.os.Process
 import android.provider.Settings
 import fr.sygix.sygixos.model.HomeScreenSnapshot
 import fr.sygix.sygixos.model.StockHomeState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 fun interface HomeStateReader {
-    fun read(): Result<HomeScreenSnapshot>
+    suspend fun read(): Result<HomeScreenSnapshot>
 }
 
 class HomeScreenStateReader(private val context: Context) : HomeStateReader {
-    override fun read(): Result<HomeScreenSnapshot> = runCatching {
+    override suspend fun read(): Result<HomeScreenSnapshot> = withContext(Dispatchers.IO) { snapshot() }
+
+    private fun snapshot(): Result<HomeScreenSnapshot> = runCatching {
         val pm = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         val homes = pm.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
