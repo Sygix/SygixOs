@@ -125,6 +125,15 @@ class UpNextFeedTest {
         assertEquals(2, UpNextFeed.build(listOf(a, b)).size)
     }
 
+    @Test
+    fun `another app bridges same app rows and wins ties over them`() {
+        val sameApp = listOf(movie(1, "app.a"), movie(2, "app.a", engagement = 10))
+        assertEquals(listOf(2L, 1L), UpNextFeed.build(sameApp).map { it.id })
+        val merged = UpNextFeed.build(sameApp + movie(3, "app.b", engagement = 10)).single()
+        assertEquals(3L, merged.id)
+        assertEquals(listOf("app.b", "app.a"), merged.sources.map { it.packageName })
+    }
+
     private fun <T> permutations(items: List<T>): List<List<T>> =
         if (items.isEmpty()) listOf(emptyList()) else items.indices.flatMap { index ->
             permutations(items.filterIndexed { i, _ -> i != index }).map { listOf(items[index]) + it }
