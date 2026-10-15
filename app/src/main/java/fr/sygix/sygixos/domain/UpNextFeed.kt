@@ -33,25 +33,26 @@ object UpNextFeed {
         opened: Map<UpNextContentKey, Long> = emptyMap(),
         removed: Collection<UpNextContentKey> = emptyList(),
     ): List<UpNextItem> {
+        val normalized = mutableMapOf<String, String>()
+        fun title(value: String): String = normalized.getOrPut(value) { normalize(value) }
         val enabled = items.filter { it.source.packageName !in disabledSources }
         val years = enabled.filter { it.type == UpNextContentType.MOVIE }
-            .groupBy { normalize(it.title) }.mapValues { (_, movies) -> movies.mapNotNull { it.year }.toSet() }
+            .groupBy { title(it.title) }.mapValues { (_, movies) -> movies.mapNotNull { it.year }.toSet() }
         val exact = enabled.groupBy { listOf(it.source.packageName, exactIdentity(it)) }.values.map(::merge)
         val series = exact.groupBy {
-            if (it.type == UpNextContentType.EPISODE) listOf(it.source.packageName, "series", normalize(it.displayTitle))
+            if (it.type == UpNextContentType.EPISODE) listOf(it.source.packageName, "series", title(it.displayTitle))
             else listOf(it.source.packageName, "row", it.id.toString())
         }.values.map(::merge)
-        val episodes = mergeAcrossApps(series) { a, b ->
-            a.type == UpNextContentType.EPISODE && b.type == UpNextContentType.EPISODE &&
-                a.season != null && a.episode != null && b.season != null && b.episode != null &&
-                normalize(a.displayTitle) == normalize(b.displayTitle) &&
-                number(a.season) == number(b.season) && number(a.episode) == number(b.episode)
+        val episodes = mergeAcrossApps(series) { item ->
+            if (item.type == UpNextContentType.EPISODE && item.season != null && item.episode != null) {
+                EpisodeKey(title(item.displayTitle), number(item.season), number(item.episode))
+            } else null
         }
-        val movies = mergeAcrossApps(episodes) { a, b ->
-            val title = normalize(a.title)
-            a.type == UpNextContentType.MOVIE && b.type == UpNextContentType.MOVIE &&
-                title == normalize(b.title) &&
-                (a.year == b.year || ((a.year == null || b.year == null) && years.getValue(title).size <= 1))
+        val movies = mergeAcrossApps(episodes) { item ->
+            if (item.type == UpNextContentType.MOVIE) {
+                val name = title(item.title)
+                MovieKey(name, item.year.takeIf { years.getValue(name).size > 1 })
+            } else null
         }
         val keys = movies.associateWith(UpNextContentKey::of)
         val kept = movies.filter { item -> removed.none { it.matches(keys.getValue(item)) } }
@@ -92,22 +93,27 @@ object UpNextFeed {
         return ranked.first().copy(sources = ranked.flatMap { it.sources }.distinctBy { it.packageName })
     }
 
-    private fun mergeAcrossApps(items: List<UpNextItem>, matches: (UpNextItem, UpNextItem) -> Boolean): List<UpNextItem> {
-        val remaining = items.toMutableList()
-        val result = mutableListOf<UpNextItem>()
-        while (remaining.isNotEmpty()) {
-            val members = mutableListOf(remaining.removeAt(0))
-            var changed: Boolean
-            do {
-                val added = remaining.filter { candidate -> members.any { member ->
-                    member.source.packageName != candidate.source.packageName && matches(member, candidate)
-                } }
-                changed = added.isNotEmpty()
-                members.addAll(added)
-                remaining.removeAll(added.toSet())
-            } while (changed)
-            result.add(merge(members))
+    private data class EpisodeKey(val title: String, val season: String, val episode: String)
+    private data class MovieKey(val title: String, val year: Int?)
+
+    private fun <K : Any> mergeAcrossApps(items: List<UpNextItem>, identity: (UpNextItem) -> K?): List<UpNextItem> {
+        val keyed = items.map { it to identity(it) }
+        val groups = keyed.mapNotNull { (item, key) -> key?.let { it to item } }
+            .groupBy({ it.first }, { it.second })
+            .filterValues { group -> group.any { it.source.packageName != group.first().source.packageName } }
+        val consumed = mutableSetOf<K>()
+        return buildList {
+            for ((item, key) in keyed) {
+                val group = groups[key]
+                if (group == null) {
+                    add(item)
+                } else if (key != null && consumed.add(key)) {
+                    val first = group.first()
+                    val others = group.drop(1)
+                    add(merge(listOf(first) + others.filter { it.source.packageName != first.source.packageName } +
+                        others.filter { it.source.packageName == first.source.packageName }))
+                }
+            }
         }
-        return result
     }
 }

@@ -1,0 +1,5 @@
+allprojects {
+    tasks.matching { it.name == 'compileDebugUnitTestKotlin' }.configureEach {
+        source(rootProject.file('tools/benchmarks'))
+    }
+}
