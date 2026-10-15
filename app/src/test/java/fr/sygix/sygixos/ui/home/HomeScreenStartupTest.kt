@@ -104,7 +104,7 @@ class HomeScreenStartupTest {
         val loader = WidePosterLoader()
         Coil.setImageLoader(loader)
         val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
-        val vm = HomeViewModel(
+        val vm = mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(PosterFeed(listOf(heroItem("h1", "Programme", imageUrl = poster))), PosterFeed(emptyList())),
             artwork = AppArtworkSource(context.packageManager),
@@ -119,7 +119,7 @@ class HomeScreenStartupTest {
             mascot = FakeMascotSource(),
             startupClock = { scheduler.currentTime },
             startupDispatcher = dispatcher,
-        )
+        ))
         repo.refreshApps()
         vm.refreshHero()
         vm.state.await { poster in ((it as? HomeState.Ready)?.hero?.validated ?: emptySet()) }

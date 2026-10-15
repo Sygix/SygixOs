@@ -88,7 +88,7 @@ class StartupValidationTest {
     private fun viewModel(session: StartupSession, loader: CountingLoader): HomeViewModel {
         val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
         val items = uris.mapIndexed { i, uri -> heroItem("p$i", "Titre fictif $i", imageUrl = uri, sourcePackage = "com.example.player") }
-        return HomeViewModel(
+        return mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(Programs(items), Programs(emptyList())),
             artwork = AppArtworkSource(context.packageManager),
@@ -101,7 +101,7 @@ class StartupValidationTest {
             session = session,
             motion = FakeMotionSource(),
             mascot = FakeMascotSource(),
-        ).also { vm ->
+        )).also { vm ->
             runBlocking { repo.refreshApps() }
             vm.refreshHero()
         }

@@ -84,7 +84,7 @@ class HomeViewModelSourceToggleTest {
     private fun buildViewModel(items: List<HeroItem> = feedItems): Pair<HomeViewModel, AppCatalogRepository> {
         val prefs = LauncherPrefs(context)
         val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
-        val vm = HomeViewModel(
+        val vm = mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(StaticFeedProvider(items), StaticFeedProvider(listOf(natureClip))),
             artwork = AppArtworkSource(context.packageManager),
@@ -97,7 +97,7 @@ class HomeViewModelSourceToggleTest {
             session = StartupSession(),
             motion = FakeMotionSource(),
             mascot = FakeMascotSource(),
-        )
+        ))
         return vm to repo
     }
 
