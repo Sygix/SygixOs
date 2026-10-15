@@ -35,6 +35,7 @@ class DefaultLauncherControllerTest {
         var closed = 0
         var reads = 0
         var readWait: CompletableDeferred<Unit>? = null
+        val readReplies = ArrayDeque<CompletableDeferred<Result<HomeScreenSnapshot>>>()
         val calls = mutableListOf<String>()
         val controller = DefaultLauncherController(this, this, this, this, scope, { boot = true }, {}, { true }, verificationMs = 300)
         override fun debugEnabled() = debug
@@ -45,6 +46,7 @@ class DefaultLauncherControllerTest {
         override suspend fun read(): Result<HomeScreenSnapshot> {
             reads++
             readWait?.await()
+            readReplies.removeFirstOrNull()?.let { return it.await() }
             return if (readFailure) Result.failure(IllegalStateException()) else Result.success(snapshot)
         }
         override suspend fun loadMemory(): DefaultLauncherMemory = memory
@@ -86,6 +88,28 @@ class DefaultLauncherControllerTest {
         runCurrent()
         assertEquals(2, f.reads)
         assertFalse(f.controller.state.value.error)
+    }
+
+    @Test fun sequenceFinalReadCannotOverwriteANewerResume() = runTest {
+        val f = Fixture(backgroundScope).apply { homeFailure = true; wait = CompletableDeferred() }
+        f.controller.automatic()
+        runCurrent()
+        val finalRead = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        val resumedRead = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        f.readReplies.addAll(listOf(finalRead, resumedRead))
+        f.wait!!.complete(Unit)
+        runCurrent()
+        assertTrue(f.controller.state.value.busy)
+        f.controller.onResume()
+        runCurrent()
+        val current = f.snapshot.copy(overlay = true)
+        resumedRead.complete(Result.success(current))
+        runCurrent()
+        assertEquals(current, f.controller.state.value.snapshot)
+        finalRead.complete(Result.success(f.snapshot))
+        runCurrent()
+        assertEquals(current, f.controller.state.value.snapshot)
+        assertFalse(f.controller.state.value.busy)
     }
 
     @Test fun configurationUsesLeastIntrusiveSequenceAndCloses() = runTest {
