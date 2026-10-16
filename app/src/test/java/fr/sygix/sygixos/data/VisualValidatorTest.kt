@@ -5,10 +5,18 @@
 
 package fr.sygix.sygixos.data
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
+import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import coil.ComponentRegistry
 import coil.ImageLoader
+import coil.decode.DataSource
+import coil.decode.ImageSource
 import coil.disk.DiskCache
+import coil.fetch.Fetcher
+import coil.fetch.SourceResult
 import coil.memory.MemoryCache
 import coil.network.HttpException
 import coil.request.DefaultRequestOptions
@@ -16,23 +24,30 @@ import coil.request.Disposable
 import coil.request.ErrorResult
 import coil.request.ImageRequest
 import coil.request.ImageResult
+import coil.request.SuccessResult
+import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.UnknownHostException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
+import okio.Buffer
+import okio.Source
+import okio.Timeout
+import okio.buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
 class VisualValidatorTest {
 
     private class Loader(val failure: (String) -> Throwable) : ImageLoader {
@@ -71,25 +86,61 @@ class VisualValidatorTest {
             "missing" to http(404),
             "decode" to IllegalStateException(),
         )
-        val checks = validator { failures.getValue(it) }.validate(failures.keys.toList(), keepInMemory = 0).toList()
+        val validator = validator { failures.getValue(it) }
         assertEquals(
-            listOf(
-                VisualCheck("dns", false, retryable = true),
-                VisualCheck("io", false, retryable = true),
-                VisualCheck("server", false, retryable = true),
-                VisualCheck("missing", false),
-                VisualCheck("decode", false),
+            mapOf(
+                "dns" to VisualCheck(false, retryable = true),
+                "io" to VisualCheck(false, retryable = true),
+                "server" to VisualCheck(false, retryable = true),
+                "missing" to VisualCheck(false),
+                "decode" to VisualCheck(false),
             ),
-            checks,
+            failures.mapValues { validator.validate(it.key) },
         )
     }
 
     @Test
-    fun `cancellation propagates without emitting a check`() {
-        val emitted = mutableListOf<VisualCheck>()
+    fun `cancellation propagates`() {
         assertThrows(CancellationException::class.java) {
-            runBlocking { validator { CancellationException("left") }.validate(listOf("a", "b"), keepInMemory = 0).collect { emitted += it } }
+            runBlocking { validator { CancellationException("left") }.validate("a") }
         }
-        assertTrue(emitted.isEmpty())
+    }
+
+    @Test
+    fun `checks the width from the image header without decoding pixels`() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val results = mutableListOf<ImageResult>()
+        val real = ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).interceptorDispatcher(Dispatchers.Unconfined)
+            .components {
+                add(Fetcher.Factory<Uri> { data, options, _ ->
+                    Fetcher {
+                        val source = if (data.scheme == "broken") brokenSource().buffer() else Buffer().write(png(data.host!!))
+                        SourceResult(ImageSource(source, options.context), "image/png", DataSource.NETWORK)
+                    }
+                })
+            }
+            .build()
+        val loader = object : ImageLoader by real {
+            override suspend fun execute(request: ImageRequest) = real.execute(request).also { results += it }
+        }
+        val validator = VisualValidator(context, loader, Dispatchers.Unconfined)
+        assertEquals(
+            listOf(VisualCheck(true), VisualCheck(false), VisualCheck(false, retryable = true)),
+            listOf("img://2400x1350", "img://900x1200", "broken://x").map { validator.validate(it) },
+        )
+        val decoded = results.mapNotNull { (it as? SuccessResult)?.drawable }
+        assertEquals(listOf(1920, 810), decoded.map { it.intrinsicWidth })
+        assertTrue(decoded.none { it is BitmapDrawable })
+    }
+
+    private fun png(size: String): ByteArray {
+        val (width, height) = size.split("x").map(String::toInt)
+        return ByteArrayOutputStream().also { Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 0, it) }.toByteArray()
+    }
+
+    private fun brokenSource() = object : Source {
+        override fun read(sink: Buffer, byteCount: Long): Long = throw IOException("reset")
+        override fun timeout() = Timeout.NONE
+        override fun close() = Unit
     }
 }

@@ -180,7 +180,7 @@ class HomeViewModel(
     }
 
     private fun validateHero() {
-        heroValidationJob = launchValidation(lastHeroUris, VisualQuality.HERO_IN_MEMORY, holdAfterFirstDuringStartup = true)
+        heroValidationJob = launchValidation(lastHeroUris, holdAfterFirstDuringStartup = true)
     }
 
     private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
@@ -231,22 +231,19 @@ class HomeViewModel(
         if (uris == shelfValidationUris && shelfValidationJob?.isActive == true) return
         shelfValidationJob?.cancel()
         shelfValidationUris = uris
-        shelfValidationJob = launchValidation(uris, keepInMemory = 0)
+        shelfValidationJob = launchValidation(uris)
     }
 
-    private fun launchValidation(uris: List<String>, keepInMemory: Int, holdAfterFirstDuringStartup: Boolean = false): Job? {
+    private fun launchValidation(uris: List<String>, holdAfterFirstDuringStartup: Boolean = false): Job? {
         val pending = uris.filter { it !in checked.value || it in retryable }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
-            pending.forEachIndexed { index, uri ->
-                var usable = false
-                validator.validate(listOf(uri), if (index < keepInMemory) 1 else 0).collect { check ->
-                    checked.update { it + check.uri }
-                    if (check.usable) validated.update { it + check.uri }
-                    if (check.retryable) retryable += check.uri else retryable -= check.uri
-                    usable = check.usable
-                }
-                if (holdAfterFirstDuringStartup && usable) startup.first { it == StartupPhase.Done }
+            pending.forEach { uri ->
+                val check = validator.validate(uri)
+                checked.update { it + uri }
+                if (check.usable) validated.update { it + uri }
+                if (check.retryable) retryable += uri else retryable -= uri
+                if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
             }
         }
     }
