@@ -103,6 +103,17 @@ class LauncherSystemPrefsTest {
         assertTrue(boot.notObserved(9))
     }
 
+    @Test fun `another opening in the same boot can be recorded after re-enabling`() = runBlocking {
+        prefs.setBootStartEnabled(true, 4)
+        prefs.recordBootStartObserved(5)
+        assertEquals(5, prefs.launcherSystem.first().bootStart.observedAtBoot)
+        prefs.setBootStartEnabled(false, 5)
+        prefs.setBootStartEnabled(true, 5)
+        assertNull(prefs.launcherSystem.first().bootStart.observedAtBoot)
+        prefs.recordBootStartObserved(5)
+        assertEquals(5, LauncherPrefs(context).launcherSystem.first().bootStart.observedAtBoot)
+    }
+
     @Test
     fun `disabling clears failure and re-enabling starts evaluation at the next boot`() = runBlocking {
         prefs.setBootStartEnabled(true, 7)

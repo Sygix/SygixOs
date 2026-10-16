@@ -33,8 +33,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
-import java.util.concurrent.atomic.AtomicReference
-import fr.sygix.sygixos.model.BootStartState
+import java.util.concurrent.CopyOnWriteArrayList
+import fr.sygix.sygixos.domain.LauncherSystemStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -62,6 +62,7 @@ class MainActivityLauncherTest {
     @Before
     fun reset() {
         (context as TestSygixOsApp).bootCount = null
+        context.launcherSystemStore = null
         onIo {
             context.dataStore.edit { it.clear() }
             (context as SygixOsApp).updatePrefs.setLastCheckAt(System.currentTimeMillis())
@@ -101,15 +102,6 @@ class MainActivityLauncherTest {
 
     private fun launcherOf(controller: ActivityController<MainActivity>) =
         ViewModelProvider(controller.get())[LauncherSystemViewModel::class.java]
-
-    private fun awaitObservedBoot(boot: Int) {
-        val latest = AtomicReference<BootStartState>()
-        try {
-            onIo { prefs.launcherSystem.first { latest.set(it.bootStart); it.bootStart.observedAtBoot == boot } }
-        } catch (failure: Exception) {
-            throw AssertionError("Boot $boot was not recorded; latest state: ${latest.get()}", failure)
-        }
-    }
 
     private fun awaitMain(condition: () -> Boolean) = runBlocking {
         withTimeout(5_000) {
@@ -194,21 +186,21 @@ class MainActivityLauncherTest {
     }
 
     @Test
-    fun `boot intents record an opening at creation and when delivered again in the same boot`() {
-        (context as TestSygixOsApp).bootCount = 5
-        onIo { prefs.setBootStartEnabled(true, 4) }
+    fun `boot intents report an opening at creation and when delivered again in the same boot`() {
+        val observations = CopyOnWriteArrayList<Int?>()
+        val store = object : LauncherSystemStore by prefs {
+            override suspend fun recordBootStartObserved(currentBoot: Int?) { observations += currentBoot }
+        }
+        (context as TestSygixOsApp).apply { bootCount = 5; launcherSystemStore = store }
         val controller = launch(intent = LauncherSystemIntents.boot(context))
         val original = launcherOf(controller)
-        awaitObservedBoot(5)
-        onIo {
-            prefs.setBootStartEnabled(false, 5)
-            prefs.setBootStartEnabled(true, 5)
-            assertEquals(null, prefs.launcherSystem.first().bootStart.observedAtBoot)
-        }
+        awaitMain { observations.size == 1 }
+        assertEquals(listOf(5), observations.toList())
         controller.deliverFromBackground(LauncherSystemIntents.boot(context))
         assertSame(original, launcherOf(controller))
         assertTrue(original.viewModelScope.isActive)
-        awaitObservedBoot(5)
+        awaitMain { observations.size == 2 }
+        assertEquals(listOf(5, 5), observations.toList())
     }
 
     @Test

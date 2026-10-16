@@ -43,6 +43,7 @@ import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
 import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.domain.LauncherSystemGateway
+import fr.sygix.sygixos.domain.LauncherSystemStore
 
 open class SygixOsApp : Application(), ImageLoaderFactory {
 
@@ -123,6 +124,8 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
 
     internal open fun createLauncherSystemGateway(): LauncherSystemGateway =
         AndroidLauncherSystemGateway(this, check = accessibilityCheck)
+
+    internal open fun createLauncherSystemStore(): LauncherSystemStore = launcherPrefs
 
     override fun onTerminate() {
         appScope.cancel()

@@ -82,7 +82,7 @@ class LauncherSystemViewModel(
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val app = context.applicationContext as SygixOsApp
             val gateway = app.createLauncherSystemGateway()
-            return LauncherSystemViewModel(app.launcherPrefs, gateway, app.defaultLauncherController) as T
+            return LauncherSystemViewModel(app.createLauncherSystemStore(), gateway, app.defaultLauncherController) as T
         }
     }
 }
