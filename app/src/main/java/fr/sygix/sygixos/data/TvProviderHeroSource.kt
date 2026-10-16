@@ -5,13 +5,13 @@
 
 package fr.sygix.sygixos.data
 
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.database.Cursor
 import android.media.tv.TvContract
 import android.net.Uri
+import android.os.CancellationSignal
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.ProgramKind
@@ -22,20 +22,25 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.withContext
 
-class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
+class TvProviderHeroSource(
+    private val context: Context,
+    private val timeoutMillis: Long = 2_000,
+    private val read: (Uri, Array<String>, CancellationSignal) -> Cursor? = { uri, columns, signal ->
+        context.contentResolver.query(uri, columns, null, null, null, signal)
+    },
+) : HeroContentProvider {
 
     private val labels = mutableMapOf<String, String?>()
 
     override suspend fun load(): List<HeroItem> = withContext(Dispatchers.IO) {
-        runCatching { queryAll() }.getOrDefault(emptyList())
+        queryAll()
     }
 
     suspend fun programCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
-        val resolver = context.contentResolver
         val counts = mutableMapOf<String, Int>()
         for (uri in listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)) {
-            runCatching {
-                resolver.query(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
+            providerQuery(timeoutMillis) { signal ->
+                read(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), signal)?.use { c ->
                     while (c.moveToNext()) {
                         if (c.optInt(COLUMN_BROWSABLE, 1) == 0) continue
                         val pkg = c.optString(COLUMN_PACKAGE) ?: continue
@@ -71,25 +76,24 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
             }
         } finally {
             runCatching { resolver.unregisterContentObserver(observer) }
+            signals.close()
         }
     }
 
-    private fun queryAll(): List<HeroItem> {
-        val resolver = context.contentResolver
-        val items = query(resolver, TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
-            query(resolver, TvContract.WatchNextPrograms.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
+    private suspend fun queryAll(): List<HeroItem> {
+        val items = query(TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
+            query(TvContract.WatchNextPrograms.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
         return HeroOrdering.sort(items.map { it.copy(sourceLabel = labelOf(it.sourcePackage)) })
     }
 
-    private fun query(
-        resolver: ContentResolver,
+    private suspend fun query(
         uri: Uri,
         projection: Array<String>,
         map: (Cursor) -> HeroItem?,
     ): List<HeroItem> {
         val items = mutableListOf<HeroItem>()
-        runCatching {
-            resolver.query(uri, projection, null, null, null)?.use { c ->
+        providerQuery(timeoutMillis) { signal ->
+            read(uri, projection, signal)?.use { c ->
                 while (c.moveToNext()) map(c)?.let(items::add)
             }
         }
