@@ -152,11 +152,11 @@ class IdleFrameTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-            TestHome(
-                catalog = catalogOf(dock = emptyList(), grid = grid),
-                hero = heroStateOf(items = posters.toList(), validated = posters.mapNotNull { it.imageUrl }.toSet()),
-                initialZone = zone,
-            )
+                TestHome(
+                    catalog = catalogOf(dock = emptyList(), grid = grid),
+                    hero = heroStateOf(items = posters.toList(), validated = posters.mapNotNull { it.imageUrl }.toSet()),
+                    initialZone = zone,
+                )
             }
         }
     }
