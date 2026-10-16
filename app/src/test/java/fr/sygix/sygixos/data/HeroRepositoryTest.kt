@@ -8,9 +8,11 @@ package fr.sygix.sygixos.data
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class HeroRepositoryTest {
@@ -21,6 +23,19 @@ class HeroRepositoryTest {
 
     private val failing = object : HeroContentProvider {
         override suspend fun load(): List<HeroItem> = error("provider down")
+    }
+
+    @Test
+    fun `cancellation never becomes an empty feed or a fallback`() {
+        val cancelled = object : HeroContentProvider {
+            override suspend fun load(): List<HeroItem> = throw CancellationException("cancelled")
+        }
+        assertThrows(CancellationException::class.java) {
+            runBlocking { HeroRepository(cancelled, provider(HeroItem("n", ""))).load() }
+        }
+        assertThrows(CancellationException::class.java) {
+            runBlocking { HeroRepository(provider(), cancelled).fallbackItems() }
+        }
     }
 
     @Test
