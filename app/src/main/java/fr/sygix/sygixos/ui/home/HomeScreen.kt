@@ -90,6 +90,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import dev.chrisbanes.haze.rememberHazeState
@@ -416,6 +417,7 @@ internal fun LauncherHome(
     val gridAvailable = GridSections.hasFocusTarget(catalog.grid.size, upNext)
     val menuOpen = menuApp != null || menuItem != null
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val foreground = lifecycle.currentStateAsState().value.isAtLeast(Lifecycle.State.STARTED)
 
     LaunchedEffect(upNextUpdates, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { upNextUpdates.collect() }
@@ -536,22 +538,22 @@ internal fun LauncherHome(
                     HeroStage(
                         items = hero.items,
                         validatedVisuals = heroVisuals,
-                        active = interactive && zone == Zone.HERO && !menuOpen && !settingsOpen && !launcherOverlay,
-                        stillActive = { zone == Zone.HERO && !menuOpen && !settingsOpen && !launcherOverlay },
-                        visible = heroVisible && !settingsOpen,
+                         active = foreground && interactive && zone == Zone.HERO && !menuOpen && !settingsOpen && !launcherOverlay,
+                         stillActive = { foreground && zone == Zone.HERO && !menuOpen && !settingsOpen && !launcherOverlay },
+                         visible = foreground && heroVisible && !settingsOpen,
                         focusRequester = heroFocus,
                         claimFocus = !gearFocused && !launcherOverlay,
                         onOpen = onOpenHero,
                         onVisualReady = onHeroVisualReady,
-                        motion = interactive,
+                         motion = interactive && foreground,
                         backdrop = backdrop,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
                     CompositionLocalProvider(LocalGlassBackdrop provides backdrop.takeIf { glassBlur }) {
                         Dock(
                             apps = catalog.dock,
-                            active = heroOnScreen,
-                            focusEnabled = interactive && zone == Zone.DOCK && !menuOpen && !launcherOverlay,
+                             active = foreground && heroOnScreen,
+                             focusEnabled = foreground && interactive && zone == Zone.DOCK && !menuOpen && !settingsOpen && !launcherOverlay,
                             focusRequester = dockFocus,
                             onTileClick = onOpenApp,
                             onTileLongClick = { menuApp = it },
@@ -561,8 +563,8 @@ internal fun LauncherHome(
                             HeroCapsule(
                                 clock = clock,
                                 updateBadge = updateBadge,
-                                glassActive = heroOnScreen,
-                                gearFocusEnabled = interactive && zone == Zone.HERO && !menuOpen && !launcherOverlay,
+                                 glassActive = foreground && heroOnScreen,
+                                 gearFocusEnabled = foreground && interactive && zone == Zone.HERO && !menuOpen && !launcherOverlay,
                                 gearFocus = gearFocus,
                                 onGearFocused = { gearFocused = it },
                                 onOpenSettings = {
@@ -586,7 +588,7 @@ internal fun LauncherHome(
                     AmbientGradient(Modifier.matchParentSize())
                     if (gridReady) HomeGrid(
                         catalog = catalog,
-                        focusEnabled = interactive && zone == Zone.GRID && !menuOpen && !launcherOverlay,
+                         focusEnabled = foreground && interactive && zone == Zone.GRID && !menuOpen && !settingsOpen && !launcherOverlay,
                         focusRequester = gridFocus,
                         shelfPrograms = { heroNow.value.let { if (it.fromApps) it.items else emptyList() } },
                         validatedVisuals = { heroNow.value.validated },
@@ -604,7 +606,8 @@ internal fun LauncherHome(
                         onOpenUpNext = onOpenUpNext,
                         onUpNextMenu = { menuItem = it },
                         onRetryUpNext = onRetryUpNext,
-                        onUpNextReturnHandled = onUpNextReturnHandled,
+                         onUpNextReturnHandled = onUpNextReturnHandled,
+                         running = foreground && !settingsOpen,
                         modifier = Modifier.testTag("home-grid"),
                     )
                 }

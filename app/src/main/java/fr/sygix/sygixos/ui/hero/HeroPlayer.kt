@@ -106,7 +106,7 @@ internal class HeroPlayer(
         firstFrameRendered = false
         renderedItem = null
         readyItem = null
-        exo?.apply { stop(); clearMediaItems() }
+        release()
     }
 
     override fun attach(textureView: TextureView) {
