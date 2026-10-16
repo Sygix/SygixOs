@@ -32,7 +32,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
       - run: ./gradlew test --no-daemon
       - name: Test results in PR
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         continue-on-error: true
         uses: mikepenz/action-junit-report@a9170d5795813c01ab4901ffb045b52bab4ab09d
         with:
