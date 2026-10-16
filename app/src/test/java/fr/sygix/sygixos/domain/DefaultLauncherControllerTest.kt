@@ -112,6 +112,28 @@ class DefaultLauncherControllerTest {
         assertFalse(f.controller.state.value.busy)
     }
 
+    @Test fun verificationReadCannotOverwriteANewerResume() = runTest {
+        val f = Fixture(backgroundScope).apply { wait = CompletableDeferred() }
+        f.controller.automatic()
+        runCurrent()
+        val verification = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        val resumedRead = CompletableDeferred<Result<HomeScreenSnapshot>>()
+        f.readReplies.addAll(listOf(verification, resumedRead))
+        f.wait!!.complete(Unit)
+        runCurrent()
+        f.controller.onResume()
+        runCurrent()
+        f.snapshot = f.snapshot.copy(overlay = true)
+        resumedRead.complete(Result.success(f.snapshot))
+        runCurrent()
+        verification.complete(Result.success(f.snapshot.copy(overlay = false, effective = false)))
+        runCurrent()
+        assertEquals(f.snapshot, f.controller.state.value.snapshot)
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(SetupScreen.DONE, f.controller.state.value.screen)
+    }
+
     @Test fun configurationUsesLeastIntrusiveSequenceAndCloses() = runTest {
         val f = Fixture(backgroundScope)
         f.controller.automatic(); runCurrent()
