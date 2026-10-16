@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.os.Looper
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.SygixOsApp
@@ -19,13 +20,16 @@ import fr.sygix.sygixos.TestSygixOsApp
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.domain.LauncherSystemStore
+import fr.sygix.sygixos.ui.home.HomeViewModel
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -49,6 +53,7 @@ class MainActivityLauncherTest {
     private val homeIntent get() = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
 
     private val launched = mutableListOf<ActivityController<MainActivity>>()
+    private val viewModelJobs = mutableListOf<Job>()
 
     @Before
     fun reset() {
@@ -65,12 +70,16 @@ class MainActivityLauncherTest {
             runCatching { controller.stop() }
             runCatching { controller.destroy() }
         }
+        awaitMain { viewModelJobs.all { it.isCompleted } }
         onIo { context.dataStore.edit { } }
     }
 
     private fun launch(grant: Boolean = true, intent: Intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)): ActivityController<MainActivity> {
         if (grant) shadowOf(context as Application).grantPermissions(READ_TV_LISTINGS)
-        return Robolectric.buildActivity(MainActivity::class.java, intent).setup().also { launched += it }
+        return Robolectric.buildActivity(MainActivity::class.java, intent).setup().also {
+            launched += it
+            viewModelJobs += listOf(ViewModelProvider(it.get())[HomeViewModel::class.java], launcherOf(it)).map { model -> model.viewModelScope.coroutineContext.job }
+        }
     }
 
     private fun onIo(block: suspend () -> Unit) {
