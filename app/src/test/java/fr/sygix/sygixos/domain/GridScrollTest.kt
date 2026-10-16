@@ -136,4 +136,42 @@ class GridScrollTest {
         val back = titledAfter.next(row, 3, -1, viewport)
         assertEquals(196f, back.scroll, 0f)
     }
+
+    private val deep = GridScroll(
+        topMargin = 40f, rowHeight = 86f, rowSpacing = 32f, panelHeight = 344f, margin = 32f,
+        rows = listOf(GridScroll.RowGeometry(86f, 40f)) + List(39) { GridScroll.RowGeometry(86f) },
+    )
+
+    @Test
+    fun `row at a position is the inverse of row top and accounts for the open panel`() {
+        for (row in listOf(0, 1, 7, 39)) {
+            assertEquals(row, deep.rowAt(deep.rowTop(row, -1), -1))
+            assertEquals(row, deep.rowAt(deep.rowTop(row, -1) - (if (row == 0) 40f else 0f), -1))
+            assertEquals(row, deep.rowAt(deep.rowTop(row, 5), 5))
+        }
+        assertEquals(0, deep.rowAt(-500f, -1))
+        assertEquals(39, deep.rowAt(100_000f, -1))
+        assertEquals(5, deep.rowAt(deep.rowTop(5, 5) - 344f, 5))
+        assertEquals(4, deep.rowAt(deep.rowTop(5, 5) - 345f, 5))
+        assertEquals(1, titled.rowAt(titled.rowTop(1, -1) - 40f, -1))
+        assertEquals(0, titled.rowAt(titled.rowTop(1, -1) - 41f, -1))
+    }
+
+    @Test
+    fun `every row is composed up to the eager threshold`() {
+        val rows = List(GridScroll.EAGER_ROWS) { GridScroll.RowGeometry(86f) }
+        val eager = GridScroll(40f, 86f, 32f, 344f, 32f, rows)
+        assertEquals(rows.indices, eager.window(0f, GridScroll.Anchor(100_000f, 11, 0f), -1, viewport))
+        assertEquals(0 until 4, titled.window(5_000f, null, -1, viewport))
+    }
+
+    @Test
+    fun `the window covers the screen at the current and target positions plus the prefetch rows`() {
+        assertEquals(0..5, deep.window(0f, null, -1, viewport))
+        val target = deep.next(null, 20, -1, viewport)
+        assertEquals(2018f, target.scroll, 0f)
+        assertEquals(0..23, deep.window(0f, target, -1, viewport))
+        assertEquals(14..23, deep.window(target.scroll, target, -1, viewport))
+        assertEquals(39, deep.window(10_000f, null, -1, viewport).last)
+    }
 }

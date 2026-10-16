@@ -601,6 +601,7 @@ internal fun LauncherHome(
                         viewport = viewport,
                         anchor = { gridAnchor },
                         onAnchor = { gridAnchor = it },
+                        scroll = { pageScroll.value },
                         movingApp = movingApp,
                         upNext = upNext,
                         onOpenUpNext = onOpenUpNext,

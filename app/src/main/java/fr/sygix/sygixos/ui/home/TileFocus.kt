@@ -6,30 +6,32 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.focus.FocusRequester
-import fr.sygix.sygixos.core.designsystem.tryRequestFocus
+import fr.sygix.sygixos.core.designsystem.FocusTargets
 import fr.sygix.sygixos.domain.FocusFallback
 import fr.sygix.sygixos.domain.GridSections
 
 @Stable
-internal class TileFocus(initialApp: String?) {
-    var focusedApp by mutableStateOf(initialApp)
+internal class TileFocus {
+    var focusedApp by mutableStateOf<String?>(null)
         private set
     private var focusedIndex by mutableIntStateOf(0)
     private var card by mutableStateOf<FocusFallback.CardVisit?>(null)
     var lastCard: String? = null
         private set
-    private val requesters = mutableMapOf<String, FocusRequester>()
+    private val targets = FocusTargets()
 
-    fun requesterFor(packageName: String): FocusRequester = requesters.getOrPut(packageName) { FocusRequester() }
+    @Composable
+    fun bind(key: String, requester: FocusRequester? = null): FocusRequester = targets.bind(key, requester)
+
+    fun focus(key: String): Boolean = targets.focus(key)
+
+    suspend fun reveal(key: String, show: suspend () -> Unit): Boolean = targets.reveal(key, show)
 
     fun onFocused(packageName: String, index: Int, card: FocusFallback.CardVisit? = null) {
         focusedApp = packageName
@@ -48,19 +50,4 @@ internal class TileFocus(initialApp: String?) {
         card = tracked
         focusedIndex = sections.cardOrderIndex(tracked.index)
     }
-
-    fun refocus(packages: List<String>, active: Boolean): String? =
-        FocusFallback.refocus(packages, focusedApp, focusedIndex, active)
-}
-
-@Composable
-internal fun rememberTileFocus(packages: List<String>, focusEnabled: Boolean, initialApp: String? = null): TileFocus {
-    val focus = remember { TileFocus(initialApp) }
-    val target = focus.refocus(packages, focusEnabled)
-    LaunchedEffect(packages, focusEnabled) {
-        if (target == null) return@LaunchedEffect
-        withFrameNanos { }
-        focus.requesterFor(target).tryRequestFocus()
-    }
-    return focus
 }

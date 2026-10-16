@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
@@ -20,7 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,18 +45,19 @@ internal const val ShelfPosterZoom = 1.06f
 private const val PanStart = -12f
 private const val PanEnd = 12f
 
+internal fun posterRequest(context: Context, uri: String, size: PixelSize): ImageRequest =
+    ImageRequest.Builder(context).data(uri).size(size.width, size.height).scale(Scale.FILL).build()
+
 @Composable
 internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier) {
-    var failed by remember(uris) { mutableStateOf(emptySet<String>()) }
-    val loadable = remember(uris, failed) { uris.filter { it !in failed } }
-    var index by remember { mutableIntStateOf(0) }
+    var failed by remember { mutableStateOf(emptySet<String>()) }
+    val loadable = uris.filter { it !in failed }
+    var current by remember { mutableStateOf(loadable.firstOrNull()) }
     LaunchedEffect(loadable) {
-        index = 0
-        if (loadable.size > 1) {
-            while (true) {
-                delay(6000)
-                index = (index + 1) % loadable.size
-            }
+        if (current !in loadable) current = loadable.firstOrNull()
+        while (loadable.size > 1) {
+            delay(6000)
+            current = loadable[(loadable.indexOf(current) + 1) % loadable.size]
         }
     }
     val shape = RoundedCornerShape(Dimens.ShelfCorner)
@@ -69,7 +70,7 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
             .clip(shape),
     ) {
         Crossfade(
-            targetState = loadable.getOrNull(index % maxOf(loadable.size, 1)),
+            targetState = current,
             animationSpec = tween(Motion.SHELF_FADE_MS, easing = AppleEasing),
             label = "shelfCrossfade",
         ) { uri ->
@@ -86,7 +87,7 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
 @Composable
 private fun LoadedPoster(uri: String, size: PixelSize, onError: () -> Unit) {
     val painter = rememberAsyncImagePainter(
-        model = ImageRequest.Builder(LocalContext.current).data(uri).size(size.width, size.height).scale(Scale.FILL).build(),
+        model = posterRequest(LocalContext.current, uri, size),
         onState = { if (it is AsyncImagePainter.State.Error) onError() },
     )
     val ready = painter.state is AsyncImagePainter.State.Success

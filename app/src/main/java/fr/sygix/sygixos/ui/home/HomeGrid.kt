@@ -7,6 +7,7 @@ package fr.sygix.sygixos.ui.home
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -27,7 +28,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -40,13 +40,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.onSizeChanged
@@ -60,7 +60,6 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
-import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.FocusFallback
 import fr.sygix.sygixos.domain.GridScroll
@@ -71,7 +70,10 @@ import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
+import coil.imageLoader
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -90,8 +92,8 @@ internal fun HomeGrid(
     viewport: Float,
     anchor: () -> GridScroll.Anchor?,
     onAnchor: (GridScroll.Anchor) -> Unit,
+    scroll: () -> Int,
     modifier: Modifier = Modifier,
-    initialShelfApp: String? = null,
     movingApp: String? = null,
     upNext: UpNextState? = null,
     onOpenUpNext: (UpNextItem) -> Unit = {},
@@ -106,7 +108,7 @@ internal fun HomeGrid(
     val upNextRow = upNext?.takeIf { sections.upNextShown }
     val upNextScroll = rememberLazyListState()
     var titleHeight by remember { mutableStateOf(0f) }
-    val focus = remember { TileFocus(initialShelfApp) }
+    val focus = remember { TileFocus() }
     val returnFocus = upNext?.returnFocus
     val returnIndex = returnFocus?.let { sections.upNextKeys.indexOf(it.key) } ?: -1
     val returnHandled by rememberUpdatedState(onUpNextReturnHandled)
@@ -121,13 +123,7 @@ internal fun HomeGrid(
     val focusedApp = focus.focusedApp
     val entryApp = returnFocus?.key?.takeIf { returnIndex >= 0 } ?: focus.gridEntry(sections)
     LaunchedEffect(sections.upNextKeys) { focus.track(sections) }
-    LaunchedEffect(sections.focusOrder, focusEnabled) {
-        if (focusEnabled && entryApp != null && entryApp !in sections.upNextKeys) {
-            withFrameNanos { }
-            focus.requesterFor(entryApp).tryRequestFocus()
-        }
-    }
-    var openApp by remember { mutableStateOf<String?>(null) }
+    var shelf by remember { mutableStateOf<Shelf?>(null) }
 
     val programs by rememberUpdatedState(shelfPrograms)
     val visuals by rememberUpdatedState(validatedVisuals)
@@ -139,26 +135,7 @@ internal fun HomeGrid(
         ?.let { ShelfPosters.candidates(programs(), it, VisualQuality.SHELF_VALIDATED_PER_APP) }
         ?.any { it !in settled() } ?: false
 
-    LaunchedEffect(focusedApp, movingApp, appPackages) {
-        val target = focus.focusedApp
-        if (movingApp != null || target !in appPackages) {
-            openApp = null
-            return@LaunchedEffect
-        }
-        if (postersOf(target).isEmpty() && !pendingFor(target)) openApp = null
-        if (openApp == null) delay(Motion.SHELF_OPEN_DELAY_MS)
-        snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
-            when {
-                posters.isNotEmpty() -> openApp = target
-                !pending -> openApp = null
-                else -> Unit
-            }
-        }
-    }
-
-    val openRow = remember(rows, openApp) { rows.indexOfFirst { row -> row.any { it.packageName == openApp } } }
-    val shelfUris by remember(openApp) { derivedStateOf(structuralEqualityPolicy()) { postersOf(openApp) } }
-
+    val context = LocalContext.current
     val density = LocalDensity.current
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
     val contentWidth = screenWidth - Dimens.ScreenMarginH * 2
@@ -185,18 +162,50 @@ internal fun HomeGrid(
             )
         }
     }
+    LaunchedEffect(focusedApp, movingApp, appPackages) {
+        val target = focus.focusedApp
+        if (movingApp != null || target == null || target !in appPackages) {
+            shelf = null
+            return@LaunchedEffect
+        }
+        if (postersOf(target).isEmpty() && !pendingFor(target)) shelf = null
+        if (shelf == null) {
+            launch {
+                val first = snapshotFlow { postersOf(target).firstOrNull() }.filterNotNull().first()
+                context.imageLoader.execute(posterRequest(context, first, posterSize))
+            }
+            delay(Motion.SHELF_OPEN_DELAY_MS)
+        }
+        snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
+            when {
+                posters.isEmpty() -> if (!pending) shelf = null
+                shelf?.app != target || !pending -> shelf = Shelf(target, posters)
+            }
+        }
+    }
+    val openRow = remember(rows, shelf?.app) { rows.indexOfFirst { row -> row.any { it.packageName == shelf?.app } } }
+    val sectionOpenRow = if (openRow < 0) -1 else openRow + firstAppRow
+    val window by remember(geometry, sectionOpenRow, viewport, origin) {
+        derivedStateOf { geometry.window(scroll().toFloat(), anchor(), sectionOpenRow, viewport, origin) }
+    }
+    suspend fun reveal(key: String): Boolean = focus.reveal(key) {
+        val row = sections.rowOf(key, Dimens.GridColumns)
+        if (row >= 0 && viewport > 0f) onAnchor(geometry.next(anchor(), row, sectionOpenRow, viewport, origin))
+        withFrameNanos { }
+    }
     LaunchedEffect(openRow, focusedApp, origin, viewport, geometry) {
         val row = sections.rowOf(focus.focusedApp, Dimens.GridColumns)
         if (row < 0 || viewport <= 0f) return@LaunchedEffect
-        onAnchor(geometry.next(anchor(), row, if (openRow < 0) -1 else openRow + firstAppRow, viewport, origin))
+        onAnchor(geometry.next(anchor(), row, sectionOpenRow, viewport, origin))
+    }
+    LaunchedEffect(sections.focusOrder, focusEnabled) {
+        if (focusEnabled && entryApp != null && entryApp !in sections.upNextKeys) reveal(entryApp)
     }
     LaunchedEffect(movingApp, rows) {
-        if (movingApp == null) return@LaunchedEffect
-        withFrameNanos { }
-        focus.requesterFor(movingApp).tryRequestFocus()
+        if (movingApp != null) reveal(movingApp)
     }
     LaunchedEffect(focusEnabled) {
-        if (!focusEnabled) openApp = null
+        if (!focusEnabled) shelf = null
     }
     val appFocused by rememberUpdatedState(onAppFocused)
     LaunchedEffect(focusedApp, focusEnabled) {
@@ -210,13 +219,9 @@ internal fun HomeGrid(
     val exitUp by rememberUpdatedState(onExitUp)
     val scope = rememberCoroutineScope()
     suspend fun focusCard(key: String) {
-        val requester = focus.requesterFor(key)
-        if (requester.tryRequestFocus()) return
+        if (focus.focus(key)) return
         val index = sections.upNextKeys.indexOf(key)
-        if (index < 0) return
-        upNextScroll.scrollToItem(index)
-        withFrameNanos { }
-        requester.tryRequestFocus()
+        if (index >= 0) focus.reveal(key) { upNextScroll.scrollToItem(index); withFrameNanos { } }
     }
     Column(
         modifier.fillMaxWidth().padding(vertical = Dimens.GridTopMargin).focusGroup()
@@ -245,6 +250,10 @@ internal fun HomeGrid(
         }
         if (sections.upNextFirst) UpNextSection()
         rows.forEachIndexed { rowIndex, rowApps ->
+            if (rowIndex + firstAppRow !in window) {
+                Spacer(Modifier.height(rowHeight + if (rowIndex == 0) with(density) { titleHeight.toDp() } else 0.dp))
+                return@forEachIndexed
+            }
             Column(Modifier.padding(horizontal = Dimens.ScreenMarginH)) {
                 if (rowIndex == 0) SectionTitle(R.string.applications_title, "section-title-apps", onHeight = { titleHeight = it })
                 GridRow(
@@ -255,7 +264,7 @@ internal fun HomeGrid(
                     focusRequester = focusRequester,
                     entryApp = entryApp?.takeIf { entry -> rowApps.any { it.packageName == entry } },
                     movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
-                    shelfUris = if (rowIndex == openRow) shelfUris else NoShelf,
+                    shelfUris = if (rowIndex == openRow) shelf?.uris.orEmpty() else NoShelf,
                     posterSize = posterSize,
                     onTileClick = onTileClick,
                     onTileLongClick = onTileLongClick,
@@ -283,6 +292,8 @@ private fun SectionTitle(@StringRes resource: Int, tag: String, padded: Boolean 
 
 private val NoShelf: List<String> = emptyList()
 
+private data class Shelf(val app: String, val uris: List<String>)
+
 @Composable
 private fun GridRow(
     rowIndex: Int,
@@ -300,8 +311,10 @@ private fun GridRow(
     isFocusEnabled: () -> Boolean = { focusEnabled },
 ) {
     Column {
-        AnimatedVisibility(
-            visible = shelfUris.isNotEmpty(),
+        val shown = remember { MutableTransitionState(false) }
+        shown.targetState = shelfUris.isNotEmpty()
+        if (shown.currentState || shown.targetState) AnimatedVisibility(
+            visibleState = shown,
             enter = expandVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
                 fadeIn(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
             exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
@@ -325,11 +338,9 @@ private fun GridRow(
                                 focus.onFocused(app.packageName, indexOffset + rowIndex * Dimens.GridColumns + column)
                             }
                         },
-                        focusRequester = focus.requesterFor(app.packageName),
+                        focusRequester = focus.bind(app.packageName, focusRequester.takeIf { app.packageName == entryApp }),
                         lifted = app.packageName == movingApp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }

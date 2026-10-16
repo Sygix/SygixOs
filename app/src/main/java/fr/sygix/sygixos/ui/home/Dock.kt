@@ -16,12 +16,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -42,8 +43,11 @@ internal fun Dock(
     modifier: Modifier = Modifier,
 ) {
     val packages = remember(apps) { apps.map { it.packageName } }
-    val focus = rememberTileFocus(packages, focusEnabled)
+    val focus = remember { TileFocus() }
     val entryApp = focus.entry(packages)
+    LaunchedEffect(packages, focusEnabled) {
+        if (focusEnabled && focus.focusedApp != null && entryApp != null) focus.reveal(entryApp) { withFrameNanos { } }
+    }
     BoxWithConstraints(
         modifier
             .padding(start = Dimens.ScreenMarginH, end = Dimens.ScreenMarginH, bottom = Dimens.DockBottomMargin)
@@ -83,10 +87,8 @@ internal fun Dock(
                                 onClick = { onTileClick(app) },
                                 onLongClick = { onTileLongClick(app) },
                                 onFocusChanged = { if (it) focus.onFocused(app.packageName, index) },
-                                focusRequester = focus.requesterFor(app.packageName),
-                                modifier = Modifier
-                                    .width(Dimens.DockTileWidth)
-                                    .then(if (app.packageName == entryApp) Modifier.focusRequester(focusRequester) else Modifier),
+                                focusRequester = focus.bind(app.packageName, focusRequester.takeIf { app.packageName == entryApp }),
+                                modifier = Modifier.width(Dimens.DockTileWidth),
                             )
                         }
                     }

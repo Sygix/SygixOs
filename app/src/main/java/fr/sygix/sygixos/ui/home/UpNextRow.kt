@@ -28,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -103,12 +102,9 @@ internal fun UpNextRow(
     LaunchedEffect(cards.map { it.key }, focusEnabled, content == UpNextContent.Error) {
         if (!focusEnabled) return@LaunchedEffect
         if (targetIndex >= 0) {
-            show(targetIndex)
-            withFrameNanos { }
-            focus.requesterFor(cards[targetIndex].key).tryRequestFocus()
+            focus.reveal(cards[targetIndex].key) { show(targetIndex); withFrameNanos { } }
         } else if (content == UpNextContent.Error && entry == GridSections.ERROR_KEY) {
-            withFrameNanos { }
-            focus.requesterFor(GridSections.ERROR_KEY).tryRequestFocus()
+            focus.reveal(GridSections.ERROR_KEY) { withFrameNanos { } }
         }
     }
     LazyRow(
@@ -121,26 +117,26 @@ internal fun UpNextRow(
             is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item -> item.key }) { index, item ->
                 UpNextCard(
                     item = item,
-                    modifier = Modifier.width(width).then(if (item.key == entry) Modifier.focusRequester(entryRequester) else Modifier)
+                    modifier = Modifier.width(width)
                         .onPreviewKeyEvent { event ->
                             val step = when (event.key) { Key.DirectionLeft -> -1; Key.DirectionRight -> 1; else -> return@onPreviewKeyEvent false }
                             if (event.type == KeyEventType.KeyDown) scope.launch {
                                 val next = UpNextScroll.neighbor(index, step, cards.size)
-                                val requester = focus.requesterFor(cards[next].key)
-                                if (requester.tryRequestFocus()) return@launch
+                                val key = cards[next].key
+                                if (focus.focus(key)) return@launch
                                 val reveal = launch { show(next) }
-                                while (!requester.tryRequestFocus()) {
+                                while (!focus.focus(key)) {
                                     withFrameNanos { }
                                     if (!reveal.isActive) {
                                         withFrameNanos { }
-                                        requester.tryRequestFocus()
+                                        focus.focus(key)
                                         break
                                     }
                                 }
                             }
                             true
                         },
-                    focusRequester = focus.requesterFor(item.key),
+                    focusRequester = focus.bind(item.key, entryRequester.takeIf { item.key == entry }),
                     focusEnabled = focusEnabled,
                     onFocused = {
                         if (it && enabled) {
@@ -157,8 +153,7 @@ internal fun UpNextRow(
                     Modifier.width(width).aspectRatio(16f / 9f)
                         .testTag("upnext-error")
                         .onPreviewKeyEvent { it.key == Key.DirectionLeft || it.key == Key.DirectionRight }
-                        .then(if (entry == GridSections.ERROR_KEY) Modifier.focusRequester(entryRequester) else Modifier)
-                        .tvFocus(enabled = focusEnabled, focusRequester = focus.requesterFor(GridSections.ERROR_KEY), onFocused = { if (it && enabled) onFocused(GridSections.ERROR_KEY, 0) })
+                        .tvFocus(enabled = focusEnabled, focusRequester = focus.bind(GridSections.ERROR_KEY, entryRequester.takeIf { entry == GridSections.ERROR_KEY }), onFocused = { if (it && enabled) onFocused(GridSections.ERROR_KEY, 0) })
                         .tvClickable(onClick = onRetry)
                         .clip(TileShape).background(SygixColors.TileBackground),
                     contentAlignment = Alignment.Center,

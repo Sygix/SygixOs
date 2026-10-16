@@ -76,6 +76,7 @@ internal fun TestHome(
     launcherState: LauncherSystemState = LauncherSystemState(),
     launcherActions: LauncherSystemActions = LauncherSystemActions(),
     onRestoreOrder: (List<String>) -> Unit = {},
+    onMoveInGrid: (TvApp, Int) -> Unit = { _, _ -> },
     upNext: UpNextState? = null,
     homeScreenActions: HomeScreenActions = HomeScreenActions(),
 ) {
@@ -102,6 +103,7 @@ internal fun TestHome(
                 launcherState = launcherState,
                 launcherActions = launcherActions,
                 onRestoreOrder = onRestoreOrder,
+                onMoveInGrid = onMoveInGrid,
                 upNext = upNext,
                 homeScreenActions = homeScreenActions,
             )
