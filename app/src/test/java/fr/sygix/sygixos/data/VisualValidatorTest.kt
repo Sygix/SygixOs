@@ -89,11 +89,11 @@ class VisualValidatorTest {
         val validator = validator { failures.getValue(it) }
         assertEquals(
             mapOf(
-                "dns" to VisualCheck(false, retryable = true),
-                "io" to VisualCheck(false, retryable = true),
-                "server" to VisualCheck(false, retryable = true),
-                "missing" to VisualCheck(false),
-                "decode" to VisualCheck(false),
+                "dns" to VisualCheck(null, retryable = true),
+                "io" to VisualCheck(null, retryable = true),
+                "server" to VisualCheck(null, retryable = true),
+                "missing" to VisualCheck(null),
+                "decode" to VisualCheck(null),
             ),
             failures.mapValues { validator.validate(it.key) },
         )
@@ -106,31 +106,92 @@ class VisualValidatorTest {
         }
     }
 
-    @Test
-    fun `checks the width from the image header without decoding pixels`() = runBlocking {
+    private val requested = mutableListOf<String>()
+    private val results = mutableListOf<ImageResult>()
+
+    private fun headerValidator(served: Map<String, Any>): VisualValidator {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        val results = mutableListOf<ImageResult>()
         val real = ImageLoader.Builder(context).dispatcher(Dispatchers.Unconfined).interceptorDispatcher(Dispatchers.Unconfined)
             .components {
                 add(Fetcher.Factory<Uri> { data, options, _ ->
                     Fetcher {
-                        val source = if (data.scheme == "broken") brokenSource().buffer() else Buffer().write(png(data.host!!))
+                        val source = when (val served = served.getValue(data.toString())) {
+                            is Throwable -> throw served
+                            "broken" -> brokenSource().buffer()
+                            else -> Buffer().write(png(served as String))
+                        }
                         SourceResult(ImageSource(source, options.context), "image/png", DataSource.NETWORK)
                     }
                 })
             }
             .build()
         val loader = object : ImageLoader by real {
-            override suspend fun execute(request: ImageRequest) = real.execute(request).also { results += it }
+            override suspend fun execute(request: ImageRequest) = real.execute(request).also {
+                requested += request.data.toString()
+                results += it
+            }
         }
-        val validator = VisualValidator(context, loader, Dispatchers.Unconfined)
+        return VisualValidator(context, loader, Dispatchers.Unconfined)
+    }
+
+    @Test
+    fun `checks the width from the image header without decoding pixels`() = runBlocking {
+        val served = mapOf("img://a" to "2400x1350", "img://b" to "1920x1080", "img://c" to "640x360", "img://d" to "900x1200", "img://e" to "broken", "img://f" to "480x270")
+        val validator = headerValidator(served)
         assertEquals(
-            listOf(VisualCheck(true), VisualCheck(false), VisualCheck(false, retryable = true)),
-            listOf("img://2400x1350", "img://900x1200", "broken://x").map { validator.validate(it) },
+            listOf(VisualCheck("img://a"), VisualCheck("img://b"), VisualCheck("img://c"), VisualCheck(null), VisualCheck(null, retryable = true), VisualCheck(null)),
+            served.keys.map { validator.validate(it) },
         )
         val decoded = results.mapNotNull { (it as? SuccessResult)?.drawable }
-        assertEquals(listOf(1920, 810), decoded.map { it.intrinsicWidth })
+        assertEquals(listOf(1920, 1920, 640, 810, 480), decoded.map { it.intrinsicWidth })
         assertTrue(decoded.none { it is BitmapDrawable })
+    }
+
+    @Test
+    fun `youtube thumbnails try the full resolution variant first`() = runBlocking {
+        fun maxres(id: String) = "https://i.ytimg.com/vi/$id/maxresdefault.jpg"
+        val upgraded = "https://i.ytimg.com/vi/AAAAAAAAAAA/sddefault.jpg?v=65f1a2b3"
+        val missingMaxres = "https://img.youtube.com/vi/BBBBBBBBBBB/hq720.jpg"
+        val tooSmall = "https://i.ytimg.com/vi/CCCCCCCCCCC/sddefault.jpg"
+        val offline = "https://i.ytimg.com/vi/DDDDDDDDDDD/sddefault.jpg"
+        val otherHost = "https://example.invalid/vi/EEEEEEEEEEE/sddefault.jpg"
+        val validator = headerValidator(
+            mapOf(
+                maxres("AAAAAAAAAAA") to "1280x720", upgraded to "640x480",
+                maxres("BBBBBBBBBBB") to http(404), missingMaxres to "1280x720",
+                maxres("CCCCCCCCCCC") to http(404), tooSmall to "480x360",
+                maxres("DDDDDDDDDDD") to IOException(), offline to "480x360",
+                otherHost to "640x480",
+            ),
+        )
+        assertEquals(
+            listOf(VisualCheck(maxres("AAAAAAAAAAA")), VisualCheck(missingMaxres), VisualCheck(null), VisualCheck(null, retryable = true), VisualCheck(otherHost)),
+            listOf(upgraded, missingMaxres, tooSmall, offline, otherHost).map { validator.validate(it) },
+        )
+        assertEquals(
+            listOf(
+                maxres("AAAAAAAAAAA"),
+                maxres("BBBBBBBBBBB"), missingMaxres,
+                maxres("CCCCCCCCCCC"), tooSmall,
+                maxres("DDDDDDDDDDD"), offline,
+                otherHost,
+            ),
+            requested,
+        )
+    }
+
+    @Test
+    fun `youtube thumbnail ids are read from the published forms`() {
+        val maxres = "https://i.ytimg.com/vi/dQw4w9WgXc_/maxresdefault.jpg"
+        listOf(
+            "https://i.ytimg.com/vi/dQw4w9WgXc_/sddefault.jpg",
+            "https://i.ytimg.com/vi/dQw4w9WgXc_/sddefault.jpg?v=65f1a2b3",
+            "https://i.ytimg.com/vi/dQw4w9WgXc_/sddefault_custom_1.jpg?sqp=CNjB-sQG&rs=AOn4CLB",
+            "https://img.youtube.com/vi/dQw4w9WgXc_/hqdefault.jpg",
+            "https://i9.ytimg.com/vi_webp/dQw4w9WgXc_/mqdefault.webp",
+        ).forEach { assertEquals(listOf(maxres, it), visualCandidates(it)) }
+        listOf(maxres, "https://example.invalid/vi/dQw4w9WgXc_/sddefault.jpg", "https://i.ytimg.com/an_webp/dQw4w9WgXc_/mqdefault_6s.webp")
+            .forEach { assertEquals(listOf(it), visualCandidates(it)) }
     }
 
     private fun png(size: String): ByteArray {

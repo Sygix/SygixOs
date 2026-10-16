@@ -29,7 +29,14 @@ import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer
 
-data class VisualCheck(val usable: Boolean, val retryable: Boolean = false)
+data class VisualCheck(val visual: String?, val retryable: Boolean = false) {
+    val usable get() = visual != null
+}
+
+private val YouTubeThumbnail = Regex("""^https?://(?:i\d?\.ytimg\.com|img\.youtube\.com)/vi(?:_webp)?/([\w-]{11})/""")
+
+fun visualCandidates(uri: String): List<String> =
+    listOfNotNull(YouTubeThumbnail.find(uri)?.let { "https://i.ytimg.com/vi/${it.groupValues[1]}/maxresdefault.jpg" }, uri).distinct()
 
 class VisualValidator(
     private val context: Context,
@@ -37,12 +44,17 @@ class VisualValidator(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend fun validate(uri: String): VisualCheck = withContext(dispatcher) {
-        val request = ImageRequest.Builder(context).data(uri).size(1920, 1080).decoderFactory(boundsDecoder).build()
-        val result = imageLoader.execute(request)
-        val width = (result as? SuccessResult)?.drawable?.intrinsicWidth ?: 0
-        val usable = width >= VisualQuality.MIN_WIDTH_PX
-        if (!usable) Log.d(TAG, "visuel écarté (${width}px): $uri")
-        VisualCheck(usable, (result as? ErrorResult)?.throwable?.isTransient() == true)
+        var retryable = false
+        for (candidate in visualCandidates(uri)) {
+            val request = ImageRequest.Builder(context).data(candidate).size(1920, 1080).decoderFactory(boundsDecoder).build()
+            val result = imageLoader.execute(request)
+            val drawable = (result as? SuccessResult)?.drawable
+            val width = drawable?.intrinsicWidth ?: 0
+            if (width >= VisualQuality.MIN_IMAGE_WIDTH_PX && width >= drawable!!.intrinsicHeight) return@withContext VisualCheck(candidate)
+            Log.d(TAG, "visuel écarté (${width}px): $candidate")
+            retryable = retryable || (result as? ErrorResult)?.throwable?.isTransient() == true
+        }
+        VisualCheck(null, retryable)
     }
 
     private fun Throwable.isTransient() = this is IOException || this is HttpException && response.code >= 500
@@ -61,7 +73,8 @@ class VisualValidator(
                 val (width, height) = bounds.outWidth to bounds.outHeight
                 check(width > 0 && height > 0) { "unreadable image" }
                 val scale = DecodeUtils.computeSizeMultiplier(width, height, options.size.width.pxOrElse { width }, options.size.height.pxOrElse { height }, options.scale)
-                DecodeResult(ShapeDrawable().apply { intrinsicWidth = (width * scale).roundToInt() }, isSampled = false)
+                    .coerceAtMost(1.0)
+                DecodeResult(ShapeDrawable().apply { intrinsicWidth = (width * scale).roundToInt(); intrinsicHeight = (height * scale).roundToInt() }, isSampled = false)
             }
         }
     }

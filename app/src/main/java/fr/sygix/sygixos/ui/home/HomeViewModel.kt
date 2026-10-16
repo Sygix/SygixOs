@@ -99,7 +99,7 @@ class HomeViewModel(
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
     private var fallbackItems: List<HeroItem> = emptyList()
-    private val validated = MutableStateFlow<Set<String>>(emptySet())
+    private val validated = MutableStateFlow<Map<String, String>>(emptyMap())
     private val checked = MutableStateFlow<Set<String>>(emptySet())
     private val retryable = mutableSetOf<String>()
     private var heroValidationJob: Job? = null
@@ -124,7 +124,8 @@ class HomeViewModel(
         checked,
     ) { catalog, feed, disabled, v, c ->
         val shown = feed.withSources(disabled, fallbackItems)
-        val hero = HeroState(shown.items, shown.fromApps, validated = v, checked = c)
+        val items = shown.items.map { item -> v[item.imageUrl]?.let { item.copy(imageUrl = it) } ?: item }
+        val hero = HeroState(items, shown.fromApps, validated = v.values.toSet(), checked = c)
         val heroUris = shown.items.asSequence()
             .mapNotNull { it.imageUrl }
             .distinct()
@@ -240,8 +241,8 @@ class HomeViewModel(
         return viewModelScope.launch {
             pending.forEach { uri ->
                 val check = validator.validate(uri)
-                checked.update { it + uri }
-                if (check.usable) validated.update { it + uri }
+                checked.update { it + listOfNotNull(uri, check.visual) }
+                check.visual?.let { visual -> validated.update { it + (uri to visual) } }
                 if (check.retryable) retryable += uri else retryable -= uri
                 if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
             }

@@ -33,6 +33,7 @@ import fr.sygix.sygixos.data.VisualValidator
 import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.StartupSession
+import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
 import java.io.IOException
@@ -141,6 +142,20 @@ class HomeRefreshTest {
         home.refreshHero()
         home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(offline) }
         assertEquals(mapOf(offline to 2, rejected to 1), attempts)
+    }
+
+    @Test fun acceptedYouTubeVariantReplacesThePublishedThumbnail() = runBlocking {
+        val published = "https://i.ytimg.com/vi/AAAAAAAAAAA/sddefault.jpg"
+        val maxres = "https://i.ytimg.com/vi/AAAAAAAAAAA/maxresdefault.jpg"
+        val home = home(provider { listOf(heroItem("y", "Y", imageUrl = published, sourcePackage = "com.y")) }) { uri, _ ->
+            if (uri == maxres) null else broken
+        }
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(maxres) }
+        val hero = home.hero()!!
+        assertEquals(listOf(maxres), hero.items.map { it.imageUrl })
+        assertEquals(listOf(maxres), ShelfPosters.forPackage(hero.items, hero.validated, "com.y"))
+        assertEquals(setOf(published, maxres), hero.checked)
     }
 
     @Test fun interruptedShelfValidationResumesWhenReturningToTheApp() = runBlocking {
