@@ -159,7 +159,7 @@ class HomeViewModelUpNextTest {
         val watching = launch { vm.upNextUpdates.collect() }
         source.notifications.subscriptionCount.await { it == 1 }
         source.result = Result.success(listOf(item))
-        vm.refresh()
+        vm.refreshUpNext()
         awaitItems(listOf(item))
         val changed = item.copy(title = "Updated")
         source.result = Result.success(listOf(changed))
@@ -167,7 +167,7 @@ class HomeViewModelUpNextTest {
         awaitItems(listOf(changed))
         source.result = Result.failure(IllegalStateException("unavailable"))
         val previousLoads = source.loads.value
-        vm.refresh()
+        vm.refreshUpNext()
         source.loads.await { it > previousLoads }
         assertEquals(listOf(changed), (awaitItems(listOf(changed)).upNext!!.content as UpNextContent.Items).items)
         watching.cancel()
@@ -178,7 +178,7 @@ class HomeViewModelUpNextTest {
     @Test
     fun `visibility placement and source preferences reach home immediately`() = runBlocking {
         source.result = Result.success(listOf(item))
-        vm.refresh()
+        vm.refreshUpNext()
         awaitItems(listOf(item))
         repo.setUpNextVisible(false)
         assertNull((vm.state.await { it is HomeState.Ready && it.upNext == null } as HomeState.Ready).upNext)
@@ -195,11 +195,11 @@ class HomeViewModelUpNextTest {
     @Test
     fun `permission denial removes row without preventing home readiness`() = runBlocking {
         source.result = Result.failure(SecurityException("denied"))
-        vm.refresh()
+        vm.refreshUpNext()
         source.loads.await { it > 0 }
         vm.state.await { it is HomeState.Ready && it.upNext == null }
         source.result = Result.success(listOf(item))
-        vm.refresh()
+        vm.refreshUpNext()
         awaitItems(listOf(item))
         Unit
     }

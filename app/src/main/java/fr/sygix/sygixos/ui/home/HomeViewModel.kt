@@ -152,6 +152,7 @@ class HomeViewModel(
     val startup: StateFlow<StartupPhase> = startupController.phase
 
     init {
+        viewModelScope.launch { artwork.changes.collect { apps.refreshApps() } }
         viewModelScope.launch(startupDispatcher) {
             startup.first { it == StartupPhase.Done }
             mascot.release()
@@ -189,12 +190,6 @@ class HomeViewModel(
         lastShelfPackage?.let { requestShelf(it, items) }
     }
 
-    fun refresh() {
-        refreshApps()
-        refreshHero()
-        refreshUpNext()
-    }
-
     fun refreshUpNext() { upNext?.refresh() }
 
     fun openUpNext(item: UpNextItem, source: UpNextSourceEntry? = null) {
@@ -208,10 +203,6 @@ class HomeViewModel(
     fun onForeground() = updates.onForeground()
 
     fun onHomeShown() = updates.onHomeShown()
-
-    fun refreshApps() {
-        viewModelScope.launch { apps.refreshApps() }
-    }
 
     fun refreshHero() {
         heroRefreshJob?.cancel()

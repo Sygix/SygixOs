@@ -55,8 +55,8 @@ open class AppArtworkSource(
         }
     }
 
-    fun invalidate(packageName: String) {
-        cache.remove(packageName)
+    fun invalidate(packageName: String?) {
+        if (packageName == null) cache.evictAll() else cache.remove(packageName)
         invalidations.update { it + 1 }
     }
 

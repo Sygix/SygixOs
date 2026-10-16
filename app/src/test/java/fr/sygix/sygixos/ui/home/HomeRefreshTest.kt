@@ -6,6 +6,10 @@
 package fr.sygix.sygixos.ui.home
 
 import android.content.Context
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
+import android.content.pm.ResolveInfo
 import android.graphics.drawable.ColorDrawable
 import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
@@ -36,12 +40,14 @@ import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.domain.ShelfPosters
 import fr.sygix.sygixos.domain.VisualQuality
 import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.model.TvApp
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -50,6 +56,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @RunWith(RobolectricTestRunner::class)
 class HomeRefreshTest {
@@ -104,6 +111,32 @@ class HomeRefreshTest {
     private suspend fun HomeViewModel.awaitHeroChecked() {
         refreshHero()
         state.await { (it as? HomeState.Ready)?.hero?.checked?.size == VisualQuality.HERO_VALIDATED }
+    }
+
+    @Test fun anUnchangedResumePublishesNothingWhilePackageAndProviderChangesArePublished() = runBlocking {
+        var feed = listOf(heroItem("a", "A"))
+        var loads = 0
+        val home = home(provider { loads++; feed })
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.items == feed }
+        val published = mutableListOf<HomeState>()
+        val watching = launch(Dispatchers.Unconfined) { home.state.collect { published += it } }
+        home.refreshHero()
+        assertEquals(2, loads)
+        assertEquals(1, published.size)
+        shadowOf(context.packageManager).addResolveInfoForIntent(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER),
+            ResolveInfo().apply {
+                nonLocalizedLabel = "New"
+                activityInfo = ActivityInfo().apply { packageName = "com.new"; name = "com.new.Main"; applicationInfo = ApplicationInfo().apply { packageName = "com.new" } }
+            },
+        )
+        home.artwork.invalidate("com.new")
+        home.state.await { (it as? HomeState.Ready)?.catalog?.grid?.map(TvApp::packageName) == listOf("com.new") }
+        feed = listOf(heroItem("b", "B"))
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.items == feed }
+        watching.cancel()
     }
 
     @Test fun obsoleteHeroLoadIsCancelledWhenRefreshingAgain() = runBlocking {

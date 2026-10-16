@@ -5,6 +5,11 @@
 
 package fr.sygix.sygixos.data
 
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.pm.ApplicationInfo
+import android.content.pm.ResolveInfo
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
@@ -14,6 +19,7 @@ import fr.sygix.sygixos.model.UpNextPosition
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -21,14 +27,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class LauncherProjectionTest {
     private class Store : DataStore<Preferences> {
+        var writes = 0
         override val data = MutableStateFlow(emptyPreferences())
         override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences =
-            transform(data.value).also { data.value = it }
+            transform(data.value).also { data.value = it; writes++ }
     }
 
     @Test fun unrelatedWritesDoNotRepublishSourceOrPlacementPreferences() = runTest {
@@ -58,6 +66,31 @@ class LauncherProjectionTest {
         assertEquals(List(flows.size) { 1 }, emissions.toList())
         prefs.setHidden(setOf("com.hidden"))
         assertEquals(listOf(1, 2, 2, 1, 1, 1), emissions.toList())
+    }
+
+    @Test fun refreshingUnchangedAppsWritesNothingWhileAnInstallIsPublishedAndCached() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val store = Store()
+        val prefs = LauncherPrefs(store)
+        val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
+        val grids = mutableListOf<List<String>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { repo.catalog.collect { c -> grids += c.grid.map { it.packageName } } }
+        fun install(pkg: String) = shadowOf(context.packageManager).addResolveInfoForIntent(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER),
+            ResolveInfo().apply {
+                nonLocalizedLabel = pkg
+                activityInfo = ActivityInfo().apply { packageName = pkg; name = "$pkg.Main"; applicationInfo = ApplicationInfo().apply { packageName = pkg } }
+            },
+        )
+        install("com.a")
+        repo.refreshApps()
+        val writes = store.writes
+        repo.refreshApps()
+        assertEquals(writes, store.writes)
+        install("com.b")
+        repo.refreshApps()
+        assertEquals(listOf(listOf("com.a"), listOf("com.a", "com.b")), grids)
+        assertEquals(listOf("com.a", "com.b"), prefs.cachedApps.first().map { it.packageName })
     }
 
     @Test fun hidingAnAppThatIsNotInstalledDoesNotRepublishTheCatalog() = runTest {

@@ -106,14 +106,21 @@ class AppArtworkSourceTest {
         assertEquals(ICON_SIDE * 2, fresh.bitmap.width)
     }
 
-    @Test fun packageBroadcastsInvalidateTheSharedSource() {
+    @Test fun packageAndLocaleBroadcastsInvalidateTheSharedSource() {
         val source = (context as SygixOsApp).appArtwork
         val app = apps(1).single()
-        assertNotNull(source.load(app))
-        context.sendBroadcast(Intent(Intent.ACTION_PACKAGE_REPLACED, Uri.parse("package:" + app.packageName)))
-        shadowOf(context.mainLooper).idle()
-        assertNull(source.cached(app))
-        assertEquals(1, source.changes.value)
+        val packageData = Uri.parse("package:" + app.packageName)
+        listOf(
+            Intent(Intent.ACTION_PACKAGE_REPLACED, packageData),
+            Intent(Intent.ACTION_PACKAGE_CHANGED, packageData),
+            Intent(Intent.ACTION_LOCALE_CHANGED),
+        ).forEachIndexed { index, broadcast ->
+            assertNotNull(source.load(app))
+            context.sendBroadcast(broadcast)
+            shadowOf(context.mainLooper).idle()
+            assertNull(source.cached(app))
+            assertEquals(index + 1, source.changes.value)
+        }
     }
 
     private companion object {

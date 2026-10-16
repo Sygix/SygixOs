@@ -57,7 +57,7 @@ class AppCatalogRepository(
             prefs.cachedApps.first().takeIf { it.isNotEmpty() }?.let { installed.value = it }
         }
         val fresh = withContext(Dispatchers.IO) { runCatching { appsSource.load() }.getOrDefault(emptyList()) }
-        if (fresh.isNotEmpty() || installed.value == null) {
+        if (fresh != installed.value && (fresh.isNotEmpty() || installed.value == null)) {
             installed.value = fresh
             prefs.setCachedApps(fresh)
         }
