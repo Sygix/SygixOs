@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.core.DataStore
 import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.domain.RemovedUpNextContent
 import fr.sygix.sygixos.domain.UpNextContentKey
@@ -25,45 +26,50 @@ import fr.sygix.sygixos.model.BootStartState
 import fr.sygix.sygixos.model.LauncherSystemPreferences
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @VisibleForTesting
 internal val Context.dataStore by preferencesDataStore(name = "launcher")
 
 class LauncherPrefs(
-    private val context: Context,
+    private val store: DataStore<Preferences>,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : LauncherSystemStore, UpNextMemory {
+
+    constructor(context: Context, clock: () -> Long = System::currentTimeMillis) : this(context.dataStore, clock)
+
+    private fun <T> values(select: (Preferences) -> T): Flow<T> = store.data.map(select).distinctUntilChanged()
 
     private val upNextVisibleKey = booleanPreferencesKey("up_next_visible")
     private val upNextPositionKey = stringPreferencesKey("up_next_position")
 
-    val upNextVisible: Flow<Boolean> = context.dataStore.data.map { it[upNextVisibleKey] ?: true }
-    val upNextPosition: Flow<UpNextPosition> = context.dataStore.data.map { prefs ->
+    val upNextVisible: Flow<Boolean> = values { it[upNextVisibleKey] ?: true }
+    val upNextPosition: Flow<UpNextPosition> = values { prefs ->
         UpNextPosition.entries.firstOrNull { it.name == prefs[upNextPositionKey] }
             ?: UpNextPosition.BEFORE_APPS
     }
 
     suspend fun setUpNextVisible(visible: Boolean) {
-        context.dataStore.edit { it[upNextVisibleKey] = visible }
+        store.edit { it[upNextVisibleKey] = visible }
     }
 
     suspend fun setUpNextPosition(position: UpNextPosition) {
-        context.dataStore.edit { it[upNextPositionKey] = position.name }
+        store.edit { it[upNextPositionKey] = position.name }
     }
 
     private val upNextOpenedKey = stringPreferencesKey("up_next_opened")
     private val upNextRemovedKey = stringPreferencesKey("up_next_removed")
 
-    override val opened: Flow<Map<UpNextContentKey, Long>> = context.dataStore.data.map { readOpened(it) }
+    override val opened: Flow<Map<UpNextContentKey, Long>> = values(::readOpened)
 
-    override val removed: Flow<List<RemovedUpNextContent>> = context.dataStore.data.map { readRemoved(it) }
+    override val removed: Flow<List<RemovedUpNextContent>> = values(::readRemoved)
 
     override suspend fun recordOpened(key: UpNextContentKey, at: Long) {
-        context.dataStore.edit { prefs -> writeOpened(prefs, readOpened(prefs) + (key to at)) }
+        store.edit { prefs -> writeOpened(prefs, readOpened(prefs) + (key to at)) }
     }
 
     override suspend fun pruneOpened(keep: (UpNextContentKey) -> Boolean) {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             val current = readOpened(prefs)
             val kept = current.filterKeys(keep)
             if (kept.size != current.size) writeOpened(prefs, kept)
@@ -71,11 +77,11 @@ class LauncherPrefs(
     }
 
     override suspend fun addRemoved(content: RemovedUpNextContent) {
-        context.dataStore.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == content.key } + content) }
+        store.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == content.key } + content) }
     }
 
     override suspend fun restoreRemoved(key: UpNextContentKey) {
-        context.dataStore.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == key }) }
+        store.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == key }) }
     }
 
     private fun readOpened(prefs: Preferences): Map<UpNextContentKey, Long> =
@@ -139,7 +145,7 @@ class LauncherPrefs(
     private val bootStartObservedAtKey = intPreferencesKey("boot_start_observed_at_boot")
     private val accessibilityConnectedAtKey = intPreferencesKey("accessibility_connected_at_boot")
 
-    override val launcherSystem: Flow<LauncherSystemPreferences> = context.dataStore.data.map { prefs ->
+    override val launcherSystem: Flow<LauncherSystemPreferences> = values { prefs ->
         LauncherSystemPreferences(
             guideSeen = prefs[guideSeenKey] ?: false,
             bootStart = BootStartState(
@@ -152,11 +158,11 @@ class LauncherPrefs(
     }
 
     override suspend fun markLauncherGuideSeen() {
-        context.dataStore.edit { it[guideSeenKey] = true }
+        store.edit { it[guideSeenKey] = true }
     }
 
     override suspend fun setBootStartEnabled(enabled: Boolean, currentBoot: Int?) {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             if (enabled && prefs[bootStartEnabledKey] != true) {
                 if (currentBoot != null) prefs[bootStartEnabledAtKey] = currentBoot
                 else prefs.remove(bootStartEnabledAtKey)
@@ -172,54 +178,54 @@ class LauncherPrefs(
 
     override suspend fun recordBootStartObserved(currentBoot: Int?) {
         if (currentBoot == null) return
-        context.dataStore.edit { it[bootStartObservedAtKey] = currentBoot }
+        store.edit { it[bootStartObservedAtKey] = currentBoot }
     }
 
     override suspend fun recordAccessibilityConnected(currentBoot: Int) {
-        context.dataStore.edit { it[accessibilityConnectedAtKey] = currentBoot }
+        store.edit { it[accessibilityConnectedAtKey] = currentBoot }
     }
 
-    val pinned: Flow<Set<String>> = context.dataStore.data.map { it[pinnedKey] ?: emptySet() }
+    val pinned: Flow<Set<String>> = values { it[pinnedKey] ?: emptySet() }
 
     // Ensemble des apps sources désactivées ; vide/absent = toutes activées (défaut,
     // une app installée plus tard est donc activée sans migration).
-    val disabledSources: Flow<Set<String>> = context.dataStore.data.map { it[disabledSourcesKey] ?: emptySet() }
+    val disabledSources: Flow<Set<String>> = values { it[disabledSourcesKey] ?: emptySet() }
 
-    val hidden: Flow<Set<String>> = context.dataStore.data.map { it[hiddenKey] ?: emptySet() }
+    val hidden: Flow<Set<String>> = values { it[hiddenKey] ?: emptySet() }
 
-    val hiddenWithDates: Flow<Map<String, Long?>> = context.dataStore.data.map { prefs ->
+    val hiddenWithDates: Flow<Map<String, Long?>> = values { prefs ->
         val dates = hiddenDates(prefs)
         (prefs[hiddenKey] ?: emptySet()).associateWith { dates[it] }
     }
 
     suspend fun setDisabledSources(disabled: Set<String>) {
-        context.dataStore.edit { it[disabledSourcesKey] = disabled }
+        store.edit { it[disabledSourcesKey] = disabled }
     }
 
     suspend fun updateDisabledSources(transform: (Set<String>) -> Set<String>) {
-        context.dataStore.edit { prefs -> prefs[disabledSourcesKey] = transform(prefs[disabledSourcesKey] ?: emptySet()) }
+        store.edit { prefs -> prefs[disabledSourcesKey] = transform(prefs[disabledSourcesKey] ?: emptySet()) }
     }
 
     suspend fun updatePinned(transform: (Set<String>) -> Set<String>) {
-        context.dataStore.edit { prefs -> prefs[pinnedKey] = transform(prefs[pinnedKey] ?: emptySet()) }
+        store.edit { prefs -> prefs[pinnedKey] = transform(prefs[pinnedKey] ?: emptySet()) }
     }
 
     suspend fun updateGridOrder(transform: (order: List<String>, hidden: Set<String>) -> List<String>) {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             val current = prefs[orderKey]?.split(LINE)?.filter { it.isNotEmpty() } ?: emptyList()
             prefs[orderKey] = transform(current, prefs[hiddenKey] ?: emptySet()).joinToString(LINE)
         }
     }
 
     suspend fun setHidden(hidden: Set<String>) {
-        context.dataStore.edit { prefs -> writeHidden(prefs, hidden, hiddenDates(prefs)) }
+        store.edit { prefs -> writeHidden(prefs, hidden, hiddenDates(prefs)) }
     }
 
-    val gridOrder: Flow<List<String>> = context.dataStore.data.map { prefs ->
+    val gridOrder: Flow<List<String>> = values { prefs ->
         prefs[orderKey]?.split(LINE)?.filter { it.isNotEmpty() } ?: emptyList()
     }
 
-    val cachedApps: Flow<List<TvApp>> = context.dataStore.data.map { prefs ->
+    val cachedApps: Flow<List<TvApp>> = values { prefs ->
         prefs[appsKey]?.split(LINE).orEmpty().mapNotNull { line ->
             val parts = line.split(FIELD)
             if (parts.size < 2 || parts[0].isEmpty()) null
@@ -228,21 +234,21 @@ class LauncherPrefs(
     }
 
     suspend fun setPinned(packages: Set<String>) {
-        context.dataStore.edit { it[pinnedKey] = packages }
+        store.edit { it[pinnedKey] = packages }
     }
 
     suspend fun hideApps(vararg packages: String) {
         val now = clock()
-        context.dataStore.edit { prefs -> hide(prefs, packages.toSet(), now) }
+        store.edit { prefs -> hide(prefs, packages.toSet(), now) }
     }
 
     suspend fun unhideApps(vararg packages: String) {
-        context.dataStore.edit { prefs -> unhide(prefs, packages.toSet()) }
+        store.edit { prefs -> unhide(prefs, packages.toSet()) }
     }
 
     suspend fun toggleHidden(packageName: String) {
         val now = clock()
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             val packages = setOf(packageName)
             if (packageName in (prefs[hiddenKey] ?: emptySet())) unhide(prefs, packages) else hide(prefs, packages, now)
         }
@@ -275,11 +281,11 @@ class LauncherPrefs(
     }
 
     suspend fun setGridOrder(order: List<String>) {
-        context.dataStore.edit { it[orderKey] = order.joinToString(LINE) }
+        store.edit { it[orderKey] = order.joinToString(LINE) }
     }
 
     suspend fun setCachedApps(apps: List<TvApp>) {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             prefs[appsKey] = apps.joinToString(LINE) { listOf(it.packageName, it.label, it.activityName.orEmpty()).joinToString(FIELD) }
         }
     }
