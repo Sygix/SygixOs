@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -49,7 +50,7 @@ class AppCatalogRepository(
             dock = AppCatalog.dock(visible, pinned.toList()),
             grid = AppCatalog.grid(visible, order),
         )
-    }
+    }.distinctUntilChanged()
 
     suspend fun refreshApps() {
         if (installed.value == null) {
