@@ -46,6 +46,7 @@ import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import org.junit.After
 import org.junit.Rule
@@ -82,7 +83,7 @@ class HomeScreenStartupTest {
     private val dispatcher = StandardTestDispatcher(scheduler)
 
     @get:Rule(order = 0)
-    val mainDispatcher = MainDispatcherRule()
+    val mainDispatcher = MainDispatcherRule(UnconfinedTestDispatcher(scheduler))
 
     @get:Rule(order = 1)
     val compose = createAndroidComposeRule<ComponentActivity>(dispatcher)
