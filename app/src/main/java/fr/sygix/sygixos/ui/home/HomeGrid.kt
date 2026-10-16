@@ -98,6 +98,7 @@ internal fun HomeGrid(
     onUpNextMenu: (UpNextItem) -> Unit = {},
     onRetryUpNext: () -> Unit = {},
     onUpNextReturnHandled: (Long) -> Unit = {},
+    running: Boolean = true,
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
     val appPackages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
@@ -139,9 +140,9 @@ internal fun HomeGrid(
         ?.let { ShelfPosters.candidates(programs(), it, VisualQuality.SHELF_VALIDATED_PER_APP) }
         ?.any { it !in settled() } ?: false
 
-    LaunchedEffect(focusedApp, movingApp, appPackages) {
+    LaunchedEffect(focusedApp, movingApp, appPackages, running) {
         val target = focus.focusedApp
-        if (movingApp != null || target !in appPackages) {
+        if (!running || movingApp != null || target !in appPackages) {
             openApp = null
             return@LaunchedEffect
         }
