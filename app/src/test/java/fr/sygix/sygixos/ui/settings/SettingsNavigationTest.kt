@@ -38,6 +38,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import androidx.compose.runtime.snapshots.Snapshot
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -111,6 +113,20 @@ class SettingsNavigationTest {
     private fun openAboutAndWaitForLicenses() {
         repeat(3) { press(Key.DirectionDown) }
         compose.waitUntil(10_000) { compose.onAllNodes(licenseRow).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
+    fun `licences parsed once are listed on the first frame of a later visit`() {
+        setState()
+        openAboutAndWaitForLicenses()
+        press(Key.DirectionUp)
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { keyDown(Key.DirectionDown); keyUp(Key.DirectionDown) }
+        Snapshot.sendApplyNotifications()
+        compose.mainClock.advanceTimeByFrame()
+        compose.onNodeWithTag("settings-about").assertExists()
+        compose.onNodeWithTag("about-licenses-loading").assertDoesNotExist()
+        assertTrue(compose.onAllNodes(licenseRow).fetchSemanticsNodes().isNotEmpty())
     }
 
     @Test

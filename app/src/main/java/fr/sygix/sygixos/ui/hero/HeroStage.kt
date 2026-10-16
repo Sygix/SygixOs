@@ -140,6 +140,7 @@ fun HeroStage(
     motion: Boolean = true,
     backdrop: GlassBackdrop = remember { GlassBackdrop() },
     stillActive: () -> Boolean = { true },
+    keepVideo: Boolean = false,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -212,11 +213,12 @@ fun HeroStage(
         }
     }
 
-    LifecycleStartEffect(current?.id, showVideo, visible, motion, items.size) {
+    LifecycleStartEffect(current?.id, showVideo, visible, motion, items.size, keepVideo) {
         val item = current
         when {
             visible && item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
             visible && player.loadedItem in slowVisuals -> player.park()
+            keepVideo && showVideo && player.loadedItem == item?.id -> player.park()
             else -> player.clear()
         }
         onStopOrDispose { }

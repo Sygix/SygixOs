@@ -49,7 +49,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
-private class FakeVideo : HeroVideo {
+internal class FakeVideo : HeroVideo {
     override var firstFrameRendered by mutableStateOf(false)
     override var renderedItem by mutableStateOf<String?>(null)
     override var readyItem by mutableStateOf<String?>(null)

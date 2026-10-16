@@ -6,6 +6,17 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.ui.input.key.Key
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.onNodeWithText
+import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.ui.hero.FakeVideo
+import fr.sygix.sygixos.ui.hero.HeroVideoFactory
+import fr.sygix.sygixos.ui.hero.LocalHeroVideoFactory
+import org.junit.Assert.assertFalse
+import fr.sygix.sygixos.core.designsystem.GlassActive
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasAnyAncestor
@@ -113,14 +124,57 @@ class SettingsEntryTest {
     }
 
     @Test
-    fun `ok on gear opens settings and back resumes hero`() {
+    fun `settings replace the home, which is neither displayed nor focusable, and back shows the focused hero`() {
         setupHome()
         press(Key.DirectionUp)
         press(Key.Enter)
-        compose.onNodeWithTag("settings-screen").assertExists()
+        compose.onNodeWithTag("settings-screen").assertIsDisplayed()
+        listOf("zone-hero", "zone-dock", "home-grid").forEach { compose.onNodeWithTag(it).assertExists().assertIsNotDisplayed() }
+        listOf(Key.DirectionLeft, Key.DirectionRight, Key.DirectionUp, Key.DirectionDown, Key.DirectionLeft).forEach { key ->
+            press(key)
+            compose.onAllNodes(isFocused() and !hasAnyAncestor(hasTestTag("settings-screen"))).assertCountEquals(0)
+        }
         press(Key.Back)
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
-        compose.onNodeWithTag("zone-hero").assertIsFocused()
+        compose.onNodeWithTag("zone-hero").assertIsDisplayed().assertIsFocused()
+    }
+
+    @Test
+    fun `settings glass does not blur the hidden home`() {
+        compose.setContent {
+            TestHome(catalogOf(listOf(app("com.dock", "Dock")), listOf(app("com.grid", "Grid"))), heroStateOf(emptyList()), glassBlur = true)
+        }
+        compose.waitForIdle()
+        press(Key.DirectionUp)
+        press(Key.Enter)
+        repeat(2) { press(Key.DirectionDown) }
+        press(Key.DirectionRight)
+        press(Key.DirectionDown)
+        press(Key.Enter)
+        assertFalse(compose.onNodeWithTag("setting-upnext-position-list").fetchSemanticsNode().config[GlassActive])
+    }
+
+    @Test
+    fun `the hero video pauses under the settings and resumes on back without loading again`() {
+        val video = FakeVideo()
+        val clip = HeroItem(id = "v1", title = "Vidéo fictive", videoUrl = "https://example.invalid/v1.mp4", sourcePackage = "com.example.player")
+        compose.setContent {
+            CompositionLocalProvider(LocalHeroVideoFactory provides HeroVideoFactory { _, _, _ -> video }) {
+                TestHome(catalogOf(listOf(app("com.dock", "Dock")), emptyList()), heroStateOf(listOf(clip)))
+            }
+        }
+        compose.runOnIdle { video.render("v1") }
+        compose.onNodeWithText(clip.title, useUnmergedTree = true).assertIsDisplayed()
+        press(Key.DirectionUp)
+        press(Key.Enter)
+        compose.onNodeWithTag("settings-screen").assertExists()
+        assertEquals("v1", video.loadedItem)
+        assertFalse(video.playing)
+        press(Key.Back)
+        compose.onNodeWithText(clip.title, useUnmergedTree = true).assertIsDisplayed()
+        assertTrue(video.playing)
+        assertTrue(video.firstFrameRendered)
+        assertEquals(listOf("v1"), video.prepared)
     }
 
     @Test

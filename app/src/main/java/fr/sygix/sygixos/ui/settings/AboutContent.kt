@@ -52,7 +52,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import com.mikepenz.aboutlibraries.entity.Library
-import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
+import com.mikepenz.aboutlibraries.Libs
+import com.mikepenz.aboutlibraries.util.withJson
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
@@ -85,8 +90,7 @@ internal fun AboutContent(
             focus.revealRow(listState, "update-check", UPDATE_BLOCK_POSITION)
         }
     }
-    val libraries by produceLibraries(R.raw.aboutlibraries)
-    val entries = libraries?.libraries
+    val entries = rememberLicences()?.libraries
     LazyColumn(state = listState, modifier = modifier.testTag("settings-about").fillMaxWidth().fillMaxHeight()) {
         item(key = "about-header") { AboutHeader(version) }
         item(key = "update-block") {
@@ -148,6 +152,16 @@ internal fun AboutContent(
             }
         }
     }
+}
+
+private var parsedLicences: Libs? = null
+
+@Composable
+private fun rememberLicences(): Libs? {
+    val context = LocalContext.current
+    return produceState(parsedLicences) {
+        if (value == null) value = withContext(Dispatchers.IO) { Libs.Builder().withJson(context, R.raw.aboutlibraries).build() }.also { parsedLicences = it }
+    }.value
 }
 
 @Composable
