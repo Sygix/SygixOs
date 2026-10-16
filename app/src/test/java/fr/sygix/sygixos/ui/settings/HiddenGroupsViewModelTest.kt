@@ -10,9 +10,7 @@ import fr.sygix.sygixos.await
 import fr.sygix.sygixos.domain.HiddenGroup
 import fr.sygix.sygixos.domain.HiddenPaneLayout
 import fr.sygix.sygixos.model.UpNextContentType
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -82,7 +80,7 @@ class HiddenGroupsViewModelTest {
         assertFalse(emptied.keys().contains("contents-title"))
         assertTrue(emptied.canEnter(SettingsCategory.HIDDEN))
         vm.unhideAll()
-        withTimeout(5_000) { while (harness.hiddenNow().isNotEmpty()) delay(10) }
+        vm.state.await { it.hiddenRows.none { row -> row.hidden } }
         vm.enterCategory(SettingsCategory.HIDDEN)
         val empty = vm.state.await { it.hiddenRows.isEmpty() }
         assertTrue(empty.hiddenEntries.isEmpty())
