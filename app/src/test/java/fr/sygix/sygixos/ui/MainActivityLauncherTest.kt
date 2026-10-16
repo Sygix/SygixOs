@@ -21,16 +21,18 @@ import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -72,8 +74,15 @@ class MainActivityLauncherTest {
     }
 
     private fun onIo(block: suspend () -> Unit) {
-        val job = CoroutineScope(Dispatchers.IO).launch { block() }
-        awaitMain { job.isCompleted }
+        val scope = CoroutineScope(Dispatchers.IO)
+        val work = scope.async { block() }
+        try {
+            awaitMain { work.isCompleted }
+            runBlocking { work.await() }
+        } finally {
+            runBlocking { work.cancelAndJoin() }
+            scope.cancel()
+        }
     }
 
     private fun launcherOf(controller: ActivityController<MainActivity>) =
