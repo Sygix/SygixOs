@@ -12,11 +12,16 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MainDispatcherRuleTest {
     @Test fun suspendingCleanupCompletesBeforeMainIsReset() {
         val rule = MainDispatcherRule()
@@ -36,6 +41,30 @@ class MainDispatcherRuleTest {
             }
         }
         rule.apply(statement, Description.createTestDescription(javaClass, "cleanup")).evaluate()
+        assertTrue(cleaned)
+    }
+
+    @Test fun suspendedStartupWorkSharesTheCleanupScheduler() {
+        val scheduler = TestCoroutineScheduler()
+        val startup = StandardTestDispatcher(scheduler)
+        val rule = MainDispatcherRule(UnconfinedTestDispatcher(scheduler))
+        var cleaned = false
+        val statement = object : Statement() {
+            override fun evaluate() {
+                rule.track(object : ViewModel() {}).viewModelScope.launch(startup) {
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        withContext(NonCancellable) {
+                            delay(1)
+                            cleaned = true
+                        }
+                    }
+                }
+                scheduler.runCurrent()
+            }
+        }
+        rule.apply(statement, Description.createTestDescription(javaClass, "startup cleanup")).evaluate()
         assertTrue(cleaned)
     }
 }
