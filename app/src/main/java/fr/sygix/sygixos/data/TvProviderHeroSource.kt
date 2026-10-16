@@ -5,7 +5,6 @@
 
 package fr.sygix.sygixos.data
 
-import android.content.ContentResolver
 import android.content.Context
 import android.content.pm.PackageManager
 import android.database.ContentObserver
@@ -27,33 +26,22 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     private val labels = mutableMapOf<String, String?>()
 
     override suspend fun load(): List<HeroItem> = withContext(Dispatchers.IO) {
-        runCatching { queryAll() }.getOrDefault(emptyList())
+        queryAll()
     }
 
-    suspend fun programCounts(): Map<String, Int> = withContext(Dispatchers.IO) {
-        val resolver = context.contentResolver
-        val counts = mutableMapOf<String, Int>()
-        for (uri in listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)) {
-            runCatching {
-                resolver.query(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE), null, null, null)?.use { c ->
-                    while (c.moveToNext()) {
-                        if (c.optInt(COLUMN_BROWSABLE, 1) == 0) continue
-                        val pkg = c.optString(COLUMN_PACKAGE) ?: continue
-                        counts[pkg] = (counts[pkg] ?: 0) + 1
-                    }
+    suspend fun programCounts(): Map<String, Int> =
+        listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)
+            .flatMap { uri ->
+                rows(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE)) { c ->
+                    c.optString(COLUMN_PACKAGE).takeIf { c.optInt(COLUMN_BROWSABLE, 1) != 0 }
                 }
             }
-        }
-        counts
-    }
+            .groupingBy { it }
+            .eachCount()
 
-    // Flux réactif des comptages : l'observateur est armé AVANT la valeur initiale (envoyée
-    // immédiatement, hors antirebond), puis chaque changement du contenu TV déclenche une
-    // réinterrogation après un délai d'antirebond ; désinscription à l'annulation.
     fun programCountsFlow(debounceMillis: Long = 500): Flow<Map<String, Int>> = channelFlow {
         val resolver = context.contentResolver
         val signals = Channel<Unit>(Channel.CONFLATED)
-        // Handler null : onChange arrive sur un thread arbitraire, trySend est thread-safe.
         val observer = object : ContentObserver(null) {
             override fun onChange(selfChange: Boolean) {
                 signals.trySend(Unit)
@@ -74,27 +62,18 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         }
     }
 
-    private fun queryAll(): List<HeroItem> {
-        val resolver = context.contentResolver
-        val items = query(resolver, TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
-            query(resolver, TvContract.WatchNextPrograms.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
+    private suspend fun queryAll(): List<HeroItem> {
+        val items = rows(TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
+            rows(TvContract.WatchNextPrograms.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
         return HeroOrdering.sort(items.map { it.copy(sourceLabel = labelOf(it.sourcePackage)) })
     }
 
-    private fun query(
-        resolver: ContentResolver,
-        uri: Uri,
-        projection: Array<String>,
-        map: (Cursor) -> HeroItem?,
-    ): List<HeroItem> {
-        val items = mutableListOf<HeroItem>()
-        runCatching {
-            resolver.query(uri, projection, null, null, null)?.use { c ->
-                while (c.moveToNext()) map(c)?.let(items::add)
-            }
-        }
-        return items
-    }
+    private suspend fun <T : Any> rows(uri: Uri, projection: Array<String>, map: (Cursor) -> T?): List<T> =
+        providerQuery { signal ->
+            context.contentResolver.query(uri, projection, null, null, null, signal)
+                ?.use { c -> buildList { while (c.moveToNext()) map(c)?.let(::add) } }
+                .orEmpty()
+        }.getOrDefault(emptyList())
 
     internal fun mapPreviewRow(c: Cursor): HeroItem? {
         if (c.optInt(TvContract.PreviewPrograms.COLUMN_BROWSABLE, 1) == 0) return null
