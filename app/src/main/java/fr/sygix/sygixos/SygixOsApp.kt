@@ -29,6 +29,8 @@ import fr.sygix.sygixos.data.ContextSystemScreenLauncher
 import fr.sygix.sygixos.data.ForegroundTracker
 import fr.sygix.sygixos.data.GitHubReleaseSource
 import fr.sygix.sygixos.data.HttpsUrlTransport
+import fr.sygix.sygixos.data.HomeStateReader
+import fr.sygix.sygixos.data.HomeScreenStateReader
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.PackageManagerApkInspector
@@ -55,7 +57,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val defaultLauncherController by lazy {
-        val reader = fr.sygix.sygixos.data.HomeScreenStateReader(this)
+        val reader = createHomeStateReader()
         val access = fr.sygix.sygixos.data.AdbAccessGateway.create(this)
         val store = fr.sygix.sygixos.data.DefaultLauncherPrefs(this)
         val operations = fr.sygix.sygixos.data.PrivilegedShell(
@@ -115,6 +117,8 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     protected open val prefetchesMascot: Boolean get() = true
 
     protected open val checksAccessibility: Boolean get() = true
+
+    protected open fun createHomeStateReader(): HomeStateReader = HomeScreenStateReader(this)
 
     override fun onTerminate() {
         appScope.cancel()
