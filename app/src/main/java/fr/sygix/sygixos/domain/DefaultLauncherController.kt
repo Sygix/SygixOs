@@ -67,15 +67,15 @@ class DefaultLauncherController(
         }
     }
 
-    private suspend fun refreshSnapshot() {
+    private suspend fun refreshSnapshot(readDebug: Boolean = true): Result<HomeScreenSnapshot> {
         val request = ++snapshotRequest
-        val debug = runCatching(access::debugEnabled).getOrDefault(false)
+        val debug = if (readDebug) runCatching(access::debugEnabled).getOrDefault(false) else null
         val result = reader.read()
-        if (request != snapshotRequest) return
-        mutableState.update {
-            it.copy(debugEnabled = debug, snapshot = result.getOrNull(), readFailed = result.isFailure,
-                screen = if (!it.busy && it.screen == SetupScreen.DEBUG && debug) SetupScreen.AUTHORIZE else it.screen)
+        if (request == snapshotRequest) mutableState.update {
+            it.copy(debugEnabled = debug ?: it.debugEnabled, snapshot = result.getOrNull(), readFailed = result.isFailure,
+                screen = if (!it.busy && it.screen == SetupScreen.DEBUG && debug == true) SetupScreen.AUTHORIZE else it.screen)
         }
+        return result
     }
 
     fun openPanel() {
@@ -171,8 +171,7 @@ class DefaultLauncherController(
         step(SetupStep.OVERLAY) { operations.grantOverlay() }
         step(SetupStep.BOOT) { enableBoot(); mutableState.update { it.copy(bootEnabled = true) }; Result.success(Unit) }
         refreshManual()
-        val snapshot = reader.read()
-        mutableState.update { it.copy(snapshot = snapshot.getOrNull(), readFailed = snapshot.isFailure) }
+        refreshSnapshot(readDebug = false)
         show(if (state.value.error) SetupScreen.FAILED else SetupScreen.FALLBACK)
     }
 
@@ -283,8 +282,7 @@ class DefaultLauncherController(
     private suspend fun verifyHome(): Boolean {
         var waited = 0L
         while (true) {
-            val result = reader.read()
-            mutableState.update { it.copy(snapshot = result.getOrNull(), readFailed = result.isFailure) }
+            val result = refreshSnapshot(readDebug = false)
             if (result.getOrThrow().effective) return true
             if (waited >= verificationMs) return false
             delay(100)
