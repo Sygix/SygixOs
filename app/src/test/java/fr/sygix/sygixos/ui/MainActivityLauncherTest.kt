@@ -182,14 +182,18 @@ class MainActivityLauncherTest {
     }
 
     @Test
-    fun `boot intents record the observed opening at creation and on new intent`() {
+    fun `boot intents record an opening at creation and when delivered again in the same boot`() {
         Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 5)
         onIo { prefs.setBootStartEnabled(true, 4) }
         val controller = launch(intent = LauncherSystemIntents.boot(context))
         awaitObservedBoot(5)
-        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 6)
+        onIo {
+            prefs.setBootStartEnabled(false, 5)
+            prefs.setBootStartEnabled(true, 5)
+            assertEquals(null, prefs.launcherSystem.first().bootStart.observedAtBoot)
+        }
         controller.deliverFromBackground(LauncherSystemIntents.boot(context))
-        awaitObservedBoot(6)
+        awaitObservedBoot(5)
     }
 
     @Test
