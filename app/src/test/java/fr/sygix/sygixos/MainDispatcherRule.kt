@@ -23,8 +23,7 @@ import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class MainDispatcherRule : TestWatcher() {
-    private lateinit var dispatcher: TestDispatcher
+class MainDispatcherRule(private val dispatcher: TestDispatcher = UnconfinedTestDispatcher()) : TestWatcher() {
     private val jobs = mutableListOf<Job>()
 
     fun <T : ViewModel> track(model: T): T = model.also {
@@ -32,7 +31,6 @@ class MainDispatcherRule : TestWatcher() {
     }
 
     override fun starting(description: Description) {
-        dispatcher = UnconfinedTestDispatcher()
         Dispatchers.setMain(dispatcher)
     }
 
