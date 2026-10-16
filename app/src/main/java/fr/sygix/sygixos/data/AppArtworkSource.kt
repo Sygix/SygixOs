@@ -11,12 +11,16 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.graphics.drawable.Drawable
+import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.CoroutineDispatcher
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
 
 class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean) {
     val image: ImageBitmap = bitmap.asImageBitmap()
@@ -25,14 +29,30 @@ class AppArtwork(val bitmap: Bitmap, val isBanner: Boolean) {
 open class AppArtworkSource(
     private val pm: PackageManager,
     val dispatcher: CoroutineDispatcher = BackgroundDecoding,
+    maxBytes: Int = 8 * 1024 * 1024,
 ) {
 
-    private val cache = java.util.concurrent.ConcurrentHashMap<String, java.util.Optional<AppArtwork>>()
+    private val cache = object : LruCache<String, AppArtwork>(maxBytes) {
+        override fun sizeOf(key: String, value: AppArtwork): Int = value.bitmap.allocationByteCount
+    }
+    private val pending = ConcurrentHashMap<String, FutureTask<AppArtwork?>>()
 
-    fun load(app: TvApp): AppArtwork? =
-        cache.getOrPut(app.packageName) { java.util.Optional.ofNullable(resolve(app)) }.orElse(null)
+    fun load(app: TvApp): AppArtwork? {
+        cache[app.packageName]?.let { return it }
+        val task = pending.getOrPut(app.packageName) {
+            FutureTask { cache[app.packageName] ?: resolve(app)?.also { cache.put(app.packageName, it) } }
+        }
+        try {
+            task.run()
+            return task.get()
+        } catch (failure: ExecutionException) {
+            throw failure.cause ?: failure
+        } finally {
+            if (task.isDone) pending.remove(app.packageName, task)
+        }
+    }
 
-    open fun cached(app: TvApp): AppArtwork? = cache[app.packageName]?.orElse(null)
+    open fun cached(app: TvApp): AppArtwork? = cache[app.packageName]
 
     fun preload(apps: List<TvApp>) = apps.forEach { load(it) }
 
