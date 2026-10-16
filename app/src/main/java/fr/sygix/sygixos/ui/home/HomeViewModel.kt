@@ -103,8 +103,9 @@ class HomeViewModel(
     private val validated = MutableStateFlow<Set<String>>(emptySet())
     private val checked = MutableStateFlow<Set<String>>(emptySet())
     private var heroValidationJob: Job? = null
+    private var heroRefreshJob: Job? = null
     private var shelfValidationJob: Job? = null
-    private val shelfRequested = mutableSetOf<String>()
+    private var shelfValidationPackage: String? = null
     private var lastHeroUris: List<String> = emptyList()
     private var lastDisabled: Set<String>? = null
     private var lastShelfPackage: String? = null
@@ -182,7 +183,7 @@ class HomeViewModel(
 
     private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
         lastDisabled = disabled
-        shelfRequested.clear()
+        shelfValidationJob?.cancel()
         lastShelfPackage?.let { requestShelf(it, items) }
     }
 
@@ -215,10 +216,10 @@ class HomeViewModel(
     }
 
     fun refreshHero() {
-        viewModelScope.launch {
+        heroRefreshJob?.cancel()
+        heroRefreshJob = viewModelScope.launch {
             fallbackItems = hero.fallbackItems()
             rawFeed.value = hero.load()
-            shelfRequested.clear()
         }
     }
 
@@ -228,14 +229,15 @@ class HomeViewModel(
     }
 
     private fun requestShelf(packageName: String, items: List<HeroItem>) {
-        if (!shelfRequested.add(packageName)) return
-        val uris = ShelfPosters.candidates(items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
+        if (shelfValidationPackage == packageName && shelfValidationJob?.isActive == true) return
         shelfValidationJob?.cancel()
+        shelfValidationPackage = packageName
+        val uris = ShelfPosters.candidates(items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
         shelfValidationJob = launchValidation(uris, keepInMemory = 0)
     }
 
     private fun launchValidation(uris: List<String>, keepInMemory: Int, holdAfterFirstDuringStartup: Boolean = false): Job? {
-        val pending = uris.filter { it !in validated.value }
+        val pending = uris.filter { it !in checked.value }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
             pending.forEachIndexed { index, uri ->

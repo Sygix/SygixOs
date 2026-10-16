@@ -8,16 +8,25 @@ package fr.sygix.sygixos.data
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.HeroFeed
 import fr.sygix.sygixos.model.HeroItem
+import kotlinx.coroutines.CancellationException
 
 class HeroRepository(
     private val programs: HeroContentProvider,
     private val fallback: HeroContentProvider,
 ) {
     suspend fun load(): HeroFeed {
-        val published = runCatching { programs.load() }.getOrDefault(emptyList())
+        val published = items(programs)
         if (published.isNotEmpty()) return HeroFeed(published, fromApps = true)
         return HeroFeed(fallbackItems(), fromApps = false)
     }
 
-    suspend fun fallbackItems(): List<HeroItem> = runCatching { fallback.load() }.getOrDefault(emptyList())
+    suspend fun fallbackItems(): List<HeroItem> = items(fallback)
+
+    private suspend fun items(provider: HeroContentProvider): List<HeroItem> = try {
+        provider.load()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (_: Exception) {
+        emptyList()
+    }
 }
