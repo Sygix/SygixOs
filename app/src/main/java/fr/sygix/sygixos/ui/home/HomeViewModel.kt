@@ -101,9 +101,11 @@ class HomeViewModel(
     private var fallbackItems: List<HeroItem> = emptyList()
     private val validated = MutableStateFlow<Set<String>>(emptySet())
     private val checked = MutableStateFlow<Set<String>>(emptySet())
+    private val retryable = mutableSetOf<String>()
     private var heroValidationJob: Job? = null
+    private var heroRefreshJob: Job? = null
     private var shelfValidationJob: Job? = null
-    private val shelfRequested = mutableSetOf<String>()
+    private var shelfValidationUris: List<String> = emptyList()
     private var lastHeroUris: List<String> = emptyList()
     private var lastDisabled: Set<String>? = null
     private var lastShelfPackage: String? = null
@@ -121,7 +123,6 @@ class HomeViewModel(
         validated,
         checked,
     ) { catalog, feed, disabled, v, c ->
-        // Bascule des apps sources : filtrage réactif du héro (et du Top Shelf) sans redémarrage.
         val shown = feed.withSources(disabled, fallbackItems)
         val hero = HeroState(shown.items, shown.fromApps, validated = v, checked = c)
         val heroUris = shown.items.asSequence()
@@ -175,12 +176,15 @@ class HomeViewModel(
         if (uris == lastHeroUris) return
         lastHeroUris = uris
         heroValidationJob?.cancel()
-        heroValidationJob = launchValidation(uris, VisualQuality.HERO_IN_MEMORY, holdAfterFirstDuringStartup = true)
+        validateHero()
+    }
+
+    private fun validateHero() {
+        heroValidationJob = launchValidation(lastHeroUris, VisualQuality.HERO_IN_MEMORY, holdAfterFirstDuringStartup = true)
     }
 
     private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
         lastDisabled = disabled
-        shelfRequested.clear()
         lastShelfPackage?.let { requestShelf(it, items) }
     }
 
@@ -209,10 +213,11 @@ class HomeViewModel(
     }
 
     fun refreshHero() {
-        viewModelScope.launch {
+        heroRefreshJob?.cancel()
+        heroRefreshJob = viewModelScope.launch {
             fallbackItems = hero.fallbackItems()
             rawFeed.value = hero.load()
-            shelfRequested.clear()
+            if (heroValidationJob?.isActive != true) validateHero()
         }
     }
 
@@ -222,14 +227,15 @@ class HomeViewModel(
     }
 
     private fun requestShelf(packageName: String, items: List<HeroItem>) {
-        if (!shelfRequested.add(packageName)) return
         val uris = ShelfPosters.candidates(items, packageName, VisualQuality.SHELF_VALIDATED_PER_APP)
+        if (uris == shelfValidationUris && shelfValidationJob?.isActive == true) return
         shelfValidationJob?.cancel()
+        shelfValidationUris = uris
         shelfValidationJob = launchValidation(uris, keepInMemory = 0)
     }
 
     private fun launchValidation(uris: List<String>, keepInMemory: Int, holdAfterFirstDuringStartup: Boolean = false): Job? {
-        val pending = uris.filter { it !in validated.value }
+        val pending = uris.filter { it !in checked.value || it in retryable }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
             pending.forEachIndexed { index, uri ->
@@ -237,6 +243,7 @@ class HomeViewModel(
                 validator.validate(listOf(uri), if (index < keepInMemory) 1 else 0).collect { check ->
                     checked.update { it + check.uri }
                     if (check.usable) validated.update { it + check.uri }
+                    if (check.retryable) retryable += check.uri else retryable -= check.uri
                     usable = check.usable
                 }
                 if (holdAfterFirstDuringStartup && usable) startup.first { it == StartupPhase.Done }
