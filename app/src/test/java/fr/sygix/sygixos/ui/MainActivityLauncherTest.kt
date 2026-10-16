@@ -10,7 +10,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Looper
-import android.provider.Settings
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
@@ -21,6 +20,10 @@ import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
 import fr.sygix.sygixos.ui.home.HomeViewModel
 import fr.sygix.sygixos.MainDispatcherRule
+import fr.sygix.sygixos.TestSygixOsApp
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.isActive
+import org.junit.Assert.assertSame
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -58,6 +61,7 @@ class MainActivityLauncherTest {
 
     @Before
     fun reset() {
+        (context as TestSygixOsApp).bootCount = null
         onIo {
             context.dataStore.edit { it.clear() }
             (context as SygixOsApp).updatePrefs.setLastCheckAt(System.currentTimeMillis())
@@ -191,9 +195,10 @@ class MainActivityLauncherTest {
 
     @Test
     fun `boot intents record an opening at creation and when delivered again in the same boot`() {
-        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 5)
+        (context as TestSygixOsApp).bootCount = 5
         onIo { prefs.setBootStartEnabled(true, 4) }
         val controller = launch(intent = LauncherSystemIntents.boot(context))
+        val original = launcherOf(controller)
         awaitObservedBoot(5)
         onIo {
             prefs.setBootStartEnabled(false, 5)
@@ -201,6 +206,8 @@ class MainActivityLauncherTest {
             assertEquals(null, prefs.launcherSystem.first().bootStart.observedAtBoot)
         }
         controller.deliverFromBackground(LauncherSystemIntents.boot(context))
+        assertSame(original, launcherOf(controller))
+        assertTrue(original.viewModelScope.isActive)
         awaitObservedBoot(5)
     }
 

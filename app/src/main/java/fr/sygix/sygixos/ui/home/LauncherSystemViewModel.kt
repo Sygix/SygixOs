@@ -10,7 +10,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import fr.sygix.sygixos.SygixOsApp
-import fr.sygix.sygixos.data.AndroidLauncherSystemGateway
 import fr.sygix.sygixos.domain.LauncherSystemController
 import fr.sygix.sygixos.domain.LauncherSystemGateway
 import fr.sygix.sygixos.domain.LauncherSystemStore
@@ -82,7 +81,7 @@ class LauncherSystemViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
             val app = context.applicationContext as SygixOsApp
-            val gateway = AndroidLauncherSystemGateway(app, check = app.accessibilityCheck)
+            val gateway = app.createLauncherSystemGateway()
             return LauncherSystemViewModel(app.launcherPrefs, gateway, app.defaultLauncherController) as T
         }
     }

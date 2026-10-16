@@ -42,6 +42,7 @@ import fr.sygix.sygixos.data.UpdatePrefs
 import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
 import fr.sygix.sygixos.domain.StartupSession
+import fr.sygix.sygixos.domain.LauncherSystemGateway
 
 open class SygixOsApp : Application(), ImageLoaderFactory {
 
@@ -119,6 +120,9 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     protected open val checksAccessibility: Boolean get() = true
 
     protected open fun createHomeStateReader(): HomeStateReader = HomeScreenStateReader(this)
+
+    internal open fun createLauncherSystemGateway(): LauncherSystemGateway =
+        AndroidLauncherSystemGateway(this, check = accessibilityCheck)
 
     override fun onTerminate() {
         appScope.cancel()

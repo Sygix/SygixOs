@@ -26,6 +26,11 @@ import org.robolectric.RobolectricTestRunner
 class AndroidLauncherSystemGatewayTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
+    @Test fun realBootCountAdapterReadsTheAndroidSetting() {
+        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 5)
+        assertEquals(5, AndroidLauncherSystemGateway(context).bootCount())
+    }
+
     @Test
     fun `service must be enabled and running, pending while the launch check runs and blocked after it`() = runTest {
         var enabled = false
