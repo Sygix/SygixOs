@@ -19,6 +19,8 @@ import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
+import fr.sygix.sygixos.ui.home.HomeViewModel
+import fr.sygix.sygixos.MainDispatcherRule
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -37,6 +39,7 @@ import org.junit.Assert.assertTrue
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.Shadows.shadowOf
@@ -46,6 +49,7 @@ import org.robolectric.annotation.Config
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class MainActivityLauncherTest {
+    @get:Rule val main = MainDispatcherRule()
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val prefs get() = (context as SygixOsApp).launcherPrefs
     private val homeIntent get() = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -72,7 +76,11 @@ class MainActivityLauncherTest {
 
     private fun launch(grant: Boolean = true, intent: Intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)): ActivityController<MainActivity> {
         if (grant) shadowOf(context as Application).grantPermissions(READ_TV_LISTINGS)
-        return Robolectric.buildActivity(MainActivity::class.java, intent).setup().also { launched += it }
+        return Robolectric.buildActivity(MainActivity::class.java, intent).setup().also {
+            launched += it
+            main.track(ViewModelProvider(it.get())[HomeViewModel::class.java])
+            main.track(launcherOf(it))
+        }
     }
 
     private fun onIo(block: suspend () -> Unit) {
