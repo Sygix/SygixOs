@@ -21,18 +21,24 @@ class ImageBoundsTest {
     }
 
     @Test
-    fun `a 4K banner is decoded at tile size`() {
-        assertEquals(PixelSize(480, 270), ImageBounds.artwork(3840, 2160))
+    fun `a 1080p TV decodes banners at the focused tile size`() {
+        assertEquals(PixelSize(332, 187), ImageBounds.tile(332))
+        assertEquals(PixelSize(332, 187), ImageBounds.fit(3840, 2160, 332, 187))
+    }
+
+    @Test
+    fun `a denser screen keeps the banner cap`() {
+        assertEquals(PixelSize(480, 270), ImageBounds.tile(664))
     }
 
     @Test
     fun `small artwork is never enlarged`() {
-        assertEquals(PixelSize(320, 180), ImageBounds.artwork(320, 180))
+        assertEquals(PixelSize(320, 180), ImageBounds.fit(320, 180, 332, 187))
     }
 
     @Test
     fun `aspect ratio is kept when one side limits`() {
-        assertEquals(PixelSize(216, 270), ImageBounds.artwork(432, 540))
+        assertEquals(PixelSize(150, 187), ImageBounds.fit(432, 540, 332, 187))
     }
 
     @Test

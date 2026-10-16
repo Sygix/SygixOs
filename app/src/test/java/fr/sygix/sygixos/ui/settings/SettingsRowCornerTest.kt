@@ -15,6 +15,7 @@ import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.domain.QrCode
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.ui.home.WithTestArtwork
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -33,14 +34,16 @@ class SettingsRowCornerTest {
     fun `row thumbnail sits at the declared margin from the row edges`() {
         val app = TvApp("com.row", "Ligne")
         compose.setContent {
-            CompositionLocalProvider(LocalAppIcons provides AppIconCache { Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888) }) {
-                HiddenRowLine(
-                    row = HiddenRow(app, hidden = false, hiddenAt = null),
-                    focusEnabled = false,
-                    focusRequester = FocusRequester(),
-                    onFocused = {},
-                    onToggle = {},
-                )
+            WithTestArtwork {
+                CompositionLocalProvider(LocalAppIcons provides AppIconCache { Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888) }) {
+                    HiddenRowLine(
+                        row = HiddenRow(app, hidden = false, hiddenAt = null),
+                        focusEnabled = false,
+                        focusRequester = FocusRequester(),
+                        onFocused = {},
+                        onToggle = {},
+                    )
+                }
             }
         }
         compose.waitForIdle()

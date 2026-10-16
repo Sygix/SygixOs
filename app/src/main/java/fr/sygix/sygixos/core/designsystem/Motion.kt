@@ -10,6 +10,7 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import kotlin.math.ceil
 
 val AppleEasing: Easing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
 
@@ -76,6 +77,8 @@ object Dimens {
     val TileCorner = 14.dp
     const val GridColumns = 5
     const val TileFocusScale = 1.08f
+    fun gridTileWidthPx(screenWidthDp: Int, density: Float): Int =
+        ceil(((screenWidthDp.dp - ScreenMarginH * 2 - GridSpacing * (GridColumns - 1)) / GridColumns * TileFocusScale).value * density).toInt()
     val TileFocusLift = 2.dp
     val TileFocusElevation = 11.dp
     val DockBottomMargin = 24.dp

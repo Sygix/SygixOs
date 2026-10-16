@@ -18,6 +18,7 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.model.UpNextPosition
+import fr.sygix.sygixos.ui.home.WithTestArtwork
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -84,7 +85,9 @@ class HomeScreenPaneTest {
         harness.install("Alpha")
         harness.openSettings()
         compose.setContent {
-            CompositionLocalProvider(LocalLifecycleOwner provides owner) { harness.Content() }
+            WithTestArtwork {
+                CompositionLocalProvider(LocalLifecycleOwner provides owner) { harness.Content() }
+            }
         }
         compose.waitForIdle()
         openPositionList()

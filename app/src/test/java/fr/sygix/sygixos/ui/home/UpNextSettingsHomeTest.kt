@@ -85,16 +85,18 @@ class UpNextSettingsHomeTest {
         val controller = UpNextController(source, harness.repo.upNextVisible, harness.repo.upNextPosition, harness.repo.disabledSources, scope)
         controller.refresh()
         compose.setContent {
-            val settings by harness.viewModel.state.collectAsState()
-            val upNext by controller.state.collectAsState()
-            MaterialTheme {
-                LauncherHome(
-                    catalog = catalogOf(emptyList(), listOf(app("com.alpha", "Alpha"), app("com.beta", "Beta"))),
-                    hero = heroStateOf(emptyList()), onTogglePin = {}, glassBlur = false,
-                    settings = settings, onToggleSource = harness.viewModel::toggleSource,
-                    onSettingsCategory = harness.viewModel::enterCategory, homeScreenActions = harness.viewModel.homeScreenActions,
-                    upNext = upNext,
-                )
+            WithTestArtwork {
+                val settings by harness.viewModel.state.collectAsState()
+                val upNext by controller.state.collectAsState()
+                MaterialTheme {
+                    LauncherHome(
+                        catalog = catalogOf(emptyList(), listOf(app("com.alpha", "Alpha"), app("com.beta", "Beta"))),
+                        hero = heroStateOf(emptyList()), onTogglePin = {}, glassBlur = false,
+                        settings = settings, onToggleSource = harness.viewModel::toggleSource,
+                        onSettingsCategory = harness.viewModel::enterCategory, homeScreenActions = harness.viewModel.homeScreenActions,
+                        upNext = upNext,
+                    )
+                }
             }
         }
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("upnext-card-com.alpha:1").fetchSemanticsNodes().isNotEmpty() }

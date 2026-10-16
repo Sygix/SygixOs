@@ -40,10 +40,12 @@ class UpNextObservationLifecycleTest {
     @Test
     fun `provider observation runs only while the launcher is in the foreground`() {
         compose.setContent {
-            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
-                MaterialTheme {
-                    LauncherHome(catalog = catalogOf(emptyList(), listOf(app("com.a", "A"))), hero = heroStateOf(emptyList()),
-                        onTogglePin = {}, glassBlur = false, upNextUpdates = updates)
+            WithTestArtwork {
+                CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                    MaterialTheme {
+                        LauncherHome(catalog = catalogOf(emptyList(), listOf(app("com.a", "A"))), hero = heroStateOf(emptyList()),
+                            onTogglePin = {}, glassBlur = false, upNextUpdates = updates)
+                    }
                 }
             }
         }

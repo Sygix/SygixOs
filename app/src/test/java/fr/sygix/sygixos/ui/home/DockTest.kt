@@ -31,15 +31,17 @@ class DockTest {
         compose.setContent {
             val focusRequester = remember { FocusRequester() }
             LaunchedEffect(Unit) { withFrameNanos { }; focusRequester.tryRequestFocus() }
-            MaterialTheme {
-                Dock(
-                    apps = apps,
-                    active = true,
-                    focusEnabled = true,
-                    focusRequester = focusRequester,
-                    onTileClick = {},
-                    onTileLongClick = {},
-                )
+            WithTestArtwork {
+                MaterialTheme {
+                    Dock(
+                        apps = apps,
+                        active = true,
+                        focusEnabled = true,
+                        focusRequester = focusRequester,
+                        onTileClick = {},
+                        onTileLongClick = {},
+                    )
+                }
             }
         }
     }

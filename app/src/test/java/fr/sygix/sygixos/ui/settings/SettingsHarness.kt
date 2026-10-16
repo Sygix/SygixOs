@@ -33,6 +33,7 @@ import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.domain.RemovedUpNextContent
 import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.model.UpNextContentType
+import fr.sygix.sygixos.ui.home.WithTestArtwork
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -164,7 +165,7 @@ internal class SettingsHarness(
 
 internal fun ComposeContentTestRule.showSettings(harness: SettingsHarness) {
     harness.openSettings()
-    setContent { harness.Content() }
+    setContent { WithTestArtwork { harness.Content() } }
     waitForIdle()
 }
 

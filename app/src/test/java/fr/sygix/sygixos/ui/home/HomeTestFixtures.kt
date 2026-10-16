@@ -118,3 +118,9 @@ internal fun ComposeContentTestRule.span(tag: String): Span {
 }
 
 internal fun ComposeContentTestRule.screenHeight(): Float = onRoot().fetchSemanticsNode().size.height.toFloat()
+
+@Composable
+internal fun WithTestArtwork(content: @Composable () -> Unit) {
+    val packageManager = LocalContext.current.packageManager
+    CompositionLocalProvider(LocalAppArtwork provides remember { AppArtworkSource(packageManager, Dispatchers.Unconfined) }, content = content)
+}

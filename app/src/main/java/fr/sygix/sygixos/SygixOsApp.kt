@@ -6,6 +6,11 @@
 package fr.sygix.sygixos
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -21,8 +26,11 @@ import android.provider.Settings
 import fr.sygix.sygixos.data.AccessibilityConnection
 import fr.sygix.sygixos.data.AndroidLauncherSystemGateway
 import fr.sygix.sygixos.data.LauncherSystemIntents
+import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.domain.AccessibilityCheck
+import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.domain.BootStartDispatcher
+import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.ConnectivityNetworkStatus
 import fr.sygix.sygixos.data.ContextSystemScreenLauncher
@@ -51,6 +59,10 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
     val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
     val tvProviderHeroSource: TvProviderHeroSource by lazy { TvProviderHeroSource(this) }
+    val appArtwork: AppArtworkSource by lazy {
+        val tile = Dimens.gridTileWidthPx(resources.configuration.screenWidthDp, resources.displayMetrics.density)
+        AppArtworkSource(packageManager, bounds = ImageBounds.tile(tile))
+    }
     val startupSession = StartupSession()
     val foregroundTracker = ForegroundTracker()
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
@@ -107,8 +119,24 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
             mascotAnimation.prefetch(CoroutineScope(SupervisorJob() + Dispatchers.Default))
         }
         registerActivityLifecycleCallbacks(foregroundTracker)
+        watchPackageChanges()
         updateRepository.coldStart()
         if (checksAccessibility && Application.getProcessName() == packageName) accessibilityCheck.check()
+    }
+
+    private fun watchPackageChanges() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                intent.data?.schemeSpecificPart?.let(appArtwork::invalidate)
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addDataScheme("package")
+        }
+        ContextCompat.registerReceiver(this, receiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     fun onAccessibilityConnected() {

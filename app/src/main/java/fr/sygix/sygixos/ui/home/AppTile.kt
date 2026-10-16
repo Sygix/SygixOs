@@ -19,9 +19,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,7 +31,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.SygixColors
@@ -42,7 +42,7 @@ import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.withContext
 
-internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource?> { null }
+internal val LocalAppArtwork = staticCompositionLocalOf<AppArtworkSource> { error("LocalAppArtwork") }
 
 @Composable
 internal fun AppTile(
@@ -72,11 +72,12 @@ internal fun AppTile(
 
 @Composable
 internal fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
-    val context = LocalContext.current
-    val provided = LocalAppArtwork.current
-    val source = remember(provided) { provided ?: AppArtworkSource(context.packageManager) }
-    return produceState<AppArtwork?>(initialValue = source.cached(app), app.packageName, source) {
-        value = source.cached(app) ?: withContext(source.dispatcher) { runCatching { source.load(app) }.getOrNull() }
+    val source = LocalAppArtwork.current
+    val changes = source.changes.collectAsState().value
+    val cached = source.cached(app)
+    if (cached != null) return rememberUpdatedState(cached)
+    return produceState<AppArtwork?>(initialValue = null, app.packageName, source, changes) {
+        value = withContext(source.dispatcher) { runCatching { source.load(app) }.getOrNull() }
     }
 }
 

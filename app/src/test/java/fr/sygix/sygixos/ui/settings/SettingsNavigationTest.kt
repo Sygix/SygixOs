@@ -32,6 +32,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.model.TvApp
+import fr.sygix.sygixos.ui.home.WithTestArtwork
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -74,20 +75,22 @@ class SettingsNavigationTest {
         onBack: () -> Unit = {},
     ) {
         compose.setContent {
-            MaterialTheme {
-                CompositionLocalProvider(LocalAppIcons provides icons) {
-                    SettingsScreen(
-                        state = SettingsState(
-                            sources = sources,
-                            hiddenRows = hidden.map { HiddenRow(app = it, hidden = true, hiddenAt = null) },
-                            version = "0.1.0",
-                        ),
-                        counts = mutableStateOf(counts),
-                        onToggleSource = { toggled.add(it) },
-                        onToggleHidden = {},
-                        onUnhideAll = {},
-                        onBack = onBack,
-                    )
+            WithTestArtwork {
+                MaterialTheme {
+                    CompositionLocalProvider(LocalAppIcons provides icons) {
+                        SettingsScreen(
+                            state = SettingsState(
+                                sources = sources,
+                                hiddenRows = hidden.map { HiddenRow(app = it, hidden = true, hiddenAt = null) },
+                                version = "0.1.0",
+                            ),
+                            counts = mutableStateOf(counts),
+                            onToggleSource = { toggled.add(it) },
+                            onToggleHidden = {},
+                            onUnhideAll = {},
+                            onBack = onBack,
+                        )
+                    }
                 }
             }
         }

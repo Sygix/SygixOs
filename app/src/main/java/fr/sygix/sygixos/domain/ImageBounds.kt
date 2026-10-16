@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.domain
 
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 data class PixelSize(val width: Int, val height: Int)
@@ -24,7 +25,10 @@ object ImageBounds {
 
     fun screen(width: Int, height: Int): PixelSize = fit(width, height, MAX_SCREEN_WIDTH, MAX_SCREEN_HEIGHT)
 
-    fun artwork(width: Int, height: Int): PixelSize = fit(width, height, MAX_ARTWORK_WIDTH, MAX_ARTWORK_HEIGHT)
+    fun tile(widthPx: Int): PixelSize {
+        val width = min(widthPx, MAX_ARTWORK_WIDTH)
+        return PixelSize(width, (width * 9f / 16f).roundToInt())
+    }
 
     fun sampleSize(sourceWidth: Int, targetWidth: Int): Int {
         var sample = 1

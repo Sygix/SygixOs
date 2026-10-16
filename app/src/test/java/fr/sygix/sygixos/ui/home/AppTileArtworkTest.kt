@@ -20,7 +20,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.data.AppArtwork
 import fr.sygix.sygixos.data.AppArtworkSource
+import kotlinx.coroutines.Dispatchers
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Rule
 import org.junit.Test
@@ -35,7 +39,7 @@ class AppTileArtworkTest {
 
     private val pm: PackageManager = ApplicationProvider.getApplicationContext<Context>().packageManager
 
-    private fun installWithIcon(packageName: String) {
+    private fun installWithIcon(packageName: String, side: Int = 8) {
         shadowOf(pm).installPackage(
             PackageInfo().apply {
                 this.packageName = packageName
@@ -45,8 +49,8 @@ class AppTileArtworkTest {
         shadowOf(pm).setApplicationIcon(
             packageName,
             ShapeDrawable(RectShape()).apply {
-                intrinsicWidth = 8
-                intrinsicHeight = 8
+                intrinsicWidth = side
+                intrinsicHeight = side
             },
         )
     }
@@ -74,5 +78,30 @@ class AppTileArtworkTest {
         shown = beta
         compose.waitForIdle()
         assertSame(source.cached(beta), artwork)
+    }
+
+    @Test
+    fun `a tile reloads its artwork once the package is invalidated`() {
+        val source = AppArtworkSource(pm, Dispatchers.Unconfined)
+        val gamma = app("com.c", "Gamma")
+        var artwork: AppArtwork? = null
+        compose.setContent {
+            CompositionLocalProvider(LocalAppArtwork provides source) {
+                artwork = rememberAppArtwork(gamma).value
+            }
+        }
+        compose.waitForIdle()
+        assertNull(artwork)
+
+        installWithIcon("com.c")
+        source.invalidate("com.c")
+        compose.waitForIdle()
+        val initial = requireNotNull(artwork)
+
+        installWithIcon("com.c", side = 16)
+        source.invalidate("com.c")
+        compose.waitForIdle()
+        assertNotSame(initial, artwork)
+        assertEquals(16, artwork?.bitmap?.width)
     }
 }

@@ -49,7 +49,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -116,7 +115,7 @@ class HomeViewModel(
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
 
     val state: StateFlow<HomeState> = combine(
-        apps.catalog.onEach { preloadArtwork(it) },
+        apps.catalog,
         rawFeed,
         apps.disabledSources,
         validated,
@@ -155,11 +154,10 @@ class HomeViewModel(
             startup.first { it == StartupPhase.Done }
             mascot.release()
         }
-        if (coldStart) {
-            viewModelScope.launch(startupDispatcher) {
-                state.first { it is HomeState.Ready }
-                startupController.catalogReady()
-            }
+        viewModelScope.launch(startupDispatcher) {
+            val ready = state.first { it is HomeState.Ready } as HomeState.Ready
+            launch(artwork.dispatcher) { artwork.preload(ready.catalog.dock + ready.catalog.grid) }
+            if (coldStart) startupController.catalogReady()
         }
     }
 
@@ -184,10 +182,6 @@ class HomeViewModel(
         lastDisabled = disabled
         shelfRequested.clear()
         lastShelfPackage?.let { requestShelf(it, items) }
-    }
-
-    private fun preloadArtwork(catalog: Catalog) {
-        viewModelScope.launch(artwork.dispatcher) { artwork.preload(catalog.dock + catalog.grid) }
     }
 
     fun refresh() {
@@ -273,7 +267,7 @@ class HomeViewModel(
             return HomeViewModel(
                 apps = app.appCatalogRepository,
                 hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
-                artwork = AppArtworkSource(app.packageManager),
+                artwork = app.appArtwork,
                 validator = VisualValidator(app),
                 clockSource = SystemClockSource(app),
                 updates = app.updateRepository,
