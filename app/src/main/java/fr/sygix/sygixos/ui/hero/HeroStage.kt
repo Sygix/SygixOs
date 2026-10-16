@@ -203,8 +203,12 @@ fun HeroStage(
     LaunchedEffect(current?.id, showVideo, visible, motion, items.size) {
         val item = current
         when {
-            visible && item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
-            visible && player.loadedItem in slowVisuals -> player.park()
+            !visible -> {
+                player.loadedItem?.let { slowVisuals = slowVisuals - it }
+                player.clear()
+            }
+            item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
+            player.loadedItem in slowVisuals -> player.park()
             else -> player.clear()
         }
     }
@@ -234,7 +238,8 @@ fun HeroStage(
             posterUrl == null -> shownId = targetId
         }
     }
-    LaunchedEffect(targetId, posterUrl, showVideo) {
+    LaunchedEffect(targetId, posterUrl, showVideo, visible) {
+        if (!visible) return@LaunchedEffect
         val id = targetId ?: return@LaunchedEffect
         if (shownId == id) return@LaunchedEffect
         if (posterUrl == null && !(showVideo && shownId != null)) return@LaunchedEffect
