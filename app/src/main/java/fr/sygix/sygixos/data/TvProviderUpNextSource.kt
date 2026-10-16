@@ -17,20 +17,10 @@ import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runInterruptible
-import kotlinx.coroutines.withTimeout
 
 class TvProviderUpNextSource(
     private val context: Context,
@@ -44,35 +34,9 @@ class TvProviderUpNextSource(
 
     private data class SourceApp(val label: String, val icon: Drawable?)
 
-    override suspend fun load(): Result<List<UpNextItem>> = try {
-        Result.success(withTimeout(timeoutMillis) { queryCancellably() })
-    } catch (error: TimeoutCancellationException) {
-        Result.failure(error)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        Result.failure(error)
-    }
-
-    private suspend fun queryCancellably(): List<UpNextItem> = coroutineScope {
-        val signal = CancellationSignal()
-        val done = AtomicBoolean(false)
-        val watcher = launch(start = CoroutineStart.UNDISPATCHED) {
-            try {
-                awaitCancellation()
-            } finally {
-                if (!done.get()) signal.cancel()
-            }
-        }
-        try {
-            runInterruptible(Dispatchers.IO) {
-                val cursor = query(signal) ?: error("Watch Next provider unavailable")
-                cursor.use { c -> buildList { while (c.moveToNext()) mapRow(c)?.let(::add) } }
-            }
-        } finally {
-            done.set(true)
-            watcher.cancel()
-        }
+    override suspend fun load(): Result<List<UpNextItem>> = providerQuery(timeoutMillis) { signal ->
+        val cursor = query(signal) ?: error("Watch Next provider unavailable")
+        cursor.use { c -> buildList { while (c.moveToNext()) mapRow(c)?.let(::add) } }
     }
 
     override fun changes(): Flow<Unit> = channelFlow {
