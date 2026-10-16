@@ -28,6 +28,8 @@ import fr.sygix.sygixos.data.ConnectivityNetworkStatus
 import fr.sygix.sygixos.data.ContextSystemScreenLauncher
 import fr.sygix.sygixos.data.ForegroundTracker
 import fr.sygix.sygixos.data.GitHubReleaseSource
+import fr.sygix.sygixos.data.HomeScreenStateReader
+import fr.sygix.sygixos.data.HomeStateReader
 import fr.sygix.sygixos.data.HttpsUrlTransport
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
@@ -39,6 +41,7 @@ import fr.sygix.sygixos.data.UpdateInstaller
 import fr.sygix.sygixos.data.UpdatePrefs
 import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
+import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.domain.StartupSession
 
 open class SygixOsApp : Application(), ImageLoaderFactory {
@@ -55,7 +58,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     val defaultLauncherController by lazy {
-        val reader = fr.sygix.sygixos.data.HomeScreenStateReader(this)
+        val reader = createHomeStateReader()
         val access = fr.sygix.sygixos.data.AdbAccessGateway.create(this)
         val store = fr.sygix.sygixos.data.DefaultLauncherPrefs(this)
         val operations = fr.sygix.sygixos.data.PrivilegedShell(
@@ -67,7 +70,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
         fr.sygix.sygixos.domain.DefaultLauncherController(
             access, operations, reader, store, appScope,
             enableBoot = {
-                launcherPrefs.setBootStartEnabled(true, Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT))
+                launcherPrefs.setBootStartEnabled(true, bootCount())
                 kotlinx.coroutines.withTimeout(10_000) { launcherPrefs.launcherSystem.first { it.bootStart.enabled } }
             },
             refreshManual = {},
@@ -84,7 +87,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val bootStartDispatcher: BootStartDispatcher by lazy {
         BootStartDispatcher(
             store = launcherPrefs,
-            bootCount = { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT) },
+            bootCount = ::bootCount,
             sinceBootMs = SystemClock::elapsedRealtime,
             foreground = { foregroundTracker.isForeground },
             openHome = { runCatching { startActivity(LauncherSystemIntents.boot(this)) }.isSuccess },
@@ -115,6 +118,12 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     protected open val prefetchesMascot: Boolean get() = true
 
     protected open val checksAccessibility: Boolean get() = true
+
+    internal open fun bootCount(): Int? = Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1).takeIf { it >= 0 }
+
+    protected open fun createHomeStateReader(): HomeStateReader = HomeScreenStateReader(this)
+
+    internal open fun createLauncherSystemStore(): LauncherSystemStore = launcherPrefs
 
     override fun onTerminate() {
         appScope.cancel()

@@ -10,12 +10,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Looper
-import android.provider.Settings
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.SygixOsApp
+import fr.sygix.sygixos.TestSygixOsApp
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
@@ -172,11 +172,11 @@ class MainActivityLauncherTest {
 
     @Test
     fun `boot intents record the observed opening at creation and on new intent`() {
-        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 5)
+        (context as TestSygixOsApp).boot = 5
         onIo { prefs.setBootStartEnabled(true, 4) }
         val controller = launch(intent = LauncherSystemIntents.boot(context))
         onIo { prefs.launcherSystem.first { it.bootStart.observedAtBoot == 5 } }
-        Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 6)
+        (context as TestSygixOsApp).boot = 6
         controller.deliverFromBackground(LauncherSystemIntents.boot(context))
         onIo { prefs.launcherSystem.first { it.bootStart.observedAtBoot == 6 } }
     }

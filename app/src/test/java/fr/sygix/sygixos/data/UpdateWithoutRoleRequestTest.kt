@@ -51,7 +51,7 @@ class UpdateWithoutRoleRequestTest {
     fun `self update up to the relaunch never requests the home role`() = runTest {
         val application = shadowOf(context as Application)
         application.clearNextStartedActivities()
-        val system = AndroidLauncherSystemGateway(context)
+        val system = AndroidLauncherSystemGateway(context, readBootCount = { null })
         val launcher = LauncherSystemController(Store(), system, backgroundScope, UnconfinedTestDispatcher(testScheduler))
         launcher.onStartupFinished()
         launcher.onPermissionFinished()

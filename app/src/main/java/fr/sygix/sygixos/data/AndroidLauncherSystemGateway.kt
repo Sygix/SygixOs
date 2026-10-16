@@ -27,7 +27,7 @@ class AndroidLauncherSystemGateway(
     private val serviceEnabled: () -> Boolean = { serviceEnabledIn(context) },
     private val serviceRunning: () -> Boolean = { AccessibilityConnection.connected.value },
     private val overlayGranted: () -> Boolean = { Settings.canDrawOverlays(context) },
-    private val readBootCount: () -> Int? = { Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT) },
+    private val readBootCount: () -> Int?,
     private val check: AccessibilityCheck? = null,
 ) : LauncherSystemGateway {
     private fun accessibilityIntent() = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
