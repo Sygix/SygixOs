@@ -17,6 +17,7 @@ import fr.sygix.sygixos.domain.UpdateCandidate
 import fr.sygix.sygixos.domain.UpdateError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -49,7 +50,7 @@ class UpdatePrefs(private val context: Context) : UpdateStore {
     private val relaunchKey = booleanPreferencesKey("update_relaunch")
     private val relaunchVersionKey = longPreferencesKey("update_relaunch_version")
 
-    override val data: Flow<UpdatePersisted> = context.dataStore.data.map(::read)
+    override val data: Flow<UpdatePersisted> = context.dataStore.data.map(::read).distinctUntilChanged()
 
     private fun read(prefs: Preferences): UpdatePersisted {
         val retryAt = prefs[retryKey]
