@@ -204,6 +204,13 @@ fun HeroStage(
     LaunchedEffect(player) {
         snapshotFlow { player.readyItem }.collect { id -> if (id != null) slowVisuals = slowVisuals - id }
     }
+    LaunchedEffect(player) {
+        var loaded: String? = null
+        snapshotFlow { player.loadedItem }.collect { id ->
+            loaded?.let { slowVisuals = slowVisuals - it }
+            loaded = id
+        }
+    }
 
     LifecycleStartEffect(current?.id, showVideo, visible, motion, items.size) {
         val item = current
@@ -244,7 +251,8 @@ fun HeroStage(
             posterUrl == null -> shownId = targetId
         }
     }
-    LaunchedEffect(targetId, posterUrl, showVideo) {
+    LaunchedEffect(targetId, posterUrl, showVideo, visible) {
+        if (!visible) return@LaunchedEffect
         val id = targetId ?: return@LaunchedEffect
         if (shownId == id) return@LaunchedEffect
         if (posterUrl == null && !(showVideo && shownId != null)) return@LaunchedEffect

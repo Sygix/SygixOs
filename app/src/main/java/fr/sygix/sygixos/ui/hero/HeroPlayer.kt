@@ -51,43 +51,42 @@ internal class HeroPlayer(
     override var videoAspect by mutableFloatStateOf(16f / 9f)
         private set
 
+    override var loadedItem by mutableStateOf<String?>(null)
+        private set
+
     private var exo: ExoPlayer? = null
     private var view: TextureView? = null
-    private var itemId: String? = null
-
-    override val loadedItem: String?
-        get() = itemId
 
     private val listener = object : Player.Listener {
         override fun onRenderedFirstFrame() {
             firstFrameRendered = true
-            renderedItem = itemId
+            renderedItem = loadedItem
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             if (videoSize.height <= 0 || videoSize.width <= 0) return
             if (videoSize.width < VisualQuality.MIN_WIDTH_PX) {
-                itemId?.let(onError)
+                loadedItem?.let(onError)
                 return
             }
             videoAspect = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_READY) readyItem = itemId
+            if (playbackState == Player.STATE_READY) readyItem = loadedItem
             if (playbackState == Player.STATE_ENDED) onEnded()
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            itemId?.let(onError)
+            loadedItem?.let(onError)
         }
     }
 
     override fun show(id: String, url: String, play: Boolean, loop: Boolean) {
         val player = exo ?: create().also { exo = it }
         player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-        if (id != itemId) {
-            itemId = id
+        if (id != loadedItem) {
+            loadedItem = id
             if (id != renderedItem) {
                 firstFrameRendered = false
                 renderedItem = null
@@ -104,7 +103,7 @@ internal class HeroPlayer(
     }
 
     override fun clear() {
-        itemId = null
+        loadedItem = null
         firstFrameRendered = false
         renderedItem = null
         readyItem = null
@@ -117,7 +116,7 @@ internal class HeroPlayer(
     }
 
     override fun release() {
-        itemId = null
+        loadedItem = null
         exo?.release()
         exo = null
     }

@@ -53,7 +53,7 @@ private class FakeVideo : HeroVideo {
     override var firstFrameRendered by mutableStateOf(false)
     override var renderedItem by mutableStateOf<String?>(null)
     override var readyItem by mutableStateOf<String?>(null)
-    override var loadedItem: String? = null
+    override var loadedItem by mutableStateOf<String?>(null)
     override val videoAspect: Float = 16f / 9f
     var playing = false
     val prepared = mutableListOf<String>()
@@ -256,5 +256,28 @@ class HeroVideoTest {
         compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
         advance(Motion.HERO_DWELL_MS + Motion.HERO_CROSSFADE_MS + 500L)
         compose.onNodeWithText(second.title, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `a parked slow video becomes eligible after its preparation is cancelled while hidden`() {
+        val first = picture("p1", "First")
+        val slow = clip("v1", "Slow")
+        val third = picture("p3", "Third")
+        show(listOf(first, slow, third))
+        press(Key.DirectionRight)
+        advance(Motion.HERO_VISUAL_TIMEOUT_MS + Motion.HERO_CROSSFADE_MS + 500L)
+        assertEquals("v1", video.loadedItem)
+        compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
+        compose.runOnIdle { visible = false }
+        advance(100)
+        assertEquals(null, video.loadedItem)
+        compose.runOnIdle { visible = true }
+        advance(100)
+        press(Key.DirectionLeft)
+        assertEquals(listOf("v1", "v1"), video.prepared)
+        compose.runOnIdle { video.render("v1") }
+        advance(Motion.HERO_CROSSFADE_MS + 100L)
+        compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
+        assertTrue(video.playing)
     }
 }
