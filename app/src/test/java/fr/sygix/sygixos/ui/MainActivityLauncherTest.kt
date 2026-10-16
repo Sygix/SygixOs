@@ -18,6 +18,7 @@ import fr.sygix.sygixos.SygixOsApp
 import fr.sygix.sygixos.TestSygixOsApp
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.data.dataStore
+import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.ui.home.LauncherSystemViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +26,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -171,14 +171,20 @@ class MainActivityLauncherTest {
     }
 
     @Test
-    fun `boot intents record the observed opening at creation and on new intent`() {
-        (context as TestSygixOsApp).boot = 5
-        onIo { prefs.setBootStartEnabled(true, 4) }
+    fun `boot intents report the current boot at creation and on a new intent`() {
+        val app = context as TestSygixOsApp
+        val observed = mutableListOf<Int?>()
+        app.boot = 5
+        app.launcherSystemStore = object : LauncherSystemStore by prefs {
+            override suspend fun recordBootStartObserved(currentBoot: Int?) {
+                observed += currentBoot
+            }
+        }
         val controller = launch(intent = LauncherSystemIntents.boot(context))
-        onIo { prefs.launcherSystem.first { it.bootStart.observedAtBoot == 5 } }
-        (context as TestSygixOsApp).boot = 6
+        assertEquals(listOf(5), observed)
+        app.boot = 6
         controller.deliverFromBackground(LauncherSystemIntents.boot(context))
-        onIo { prefs.launcherSystem.first { it.bootStart.observedAtBoot == 6 } }
+        assertEquals(listOf(5, 6), observed)
     }
 
     @Test
