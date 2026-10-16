@@ -38,6 +38,8 @@
     </plurals>
     <string name="startup_mascot_description">SygixOs démarre</string>
     <string name="menu_dock_full">Dock plein (%1$d apps maximum)</string>
+    <string name="about_licenses_loading">Chargement des licences…</string>
+    <string name="about_licenses_empty">Aucune licence à afficher</string>
     <string name="update_check_title">Vérifier les mises à jour</string>
     <string name="update_never_checked">Jamais vérifié</string>
     <string name="update_checking">Vérification…</string>

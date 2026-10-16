@@ -7,7 +7,7 @@ Les listes d'apps sources, d'éléments cachés et de licences sont déjà des `
 ## What Changes
 
 - Ajouter au design system un registre de cibles de focus liées aux éléments composés (`FocusTargets`) avec « révéler puis focaliser », la révélation étant fournie par l'appelant ; indépendant des réglages et de `LazyListState`.
-- Partager entre les trois listes des réglages le conteneur lazy et la révélation d'une ligne par clé et position, avant toute demande de focus ; garder les règles métier de repli chez leurs propriétaires existants.
+- Partager entre les trois listes des réglages la révélation d'une ligne par clé et position, avant toute demande de focus ; garder les règles métier de repli chez leurs propriétaires existants.
 - Préserver les blocs hétérogènes d'À propos, les clés, les testTags, les hauteurs variables et les états des consommateurs.
 
 ## Capabilities

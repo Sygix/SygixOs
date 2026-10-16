@@ -1,9 +1,9 @@
 # Tasks
 
-## 1. Shared Focus Primitive And Lazy Shell
+## 1. Shared Focus Primitive
 
 - [x] 1.1 Ajouter `FocusTargets` (`bind`/`focus`/`reveal` avec lambda de révélation fournie par l'appelant) dans `core/designsystem`, sans dépendance à `LazyListState`, sans état « actif », sans attente ni API de test ; vérifier par un test Compose TV qu'un item non composé est révélé puis focalisé, et qu'une cible non composée renvoie `false`.
-- [x] 1.2 Extraire la coquille `SettingsLazyList` et `revealRow` (décalage d'en-tête + révélation + focus) ; la résolution de position reste chez chaque consommateur et est couverte par les tests de 2.x (dernière entrée de Cachés, source déplacée en fin de liste, bloc de mise à jour d'À propos).
+- [x] 1.2 Ajouter `revealRow` (décalage d'en-tête + révélation + focus) commun aux trois listes des réglages ; la résolution de position reste chez chaque consommateur et est couverte par les tests de 2.x (dernière entrée de Cachés, source déplacée en fin de liste, bloc de mise à jour d'À propos).
 
 ## 2. Migrate Consumers
 

@@ -8,7 +8,7 @@ Sources vérifiées : lignes sources identifiées par package ; `HiddenEntry` id
 
 ## Goals / Non-Goals
 
-**Goals :** une primitive de focus commune (registre de cibles composées + révélation d'un item lazy) hors du package réglages, un conteneur lazy commun aux trois listes, et un chemin fiable révélation puis focus.
+**Goals :** une primitive de focus commune (registre de cibles composées + révélation puis focus) hors du package réglages, et une résolution de ligne commune aux trois listes des réglages.
 
 **Non-Goals :** règle générique de tri/repli, formulaire universel, préchargement de vignettes, modification des statuts de licences ou de mise à jour, changement des petites listes fixes.
 
@@ -20,9 +20,9 @@ Sources vérifiées : lignes sources identifiées par package ; `HiddenEntry` id
 
 La primitive ne connaît ni les clés d'items ni les positions : chaque appelant résout l'index à partir de son propre ordre. Elle ne porte pas d'état « actif » : l'appelant ne lance une révélation que si sa zone a le focus. Aucune API réservée aux tests.
 
-### D2 — une coquille et une résolution d'index communes aux réglages
+### D2 — une résolution de ligne commune aux réglages
 
-`SettingsLazyList` reçoit état de liste, tag et contenu `LazyListScope` ; il fournit la taille bornée. Les trois listes ont un item d'en-tête avant leurs lignes : `FocusTargets.revealRow(list, key, position)` ajoute ce décalage à la position de la ligne dans l'ordre du consommateur, fait défiler la liste si l'item n'est pas visible (`scrollToItem` remesure de façon synchrone, l'item est donc composé et lié au retour) puis focalise la cible. Sources passe la position du package focalisé dans `order`, Cachés celle de l'entrée demandée, À propos la position du bloc de mise à jour (plusieurs cibles partagent cet item : `update-check`, `update-install`). Une position négative renvoie `false`.
+Les trois listes restent des `LazyColumn` (un wrapper de conteneur n'économiserait rien). Elles ont un item d'en-tête avant leurs lignes : `FocusTargets.revealRow(list, key, position)` ajoute ce décalage à la position de la ligne dans l'ordre du consommateur, fait défiler la liste si l'item n'est pas visible (`scrollToItem` remesure de façon synchrone, l'item est donc composé et lié au retour) puis focalise la cible. Sources passe la position du package focalisé dans `order`, Cachés celle de l'entrée demandée, À propos la position du bloc de mise à jour (plusieurs cibles partagent cet item : `update-check`, `update-install`). Une position négative renvoie `false`.
 
 Seules les cibles qu'une révélation peut viser sont liées : les lignes de licences n'en font pas partie.
 
@@ -36,7 +36,7 @@ Tests Compose à taille TV : repli de Cachés vers une ligne initialement hors f
 
 ## Risks / Trade-offs
 
-- Wrapper sans valeur → la coquille et `revealRow` remplacent trois copies de conteneur, `ListReveal`, le registre local de Cachés et le requester d'installation d'À propos.
+- Abstraction sans valeur → `FocusTargets` et `revealRow` remplacent `ListReveal`, le registre local de Cachés et le requester d'installation d'À propos ; aucun wrapper de conteneur.
 - Cible disparue entre la demande et la révélation → `focus` renvoie `false`, le consommateur applique son repli existant.
 - Révélation avant la première mesure de la liste → la position est appliquée au premier layout, le focus n'est pas demandé ; aucun cas de ce type dans les réglages (les demandes suivent une action sur une liste déjà affichée).
 

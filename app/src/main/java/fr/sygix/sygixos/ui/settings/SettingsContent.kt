@@ -56,12 +56,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -77,10 +75,9 @@ import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.R
+import fr.sygix.sygixos.core.designsystem.FocusTargets
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.AppIconCache
-import fr.sygix.sygixos.core.designsystem.tryRequestFocus
-import fr.sygix.sygixos.domain.ListReveal
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.home.rememberAppArtwork
 import kotlinx.coroutines.Dispatchers
@@ -88,7 +85,7 @@ import kotlinx.coroutines.withContext
 
 internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
 
-private const val LeadingItems = 1
+private const val HeaderItems = 1
 
 internal val RowShape = RoundedCornerShape(Dimens.SettingsRowCorner)
 internal val RowHeight = Dimens.SettingsRowHeight
@@ -106,6 +103,12 @@ internal fun programCountLabel(count: Int): String = when (count) {
     else -> "$count programmes publiés"
 }
 
+internal suspend fun FocusTargets.revealRow(list: LazyListState, key: String, position: Int): Boolean =
+    position >= 0 && reveal(key) {
+        val index = position + HeaderItems
+        if (list.layoutInfo.visibleItemsInfo.none { it.index == index }) list.scrollToItem(index)
+    }
+
 @Composable
 internal fun SourcesContent(
     rows: List<SourceRow>,
@@ -118,19 +121,12 @@ internal fun SourcesContent(
 ) {
     var focusedPackage by remember { mutableStateOf<String?>(null) }
     val order = remember(rows) { rows.map { it.app.packageName } }
+    val focus = remember { FocusTargets() }
     LaunchedEffect(order) {
-        if (!focusEnabled) return@LaunchedEffect
-        withFrameNanos { }
-        val visible = listState.layoutInfo.visibleItemsInfo.map { it.key }
-        ListReveal.indexToReveal(order, focusedPackage, visible, LeadingItems)?.let { listState.scrollToItem(it) }
+        val target = focusedPackage ?: return@LaunchedEffect
+        if (focusEnabled) focus.revealRow(listState, target, order.indexOf(target))
     }
-    LazyColumn(
-        state = listState,
-        modifier = modifier
-            .testTag("settings-sources")
-            .fillMaxWidth()
-            .fillMaxHeight(),
-    ) {
+    LazyColumn(state = listState, modifier = modifier.testTag("settings-sources").fillMaxWidth().fillMaxHeight()) {
         item {
             Text(stringResource(R.string.settings_category_sources), style = MaterialTheme.typography.headlineSmall, color = Color.White)
             Spacer(Modifier.height(12.dp))
@@ -146,7 +142,7 @@ internal fun SourcesContent(
                 row = row,
                 counts = counts,
                 focusEnabled = focusEnabled,
-                focusRequester = if (rows.firstOrNull()?.app?.packageName == row.app.packageName) contentFocus else null,
+                focusRequester = focus.bind(row.app.packageName, contentFocus.takeIf { rows.firstOrNull()?.app?.packageName == row.app.packageName }),
                 onFocused = { focusedPackage = row.app.packageName },
                 onToggle = { onToggle(row.app.packageName) },
             )
@@ -228,25 +224,14 @@ internal fun HiddenContent(
         }
         return
     }
-    val requesters = remember { mutableMapOf<String, FocusRequester>() }
-    fun requesterFor(key: String) = requesters.getOrPut(key) { FocusRequester() }
-    val active by rememberUpdatedState(focusEnabled)
+    val focus = remember { FocusTargets() }
     val focused by rememberUpdatedState(onFocused)
     LaunchedEffect(refocus) {
         val target = refocus?.key ?: return@LaunchedEffect
-        if (!active) return@LaunchedEffect
-        withFrameNanos { }
-        requesterFor(target).tryRequestFocus()
+        if (focusEnabled) focus.revealRow(listState, target, entries.indexOfFirst { it.key == target })
     }
-    fun focusModifier(entry: HiddenEntry): Modifier = if (entry.key == initialFocus) Modifier.focusRequester(contentFocus) else Modifier
     fun onFocused(entry: HiddenEntry) = focused(entry.key)
-    LazyColumn(
-        state = listState,
-        modifier = modifier
-            .testTag("hidden-pane")
-            .fillMaxWidth()
-            .fillMaxHeight(),
-    ) {
+    LazyColumn(state = listState, modifier = modifier.testTag("hidden-pane").fillMaxWidth().fillMaxHeight()) {
         item(key = "header") {
             Text(stringResource(R.string.settings_category_hidden), style = MaterialTheme.typography.headlineSmall, color = Color.White)
             Spacer(Modifier.height(12.dp))
@@ -258,12 +243,13 @@ internal fun HiddenContent(
             Spacer(Modifier.height(Dimens.SettingsHeaderGap))
         }
         items(entries, key = { it.key }) { entry ->
+            val requester = focus.bind(entry.key, contentFocus.takeIf { entry.key == initialFocus })
             when (entry) {
                 HiddenEntry.UnhideAll -> {
                     SettingsEntryButton(
                         label = stringResource(R.string.hidden_unhide_all),
                         focusEnabled = focusEnabled,
-                        focusRequester = requesterFor(entry.key),
+                        focusRequester = requester,
                         onClick = onUnhideAll,
                         onFocused = { if (it) onFocused(entry) },
                         modifier = Modifier.testTag("unhide-all"),
@@ -275,10 +261,9 @@ internal fun HiddenContent(
                     HiddenRowLine(
                         row = entry.row,
                         focusEnabled = focusEnabled,
-                        focusRequester = requesterFor(entry.key),
+                        focusRequester = requester,
                         onFocused = { onFocused(entry) },
                         onToggle = { onToggle(packageName) },
-                        modifier = focusModifier(entry),
                     )
                     Spacer(Modifier.height(RowSpacing))
                 }
@@ -286,7 +271,7 @@ internal fun HiddenContent(
                     ShowMoreRow(
                         entry = entry,
                         focusEnabled = focusEnabled,
-                        focusRequester = requesterFor(entry.key),
+                        focusRequester = requester,
                         onFocused = { onFocused(entry) },
                         onClick = { onExpand(entry.group) },
                     )
@@ -305,10 +290,9 @@ internal fun HiddenContent(
                     HiddenContentLine(
                         row = entry.row,
                         focusEnabled = focusEnabled,
-                        focusRequester = requesterFor(entry.key),
+                        focusRequester = requester,
                         onFocused = { onFocused(entry) },
                         onRestore = { onRestore(entry.row.key) },
-                        modifier = focusModifier(entry),
                     )
                     Spacer(Modifier.height(RowSpacing))
                 }
