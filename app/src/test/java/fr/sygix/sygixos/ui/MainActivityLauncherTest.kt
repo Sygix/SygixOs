@@ -28,6 +28,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.util.concurrent.atomic.AtomicReference
+import fr.sygix.sygixos.model.BootStartState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -87,6 +89,15 @@ class MainActivityLauncherTest {
 
     private fun launcherOf(controller: ActivityController<MainActivity>) =
         ViewModelProvider(controller.get())[LauncherSystemViewModel::class.java]
+
+    private fun awaitObservedBoot(boot: Int) {
+        val latest = AtomicReference<BootStartState>()
+        try {
+            onIo { prefs.launcherSystem.first { latest.set(it.bootStart); it.bootStart.observedAtBoot == boot } }
+        } catch (failure: Exception) {
+            throw AssertionError("Boot $boot was not recorded; latest state: ${latest.get()}", failure)
+        }
+    }
 
     private fun awaitMain(condition: () -> Boolean) = runBlocking {
         withTimeout(5_000) {
@@ -175,10 +186,10 @@ class MainActivityLauncherTest {
         Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 5)
         onIo { prefs.setBootStartEnabled(true, 4) }
         val controller = launch(intent = LauncherSystemIntents.boot(context))
-        onIo { prefs.launcherSystem.first { it.bootStart.observedAtBoot == 5 } }
+        awaitObservedBoot(5)
         Settings.Global.putInt(context.contentResolver, Settings.Global.BOOT_COUNT, 6)
         controller.deliverFromBackground(LauncherSystemIntents.boot(context))
-        onIo { prefs.launcherSystem.first { it.bootStart.observedAtBoot == 6 } }
+        awaitObservedBoot(6)
     }
 
     @Test
