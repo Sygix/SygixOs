@@ -88,8 +88,10 @@ internal class HeroPlayer(
         player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         if (id != itemId) {
             itemId = id
-            firstFrameRendered = false
-            renderedItem = null
+            if (id != renderedItem) {
+                firstFrameRendered = false
+                renderedItem = null
+            }
             readyItem = null
             player.setMediaItem(MediaItem.fromUri(url))
             player.prepare()
@@ -115,6 +117,7 @@ internal class HeroPlayer(
     }
 
     override fun release() {
+        itemId = null
         exo?.release()
         exo = null
     }

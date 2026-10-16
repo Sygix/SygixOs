@@ -7,9 +7,14 @@ package fr.sygix.sygixos.ui.home
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Recomposer
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.input.key.Key
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -59,6 +64,10 @@ class IdleFrameTest {
 
     private val dock = listOf(app("com.dock", "Dock"))
     private val grid = (0 until 8).map { app("com.g$it", "Grille $it") }
+    private val owner = object : LifecycleOwner {
+        val registry = LifecycleRegistry(this).apply { currentState = Lifecycle.State.RESUMED }
+        override val lifecycle: Lifecycle get() = registry
+    }
 
     @After
     fun resetImageLoader() = Coil.reset()
@@ -142,11 +151,13 @@ class IdleFrameTest {
         Coil.setImageLoader(InstantImageLoader())
         compose.mainClock.autoAdvance = false
         compose.setContent {
-            TestHome(
-                catalog = catalogOf(dock = emptyList(), grid = grid),
-                hero = heroStateOf(items = posters.toList(), validated = posters.mapNotNull { it.imageUrl }.toSet()),
-                initialZone = zone,
-            )
+            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                TestHome(
+                    catalog = catalogOf(dock = emptyList(), grid = grid),
+                    hero = heroStateOf(items = posters.toList(), validated = posters.mapNotNull { it.imageUrl }.toSet()),
+                    initialZone = zone,
+                )
+            }
         }
     }
 
@@ -157,6 +168,18 @@ class IdleFrameTest {
 
     private fun poster(id: String, pkg: String = "com.source") =
         heroItem(id, "Programme $id", imageUrl = "https://example.invalid/$id.jpg", sourcePackage = pkg)
+
+    @Test
+    fun `top shelf panel is still open right after returning from another app`() {
+        showPosters(poster("s1", pkg = "com.g0"), poster("s2", pkg = "com.g0"), zone = Zone.GRID)
+        advance(Motion.SHELF_OPEN_DELAY_MS + 1_000)
+        compose.onNodeWithTag("shelf-panel").assertExists()
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.CREATED }
+        advance(1_000)
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.RESUMED }
+        advance(100)
+        compose.onNodeWithTag("shelf-panel").assertExists()
+    }
 
     @Test
     fun `hero ken burns makes one pass then the hero stands still`() {

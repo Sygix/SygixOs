@@ -102,6 +102,10 @@ import kotlinx.coroutines.Deferred
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
@@ -191,7 +195,8 @@ fun HeroStage(
             { onVideoErrorState.value(it) },
         )
     }
-    DisposableEffect(player) { onDispose { player.release() } }
+    LifecycleStartEffect(player) { onStopOrDispose { player.release() } }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val onVisualReadyState = rememberUpdatedState(onVisualReady)
     LaunchedEffect(player) {
         snapshotFlow { player.firstFrameRendered }.filter { it }.collect { onVisualReadyState.value() }
@@ -200,24 +205,29 @@ fun HeroStage(
         snapshotFlow { player.readyItem }.collect { id -> if (id != null) slowVisuals = slowVisuals - id }
     }
 
-    LaunchedEffect(current?.id, showVideo, visible, motion, items.size) {
+    LifecycleStartEffect(current?.id, showVideo, visible, motion, items.size) {
         val item = current
         when {
             visible && item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
             visible && player.loadedItem in slowVisuals -> player.park()
             else -> player.clear()
         }
+        onStopOrDispose { }
     }
     LaunchedEffect(current?.id, showVideo, visible) {
         val item = current ?: return@LaunchedEffect
         if (!showVideo || !visible) return@LaunchedEffect
-        delay(Motion.HERO_VIDEO_START_TIMEOUT_MS)
-        if (!player.firstFrameRendered) onVideoErrorState.value(item.id)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            delay(Motion.HERO_VIDEO_START_TIMEOUT_MS)
+            if (!player.firstFrameRendered) onVideoErrorState.value(item.id)
+        }
     }
     LaunchedEffect(current?.id, showVideo, visible, items.size) {
         if (current == null || showVideo || !visible || items.size < 2) return@LaunchedEffect
-        delay(Motion.HERO_DWELL_MS)
-        stepState.value(1)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            delay(Motion.HERO_DWELL_MS)
+            stepState.value(1)
+        }
     }
 
     val posterUrl = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals && it.id !in failedImages }?.imageUrl
@@ -238,10 +248,12 @@ fun HeroStage(
         val id = targetId ?: return@LaunchedEffect
         if (shownId == id) return@LaunchedEffect
         if (posterUrl == null && !(showVideo && shownId != null)) return@LaunchedEffect
-        delay(Motion.HERO_VISUAL_TIMEOUT_MS)
-        if (shownId != id) {
-            slowVisuals = slowVisuals + id
-            stepState.value(1)
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            delay(Motion.HERO_VISUAL_TIMEOUT_MS)
+            if (shownId != id) {
+                slowVisuals = slowVisuals + id
+                stepState.value(1)
+            }
         }
     }
     val shown = items.firstOrNull { it.id == shownId }

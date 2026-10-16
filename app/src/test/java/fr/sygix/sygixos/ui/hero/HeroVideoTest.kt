@@ -22,6 +22,10 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import coil.Coil
 import coil.ComponentRegistry
@@ -54,6 +58,7 @@ private class FakeVideo : HeroVideo {
     var playing = false
     val prepared = mutableListOf<String>()
     var parks = 0
+    var releases = 0
 
     override fun show(id: String, url: String, play: Boolean, loop: Boolean) {
         if (id != loadedItem) {
@@ -88,7 +93,11 @@ private class FakeVideo : HeroVideo {
     }
 
     override fun attach(textureView: TextureView) = Unit
-    override fun release() = Unit
+    override fun release() {
+        releases++
+        loadedItem = null
+        playing = false
+    }
 }
 
 private class ReadyLoader : ImageLoader {
@@ -112,6 +121,11 @@ class HeroVideoTest {
 
     private val video = FakeVideo()
     private var motion by mutableStateOf(true)
+    private var visible by mutableStateOf(true)
+    private val owner = object : LifecycleOwner {
+        val registry = LifecycleRegistry(this).apply { currentState = Lifecycle.State.RESUMED }
+        override val lifecycle: Lifecycle get() = registry
+    }
 
     @After
     fun resetImageLoader() = Coil.reset()
@@ -120,12 +134,15 @@ class HeroVideoTest {
         Coil.setImageLoader(ReadyLoader())
         compose.mainClock.autoAdvance = false
         compose.setContent {
-            CompositionLocalProvider(LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, _ -> video }) {
+            CompositionLocalProvider(
+                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, _ -> video },
+                LocalLifecycleOwner provides owner,
+            ) {
                 HeroStage(
                     items = items,
                     validatedVisuals = items.mapNotNull { it.imageUrl }.toSet(),
                     active = true,
-                    visible = true,
+                    visible = visible,
                     focusRequester = FocusRequester(),
                     onOpen = {},
                     motion = motion,
@@ -138,6 +155,13 @@ class HeroVideoTest {
     private fun advance(millis: Long) {
         compose.mainClock.advanceTimeBy(millis)
         compose.waitForIdle()
+    }
+
+    private fun background(millis: Long) {
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.CREATED }
+        advance(millis)
+        compose.runOnIdle { owner.registry.currentState = Lifecycle.State.RESUMED }
+        advance(100)
     }
 
     private fun press(key: Key) {
@@ -200,5 +224,37 @@ class HeroVideoTest {
         compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
         assertTrue(video.playing)
         assertEquals(listOf("v1"), video.prepared)
+    }
+
+    @Test
+    fun `the player is released only in the background and the video loads again on return`() {
+        show(listOf(clip("v1", "Vidéo fictive")))
+        compose.runOnIdle {
+            visible = false
+            Snapshot.sendApplyNotifications()
+        }
+        advance(100)
+        assertEquals(null, video.loadedItem)
+        compose.runOnIdle {
+            visible = true
+            Snapshot.sendApplyNotifications()
+        }
+        advance(100)
+        assertEquals(0, video.releases)
+        background(Motion.HERO_VIDEO_START_TIMEOUT_MS * 2)
+        assertEquals(1, video.releases)
+        assertEquals(listOf("v1", "v1", "v1"), video.prepared)
+        assertTrue(video.playing)
+    }
+
+    @Test
+    fun `the slideshow does not advance in the background`() {
+        val first = picture("p1", "Premier titre fictif")
+        val second = picture("p2", "Second titre fictif")
+        show(listOf(first, second))
+        background(Motion.HERO_DWELL_MS * 3 / 2)
+        compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
+        advance(Motion.HERO_DWELL_MS + Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(second.title, useUnmergedTree = true).assertExists()
     }
 }
