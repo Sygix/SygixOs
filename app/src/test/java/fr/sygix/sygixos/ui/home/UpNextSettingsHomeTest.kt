@@ -110,6 +110,13 @@ class UpNextSettingsHomeTest {
 
     private fun node(tag: String): SemanticsNodeInteraction = compose.onNodeWithTag(tag)
 
+    private fun awaitPosition(position: UpNextPosition, label: String) {
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("setting-upnext-position-value") and hasText(label)).fetchSemanticsNodes().isNotEmpty()
+        }
+        assertEquals(position, runBlocking { harness.prefs.upNextPosition.first() })
+    }
+
     private fun density() = node("zone-grid").fetchSemanticsNode().layoutInfo.density.density
 
     private fun rect(tag: String): Rect {
@@ -245,8 +252,7 @@ class UpNextSettingsHomeTest {
         node("setting-upnext-position-AFTER_APPS").assertIsFocused()
         press(Key.Enter, "setting-upnext-position-list")
         node("setting-upnext-position").assertIsFocused()
-        compose.waitUntil(5_000) { runBlocking { harness.prefs.upNextPosition.first() } == UpNextPosition.AFTER_APPS }
-        node("setting-upnext-position-value").assertTextEquals("Après les applications")
+        awaitPosition(UpNextPosition.AFTER_APPS, "Après les applications")
         press(Key.Back)
         press(Key.DirectionDown)
         node("app-tile-com.alpha").assertIsFocused()
@@ -262,7 +268,7 @@ class UpNextSettingsHomeTest {
         press(Key.DirectionUp, "setting-upnext-position-list")
         node("setting-upnext-position-BEFORE_APPS").assertIsFocused()
         press(Key.Enter, "setting-upnext-position-list")
-        compose.waitUntil(5_000) { runBlocking { harness.prefs.upNextPosition.first() } == UpNextPosition.BEFORE_APPS }
+        awaitPosition(UpNextPosition.BEFORE_APPS, "Avant les applications")
         press(Key.Back)
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("section-title-upnext").fetchSemanticsNodes().isEmpty() }
         node("zone-upnext").assertDoesNotExist()
