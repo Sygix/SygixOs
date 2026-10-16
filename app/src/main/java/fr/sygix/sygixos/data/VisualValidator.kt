@@ -14,6 +14,7 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import fr.sygix.sygixos.domain.VisualQuality
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -31,7 +32,14 @@ class VisualValidator(
                 .size(1920, 1080)
                 .memoryCachePolicy(if (index < keepInMemory) CachePolicy.ENABLED else CachePolicy.DISABLED)
                 .build()
-            val width = (runCatching { imageLoader.execute(request) }.getOrNull() as? SuccessResult)
+            val result = try {
+                imageLoader.execute(request)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
+            val width = (result as? SuccessResult)
                 ?.drawable?.intrinsicWidth ?: 0
             val usable = width >= VisualQuality.MIN_WIDTH_PX
             if (!usable) Log.d(TAG, "visuel écarté (${width}px): $uri")
