@@ -4,7 +4,7 @@
 
 - [x] 1.1 Mesurer sans placer la colonne de l'accueil pendant les réglages (état lu au placement) ; test Compose TV (`w960dp-h540dp-xhdpi`) : `zone-hero`, `zone-dock` et `home-grid` existent sans être affichés, aucun nœud hors de `settings-screen` ne prend le focus au DPAD, Retour rend `zone-hero` affiché et focusé.
 - [x] 1.2 Mettre en pause la vidéo d'aperçu pendant les réglages au lieu de l'arrêter ; test : même élément chargé et en pause pendant les réglages, lecture reprise au retour sans nouvelle préparation, première image conservée, titre affiché.
-- [x] 1.3 Fournir `LocalHazeState` nul aux réglages ; test : la liste déroulante de « Position d'À suivre » n'active pas le flou des sources de l'accueil.
+- [x] 1.3 Faire de la page de réglages la source du verre affiché par-dessus elle ; tests : la liste déroulante de « Position d'À suivre » et le panneau du launcher système ouvert depuis les réglages sont en verre et floutent la page de réglages, pas le héro.
 
 ## 2. À propos
 

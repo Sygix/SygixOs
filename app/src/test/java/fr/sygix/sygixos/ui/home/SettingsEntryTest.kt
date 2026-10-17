@@ -140,7 +140,7 @@ class SettingsEntryTest {
     }
 
     @Test
-    fun `settings glass does not blur the hidden home`() {
+    fun `the up next position list blurs the settings page instead of the hidden home`() {
         compose.setContent {
             TestHome(catalogOf(listOf(app("com.dock", "Dock")), listOf(app("com.grid", "Grid"))), heroStateOf(emptyList()), glassBlur = true)
         }
@@ -151,7 +151,11 @@ class SettingsEntryTest {
         press(Key.DirectionRight)
         press(Key.DirectionDown)
         press(Key.Enter)
-        assertFalse(compose.onNodeWithTag("setting-upnext-position-list").fetchSemanticsNode().config[GlassActive])
+        val list = "setting-upnext-position-list"
+        assertTrue(compose.onNodeWithTag(list).fetchSemanticsNode().config[GlassActive])
+        val blurred = compose.blurredHaze(list)
+        assertTrue(compose.isHazeSource("settings-screen", blurred))
+        assertFalse(compose.isHazeSource("zone-hero", blurred))
     }
 
     @Test

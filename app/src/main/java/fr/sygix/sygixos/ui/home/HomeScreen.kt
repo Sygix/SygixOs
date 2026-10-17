@@ -380,6 +380,7 @@ internal fun LauncherHome(
     var movingApp by remember { mutableStateOf<String?>(null) }
     var orderBeforeMove by remember { mutableStateOf<List<String>>(emptyList()) }
     val haze = rememberHazeState()
+    val settingsHaze = rememberHazeState()
     val backdrop = remember { GlassBackdrop() }
     var menuApp by remember { mutableStateOf<TvApp?>(null) }
     var menuItem by remember { mutableStateOf<UpNextItem?>(null) }
@@ -605,9 +606,11 @@ internal fun LauncherHome(
                 )
             }
         }
-        if (settingsOpen) CompositionLocalProvider(LocalHazeState provides null) {
+        val overlayHaze = (if (settingsOpen) settingsHaze else haze).takeIf { glassBlur }
+        if (settingsOpen) CompositionLocalProvider(LocalHazeState provides overlayHaze) {
             SettingsScreen(
                 state = settings ?: SettingsState(),
+                modifier = Modifier.hazeSource(settingsHaze),
                 counts = countsState,
                 actions = settingsActions,
                 onBack = { settingsOpen = false },
@@ -641,7 +644,7 @@ internal fun LauncherHome(
                 modifier = Modifier.zIndex(10f),
             )
         }
-        if (launcherState.guideShown) DefaultLauncherPanel(launcherState, launcherActions)
+        if (launcherState.guideShown) CompositionLocalProvider(LocalHazeState provides overlayHaze) { DefaultLauncherPanel(launcherState, launcherActions) }
     }
     }
 }

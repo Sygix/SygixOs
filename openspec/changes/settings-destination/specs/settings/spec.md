@@ -50,7 +50,7 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 
 #### Scenario: accueil masqué
 - **WHEN** la page de réglages est affichée
-- **THEN** aucun élément de l'accueil (héro, capsule, dock, grille) n'est dessiné sous la page ni ne peut prendre le focus au DPAD ; le panneau du launcher système ouvert depuis les réglages reste affiché au-dessus d'eux
+- **THEN** aucun élément de l'accueil (héro, capsule, dock, grille) n'est dessiné sous la page ni ne peut prendre le focus au DPAD ; le panneau du launcher système ouvert depuis les réglages reste affiché au-dessus d'eux ; son verre, comme celui de la liste déroulante de « Position d'À suivre », floute la page de réglages
 
 #### Scenario: retour immédiat
 - **WHEN** l'utilisateur quitte les réglages par Retour, ou par la touche Home au premier plan (« Touche Home avec SygixOs au premier plan » de `launcher-shell`)

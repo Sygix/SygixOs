@@ -23,10 +23,12 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.GlassActive
 import fr.sygix.sygixos.model.BootStartState
 import fr.sygix.sygixos.model.SystemControlState
 import fr.sygix.sygixos.ui.settings.SettingsCategory
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -41,7 +43,7 @@ class LauncherSettingsTest {
     private val row = "setting-launcher-guide"
     private lateinit var launcher: LauncherSystemViewModel
 
-    private fun open(store: FakeLauncherStore = FakeLauncherStore(), gateway: FakeLauncherGateway = FakeLauncherGateway()) {
+    private fun open(store: FakeLauncherStore = FakeLauncherStore(), gateway: FakeLauncherGateway = FakeLauncherGateway(), glassBlur: Boolean = false) {
         launcher = viewModels.create(store, gateway)
         compose.setContent {
             val state by launcher.state.collectAsState()
@@ -50,6 +52,7 @@ class LauncherSettingsTest {
                 hero = heroStateOf(emptyList()),
                 launcherState = state,
                 launcherActions = launcher.actions,
+                glassBlur = glassBlur,
             )
         }
         compose.waitForIdle()
@@ -151,6 +154,18 @@ class LauncherSettingsTest {
         compose.onNodeWithTag(row).assertIsFocused()
         compose.waitForIdle()
         assertEquals(0, store.seenWrites)
+    }
+
+    @Test
+    fun `the guide over the settings is glass blurring the settings page`() {
+        open(glassBlur = true)
+        repeat(2) { press(Key.DirectionDown) }
+        press(Key.DirectionCenter)
+        val panel = "launcher-panel"
+        assertTrue(compose.onNodeWithTag(panel).fetchSemanticsNode().config[GlassActive])
+        val blurred = compose.blurredHaze(panel)
+        assertTrue(compose.isHazeSource("settings-screen", blurred))
+        assertFalse(compose.isHazeSource("zone-hero", blurred))
     }
 
     @Test

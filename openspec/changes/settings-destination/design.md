@@ -24,7 +24,7 @@ Alternatives écartées : démonter l'accueil (état à sauvegarder, deuxième c
 
 ### D3 — verre des réglages sans sources d'accueil
 
-`LocalHazeState` est fourni à `null` autour de `SettingsScreen` : la liste déroulante de « Position d'À suivre » utilise le repli sombre de `GlassSurface` au lieu de flouter les calques du héro et de la grille, qui ne sont pas à l'écran.
+La page de réglages est la source d'un `HazeState` qui lui est propre, fourni par `LocalHazeState` aux réglages et au panneau du launcher système tant qu'elle est ouverte : la liste déroulante de « Position d'À suivre » (fenêtre popup) et le panneau floutent la page affichée derrière eux au lieu des calques du héro et de la grille, qui ne sont pas dessinés. Aucune surface verre n'est placée dans la page elle-même : Haze refuse qu'un effet floute une source dont il descend.
 
 ### D4 — licences lues une fois
 

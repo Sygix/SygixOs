@@ -8,7 +8,7 @@ La page de réglages saccade : elle est dessinée au-dessus de l'accueil, qui re
 
 - Pendant les réglages, l'accueil reste composé avec tout son état (programme et visuel du héro, lecteur, verre, position de la grille) mais il n'est plus placé : ni dessiné ni focusable. Le retour le replace tel quel, sans recomposition ni nouvel écran de démarrage.
 - La vidéo d'aperçu du héro est mise en pause à sa position pendant les réglages au lieu d'être arrêtée, et reprend au retour sans rechargement.
-- Le verre des réglages (liste déroulante de « Position d'À suivre ») ne floute plus les sources de l'accueil masqué.
+- Le verre affiché par-dessus les réglages (liste déroulante de « Position d'À suivre », panneau du launcher système) floute la page de réglages au lieu des sources de l'accueil masqué.
 - Les licences d'« À propos » sont lues une seule fois par processus au lieu de l'être à chaque entrée dans la catégorie.
 
 ## Capabilities
