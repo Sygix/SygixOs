@@ -7,7 +7,7 @@ package fr.sygix.sygixos.ui.home
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import coil.Coil
 import coil.ComponentRegistry
