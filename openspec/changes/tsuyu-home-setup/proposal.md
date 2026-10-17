@@ -28,7 +28,7 @@ Ce change simplifie le parcours pour un public non technique et ajoute une trois
 - **Accueil Google TV gardé par défaut** : l'écran « Encore une étape » (8.7) devient « Un dernier choix ». Il présente deux lignes expliquées, « Garder l'accueil Google TV (conseillé) », sélectionnée au départ, et « Désactiver l'accueil Google TV ». La désactivation reste proposée, avec sa confirmation inchangée. Le panneau « Launcher principal » permet aussi de la faire plus tard (« Remplacer complètement l'accueil Google TV »).
 - **Panneau « Launcher principal »** : une ligne « Tsuyu » s'ajoute, avec son état (actif, à installer, arrêté, à autoriser, à mettre à jour, indisponible) et l'action qui le corrige. Avec Tsuyu actif, « Relancer la configuration » et « Rétablir l'accueil Google TV » ne demandent plus le débogage.
 - **Après la configuration** : avec Tsuyu, le conseil « désactivez le débogage » est remplacé par la ligne « Réparation automatique » et par la consigne de garder le débogage activé. Sans Tsuyu, P7 est inchangé.
-- **Maquettes** : nouvelle rangée « 9. Parcours simplifié et Tsuyu » (écrans 9.1 à 9.16) sur la page « TV · Launcher principal ». La rangée 8 reste la référence de l'implémentation P7.
+- **Maquettes** : la rangée « 8. Launcher principal » de la page « TV · Launcher principal » reçoit les écrans 9.1 à 9.16, qui remplacent 8.1, 8.3, 8.5, 8.6, 8.7, 8.9 et 8.16 (supprimés) ; les autres écrans 8.x restent valables.
 
 ## Capabilities
 
@@ -49,10 +49,11 @@ Ce change simplifie le parcours pour un public non technique et ajoute une trois
   - « Opérations privilégiées limitées » : deux moyens d'accès, séquences de réparation.
   - « Détails des modifications » : Tsuyu et réparations.
   - « Débogage après la configuration » : cas Tsuyu.
+  - « Page Par autorisations », « Permission d'affichage superposé pour le démarrage » et « Retour Home par le service d'accessibilité » : références aux écrans remplacés seulement.
 - `ui-testing` :
   - ADDED : « Couverture du parcours avec Tsuyu », « Sélecteurs de Tsuyu ».
-  - MODIFIED : « Sélecteurs de l'écran d'accueil », pour la navigation de « Un dernier choix » et le guide du débogage. Cette exigence a été ajoutée par `p7-default-launcher`.
-- `settings` : aucune modification. La ligne des réglages garde sa synthèse des deux voies : Tsuyu est un moyen de la voie automatique, pas une voie à part.
+  - MODIFIED : « Sélecteurs de l'écran d'accueil », pour la navigation de « Un dernier choix » et le guide du débogage ; « Couverture du parcours de l'écran d'accueil » et « Couverture de la configuration automatique », pour les références aux écrans remplacés. Ces exigences ont été ajoutées par `p7-default-launcher`.
+- `settings` : MODIFIED « Réglages du launcher système », référence à la maquette du panneau seulement. La ligne garde sa synthèse des deux voies : Tsuyu est un moyen de la voie automatique, pas une voie à part.
 - `self-update` : aucune modification. L'installation de Tsuyu reprend sa source, son téléchargement vérifié et sa session d'installation sans en changer le comportement ; elle est décrite par `tsuyu-access`.
 
 ### Dépendances

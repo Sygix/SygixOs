@@ -214,9 +214,7 @@ Aucune.
 
 ## Maquettes
 
-Penpot, fichier « SygixOs Maquette », page « TV · Launcher principal » :
-- rangée « 8. Launcher principal » (8.1 à 8.21) : inchangée, référence de P7 ;
-- rangée « 9. Parcours simplifié et Tsuyu » (9.1 à 9.16) : chaque écran porte une note de comportement.
+Penpot, fichier « SygixOs Maquette », page « TV · Launcher principal », rangée unique « 8. Launcher principal ». Les écrans 9.1 à 9.16 remplacent 8.1, 8.3, 8.5, 8.6, 8.7, 8.9 et 8.16, supprimés le 2026-10-17. Les autres écrans de P7 restent valables : 8.2, 8.4, 8.8, 8.10 à 8.15 et 8.17 à 8.21. Chaque écran porte une note de comportement. Un écran « sans Tsuyu » a le rendu de son écran 9.x sans les éléments propres à Tsuyu.
 
 | Écran | Contenu |
 | --- | --- |
@@ -236,4 +234,4 @@ Penpot, fichier « SygixOs Maquette », page « TV · Launcher principal » :
 | 9.15 | Panneau, Tsuyu à installer |
 | 9.16 | Détails avec Tsuyu |
 
-La maquette fait foi pour le rendu, la spec pour le comportement. Une version Penpot « Parcours simplifié et Tsuyu (Claude, 2026-10-17) » marque cet état. Dimensions : 1920 × 1080 px, soit 2 px par dp.
+La maquette fait foi pour le rendu, la spec pour le comportement. Versions Penpot : « Parcours simplifié et Tsuyu (Claude, 2026-10-17) », puis « Rangée unique 8 · parcours Tsuyu (Claude, 2026-10-17) ». Dimensions : 1920 × 1080 px, soit 2 px par dp.
