@@ -17,6 +17,7 @@ interface HomeOperations {
     suspend fun restore(packageName: String): Result<Unit>
     suspend fun grantOverlay(): Result<Unit>
     suspend fun enableAccessibility(): Result<Unit>
+    suspend fun rebindAccessibility(): Result<Unit> = Result.failure(UnsupportedOperationException("Rebind unavailable"))
 }
 
 class PrivilegedShell(
@@ -29,7 +30,12 @@ class PrivilegedShell(
 ) : HomeOperations {
     init { require(user >= 0) }
 
-    private suspend fun command(value: String): String = access.execute(value).getOrThrow()
+    private suspend fun send(value: String): Result<String> {
+        require(PrivilegedCommands.allowed(value))
+        return access.execute(value)
+    }
+    private suspend fun command(value: String): String = send(value).getOrThrow()
+    private fun services(): List<String> = readServices().orEmpty().split(':').filter { it.isNotBlank() && it != "null" }
     private suspend fun snapshot() = reader.read().getOrThrow()
     private suspend fun <T> operation(block: suspend () -> T): Result<T> = try {
         Result.success(block())
@@ -40,24 +46,24 @@ class PrivilegedShell(
     }
 
     override suspend fun grantVendorBoot(): Result<VendorBootOutcome> = operation {
-        val op = listOf("AUTO_START", "APP_AUTO_START").firstOrNull { candidate ->
-            val response = access.execute("appops get --user $user fr.sygix.sygixos $candidate")
+        val op = PrivilegedCommands.VendorBootOps.firstOrNull { candidate ->
+            val response = send(PrivilegedCommands.appopsGet(user, candidate))
             val failure = response.exceptionOrNull()
             if (failure != null && !(failure is ShellOperationFailure && failure.output.contains("Unknown operation", ignoreCase = true))) throw failure
             response.isSuccess && !response.getOrThrow().contains("Unknown operation", ignoreCase = true)
         } ?: return@operation VendorBootOutcome(false)
-        val before = command("appops get --user $user fr.sygix.sygixos $op")
+        val before = command(PrivilegedCommands.appopsGet(user, op))
         val modified = !Regex("\\b$op: allow\\b").containsMatchIn(before)
         if (modified) {
-            command("appops set --user $user fr.sygix.sygixos $op allow")
-            command("cmd appops write-settings")
-            check(Regex("\\b$op: allow\\b").containsMatchIn(command("appops get --user $user fr.sygix.sygixos $op")))
+            command(PrivilegedCommands.appopsAllow(user, op))
+            command(PrivilegedCommands.WriteSettings)
+            check(Regex("\\b$op: allow\\b").containsMatchIn(command(PrivilegedCommands.appopsGet(user, op))))
         }
         VendorBootOutcome(true, modified)
     }
 
     override suspend fun previousHome(): Result<String?> = operation {
-        val holders = command("cmd role get-role-holders --user $user android.app.role.HOME").lines().filter { it.isNotBlank() }
+        val holders = command(PrivilegedCommands.homeHolders(user)).lines().filter { it.isNotBlank() }
         if (holders.isEmpty() || holders.singleOrNull() == "fr.sygix.sygixos") return@operation null
         check(holders.size == 1)
         val candidates = snapshot().enabledHomes.filter { it.substringBefore('/') == holders.single().trim() }
@@ -68,8 +74,8 @@ class PrivilegedShell(
         require(validComponent(component))
         val allowed = component == SygixHomeComponent || component in snapshot().enabledHomes
         require(allowed && (component == SygixHomeComponent || component == recordedPreviousHome()))
-        command("cmd package set-home-activity --user $user $component")
-        val holder = command("cmd role get-role-holders --user $user android.app.role.HOME")
+        command(PrivilegedCommands.setHome(user, component))
+        val holder = command(PrivilegedCommands.homeHolders(user))
         check(holder.lines().any { it.trim() == component.substringBefore('/') })
     }
 
@@ -77,36 +83,46 @@ class PrivilegedShell(
         require(packageName in StockHomePackages)
         val before = snapshot()
         check(before.canDisable && before.stock[packageName] == StockHomeState.ACTIVE)
-        command("pm disable-user --user $user $packageName")
+        command(PrivilegedCommands.disable(user, packageName))
         check(snapshot().stock[packageName] == StockHomeState.DISABLED_USER)
     }
 
     override suspend fun restore(packageName: String): Result<Unit> = operation {
         require(packageName in StockHomePackages)
-        command("pm default-state --user $user $packageName")
+        command(PrivilegedCommands.restore(user, packageName))
         check(snapshot().stock[packageName] == StockHomeState.ACTIVE)
     }
 
     override suspend fun grantOverlay(): Result<Unit> = operation {
         if (!snapshot().overlay) {
-            command("appops set --user $user fr.sygix.sygixos SYSTEM_ALERT_WINDOW allow")
-            command("cmd appops write-settings")
+            command(PrivilegedCommands.overlayAllow(user))
+            command(PrivilegedCommands.WriteSettings)
             check(snapshot().overlay)
         }
     }
 
     override suspend fun enableAccessibility(): Result<Unit> = operation {
-        val before = readServices().orEmpty().split(':').filter { it.isNotBlank() && it != "null" }
+        val before = services()
         require(before.all(::validComponent))
-        val ownPresent = before.any { it == SygixHomeService || it == "fr.sygix.sygixos/fr.sygix.sygixos.data.HomeAccessibilityService" }
+        val ownPresent = before.any(::ownService)
         val next = if (ownPresent) before else before + SygixHomeService
-        if (!ownPresent) command("settings --user $user put secure enabled_accessibility_services '${next.joinToString(":")}'")
-        if (!accessibilityEnabled()) command("settings --user $user put secure accessibility_enabled 1")
+        if (!ownPresent) command(PrivilegedCommands.accessibilityServices(user, next))
+        if (!accessibilityEnabled()) command(PrivilegedCommands.accessibilityOn(user))
         val after = readServices().orEmpty().split(':')
         check(after.containsAll(before) && snapshot().accessibilityEnabled && accessibilityEnabled())
     }
 
+    override suspend fun rebindAccessibility(): Result<Unit> = operation {
+        val before = services()
+        require(before.all(::validComponent) && before.any(::ownService))
+        command(PrivilegedCommands.accessibilityServices(user, before.filterNot(::ownService)))
+        command(PrivilegedCommands.accessibilityServices(user, before))
+        check(services().containsAll(before))
+    }
+
     companion object {
-        fun validComponent(value: String): Boolean = Regex("[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)+/\\.?[A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)*").matches(value)
+        private val component = Regex(PrivilegedCommands.ComponentPattern)
+        fun validComponent(value: String): Boolean = component.matches(value)
+        fun ownService(value: String): Boolean = value == SygixHomeService || value == "fr.sygix.sygixos/fr.sygix.sygixos.data.HomeAccessibilityService"
     }
 }

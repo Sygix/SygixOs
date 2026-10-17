@@ -6,10 +6,13 @@
 package fr.sygix.sygixos.ui.home
 
 import fr.sygix.sygixos.R
+import fr.sygix.sygixos.domain.TsuyuInstallError
+import fr.sygix.sygixos.domain.TsuyuInstallStep
 import fr.sygix.sygixos.model.*
 
-enum class SetupAction { NONE, AUTO, AUTHORIZE, MANUAL, DEBUG, DISABLE_CONFIRM, DISABLE, KEEP, RESTORE_CONFIRM, RESTORE, DETAILS, RETRY, BACK, CLOSE, HOME_KEY, BOOT, OVERLAY }
-data class SetupRow(val tag: String, val label: Int, val detail: Int = 0, val status: Int = 0, val action: SetupAction? = null, val number: Int? = null)
+enum class SetupAction { NONE, AUTO, AUTO_TSUYU, AUTHORIZE, MANUAL, DEBUG, DISABLE_CONFIRM, DISABLE, KEEP, RESTORE_CONFIRM, RESTORE, REPLACE_CONFIRM, DETAILS, RETRY, BACK, CLOSE, HOME_KEY, BOOT, OVERLAY, TSUYU_INSTALL, TSUYU_SKIP, TSUYU_OPEN, TSUYU_AUTHORIZE, TSUYU_LINE }
+data class RepairArg(val step: SetupStep, val timeMs: Long)
+data class SetupRow(val tag: String, val label: Int, val detail: Int = 0, val status: Int = 0, val action: SetupAction? = null, val number: Int? = null, val statusArgs: List<Int> = emptyList(), val detailArg: RepairArg? = null)
 data class SetupButton(val tag: String, val label: Int, val action: SetupAction)
 data class SetupPanelView(
     val tag: String,
@@ -23,6 +26,7 @@ data class SetupPanelView(
     val errorTitle: Int = 0,
     val errorDetail: Int = 0,
     val verticalNavigation: Boolean = false,
+    val counter: Pair<Int, Int>? = null,
 )
 
 fun AutomaticHomeState.label(): Int = when (this) {
@@ -52,6 +56,39 @@ fun SetupStepState.label(): Int = when (this) {
     SetupStepState.CANCELLED -> R.string.setup_state_cancelled
 }
 
+fun TsuyuState.label(): Int = when (this) {
+    TsuyuState.ACTIVE -> R.string.tsuyu_state_active
+    TsuyuState.ABSENT -> R.string.tsuyu_state_to_install
+    TsuyuState.OUTDATED -> R.string.tsuyu_state_to_update
+    TsuyuState.STOPPED -> R.string.tsuyu_state_stopped
+    TsuyuState.UNAUTHORIZED -> R.string.tsuyu_state_to_authorize
+    TsuyuState.UNAVAILABLE_TV, TsuyuState.HIDDEN -> R.string.setup_state_unavailable_tv
+}
+
+private fun TsuyuState.panelDetail(): Int = when (this) {
+    TsuyuState.ACTIVE -> R.string.launcher_panel_tsuyu_active_detail
+    TsuyuState.ABSENT -> R.string.launcher_panel_tsuyu_absent_detail
+    TsuyuState.OUTDATED -> R.string.launcher_panel_tsuyu_outdated_detail
+    TsuyuState.STOPPED -> R.string.launcher_panel_tsuyu_stopped_detail
+    TsuyuState.UNAUTHORIZED -> R.string.launcher_panel_tsuyu_unauthorized_detail
+    TsuyuState.UNAVAILABLE_TV, TsuyuState.HIDDEN -> R.string.launcher_panel_tsuyu_unavailable_detail
+}
+
+private fun repairActive(state: DefaultLauncherState) = SetupStep.REPAIR in state.modifications && state.tsuyuState == TsuyuState.ACTIVE
+
+private fun tsuyuStatusRow(tag: String, detail: Int, state: DefaultLauncherState): SetupRow = when (val step = state.tsuyuInstall) {
+    is TsuyuInstallStep.Downloading -> SetupRow(tag, R.string.tsuyu_name, detail, R.string.tsuyu_state_downloading, statusArgs = listOf(step.percent))
+    TsuyuInstallStep.Verifying -> SetupRow(tag, R.string.tsuyu_name, detail, R.string.tsuyu_state_verifying)
+    TsuyuInstallStep.Installing -> SetupRow(tag, R.string.tsuyu_name, detail, R.string.tsuyu_state_installing)
+    null -> SetupRow(tag, R.string.tsuyu_name, detail, when {
+        !state.tsuyu.installed -> R.string.tsuyu_state_not_installed
+        state.tsuyuState == TsuyuState.OUTDATED -> R.string.tsuyu_state_to_update
+        state.tsuyu.binder -> R.string.tsuyu_state_active
+        state.screen == SetupScreen.TSUYU_INSTALL -> R.string.tsuyu_state_installed
+        else -> R.string.tsuyu_state_stopped
+    })
+}
+
 private fun stepRow(step: SetupStep, state: DefaultLauncherState): SetupRow {
     val (tag, title, detail) = when (step) {
         SetupStep.VENDOR_BOOT -> Triple("setup-step-boot", R.string.setup_vendor_boot, R.string.setup_vendor_boot_detail)
@@ -61,6 +98,8 @@ private fun stepRow(step: SetupStep, state: DefaultLauncherState): SetupRow {
         SetupStep.ACCESSIBILITY -> Triple("setup-fallback-home", R.string.setup_home_key, R.string.setup_home_key_detail)
         SetupStep.OVERLAY -> Triple("setup-fallback-overlay", R.string.setup_overlay, R.string.setup_overlay_detail)
         SetupStep.BOOT -> Triple("setup-fallback-boot", R.string.setup_boot, R.string.setup_boot_detail)
+        SetupStep.TSUYU -> Triple("setup-step-tsuyu", R.string.tsuyu_name, R.string.setup_details_tsuyu_detail)
+        SetupStep.REPAIR -> Triple("setup-step-repair", R.string.setup_repair, R.string.setup_repair_done_detail)
     }
     val status = state.steps[step] ?: SetupStepState.TODO
     return SetupRow(tag, title, if (status == SetupStepState.CANCELLED) R.string.setup_not_done else detail, status.label())
@@ -74,51 +113,115 @@ fun defaultLauncherView(system: LauncherSystemState): SetupPanelView {
     val done = listOf(button("setup-done-details", R.string.setup_details, SetupAction.DETAILS), button("setup-done-finish", R.string.setup_finish, SetupAction.CLOSE))
     val debugStatus = SetupRow("setup-debug-status", R.string.setup_debug_label, if (state.screen == SetupScreen.AUTHORIZE) R.string.setup_authorize_status_detail else R.string.setup_debug_status_detail, if (state.debugEnabled) R.string.setup_debug_enabled else R.string.setup_debug_disabled)
     val vendor = if (SetupStep.VENDOR_BOOT in state.steps) listOf(stepRow(SetupStep.VENDOR_BOOT, state)) else emptyList()
-    return when (state.screen) {
-        SetupScreen.CHOICE -> SetupPanelView(
-            "setup-choice", R.string.setup_choice_title, R.string.setup_choice_description,
-            listOf(
-                SetupRow("setup-choice-auto", if (automatic == AutomaticHomeState.UNAVAILABLE) R.string.setup_auto else R.string.setup_auto_recommended,
-                    if (automatic == AutomaticHomeState.UNAVAILABLE) R.string.setup_auto_unavailable_detail else R.string.setup_auto_detail, automatic.label(),
-                    if (automatic == AutomaticHomeState.UNAVAILABLE) SetupAction.NONE else SetupAction.AUTO),
-                SetupRow("setup-choice-manual", R.string.setup_manual_choice, R.string.setup_manual_choice_detail, manual.label(), SetupAction.MANUAL),
-            ), listOf(button("setup-later", R.string.setup_later, SetupAction.CLOSE)),
-            if (automatic == AutomaticHomeState.UNAVAILABLE) "setup-choice-manual" else "setup-choice-auto", R.string.setup_hint_later, verticalNavigation = true,
-        )
+    val withTsuyu = state.tsuyuAvailable && automatic != AutomaticHomeState.UNAVAILABLE
+    val viaTsuyu = state.tsuyuState == TsuyuState.ACTIVE && SetupStep.REPAIR in state.modifications
+    val optionsDone = state.devOptions || state.debugEnabled
+    fun done(flag: Boolean) = if (flag) R.string.setup_state_done else R.string.setup_state_todo
+    val view = when (state.screen) {
+        SetupScreen.CHOICE -> {
+            val active = automatic == AutomaticHomeState.ACTIVE
+            val rows = buildList {
+                if (withTsuyu) add(SetupRow("setup-choice-tsuyu", R.string.setup_auto_tsuyu, R.string.setup_auto_tsuyu_detail,
+                    if (!active) automatic.label() else if (viaTsuyu) R.string.setup_state_active else R.string.setup_state_unused, SetupAction.AUTO_TSUYU))
+                add(SetupRow("setup-choice-auto",
+                    when { automatic == AutomaticHomeState.UNAVAILABLE -> R.string.setup_auto; withTsuyu -> R.string.setup_auto_without_tsuyu; else -> R.string.setup_auto_recommended },
+                    when { automatic == AutomaticHomeState.UNAVAILABLE -> R.string.setup_auto_unavailable_detail; withTsuyu -> R.string.setup_auto_without_tsuyu_detail; else -> R.string.setup_auto_detail },
+                    if (withTsuyu && active && viaTsuyu) R.string.setup_state_unused else automatic.label(),
+                    if (automatic == AutomaticHomeState.UNAVAILABLE) SetupAction.NONE else SetupAction.AUTO))
+                add(SetupRow("setup-choice-manual", R.string.setup_manual_choice, R.string.setup_manual_choice_detail, manual.label(), SetupAction.MANUAL))
+            }
+            SetupPanelView("setup-choice", R.string.setup_choice_title, R.string.setup_choice_description, rows,
+                listOf(button("setup-later", R.string.setup_later, SetupAction.CLOSE)),
+                rows.first { it.action != SetupAction.NONE }.tag, R.string.setup_hint_later, verticalNavigation = true)
+        }
         SetupScreen.DEBUG -> SetupPanelView(
             "setup-debug", R.string.setup_debug_title, R.string.setup_debug_description,
-            listOf(SetupRow("setup-debug-step-1", R.string.setup_debug_step_one, R.string.setup_debug_step_one_detail, number = 1), SetupRow("setup-debug-step-2", R.string.setup_debug_step_two, R.string.setup_debug_step_two_detail, number = 2), debugStatus),
-            (if (state.error) listOf(button("setup-debug-back", R.string.setup_back, SetupAction.BACK)) else emptyList()) + button("setup-debug-open", R.string.setup_debug_open, SetupAction.DEBUG),
+            listOf(SetupRow("setup-debug-step-1", R.string.setup_debug_step_one, R.string.setup_debug_step_one_detail, done(optionsDone), number = 1), SetupRow("setup-debug-step-2", R.string.setup_debug_step_two, R.string.setup_debug_step_two_detail, done(state.debugEnabled), number = 2)),
+            (if (state.error) listOf(button("setup-debug-back", R.string.setup_back, SetupAction.BACK)) else emptyList()) + button("setup-debug-open", if (optionsDone || state.error) R.string.setup_debug_open else R.string.setup_debug_open_about, SetupAction.DEBUG),
             "setup-debug-open", R.string.setup_hint_previous,
             errorTitle = if (state.error) R.string.setup_debug_error else 0, errorDetail = if (state.error) R.string.setup_debug_error_detail else 0,
         )
         SetupScreen.AUTHORIZE -> SetupPanelView(
             "setup-authorize", R.string.setup_authorize_title, R.string.setup_authorize_description,
-            (if (state.error) emptyList() else listOf(SetupRow("setup-authorize-step-1", R.string.setup_authorize_step_one, R.string.setup_authorize_step_one_detail, number = 1), SetupRow("setup-authorize-step-2", R.string.setup_authorize_step_two, R.string.setup_authorize_step_two_detail, number = 2))) + debugStatus,
+            (if (state.error) emptyList() else listOf(SetupRow("setup-authorize-step-1", R.string.setup_authorize_step_one, R.string.setup_authorize_step_one_detail, number = 1), SetupRow("setup-authorize-step-2", R.string.setup_authorize_step_two, R.string.setup_authorize_step_two_detail, number = 2))) + debugStatus.copy(tag = "setup-authorize-status"),
             if (state.error) listOf(button("setup-authorize-back", R.string.setup_back, SetupAction.BACK), button("setup-authorize-retry", R.string.setup_retry, SetupAction.AUTHORIZE)) else listOf(button("setup-authorize-continue", R.string.setup_continue, SetupAction.AUTHORIZE)),
             if (state.error) "setup-authorize-retry" else "setup-authorize-continue", R.string.setup_hint_previous,
             errorTitle = if (state.error) R.string.setup_authorize_error else 0, errorDetail = if (state.error) R.string.setup_authorize_error_detail else 0,
         )
+        SetupScreen.TSUYU_INSTALL -> {
+            val update = state.tsuyuState == TsuyuState.OUTDATED
+            val steps = listOf(
+                SetupRow("tsuyu-install-step-1", R.string.tsuyu_install_step_one, R.string.tsuyu_install_step_one_detail, number = 1),
+                SetupRow("tsuyu-install-step-2", R.string.tsuyu_install_step_two, R.string.tsuyu_install_step_two_detail, number = 2),
+                SetupRow("tsuyu-install-step-3", R.string.tsuyu_install_step_three, R.string.tsuyu_install_step_three_detail, number = 3),
+            )
+            val (errorTitle, errorDetail) = when (state.tsuyuError) {
+                TsuyuInstallError.NO_NETWORK -> R.string.tsuyu_error_network to R.string.tsuyu_error_network_detail
+                TsuyuInstallError.INVALID -> R.string.tsuyu_error_invalid to R.string.tsuyu_error_invalid_detail
+                TsuyuInstallError.REFUSED -> R.string.tsuyu_error_refused to R.string.tsuyu_error_refused_detail
+                null -> 0 to 0
+            }
+            val working = state.tsuyuInstall != null
+            SetupPanelView("tsuyu-install", if (update) R.string.tsuyu_update_title else R.string.tsuyu_install_title, R.string.tsuyu_install_description,
+                steps + tsuyuStatusRow("tsuyu-install-status", R.string.tsuyu_install_status_detail, state),
+                when {
+                    working -> emptyList()
+                    state.tsuyuError != null -> listOf(button("tsuyu-install-skip", R.string.tsuyu_skip, SetupAction.TSUYU_SKIP), button("tsuyu-install-retry", R.string.setup_retry, SetupAction.RETRY))
+                    else -> listOf(button("tsuyu-install-skip", R.string.tsuyu_skip, SetupAction.TSUYU_SKIP), button("tsuyu-install-accept", if (update) R.string.tsuyu_update_accept else R.string.tsuyu_install_accept, SetupAction.TSUYU_INSTALL))
+                },
+                when { working -> null; state.tsuyuError != null -> "tsuyu-install-retry"; else -> "tsuyu-install-accept" },
+                if (working) R.string.setup_hint_cancel else R.string.setup_hint_previous, errorTitle = errorTitle, errorDetail = errorDetail)
+        }
+        SetupScreen.TSUYU_START -> SetupPanelView("tsuyu-start", R.string.tsuyu_start_title, R.string.tsuyu_start_description,
+            listOf(
+                SetupRow("tsuyu-start-step-1", R.string.tsuyu_start_step_one, R.string.tsuyu_start_step_one_detail, number = 1),
+                SetupRow("tsuyu-start-step-2", R.string.tsuyu_start_step_two, R.string.tsuyu_start_step_two_detail, number = 2),
+                SetupRow("tsuyu-start-step-3", R.string.tsuyu_start_step_three, R.string.tsuyu_start_step_three_detail, number = 3),
+                tsuyuStatusRow("tsuyu-start-status", R.string.tsuyu_status_detail, state),
+            ), listOf(button("tsuyu-start-open", R.string.tsuyu_open, SetupAction.TSUYU_OPEN)), "tsuyu-start-open", R.string.setup_hint_previous)
+        SetupScreen.TSUYU_AUTHORIZE -> {
+            val refused = state.tsuyuRefusal != TsuyuRefusal.NONE
+            val noMore = state.tsuyuRefusal == TsuyuRefusal.NO_MORE_REQUESTS
+            SetupPanelView("tsuyu-authorize", R.string.setup_authorize_title, R.string.tsuyu_authorize_description,
+                (if (refused) emptyList() else listOf(
+                    SetupRow("tsuyu-authorize-step-1", R.string.tsuyu_authorize_step_one, R.string.tsuyu_authorize_step_one_detail, number = 1),
+                    SetupRow("tsuyu-authorize-step-2", R.string.tsuyu_authorize_step_two, R.string.setup_authorize_step_two_detail, number = 2),
+                )) + tsuyuStatusRow("tsuyu-authorize-status", R.string.tsuyu_status_detail, state),
+                when {
+                    noMore -> listOf(button("tsuyu-authorize-back", R.string.setup_back, SetupAction.BACK), button("tsuyu-authorize-skip", R.string.tsuyu_skip, SetupAction.TSUYU_SKIP))
+                    refused -> listOf(button("tsuyu-authorize-back", R.string.setup_back, SetupAction.BACK), button("tsuyu-authorize-retry", R.string.setup_retry, SetupAction.TSUYU_AUTHORIZE))
+                    else -> listOf(button("tsuyu-authorize-continue", R.string.setup_continue, SetupAction.TSUYU_AUTHORIZE))
+                },
+                when { noMore -> "tsuyu-authorize-skip"; refused -> "tsuyu-authorize-retry"; else -> "tsuyu-authorize-continue" }, R.string.setup_hint_previous,
+                errorTitle = if (refused) R.string.tsuyu_authorize_error else 0,
+                errorDetail = when { noMore -> R.string.tsuyu_authorize_no_more_detail; refused -> R.string.tsuyu_authorize_error_detail; else -> 0 })
+        }
         SetupScreen.PROGRESS -> SetupPanelView("setup-progress", R.string.setup_progress_title, R.string.setup_progress_description,
             vendor + listOf(stepRow(SetupStep.HOME, state), stepRow(SetupStep.VERIFY, state)) + state.steps.keys.filter { it !in setOf(SetupStep.VENDOR_BOOT, SetupStep.HOME, SetupStep.VERIFY) }.map { stepRow(it, state) },
             emptyList(), null, R.string.setup_hint_wait)
         SetupScreen.DONE -> SetupPanelView("setup-done", R.string.setup_done_title, R.string.setup_done_description,
             vendor + SetupRow("setup-step-home", R.string.setup_home, R.string.setup_home_done_detail, if (!state.readFailed && state.snapshot?.effective == true) R.string.setup_state_done else R.string.setup_state_todo) +
-                if (state.debugEnabled) listOf(SetupRow("setup-done-tip", R.string.setup_debug_tip, R.string.setup_debug_tip_detail)) else emptyList(), done, "setup-done-finish")
+                when {
+                    repairActive(state) -> listOf(SetupRow("setup-done-repair", R.string.setup_repair, R.string.setup_repair_done_detail, R.string.setup_state_active))
+                    state.debugEnabled -> listOf(SetupRow("setup-done-tip", R.string.setup_debug_tip, R.string.setup_debug_tip_detail))
+                    else -> emptyList()
+                }, done, "setup-done-finish")
         SetupScreen.MORE -> SetupPanelView("setup-more", R.string.setup_more_title, R.string.setup_more_description,
-            vendor + SetupRow("setup-more-home", R.string.setup_home, R.string.setup_more_home_detail, R.string.setup_state_todo),
-            listOf(button("setup-more-keep", R.string.setup_keep, SetupAction.KEEP), button("setup-more-disable", R.string.setup_disable, SetupAction.DISABLE_CONFIRM)), "setup-more-disable", R.string.setup_hint_keep)
+            listOf(SetupRow("setup-more-keep", R.string.setup_keep, R.string.setup_keep_detail, action = SetupAction.KEEP), SetupRow("setup-more-disable", R.string.setup_disable, R.string.setup_disable_detail, action = SetupAction.DISABLE_CONFIRM)),
+            emptyList(), "setup-more-keep", R.string.setup_hint_keep, verticalNavigation = true)
         SetupScreen.DISABLE -> SetupPanelView("confirm-disable", R.string.setup_disable_title, R.string.setup_disable_description, emptyList(),
             listOf(button("confirm-disable-cancel", R.string.setup_cancel, SetupAction.BACK), button("confirm-disable-accept", R.string.setup_disable_accept, SetupAction.DISABLE)), "confirm-disable-cancel", R.string.setup_hint_cancel, mascot = false)
         SetupScreen.RESTORE -> SetupPanelView("confirm-restore", R.string.setup_restore_title, R.string.setup_restore_description, emptyList(),
             listOf(button("confirm-restore-cancel", R.string.setup_cancel, SetupAction.BACK), button("confirm-restore-accept", R.string.setup_restore_accept, SetupAction.RESTORE)), "confirm-restore-accept", R.string.setup_hint_cancel, mascot = false)
         SetupScreen.FALLBACK -> SetupPanelView("setup-fallback", R.string.setup_fallback_title, R.string.setup_fallback_description,
-            listOf(SetupRow("setup-fallback-home", R.string.setup_home_key, R.string.setup_home_key_detail, system.accessibility.setupLabel()), SetupRow("setup-fallback-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, system.overlay.setupLabel()), SetupRow("setup-fallback-boot", R.string.setup_boot, R.string.setup_boot_detail, if (system.bootEnabled && !system.bootNotObserved) R.string.setup_state_done else R.string.setup_state_todo), SetupRow("setup-fallback-tip", R.string.setup_tip, R.string.setup_tip_detail)),
+            listOf(SetupRow("setup-fallback-home", R.string.setup_home_key, R.string.setup_home_key_detail, system.accessibility.setupLabel()), SetupRow("setup-fallback-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, system.overlay.setupLabel()), SetupRow("setup-fallback-boot", R.string.setup_boot, R.string.setup_boot_detail, if (system.bootEnabled && !system.bootNotObserved) R.string.setup_state_done else R.string.setup_state_todo)) +
+                if (repairActive(state)) listOf(SetupRow("setup-fallback-repair", R.string.setup_repair, R.string.setup_repair_fallback_detail, R.string.setup_state_active), SetupRow("setup-fallback-tip", R.string.setup_tip, R.string.setup_tip_tsuyu_detail))
+                else listOf(SetupRow("setup-fallback-tip", R.string.setup_tip, R.string.setup_tip_detail)),
             listOf(button("setup-fallback-details", R.string.setup_details, SetupAction.DETAILS), button("setup-fallback-finish", R.string.setup_finish, SetupAction.CLOSE)), "setup-fallback-finish")
         SetupScreen.FAILED -> SetupPanelView("setup-failed", R.string.setup_failed_title, R.string.setup_failed_description,
             state.steps.keys.map { step -> stepRow(step, state).let { if (state.steps[step] == SetupStepState.CANCELLED) it else it.copy(detail = 0) } }, listOf(button("setup-failed-close", R.string.setup_close, SetupAction.CLOSE), button("setup-failed-retry", R.string.setup_retry, SetupAction.RETRY)), "setup-failed-retry",
-            errorTitle = when { state.restoring -> R.string.setup_restore_error; state.steps[SetupStep.HOME] == SetupStepState.FAILED -> R.string.setup_home_error; state.steps[SetupStep.VENDOR_BOOT] == SetupStepState.FAILED -> R.string.setup_vendor_boot_error; else -> R.string.setup_generic_error },
-            errorDetail = when { state.steps[SetupStep.HOME] == SetupStepState.FAILED -> R.string.setup_home_error_detail; state.steps[SetupStep.VENDOR_BOOT] == SetupStepState.FAILED -> R.string.setup_vendor_boot_error_detail; else -> R.string.setup_generic_error_detail })
+            errorTitle = when { state.restoring -> R.string.setup_restore_error; state.replacing -> R.string.setup_replace_error; state.steps[SetupStep.HOME] == SetupStepState.FAILED -> R.string.setup_home_error; state.steps[SetupStep.VENDOR_BOOT] == SetupStepState.FAILED -> R.string.setup_vendor_boot_error; else -> R.string.setup_generic_error },
+            errorDetail = when { state.replacing -> R.string.setup_replace_error_detail; state.steps[SetupStep.HOME] == SetupStepState.FAILED -> R.string.setup_home_error_detail; state.steps[SetupStep.VENDOR_BOOT] == SetupStepState.FAILED -> R.string.setup_vendor_boot_error_detail; else -> R.string.setup_generic_error_detail })
         SetupScreen.MANUAL -> {
             val rows = buildList {
                 add(SetupRow("setup-manual-home", R.string.setup_manual_home, when (system.accessibility) { SystemControlState.BLOCKED -> R.string.setup_manual_home_blocked; SystemControlState.UNAVAILABLE -> R.string.setup_manual_home_unavailable; else -> R.string.setup_manual_home_detail }, system.accessibility.setupLabel(), if (system.accessibility == SystemControlState.UNAVAILABLE) SetupAction.NONE else SetupAction.HOME_KEY))
@@ -133,21 +236,29 @@ fun defaultLauncherView(system: LauncherSystemState): SetupPanelView {
         SetupScreen.PANEL -> {
             val rows = buildList {
                 add(SetupRow("launcher-panel-auto", R.string.setup_auto, when { automatic != AutomaticHomeState.ACTIVE -> R.string.launcher_panel_auto_todo_detail; state.snapshot?.canRestore == true -> R.string.launcher_panel_auto_active_detail; state.snapshot?.effective == true -> R.string.launcher_panel_auto_home_detail; else -> R.string.launcher_panel_auto_fallback_detail }, automatic.label(), if (automatic == AutomaticHomeState.UNAVAILABLE) SetupAction.NONE else SetupAction.AUTO))
+                if (state.tsuyuState != TsuyuState.HIDDEN) add(SetupRow("launcher-panel-tsuyu", R.string.tsuyu_name, state.tsuyuState.panelDetail(), state.tsuyuState.label(), if (state.tsuyuState == TsuyuState.UNAVAILABLE_TV) SetupAction.NONE else SetupAction.TSUYU_LINE))
                 add(SetupRow("launcher-panel-manual", R.string.setup_manual_title, when (manual) { ManualHomeState.UNUSED -> R.string.launcher_panel_manual_unused_detail; ManualHomeState.TODO -> R.string.launcher_panel_manual_todo_detail; ManualHomeState.BLOCKED -> R.string.setup_manual_home_blocked; ManualHomeState.ACTIVE -> R.string.launcher_panel_manual_active_detail; else -> R.string.launcher_panel_manual_partial_detail }, manual.label(), SetupAction.MANUAL))
-                add(SetupRow("launcher-panel-relaunch", R.string.launcher_panel_relaunch, R.string.launcher_panel_relaunch_detail, action = SetupAction.AUTO))
+                add(SetupRow("launcher-panel-relaunch", R.string.launcher_panel_relaunch, if (state.tsuyuState == TsuyuState.ACTIVE) R.string.launcher_panel_relaunch_tsuyu_detail else R.string.launcher_panel_relaunch_detail, action = SetupAction.AUTO))
+                if (automatic == AutomaticHomeState.ACTIVE && state.snapshot?.canDisable == true && state.snapshot.canRestore == false) add(SetupRow("launcher-panel-replace", R.string.launcher_panel_replace, R.string.launcher_panel_replace_detail, action = SetupAction.REPLACE_CONFIRM))
                 if (state.snapshot?.canRestore == true) add(SetupRow("launcher-panel-restore", R.string.launcher_panel_restore, R.string.launcher_panel_restore_detail, action = SetupAction.RESTORE_CONFIRM))
             }
             SetupPanelView("launcher-panel", R.string.launcher_panel_title, if (automatic == AutomaticHomeState.ACTIVE || manual == ManualHomeState.ACTIVE) R.string.launcher_panel_active_description else R.string.launcher_panel_inactive_description, rows, emptyList(), "launcher-panel-relaunch", verticalNavigation = true)
         }
         SetupScreen.DETAILS -> {
-            val rows = buildList {
+            val rows = buildList<SetupRow> {
                 if (SetupStep.VENDOR_BOOT in state.modifications) add(stepRow(SetupStep.VENDOR_BOOT, state).copy(tag = "setup-details-item-boot"))
                 if (SetupStep.HOME in state.modifications) add(SetupRow("setup-details-item-home", R.string.setup_home, R.string.setup_details_home_detail, if (state.snapshot?.roleHolder == "fr.sygix.sygixos" && !state.readFailed) R.string.setup_state_done else R.string.setup_state_todo))
                 if (SetupStep.OVERLAY in state.modifications) add(SetupRow("setup-details-item-overlay", R.string.setup_overlay, R.string.setup_overlay_detail, system.overlay.setupLabel()))
                 if (SetupStep.ACCESSIBILITY in state.modifications) add(SetupRow("setup-details-item-accessibility", R.string.setup_home_key, R.string.setup_details_home_key_detail, system.accessibility.setupLabel()))
                 add(SetupRow("setup-details-item-stock", R.string.setup_stock, if (state.snapshot?.canRestore == true) R.string.setup_stock_disabled else R.string.setup_stock_unchanged, if (state.snapshot?.canRestore == true) R.string.setup_state_done else R.string.setup_state_unchanged))
-            }
+            }.toMutableList()
+            if (SetupStep.TSUYU in state.modifications) rows.add(SetupRow("setup-details-item-tsuyu", R.string.tsuyu_name, R.string.setup_details_tsuyu_detail, R.string.setup_state_done))
+            if (SetupStep.REPAIR in state.modifications) rows.add(SetupRow("setup-details-item-repairs", R.string.setup_details_repairs,
+                if (state.lastRepair == null) R.string.setup_details_repairs_none else R.string.setup_details_repairs_last,
+                if (state.tsuyuState == TsuyuState.ACTIVE) R.string.setup_state_active else R.string.setup_state_stopped_route,
+                detailArg = state.lastRepair?.let { RepairArg(it.step, it.timeMs) }))
             SetupPanelView("setup-details", R.string.setup_details_title, R.string.setup_details_description, rows, listOf(button("setup-details-close", R.string.setup_close, SetupAction.BACK)), "setup-details-close", mascot = false)
         }
     }
+    return view.copy(counter = state.counter)
 }

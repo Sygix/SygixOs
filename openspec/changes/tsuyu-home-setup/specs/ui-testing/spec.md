@@ -25,7 +25,7 @@ Le parcours avec Tsuyu et la réparation automatique (`tsuyu-access`, `launcher-
 
 #### Scenario: autorisation refusée puis plus demandée
 - **WHEN** le double de l'API Shizuku refuse l'autorisation, puis indique que Tsuyu ne présentera plus de demande
-- **THEN** « tsuyu-authorize-retry » est focalisé après le premier refus, puis « tsuyu-authorize-open » remplace « tsuyu-authorize-retry » ; aucune opération n'est envoyée
+- **THEN** « tsuyu-authorize-retry » est focalisé après le premier refus, puis « tsuyu-authorize-skip » remplace « tsuyu-authorize-retry » ; aucune opération n'est envoyée
 
 #### Scenario: réparation automatique
 - **WHEN** le double déclare Tsuyu « Actif », le service de la touche Home posé par SygixOs activé mais non connecté au terme de l'attente, puis le simule de nouveau au retour au premier plan suivant du même démarrage, puis après un nouveau démarrage
@@ -40,7 +40,7 @@ Le parcours avec Tsuyu et la réparation automatique (`tsuyu-access`, `launcher-
 - **THEN** « launcher-panel-tsuyu-state » affiche « À installer », la ligne n'existe pas, puis « Arrêté », « À autoriser », « À mettre à jour », « Actif » avec « launcher-panel-tsuyu-dot », puis « Indisponible sur cette TV »
 
 ### Requirement: Sélecteurs de Tsuyu
-Les écrans 9.4 à 9.9 SHALL exposer ces testTags : 9.4 à 9.6 « tsuyu-install » avec « -step-1 » à « -step-3 », « -status », « -skip », « -accept », « -retry » et « -error » ; 9.7 « tsuyu-start » avec « -step-1 » à « -step-3 », « -status », « -open » ; 9.8 et 9.9 « tsuyu-authorize » avec « tsuyu-authorize-step-1 », « -step-2 », « -status », « -continue », « -retry », « -open », « -back ».
+Les écrans 9.4 à 9.9 SHALL exposer ces testTags : 9.4 à 9.6 « tsuyu-install » avec « -step-1 » à « -step-3 », « -status », « -skip », « -accept », « -retry » et « -error » ; 9.7 « tsuyu-start » avec « -step-1 » à « -step-3 », « -status », « -open » ; 9.8 et 9.9 « tsuyu-authorize » avec « tsuyu-authorize-step-1 », « -step-2 », « -status », « -continue », « -retry », « -skip », « -back ».
 
 #### Scenario: focus initial des écrans de Tsuyu
 - **WHEN** le test affiche 9.4, 9.6, 9.7, 9.8 puis 9.9

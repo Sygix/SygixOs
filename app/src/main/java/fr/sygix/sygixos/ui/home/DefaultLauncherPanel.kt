@@ -74,8 +74,13 @@ internal fun DefaultLauncherPanel(state: LauncherSystemState, actions: LauncherS
                 Column(Modifier.fillMaxWidth().padding(horizontal = Dimens.OnboardingHeaderInsetH, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (view.mascot) { SetupMascot(); Spacer(Modifier.width(Dimens.GuideMascotGap)) }
-                        Text(stringResource(view.title), style = TextStyles.SettingsTitle, color = SygixColors.OnDark,
-                            modifier = Modifier.testTag(if (view.tag.startsWith("confirm-")) "${view.tag}-title" else "setup-title"))
+                        Column {
+                            view.counter?.let { (index, total) ->
+                                Text(stringResource(R.string.setup_counter, index, total), style = TextStyles.RowState, color = SygixColors.OnDarkSecondary, modifier = Modifier.testTag("setup-step-counter"))
+                            }
+                            Text(stringResource(view.title), style = TextStyles.SettingsTitle, color = SygixColors.OnDark,
+                                modifier = Modifier.testTag(if (view.tag.startsWith("confirm-")) "${view.tag}-title" else "setup-title"))
+                        }
                     }
                     Text(stringResource(view.description), style = SygixTypography.bodyMedium, color = SygixColors.OnDarkSecondary,
                         modifier = Modifier.testTag(if (view.tag.startsWith("confirm-")) "${view.tag}-text" else "setup-description"))
@@ -89,7 +94,7 @@ internal fun DefaultLauncherPanel(state: LauncherSystemState, actions: LauncherS
                 view.rows.forEach { row ->
                     key(row.tag) {
                         if (row.action != null) PreferenceRow(
-                            label = stringResource(row.label), detail = if (row.detail == 0) null else stringResource(row.detail),
+                            label = stringResource(row.label), detail = rowDetail(row),
                             focusRequester = requester(row.tag), enabled = true, onClick = { if (!p7.busy) actions.setup(row.action) },
                             onFocused = { if (it) focused = row.tag }, modifier = Modifier.testTag(row.tag),
                             dimmed = row.action == SetupAction.NONE,
@@ -116,20 +121,29 @@ private fun SetupStaticRow(row: SetupRow) {
         row.number?.let { Text(it.toString(), style = TextStyles.RowState, color = SygixColors.OnDarkSecondary, modifier = Modifier.width(14.dp)) }
         Column(Modifier.weight(1f)) {
             Text(stringResource(row.label), style = TextStyles.Row, color = SygixColors.OnDark)
-            if (row.detail != 0) Text(stringResource(row.detail), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, modifier = Modifier.testTag("${row.tag}-detail"))
+            rowDetail(row)?.let { Text(it, style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, modifier = Modifier.testTag("${row.tag}-detail")) }
         }
         if (row.status != 0) SetupStateLabel(row, SygixColors.OnDarkSecondary)
     }
 }
 
 @Composable
+private fun rowDetail(row: SetupRow): String? {
+    if (row.detail == 0) return null
+    val repair = row.detailArg ?: return stringResource(row.detail)
+    val date = remember(repair.timeMs) { java.text.SimpleDateFormat("d MMM", java.util.Locale.FRENCH).format(java.util.Date(repair.timeMs)) }
+    val step = stringResource(if (repair.step == fr.sygix.sygixos.model.SetupStep.ACCESSIBILITY) R.string.setup_home_key else R.string.setup_vendor_boot)
+    return stringResource(row.detail, date, step)
+}
+
+@Composable
 private fun SetupStateLabel(row: SetupRow, color: androidx.compose.ui.graphics.Color) {
     val dot = when (row.status) {
-        R.string.setup_state_done, R.string.setup_state_active, R.string.setup_state_active_summary -> SygixColors.SwitchOn
-        R.string.setup_state_pending, R.string.setup_state_running -> SygixColors.Badge
+        R.string.setup_state_done, R.string.setup_state_active, R.string.setup_state_active_summary, R.string.tsuyu_state_active, R.string.tsuyu_state_installed -> SygixColors.SwitchOn
+        R.string.setup_state_pending, R.string.setup_state_running, R.string.tsuyu_state_downloading, R.string.tsuyu_state_verifying, R.string.tsuyu_state_installing -> SygixColors.Badge
         else -> null
     }
-    StateLabel(stringResource(row.status), dot, if (row.status == R.string.setup_state_failed) SygixColors.Error else color, row.tag)
+    StateLabel(stringResource(row.status, *row.statusArgs.toTypedArray()), dot, if (row.status == R.string.setup_state_failed) SygixColors.Error else color, row.tag)
 }
 
 @Composable
