@@ -32,7 +32,7 @@ Chaque résultat est consigné dans `design.md`, dans une section « Vérificati
 
 ## 2. Maquettes et décisions
 
-- [ ] 2.1 Le propriétaire valide les « Décisions à valider » de `design.md` et la rangée 9 de la maquette (9.1 à 9.16). Terminé quand chaque décision est validée ou corrigée partout (specs, design, tâches, maquette) et que `openspec validate tsuyu-home-setup --strict` passe.
+- [x] 2.1 Le propriétaire valide les décisions de `design.md` et la rangée 9 de la maquette (9.1 à 9.16) ; `openspec validate tsuyu-home-setup --strict` passe.
 
 ## 3. Disponibilité et installation de Tsuyu
 

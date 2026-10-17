@@ -193,9 +193,9 @@ Le drapeau de fermeture du parcours est conservé : un parcours déjà fermé ne
 2. `tsuyu-home-setup`, dont les deltas MODIFIED portent sur ces exigences. Un archivage dans l'autre ordre est refusé par OpenSpec (« MODIFIED failed … not found »).
 Les autres changes ouverts (`hero-*`, `settings-*`, `virtualized-home-grid`, `visual-header-validation`, `artwork-tile-decode`) ne touchent pas ces exigences.
 
-## Décisions à valider
+## Décisions du propriétaire
 
-Choix faits en autonomie le 2026-10-17, à la demande du propriétaire (« complètement en autonomie »). Chacun est déjà reporté dans les specs, les tâches et la maquette ; un refus en PR sera corrigé partout.
+Choix faits en autonomie le 2026-10-17, à la demande du propriétaire (« complètement en autonomie »), puis validés tels quels par le propriétaire le même jour.
 
 1. Trois lignes sur la première page quand Tsuyu est disponible, « Automatique avec Tsuyu (recommandée) » focalisée (D1) ; deux lignes de P7 sinon.
 2. Principe « OK, OK, OK » : la sélection de départ mène toujours à une configuration sans désactivation ; dans « Un dernier choix » (ex-8.7), « Garder l'accueil Google TV (conseillé) » est focalisé au lieu de « Désactiver » (D8).
@@ -210,7 +210,7 @@ Choix faits en autonomie le 2026-10-17, à la demande du propriétaire (« compl
 
 ## Questions ouvertes
 
-Aucune en dehors de « Décisions à valider ».
+Aucune.
 
 ## Maquettes
 

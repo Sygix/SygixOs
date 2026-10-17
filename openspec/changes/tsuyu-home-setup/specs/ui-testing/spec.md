@@ -67,7 +67,7 @@ Les écrans 8.1 à 8.21 et 9.1 à 9.16 et la ligne des réglages SHALL exposer d
 - **WHEN** le double déclare les options pour les développeurs masquées, puis affichées, puis le débogage activé
 - **THEN** « setup-debug-step-1-state » et « setup-debug-step-2-state » affichent « À faire » et « setup-debug-open » ouvre « À propos » ; puis « setup-debug-step-1-state » affiche « Fait » et « setup-debug-open » ouvre les options pour les développeurs ; puis l'écran suivant de la façon choisie s'affiche sans touche pressée
 
-#### Scenario: mascotte et repère
+#### Scenario: mascotte
 - **WHEN** le test affiche chacun des écrans 8.1 à 8.17 et 9.1 à 9.16
 - **THEN** « setup-mascot » existe sur les panneaux du parcours et n'existe pas dans « confirm-disable », « confirm-restore » ni « setup-details » ; « setup-step-counter » existe sur les écrans d'étape de la configuration automatique ouverts depuis la première page et n'existe pas ailleurs
 

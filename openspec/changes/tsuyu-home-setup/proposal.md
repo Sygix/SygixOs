@@ -90,4 +90,4 @@ Ce change simplifie le parcours pour un public non technique et ajoute une trois
 
 ## Questions ouvertes
 
-Les choix produit de ce change ont été faits en autonomie, à la demande du propriétaire (2026-10-17). Ils sont listés pour validation dans `design.md`, section « Décisions à valider ». Ils deviennent définitifs à la validation de la PR, ou sont corrigés partout s'ils sont refusés. Il ne reste aucune question ouverte en dehors de cette liste.
+Aucune. Les choix faits en autonomie ont été validés par le propriétaire le 2026-10-17 (`design.md`, « Décisions du propriétaire »).
