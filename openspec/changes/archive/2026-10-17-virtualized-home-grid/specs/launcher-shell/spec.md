@@ -7,7 +7,7 @@ Le launcher SHALL valider les visuels avant de les afficher, en bornant ce trava
 
 #### Scenario: validation au chargement
 - **WHEN** les programmes sont chargés
-- **THEN** seuls les premiers visuels du héro sont vérifiés en arrière-plan (chargement, largeur ≥ 1080 px) ; ils sont gardés en mémoire, les suivants en cache disque ; le provider pouvant publier des centaines de programmes, aucun autre visuel n'est vérifié à ce moment
+- **THEN** seuls les premiers visuels du héro sont vérifiés en arrière-plan (chargement, largeur selon « Qualité des visuels ») d'après les dimensions lues dans l'en-tête de l'image, sans décoder ses pixels ; les visuels vérifiés restent en cache disque, aucun n'est préchargé en mémoire ; le provider pouvant publier des centaines de programmes, aucun autre visuel n'est vérifié à ce moment
 
 #### Scenario: validation à la demande
 - **WHEN** le focus reste au moins 0,5 s sur une tuile de la grille
@@ -19,11 +19,11 @@ Le launcher SHALL valider les visuels avant de les afficher, en bornant ce trava
 
 #### Scenario: visuel injoignable
 - **WHEN** la vérification d'un visuel du héro ou d'une affiche du panneau Top Shelf échoue pour une raison réseau (erreur d'entrée-sortie, erreur HTTP 5xx)
-- **THEN** le visuel n'est pas affiché ; il est vérifié de nouveau au prochain rafraîchissement du héro (retour à l'accueil) s'il fait partie des premiers visuels du héro, ou au prochain focus prolongé sur son app pour une affiche du panneau Top Shelf
+- **THEN** le visuel n'est pas affiché ; il est vérifié de nouveau à la prochaine relecture du héro (retour au premier plan, changement signalé par le TV Provider ou relecture périodique, selon « Contenu héro TV Provider ») s'il fait partie des premiers visuels du héro, ou au prochain focus prolongé sur son app pour une affiche du panneau Top Shelf
 
 #### Scenario: visuel rejeté
 - **WHEN** un visuel est trop étroit, refusé par le serveur (erreur HTTP 4xx) ou impossible à décoder
-- **THEN** il n'est plus vérifié ni demandé pendant la session, même après un rafraîchissement du héro
+- **THEN** il n'est plus vérifié ni demandé pendant la session tant que son programme reste publié, même après une relecture du héro
 
 #### Scenario: économie de ressources
 - **WHEN** le héro est masqué à l'intérieur du launcher (zone grille, page de réglages) ou une surface verre est invisible
@@ -68,3 +68,7 @@ Le launcher SHALL valider les visuels avant de les afficher, en bornant ce trava
 #### Scenario: panneau sur une rangée profonde
 - **WHEN** le panneau Top Shelf s'ouvre sur une rangée d'une grande grille
 - **THEN** le bloc focusé est placé comme sur une petite grille ; pendant le délai d'ouverture, la première affiche validée est décodée à la taille du panneau avec la requête de l'affichage, pour que l'expansion montre une image prête ; le panneau s'ouvre avec les affiches déjà validées et ne met sa liste à jour qu'une fois la vérification de l'app terminée, sans changer l'affiche en cours ; seules la rangée dont le panneau est ouvert et celle dont il se ferme portent son animation
+
+#### Scenario: fraîcheur du cache disque
+- **WHEN** un visuel du héro ou une affiche du panneau est demandé alors que son entrée du cache disque date de plus d'un jour
+- **THEN** l'image est relue depuis le réseau et remplace l'entrée du cache disque et les images en mémoire issues de cette URL ; si le réseau échoue, la version en cache est affichée ; une entrée plus récente est servie sans requête réseau

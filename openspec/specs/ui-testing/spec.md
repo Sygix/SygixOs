@@ -31,7 +31,7 @@ Le dock SHALL être couvert par des tests de rendu et de focus.
 - **THEN** le message d'invitation à épingler est affiché
 
 ### Requirement: Couverture grille et shelf
-La grille SHALL être couverte par des tests de rendu et d'insertion du panneau shelf.
+La grille SHALL être couverte par des tests de rendu et d'insertion du panneau shelf, y compris avec une grille plus haute que le seuil de composition de « Préchargement et mémoire » (`launcher-shell`), à la taille d'une TV (`w960dp-h540dp-xhdpi`). Les assertions SHALL porter sur les nœuds réels (tuiles, panneau, zone grille), sans marqueur ni sélecteur ajouté pour les tests.
 
 #### Scenario: grille rendue
 - **WHEN** le catalogue contient des apps non épinglées
@@ -48,6 +48,22 @@ La grille SHALL être couverte par des tests de rendu et d'insertion du panneau 
 #### Scenario: shelf sans contenu
 - **WHEN** l'app ne publie rien
 - **THEN** aucun panneau n'est inséré
+
+#### Scenario: rangées composées
+- **WHEN** le catalogue compte au plus le seuil de rangées, puis une rangée de plus, 200 et 2 000 apps
+- **THEN** toutes les tuiles sont composées sous le seuil ; au-dessus, la première tuile l'est, la dernière ne l'est pas et le nombre de tuiles composées reste sous la borne de la fenêtre et de sa prélecture
+
+#### Scenario: rafale et restauration profonde
+- **WHEN** le test enchaîne des touches Bas sans attendre la fin du défilement, inverse avec Haut, puis quitte la grille (Retour, menu contextuel) et y revient
+- **THEN** la tuile visée a le focus à chaque étape, se retrouve entre les marges une fois le défilement terminé, la même tuile reprend le focus à la même place au retour, et la première rangée n'est plus composée
+
+#### Scenario: déplacement et Up Next après les apps
+- **WHEN** le test déplace une app sur dix rangées puis valide, la déplace encore puis annule, ou descend jusqu'à la rangée Up Next placée après une grande grille et revient
+- **THEN** l'app déplacée garde le focus et reste entre les marges, l'ordre validé est conservé et l'ordre annulé restauré ; la carte Up Next prend le focus, est entre les marges et est restaurée au retour
+
+#### Scenario: panneau et verre sur une grande grille
+- **WHEN** le panneau s'ouvre sur une rangée profonde d'une grille au-dessus du seuil
+- **THEN** le panneau est sous la marge haute, immédiatement au-dessus de la rangée focusée, qui reste entre les marges ; la première affiche a été demandée avant l'ouverture et une validation tardive n'entraîne aucune nouvelle demande de l'affiche courante ; la zone grille porte toujours la source du verre et couvre toutes les rangées
 
 ### Requirement: Couverture héro
 Le héro SHALL être couvert par des tests de rendu du carrousel et de l'état fallback.
@@ -453,7 +469,7 @@ Le rendu du héro et du verre (« Thème », « Diaporama héro » et « Précha
 
 #### Scenario: tailles de décodage
 - **WHEN** la fenêtre ou une bannière mesure 3840 × 2160
-- **THEN** le visuel du héro est demandé en 1920 × 1080 et la bannière en 480 × 270, sans agrandir une image plus petite
+- **THEN** le visuel du héro est demandé en 1920 × 1080 et la bannière à la taille de la tuile au zoom de focus (332 × 187 sur une TV 1080p), plafonnée à 480 × 270 sur une dalle plus dense, sans agrandir une image plus petite
 
 #### Scenario: visuel voilé
 - **WHEN** un visuel blanc de 3840 × 2160 passe par la transformation du héro
@@ -510,108 +526,115 @@ Les infos du programme dans le héro (« Diaporama héro » de `launcher-shell`)
 - **WHEN** un programme avec en-tête, ligne d'infos et temps restant est affiché pendant le Ken Burns
 - **THEN** des états Compose sont modifiés (zoom) mais aucune recomposition n'a lieu (`IdleFrameTest`)
 
-### Requirement: Couverture des parcours du launcher système
-Les parcours P5 SHALL être couverts par des tests déterministes, sans environnement Android réel : le rôle HOME, l'état du service d'accessibilité (activé dans les réglages du système, connecté ou non), la fin du démarrage, le numéro de démarrage, le temps écoulé depuis le démarrage, la permission d'affichage superposé et l'ouverture des écrans système SHALL être fournis par des doubles contrôlés. La logique (états des étapes, étapes affichées, progression, synthèse de la ligne des réglages, parcours affiché automatiquement, démarrage observé, filtre de la touche Home, ouverture unique au démarrage, attente de connexion du service) SHALL être testée en JUnit ; la navigation et l'affichage, par des tests Compose à la taille d'une TV (`w960dp-h540dp-xhdpi`) avec des testTags stables. Les tests du service d'accessibilité SHALL distinguer le service activé et connecté, activé mais non connecté, et non activé. Les assertions de rendu et de navigation du parcours guidé et de la ligne P5 utilisent les testTags de « Sélecteurs du launcher système ».
+### Requirement: Couverture du parcours de l'écran d'accueil
+Le parcours de l'écran d'accueil, la page « Par autorisations », le panneau « Launcher principal » et les réglages de secours (`launcher-shell`) SHALL être couverts par des tests déterministes, sans environnement Android réel : le rôle HOME, l'écran d'accueil effectif, l'état du service d'accessibilité (activé dans les réglages du système, connecté ou non), la fin du démarrage, le numéro de démarrage, le temps écoulé depuis le démarrage, la permission de superposition, l'écran d'auto-démarrage du constructeur, l'ouverture des écrans système et l'accès par le débogage SHALL être fournis par des doubles contrôlés. La logique (écrans affichés et enchaînements 8.1 à 8.17, états des deux voies, synthèse de la ligne des réglages, parcours affiché automatiquement, démarrage observé, filtre de la touche Home, ouverture unique au démarrage, attente de connexion du service) SHALL être testée en JUnit ; la navigation et l'affichage, par des tests Compose à la taille d'une TV (`w960dp-h540dp-xhdpi`) avec les testTags de « Sélecteurs de l'écran d'accueil ». Les tests du service d'accessibilité SHALL distinguer le service activé et connecté, activé mais non connecté, et non activé. Aucun test ne SHALL présenter un état « Fait » ou « Active » que le double n'a pas confirmé.
 
-#### Scenario: refus du rôle HOME
-- **WHEN** le test simule l'ouverture du dialogue du rôle HOME depuis l'étape 3 puis un retour au premier plan avec le rôle non détenu
-- **THEN** l'étape passe par « En attente… » puis affiche « Facultatif », jamais « Fait », et l'accueil reste utilisable
-
-#### Scenario: rôle HOME accepté ou indisponible
-- **WHEN** le test simule un retour au premier plan avec le rôle détenu, puis un rôle déclaré indisponible par le système avec, puis sans, écran système des applications par défaut ou de l'écran d'accueil
-- **THEN** l'étape 3 affiche « Fait » dans le premier cas ; avec l'écran de remplacement, elle est affichée et sa validation ouvre cet écran ; sans lui, l'étape 3 n'est pas affichée et aucun écran système n'est ouvert
-
-#### Scenario: écran du rôle refermé aussitôt
-- **WHEN** le test simule un résultat `RESULT_CANCELED` de l'écran du rôle HOME aussitôt après son lancement, rôle non détenu
-- **THEN** l'écran système de l'écran d'accueil par défaut est ouvert quand il existe ; un refus après un délai humain n'ouvre rien d'autre
+#### Scenario: premier lancement et plus tard
+- **WHEN** le test lance SygixOs sans parcours enregistré comme fermé, simule la réponse à la demande de permission « Programmes TV » (le parcours n'apparaît qu'après), puis presse Retour sur le panneau 8.1
+- **THEN** le parcours est enregistré comme fermé, le héro a le focus, aucune connexion au débogage ni ouverture d'écran système n'a eu lieu, et un second lancement simulé n'affiche pas le parcours
 
 #### Scenario: états relus après retour système
-- **WHEN** le test change l'état du rôle HOME, de la permission ou du service d'accessibilité pendant que SygixOs est en arrière-plan, puis simule le retour au premier plan
-- **THEN** les étapes et la ligne des réglages affichent le nouvel état, sans valeur périmée, et le focus est sur l'étape qui avait ouvert l'écran système
-
-#### Scenario: parcours ignoré
-- **WHEN** le test lance SygixOs sans parcours enregistré comme fermé, simule la réponse à la demande de permission « Programmes TV » (le parcours n'apparaît qu'après), puis presse Retour sur le parcours
-- **THEN** le parcours est enregistré comme fermé, le héro a le focus, aucune demande de rôle ni ouverture d'écran système n'a eu lieu, l'option de démarrage est désactivée, et un second lancement simulé n'affiche pas le parcours
+- **WHEN** le test change l'état de la permission, du service d'accessibilité ou de l'écran d'accueil effectif pendant que SygixOs est en arrière-plan, puis simule le retour au premier plan
+- **THEN** les lignes de 8.13, les états des deux voies et la ligne des réglages affichent le nouvel état, sans valeur périmée, et le focus est sur la ligne qui avait ouvert l'écran système
 
 #### Scenario: filtre de la touche Home
 - **WHEN** le test transmet au filtre du service, service connecté, une séquence pressé puis relâché courte, une séquence avec répétitions maintenue au-delà du délai d'appui long, une séquence dont le relâchement est annulé, et une autre touche
-- **THEN** tous les événements Home sont consommés (le filtre renvoie vrai pour l'appui, chaque répétition et le relâchement ; un relâchement sans appui consommé reste au système) ; les deux premières séquences demandent l'ouverture de l'accueil une seule fois chacune, au relâchement, sans délai, avec l'état « au premier plan » capturé à l'appui ; le relâchement annulé ne demande rien ; l'autre touche n'est pas consommée ; service non connecté, aucun événement n'est consommé
+- **THEN** tous les événements Home sont consommés (le filtre renvoie vrai pour l'appui, chaque répétition et le relâchement ; un relâchement sans appui consommé reste au système) ; les deux premières séquences demandent l'ouverture de l'accueil une seule fois chacune, au relâchement, sans délai ; le relâchement annulé ne demande rien ; l'autre touche n'est pas consommée ; service non connecté, aucun événement n'est consommé
 
-#### Scenario: service d'accessibilité non activé par l'utilisateur
-- **WHEN** le double déclare le service non activé, ou désactivé
-- **THEN** l'étape 1 affiche « À faire », aucune touche n'est consommée, un signal Home simulé ne ramène pas SygixOs au premier plan, les autres étapes restent utilisables et aucune nouvelle proposition n'est affichée automatiquement
-
-#### Scenario: service d'accessibilité activé par l'utilisateur
-- **WHEN** le double déclare le service activé et connecté et que le test simule l'appui sur Home, SygixOs étant en arrière-plan puis au premier plan
-- **THEN** l'ouverture de l'accueil de SygixOs est demandée dans les deux cas ; au premier plan, le comportement de « Touche Home avec SygixOs au premier plan » s'applique ; l'étape 1 affiche « Fait »
+#### Scenario: service d'accessibilité non activé ou activé
+- **WHEN** le double déclare le service non activé, puis activé et connecté, et que le test simule l'appui sur Home, SygixOs étant en arrière-plan puis au premier plan
+- **THEN** non activé, la ligne « Ouvrir SygixOs avec la touche Home » affiche « À faire » et aucune touche n'est consommée ; activé, l'ouverture de l'accueil est demandée dans les deux cas, « Touche Home avec SygixOs au premier plan » s'applique au premier plan et la ligne affiche « Fait »
 
 #### Scenario: attente de connexion et service bloqué
 - **WHEN** le double déclare le service activé mais non connecté au lancement du processus, puis connecté pendant l'attente bornée dans un premier test et toujours non connecté à son terme dans un second
-- **THEN** pendant l'attente l'étape 1 affiche « En attente… » ; elle affiche « Fait » dans le premier cas, « Bloqué » avec son explication dans le second, sans nouvelle attente au retour au premier plan suivant, et la ligne des réglages affiche alors « Bloqué » et « Touche Home bloquée par la TV » ; service connecté dès le lancement, ou non activé, aucune attente n'a lieu et « Bloqué » n'est jamais affiché
+- **THEN** pendant l'attente la ligne affiche « En attente… » ; elle affiche « Fait » dans le premier cas, « Bloqué » avec son explication dans le second, et la voie par autorisations est alors « Bloquée »
 
 #### Scenario: ouverture unique au démarrage
 - **WHEN** le test simule, option activée, la fin du démarrage puis la connexion du service dans le même démarrage, puis la connexion du service seule, puis une connexion plus de 5 minutes après le démarrage, puis la fin du démarrage avec l'option désactivée
-- **THEN** une seule ouverture est demandée dans le premier cas (aucune après l'ouverture observée), une dans le deuxième, aucune dans les deux derniers
+- **THEN** une seule ouverture est demandée dans le premier cas, une dans le deuxième, aucune dans les deux derniers
 
 #### Scenario: démarrage automatique non observé
-- **WHEN** le test simule un démarrage (numéro de démarrage incrémenté) avec l'option activée avant ce démarrage, sans ouverture observée, puis affiche le parcours
-- **THEN** « onboarding-step-boot-detail » indique que le démarrage automatique n'a pas eu lieu (« SygixOs ne s'est pas ouvert automatiquement à ce démarrage ») et « onboarding-step-boot-switch » reste activé ; avec une ouverture au démarrage observée, ou l'option désactivée, ou l'option activée après ce démarrage, le détail normal est affiché
+- **WHEN** le test simule un démarrage avec l'option activée avant ce démarrage, sans ouverture observée, puis affiche 8.13
+- **THEN** « setup-manual-boot-detail » affiche « SygixOs ne s'est pas ouvert automatiquement à ce démarrage » ; avec une ouverture observée, l'option désactivée ou l'option activée après ce démarrage, le détail normal est affiché
 
 #### Scenario: touche Home au premier plan
-- **WHEN** le test ouvre les réglages (y compris avec la liste déroulante « Position d'À suivre » ouverte, et avec le parcours guidé ouvert par-dessus), ou descend dans la grille, ou ouvre le menu contextuel d'une tuile, ou active le mode « Déplacer », ou affiche le parcours au premier lancement, puis transmet un intent Home à l'activité au premier plan
-- **THEN** réglages et surcouche sont fermés en une fois (déplacement annulé, valeur de « Position d'À suivre » inchangée, parcours affiché automatiquement enregistré comme fermé), la page de l'accueil est en haut et le héro a le focus ; un intent d'ouverture au démarrage reçu au premier plan ne produit pas cet effet
+- **WHEN** le test affiche les réglages (avec la liste « Position d'À suivre » ouverte, et avec le panneau « Launcher principal » ou un dialogue de confirmation par-dessus), le parcours au premier lancement, la grille, le menu contextuel ou le mode « Déplacer », puis transmet un intent Home à l'activité au premier plan
+- **THEN** réglages et surcouches sont fermés en une fois (parcours affiché automatiquement enregistré comme fermé, confirmation de désactivation traitée comme « Annuler »), la page de l'accueil est en haut et le héro a le focus ; une configuration en cours continue
 
-#### Scenario: mise à jour sans demande de rôle
-- **WHEN** le test exécute une mise à jour intégrée factice jusqu'à la relance, avec un double du rôle HOME non détenu
-- **THEN** aucune demande du rôle HOME n'est faite par le parcours de mise à jour
+#### Scenario: mise à jour sans opération privilégiée
+- **WHEN** le test exécute une mise à jour intégrée factice jusqu'à la relance
+- **THEN** aucune demande du rôle HOME ni connexion au débogage n'a lieu
 
-### Requirement: Sélecteurs du launcher système
-Le parcours guidé et la ligne P5 de « Écran d'accueil » SHALL exposer des testTags stables, utilisés par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) à la place du texte ou de la position : « onboarding-launcher » (voile et panneau du parcours guidé), « onboarding-mascot », « onboarding-title », « onboarding-progress », « onboarding-step-accessibility » (étape 1), « onboarding-step-boot » (étape 2), « onboarding-step-overlay » (sous-étape 2b), « onboarding-step-home-role » (étape 3), « onboarding-done » (bouton « Terminé »), « onboarding-hint » ; « setting-launcher-group » (intertitre « Launcher système »), « setting-launcher-guide » (ligne « SygixOs comme écran d'accueil ») ; pour toute étape ou ligne « <ligne> » ci-dessus, « <ligne>-title » (titre), « <ligne>-detail » (détail), « <ligne>-state » (libellé d'état, absent pour l'étape 2 tant qu'elle porte son switch), « <ligne>-dot » (pastille d'état, absente quand l'état n'en a pas), et, pour les étapes, « <ligne>-marker » (numéro ou coche) ; pour l'étape 2, « onboarding-step-boot-switch ». Les anciens testTags « onboarding-row-* », « onboarding-continue », « setting-home-role », « setting-boot-start », « setting-accessibility-home » et « launcher-overlay-* » n'existent plus. Les tests SHALL vérifier l'ordre, les étapes affichées, le focus initial, la navigation D-pad, les états affichés, la progression et la fermeture définitive du parcours affiché automatiquement définis par « Parcours guidé du launcher » de `launcher-shell`, et la synthèse définie par « Réglages du launcher système » de `settings`.
+### Requirement: Couverture de la configuration automatique
+La configuration automatique, l'accès par le débogage, la désactivation et le rétablissement de l'accueil d'origine (`launcher-shell`) SHALL être couverts en JUnit et en tests Compose à la taille d'une TV avec des doubles de l'accès, des opérations privilégiées et de la lecture de l'état (`design.md`, D10), sans connexion ADB réelle : écrans affichés, séquence et étapes sans objet, réglages de secours, étapes dépendantes annulées, délais, perte de l'accès, garde-fous, ordre et annulation de la désactivation, rétablissement avec et sans écran d'accueil précédent relevé, refus des cibles hors de l'ensemble fermé, conservation des autres services d'accessibilité, fermeture de la connexion.
 
-#### Scenario: ordre et focus initial du parcours
-- **WHEN** le test compose l'accueil avec le parcours à afficher, après la fin de l'écran de démarrage et la réponse à la demande de permission, rien n'étant fait et le rôle disponible
-- **THEN** « onboarding-launcher » est affiché par-dessus « zone-hero » ; « onboarding-mascot » est à gauche de « onboarding-title » sur la même ligne ; « onboarding-progress » affiche « 0 étape sur 2 terminée » ; « onboarding-step-accessibility », « onboarding-step-boot » puis « onboarding-step-home-role » sont affichés de haut en bas, sans « onboarding-step-overlay », puis le pied, « onboarding-hint » à gauche de « onboarding-done » sur la même ligne ; « onboarding-step-accessibility » a le focus sans aucune touche pressée ; « onboarding-step-boot-switch » est désactivé ; « onboarding-step-home-role-state » affiche « Facultatif » ; le rectangle de chaque étape est identique avec et sans le focus
+#### Scenario: séquence sans désactivation
+- **WHEN** le double d'accès est prêt et rend SygixOs écran d'accueil effectif après la définition de l'écran d'accueil, et que le test presse OK sur « setup-choice-auto »
+- **THEN** « setup-progress » (8.5) montre « setup-step-boot », « setup-step-home » et « setup-step-verify » passer à « Fait », puis « setup-done » (8.6) s'affiche avec « setup-done-finish » focalisé et l'état automatique « Active »
 
-#### Scenario: navigation dans le parcours
-- **WHEN** le test presse bas quatre fois, haut quatre fois, puis gauche et droite depuis chaque élément focalisable
-- **THEN** le focus suit « onboarding-step-accessibility », « onboarding-step-boot », « onboarding-step-home-role », « onboarding-done » et y reste ; il remonte jusqu'à « onboarding-step-accessibility » et y reste ; gauche et droite ne changent pas le focus ; « zone-hero », « zone-dock », « hero-capsule » et « settings-gear » ne prennent jamais le focus tant que « onboarding-launcher » est affiché
+#### Scenario: écrans du débogage
+- **WHEN** le double déclare le débogage désactivé, puis activé au retour, puis l'autorisation refusée, puis le débogage désactivé entre-temps
+- **THEN** « setup-debug » (8.3) s'affiche avec « setup-debug-open » focalisé, puis « setup-authorize » (8.4) avec « setup-authorize-continue » focalisé, puis « setup-authorize » avec « setup-error » et « setup-authorize-retry » focalisé (8.11), puis « setup-debug » avec « setup-error » (8.10) ; aucune opération privilégiée n'est envoyée
 
-#### Scenario: sous-étape 2b et progression
-- **WHEN** le double déclare le service connecté et la permission d'affichage superposé absente avec son écran disponible, puis le test presse OK sur « onboarding-step-boot », puis OK sur « onboarding-step-overlay », simule le passage en arrière-plan puis le retour avec la permission accordée
-- **THEN** après le premier OK, « onboarding-step-overlay » apparaît entre « onboarding-step-boot » et « onboarding-step-home-role », son état est « À faire », le focus reste sur « onboarding-step-boot », dont « onboarding-step-boot-marker » porte toujours le numéro 2, aucun autre panneau n'apparaît et « onboarding-progress » affiche « 1 étape sur 3 terminée » ; pendant l'absence, « onboarding-step-overlay-state » affiche « En attente… » ; au retour il affiche « Fait », « onboarding-step-overlay » a le focus et « onboarding-progress » affiche « 3 étapes sur 3 terminées » ; OK sur « onboarding-step-boot » (désactivation) retire « onboarding-step-overlay »
+#### Scenario: désactivation proposée puis refusée
+- **WHEN** le double ne rend pas SygixOs écran d'accueil effectif après la définition, avec des composants actifs, et que le test presse « setup-more-keep » sur « setup-more » (8.7)
+- **THEN** aucune désactivation n'est envoyée, le service d'accessibilité est ajouté sans retirer les autres, la superposition est accordée, l'option de démarrage est activée, et « setup-fallback » (8.9) s'affiche
+
+#### Scenario: désactivation confirmée puis partiellement annulée
+- **WHEN** le test presse « setup-more-disable », puis « confirm-disable-accept », et que le double fait échouer la désactivation du deuxième composant
+- **THEN** « confirm-disable » (8.8) s'affiche d'abord avec « confirm-disable-cancel » focalisé ; après l'échec, le premier composant est remis à son état par défaut, l'état est relu, aucun succès n'est affiché et « setup-fallback » s'affiche
+
+#### Scenario: échec d'une étape
+- **WHEN** le double fait dépasser son délai à la définition de l'écran d'accueil
+- **THEN** « setup-failed » (8.12) s'affiche avec « setup-step-home-state » « Échec », « setup-step-verify-state » « Annulée » et « setup-failed-retry » focalisé ; aucune nouvelle tentative n'a lieu sans action et la connexion est fermée
+
+#### Scenario: voie indisponible sur cette TV
+- **WHEN** le double déclare le débogage activé et le port ADB réseau injoignable
+- **THEN** le parcours revient à 8.2, « setup-choice-auto-state » affiche « Indisponible sur cette TV » et « setup-choice-manual » a le focus
+
+#### Scenario: cible refusée
+- **WHEN** le test demande à la passerelle une opération sur un paquet hors du paquet SygixOs et de l'ensemble fermé
+- **THEN** la passerelle la refuse sans rien envoyer au double
+
+#### Scenario: rétablissement
+- **WHEN** le double déclare deux composants désactivés par l'utilisateur et un écran d'accueil précédent relevé, et que le test presse « launcher-panel-restore » puis « confirm-restore-accept »
+- **THEN** « confirm-restore » (8.17) s'est affiché avec « confirm-restore-accept » focalisé ; les composants sont remis à leur état par défaut dans l'ordre inverse, l'écran d'accueil précédent est redéfini, « launcher-panel-restore » n'existe plus et « launcher-panel-relaunch » a le focus
+
+#### Scenario: panneau fermé pendant la configuration
+- **WHEN** le test presse Retour pendant « setup-progress »
+- **THEN** le panneau se ferme, la séquence du double continue jusqu'à sa fin, et la réouverture affiche l'écran de l'état relu
+
+### Requirement: Sélecteurs de l'écran d'accueil
+Les écrans 8.1 à 8.21 et la ligne des réglages SHALL exposer des testTags stables, utilisés par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) à la place du texte ou de la position : « setup-panel » (voile et panneau), « setup-mascot », « setup-title », « setup-description », « setup-hint » ; 8.1/8.2 : « setup-choice-auto », « setup-choice-manual », « setup-later » ; 8.3/8.10 : « setup-debug », « setup-debug-step-1 », « setup-debug-step-2 », « setup-debug-status », « setup-debug-open », « setup-debug-back » ; 8.4/8.11 : « setup-authorize », « setup-authorize-step-1 », « setup-authorize-step-2 », « setup-authorize-continue », « setup-authorize-retry », « setup-authorize-back » ; erreurs : « setup-error » (encadré, avec « setup-error-title » et « setup-error-detail ») ; 8.5 : « setup-progress » ; 8.6 : « setup-done », « setup-done-tip » (conseil), « setup-done-details », « setup-done-finish » ; 8.7 : « setup-more », « setup-more-home », « setup-more-keep », « setup-more-disable » ; 8.9 : « setup-fallback », « setup-fallback-home », « setup-fallback-overlay », « setup-fallback-boot », « setup-fallback-tip », « setup-fallback-details », « setup-fallback-finish » ; 8.12 : « setup-failed », « setup-failed-close », « setup-failed-retry » ; lignes d'étapes de 8.5 à 8.12 : « setup-step-boot », « setup-step-home », « setup-step-verify », « setup-step-stock » ; 8.13 : « setup-manual », « setup-manual-home », « setup-manual-boot », « setup-manual-overlay », « setup-manual-vendor-boot », « setup-manual-tip », « setup-manual-finish » ; 8.14 : « setup-details », « setup-details-item-<réglage> », « setup-details-close » ; 8.16 : « launcher-panel », « launcher-panel-auto », « launcher-panel-manual », « launcher-panel-relaunch », « launcher-panel-restore » ; dialogues 8.8 et 8.17 : « confirm-disable » et « confirm-restore », chacun avec « <dialogue>-title », « <dialogue>-text », « <dialogue>-accept », « <dialogue>-cancel » ; réglages : « setting-launcher-group », « setting-launcher-guide » ; pour toute ligne « <ligne> » ci-dessus, « <ligne>-title », « <ligne>-detail », « <ligne>-state » et « <ligne>-dot » (pastille, absente quand l'état n'en a pas). Les anciens testTags « onboarding-* », « setting-home-role », « setting-boot-start », « setting-accessibility-home » et « launcher-overlay-* » n'existent plus. Les tests SHALL vérifier les écrans, l'ordre, le focus initial, la navigation D-pad, les états, la présence de « setup-mascot » (absente des dialogues et de « setup-details ») et la fermeture définitive du parcours définis par `launcher-shell`, et la synthèse définie par « Réglages du launcher système » de `settings`.
+
+#### Scenario: ordre et focus initial
+- **WHEN** le test compose l'accueil avec le parcours à afficher, rien n'étant fait
+- **THEN** « setup-panel » est affiché par-dessus « zone-hero » ; « setup-mascot » est à gauche de « setup-title » ; « setup-choice-auto » puis « setup-choice-manual » sont affichés de haut en bas avec les états « À configurer » et « À faire » ; « setup-hint » est à gauche de « setup-later » ; « setup-choice-auto » a le focus sans aucune touche pressée
+
+#### Scenario: navigation
+- **WHEN** le test presse bas trois fois, haut trois fois, puis gauche et droite sur 8.1, puis gauche et droite sur 8.3, 8.4, 8.7, 8.8 et 8.17
+- **THEN** sur 8.1 le focus suit « setup-choice-auto », « setup-choice-manual », « setup-later » sans boucle et gauche et droite ne changent rien ; sur les écrans à deux boutons, gauche et droite passent d'un bouton à l'autre sans boucle ; « zone-hero », « zone-dock », « hero-capsule » et « settings-gear » ne prennent jamais le focus tant que « setup-panel » est affiché
+
+#### Scenario: mascotte
+- **WHEN** le test affiche chacun des écrans 8.1 à 8.17
+- **THEN** « setup-mascot » existe sur les panneaux du parcours et n'existe pas dans « confirm-disable », « confirm-restore » ni « setup-details »
+
+#### Scenario: page Par autorisations
+- **WHEN** le test ouvre « setup-manual » sur un appareil avec gestionnaire d'auto-démarrage du constructeur sans écran retenu, l'option de démarrage activée et la superposition manquante
+- **THEN** « setup-manual-home », « setup-manual-boot », « setup-manual-overlay », « setup-manual-vendor-boot » puis « setup-manual-tip » et « setup-manual-finish » sont affichés de haut en bas ; « setup-manual-vendor-boot-state » affiche « Indisponible » ; « setup-manual-tip » n'est pas focalisable ; la première ligne qui n'est pas « Fait » a le focus
 
 #### Scenario: états affichés
-- **WHEN** le test compose une étape ou la ligne des réglages dans chacun des états « Fait », « En attente… », « À faire », « Bloqué », « Indisponible », « Facultatif », « Terminé » et « Partiel » qui la concernent, avec et sans le focus
-- **THEN** « <ligne>-state » affiche le libellé de l'état ; « <ligne>-dot » existe, à gauche de « <ligne>-state », pour « Fait » et « Terminé » (couleur `SwitchOn`) et « En attente… » (couleur `Badge`), et n'existe pas pour les autres ; « <ligne>-marker » porte une coche pour une étape « Fait » et son numéro sinon (« 2b » pour la sous-étape) ; en « Indisponible », « <ligne>-detail » affiche la raison propre à l'étape, le titre a la couleur secondaire hors focus, l'étape prend le focus, OK n'ouvre aucun écran et la progression ne la compte pas ; en « Bloqué », « onboarding-step-accessibility-detail » affiche l'explication et OK ouvre les réglages d'accessibilité ; le libellé d'état n'est jamais « Fait » tant que le double n'a pas confirmé l'état
-
-#### Scenario: étape 3 masquée
-- **WHEN** le double déclare le rôle indisponible sans écran système de remplacement
-- **THEN** « onboarding-step-home-role » n'existe pas et bas depuis la dernière étape obligatoire donne le focus à « onboarding-done »
-
-#### Scenario: fermeture définitive du parcours
-- **WHEN** le test, dans trois compositions distinctes, presse OK sur « onboarding-done », presse Retour, puis transmet un intent Home à l'activité au premier plan, chaque fois avec « onboarding-launcher » affiché automatiquement
-- **THEN** dans les trois cas « onboarding-launcher » n'existe plus, le drapeau de fermeture est persisté, « zone-hero » a le focus et un second lancement simulé n'affiche pas « onboarding-launcher » ; après OK sur « onboarding-step-boot » avant la fermeture, l'option de démarrage persistée est activée
-
-#### Scenario: retour système dans le parcours
-- **WHEN** le test presse OK sur « onboarding-step-accessibility », simule le passage en arrière-plan puis le retour au premier plan avec le double déclarant le service activé et connecté
-- **THEN** pendant l'absence « onboarding-step-accessibility-state » affiche « En attente… » avec « onboarding-step-accessibility-dot » ; au retour il affiche « Fait », « onboarding-step-accessibility-marker » porte une coche, « onboarding-launcher » est toujours affiché et « onboarding-step-accessibility » a le focus
+- **WHEN** le test compose une ligne dans chacun des états qui la concernent, avec et sans le focus
+- **THEN** « <ligne>-state » affiche le libellé ; « <ligne>-dot » existe pour « Fait », « Active », « Actif » (couleur `SwitchOn`) et « En cours… », « En attente… » (couleur `Badge`), et n'existe pas pour les autres ; « Échec » est rendu en couleur d'erreur ; en « Indisponible » et « Indisponible sur cette TV », la ligne prend le focus et OK n'ouvre rien
 
 #### Scenario: ordre des contrôles de la catégorie
 - **WHEN** le test ouvre la catégorie « Écran d'accueil » des réglages
-- **THEN** « setting-upnext-visible », « setting-upnext-position », « setting-launcher-group » et « setting-launcher-guide » sont affichés de haut en bas dans cet ordre ; « setting-upnext-visible » a le focus ; « setting-launcher-group » n'est pas focalisable ; aucun des anciens testTags P5 n'existe
+- **THEN** « setting-upnext-visible », « setting-upnext-position », « setting-launcher-group » et « setting-launcher-guide » sont affichés de haut en bas ; « setting-upnext-visible » a le focus ; « setting-launcher-group » n'est pas focalisable ; aucun des anciens testTags n'existe
 
-#### Scenario: navigation dans la catégorie
-- **WHEN** le test, depuis « setting-upnext-position » liste fermée, presse bas deux fois, haut deux fois, puis bas, droite, gauche, et Retour depuis « setting-launcher-guide »
-- **THEN** le focus passe à « setting-launcher-guide » et y reste, sans jamais passer par « setting-launcher-group » ; il remonte jusqu'à « setting-upnext-visible » puis redescend ; droite ne fait rien ; gauche rend le focus à « settings-category-HOME_SCREEN » ; Retour ferme les réglages
-
-#### Scenario: parcours ouvert depuis les réglages
-- **WHEN** le test presse OK sur « setting-launcher-guide », puis Retour, puis de nouveau OK et OK sur « onboarding-done »
-- **THEN** « onboarding-launcher » s'affiche par-dessus « settings-home-screen » ; après Retour comme après « onboarding-done », il n'existe plus, les réglages sont toujours affichés, « setting-launcher-guide » a le focus et le drapeau de fermeture du parcours automatique n'est pas modifié
+#### Scenario: panneau depuis les réglages
+- **WHEN** le test presse OK sur « setting-launcher-guide », puis Retour
+- **THEN** « launcher-panel » s'affiche par-dessus « settings-home-screen » avec « launcher-panel-relaunch » focalisé ; après Retour, il n'existe plus, les réglages sont toujours affichés, « setting-launcher-guide » a le focus et le drapeau du parcours automatique n'est pas modifié
 
 #### Scenario: synthèse de la ligne des réglages
-- **WHEN** le test affiche « Écran d'accueil » avec l'étape 1 « Fait » et l'option désactivée, puis tout fait, puis l'étape 1 « Bloqué », puis rien de fait
-- **THEN** « setting-launcher-guide-state » et « setting-launcher-guide-detail » affichent respectivement « Partiel » et « Démarrage à l'allumage à terminer », « Terminé » (avec « setting-launcher-guide-dot ») et « Toutes les étapes sont faites », « Bloqué » et « Touche Home bloquée par la TV », « À faire » et « Touche Home et démarrage à l'allumage à terminer »
-
-#### Scenario: démarrage indisponible sans écran de permission
-- **WHEN** le double déclare l'écran système de la permission absent, ou fait échouer son ouverture depuis « onboarding-step-overlay »
-- **THEN** « onboarding-step-boot-state » affiche « Indisponible », « onboarding-step-boot-detail » affiche la raison, « onboarding-step-boot-switch », « onboarding-step-boot-dot » et « onboarding-step-overlay » n'existent pas, l'étape garde le focus, OK ne l'active pas et l'option persistée est désactivée
+- **WHEN** le test affiche « Écran d'accueil » avec rien de fait, puis la voie automatique active, puis la voie par autorisations en partie, puis bloquée
+- **THEN** « setting-launcher-guide-state » et « setting-launcher-guide-detail » affichent « À configurer » et « Automatique : à configurer · Par autorisations : à faire », « Actif » (avec « setting-launcher-guide-dot ») et « Automatique : actif · Par autorisations : non utilisée », « En partie » et « Automatique : à configurer · Par autorisations : en partie », « Bloqué » et « Automatique : à configurer · Par autorisations : bloquée »
