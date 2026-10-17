@@ -139,6 +139,8 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
     val startup by viewModel.startup.collectAsStateWithLifecycle()
     val launcherState = launcher?.state?.collectAsStateWithLifecycle()?.value ?: LauncherSystemState()
     LaunchedEffect(startup) { if (startup == StartupPhase.Done) launcher?.onStartupFinished() }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(lifecycle) { lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { viewModel.heroUpdates.collect() } }
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()

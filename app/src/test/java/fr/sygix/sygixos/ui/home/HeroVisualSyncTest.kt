@@ -7,6 +7,9 @@ package fr.sygix.sygixos.ui.home
 
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
@@ -131,6 +134,32 @@ class HeroVisualSyncTest {
         compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
         press(Key.DirectionCenter)
         assertEquals(listOf("h1", "h3", "h2"), opened)
+    }
+
+    @Test
+    fun `a program removed while displayed gives way to the one taking its place`() {
+        val first = program("h1", "Premier titre fictif")
+        val second = program("h2", "Deuxième titre fictif")
+        val third = program("h3", "Troisième titre fictif")
+        Coil.setImageLoader(GatedImageLoader("none"))
+        var items by mutableStateOf(listOf(first, second, third))
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(
+                catalog = catalogOf(dock = emptyList(), grid = emptyList()),
+                hero = heroStateOf(items = items, validated = setOfNotNull(first.imageUrl, second.imageUrl, third.imageUrl)),
+            )
+        }
+        advance(1_000)
+        press(Key.DirectionRight)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(second.title, useUnmergedTree = true).assertExists()
+
+        items = listOf(first, third)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText(second.title, useUnmergedTree = true).assertCountEquals(0)
+        compose.onNodeWithTag("hero-open").assertIsFocused()
     }
 
     @Test

@@ -6,7 +6,10 @@
 package fr.sygix.sygixos.domain
 
 import fr.sygix.sygixos.model.HeroItem
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 interface HeroContentProvider {
     suspend fun load(): List<HeroItem>
+    fun changes(): Flow<Unit> = flowOf(Unit)
 }

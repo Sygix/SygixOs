@@ -9,6 +9,7 @@ import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.HeroFeed
 import fr.sygix.sygixos.model.HeroItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
 
 class HeroRepository(
     private val programs: HeroContentProvider,
@@ -21,6 +22,8 @@ class HeroRepository(
     }
 
     suspend fun fallbackItems(): List<HeroItem> = items(fallback)
+
+    fun changes(): Flow<Unit> = programs.changes()
 
     private suspend fun items(provider: HeroContentProvider): List<HeroItem> = try {
         provider.load()

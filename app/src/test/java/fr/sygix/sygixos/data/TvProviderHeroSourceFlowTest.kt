@@ -24,7 +24,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -70,8 +74,23 @@ class DeniedObserverShadowContentResolver : ShadowContentResolver() {
     }
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
 class TvProviderHeroSourceFlowTest {
+
+    @Test
+    fun `changes emits once on collection then after a preview program notification`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val emissions = mutableListOf<Unit>()
+        val job = backgroundScope.launch { TvProviderHeroSource(context).changes().collect { emissions += it } }
+        runCurrent()
+        assertEquals(1, emissions.size)
+        context.contentResolver.notifyChange(TvContract.PreviewPrograms.CONTENT_URI, null)
+        advanceTimeBy(501)
+        runCurrent()
+        assertEquals(2, emissions.size)
+        job.cancel()
+    }
 
     @Test
     @Config(shadows = [DeniedObserverShadowContentResolver::class])

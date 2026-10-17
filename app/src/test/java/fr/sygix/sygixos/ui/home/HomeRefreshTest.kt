@@ -45,10 +45,17 @@ import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -58,6 +65,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeRefreshTest {
     @get:Rule val main = MainDispatcherRule()
@@ -87,16 +95,18 @@ class HomeRefreshTest {
         override fun newBuilder(): ImageLoader.Builder = error("unused")
     }
 
+    private fun viewModel(programs: HeroContentProvider, apps: AppCatalogRepository, respond: suspend (String, Int) -> Throwable?) = main.track(HomeViewModel(
+        apps, HeroRepository(programs, provider { emptyList() }), AppArtworkSource(context.packageManager),
+        VisualValidator(context, Loader(respond), Dispatchers.Unconfined), object : ClockSource {
+            override fun current() = ""
+            override fun time() = emptyFlow<String>()
+        }, FakeUpdateController(), StartupSession().apply { claimColdStart() }, FakeMotionSource(), FakeMascotSource(),
+    ))
+
     private suspend fun home(programs: HeroContentProvider, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {
         context.dataStore.edit { it.clear() }
         val apps = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
-        val home = main.track(HomeViewModel(
-            apps, HeroRepository(programs, provider { emptyList() }), AppArtworkSource(context.packageManager),
-            VisualValidator(context, Loader(respond), Dispatchers.Unconfined), object : ClockSource {
-                override fun current() = ""
-                override fun time() = emptyFlow<String>()
-            }, FakeUpdateController(), StartupSession().apply { claimColdStart() }, FakeMotionSource(), FakeMascotSource(),
-        ))
+        val home = viewModel(programs, apps, respond)
         apps.refreshApps()
         home.state.await { it is HomeState.Ready }
         return home
@@ -137,6 +147,47 @@ class HomeRefreshTest {
         home.refreshHero()
         home.state.await { (it as? HomeState.Ready)?.hero?.items == feed }
         watching.cancel()
+    }
+
+    @Test fun theHeroIsRereadOnProviderSignalsAndAfterTheTtlOnlyWhileObserved() = runTest {
+        val signals = MutableSharedFlow<Unit>()
+        var loads = 0
+        val home = viewModel(object : HeroContentProvider {
+            override suspend fun load(): List<HeroItem> { loads++; return listOf(heroItem("a", "A")) }
+            override fun changes() = signals.onStart { emit(Unit) }
+        }, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))) { _, _ -> broken }
+        advanceTimeBy(HERO_TTL_MS * 2)
+        assertEquals(0, loads)
+        val watching = backgroundScope.launch { home.heroUpdates.collect() }
+        runCurrent()
+        assertEquals(1, loads)
+        signals.emit(Unit)
+        runCurrent()
+        assertEquals(2, loads)
+        advanceTimeBy(HERO_TTL_MS - 1)
+        runCurrent()
+        assertEquals(2, loads)
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(3, loads)
+        watching.cancel()
+        advanceTimeBy(HERO_TTL_MS * 2)
+        runCurrent()
+        assertEquals(3, loads)
+    }
+
+    @Test fun unpublishedProgramsLeaveTheHeroAndItsValidatedSetsWhileModifiedOnesAreUpdated() = runBlocking {
+        val kept = "https://example.invalid/kept.jpg"
+        val gone = "https://example.invalid/gone.jpg"
+        val replaced = "https://example.invalid/replaced.jpg"
+        var feed = listOf(heroItem("k", "K", imageUrl = kept), heroItem("g", "G", imageUrl = gone))
+        val home = home(provider { feed }) { _, _ -> null }
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(kept, gone) }
+        feed = listOf(heroItem("k", "K2", imageUrl = replaced))
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.let { hero -> hero.items == feed && hero.validated == setOf(replaced) } == true }
+        assertEquals(setOf(replaced), home.hero()?.checked)
     }
 
     @Test fun obsoleteHeroLoadIsCancelledWhenRefreshingAgain() = runBlocking {
@@ -206,7 +257,7 @@ class HomeRefreshTest {
         assertEquals(2, attempts[uri])
     }
 
-    @Test fun newShelfCandidatesAreNotBlockedByAStaleValidation() = runBlocking {
+    @Test fun theShelfOfTheFocusedAppFollowsTheRepublishedPrograms() = runBlocking {
         val stale = "https://example.invalid/a1.jpg"
         val fresh = "https://example.invalid/a2.jpg"
         var feed = shelfFeed(heroItem("a1", "A1", imageUrl = stale, sourcePackage = "com.a"))
@@ -219,7 +270,6 @@ class HomeRefreshTest {
         feed = shelfFeed(heroItem("a2", "A2", imageUrl = fresh, sourcePackage = "com.a"))
         home.refreshHero()
         home.state.await { it is HomeState.Ready && it.hero.items == feed }
-        home.prepareShelf("com.a")
         assertTrue(fresh in home.hero()?.checked.orEmpty())
     }
 

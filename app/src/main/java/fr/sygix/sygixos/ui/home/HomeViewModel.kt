@@ -47,6 +47,7 @@ import fr.sygix.sygixos.model.UpNextSourceEntry
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,7 +55,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -107,7 +111,7 @@ class HomeViewModel(
     private var shelfValidationJob: Job? = null
     private var shelfValidationUris: List<String> = emptyList()
     private var lastHeroUris: List<String> = emptyList()
-    private var lastDisabled: Set<String>? = null
+    private var lastItems: List<HeroItem> = emptyList()
     private var lastShelfPackage: String? = null
 
     private val upNext = upNextSource?.let {
@@ -115,6 +119,9 @@ class HomeViewModel(
     }
 
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
+
+    val heroUpdates: Flow<Unit> = merge(hero.changes(), flow { while (true) { delay(HERO_TTL_MS); emit(Unit) } })
+        .onEach { refreshHero() }
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog,
@@ -132,7 +139,10 @@ class HomeViewModel(
             .take(VisualQuality.HERO_VALIDATED)
             .toList()
         launchHeroValidationIfNeeded(heroUris)
-        if (disabled != lastDisabled) onSourcesChanged(disabled, shown.items)
+        if (shown.items != lastItems) {
+            lastItems = shown.items
+            lastShelfPackage?.let { requestShelf(it, shown.items) }
+        }
         HomeState.Ready(catalog, hero)
     }.combine(upNext?.state ?: MutableStateFlow(null)) { ready, row ->
         ready.copy(upNext = row) as HomeState
@@ -185,11 +195,6 @@ class HomeViewModel(
         heroValidationJob = launchValidation(lastHeroUris, holdAfterFirstDuringStartup = true)
     }
 
-    private fun onSourcesChanged(disabled: Set<String>, items: List<HeroItem>) {
-        lastDisabled = disabled
-        lastShelfPackage?.let { requestShelf(it, items) }
-    }
-
     fun refreshUpNext() { upNext?.refresh() }
 
     fun openUpNext(item: UpNextItem, source: UpNextSourceEntry? = null) {
@@ -208,7 +213,13 @@ class HomeViewModel(
         heroRefreshJob?.cancel()
         heroRefreshJob = viewModelScope.launch {
             fallbackItems = hero.fallbackItems()
-            rawFeed.value = hero.load()
+            val feed = hero.load()
+            rawFeed.value = feed
+            val live = feed.items.mapNotNull { it.imageUrl }.toSet()
+            validated.update { it.filterKeys { uri -> uri in live } }
+            val kept = live + validated.value.values
+            checked.update { it intersect kept }
+            retryable.retainAll(live)
             if (heroValidationJob?.isActive != true) validateHero()
         }
     }
@@ -279,6 +290,8 @@ class HomeViewModel(
         }
     }
 }
+
+internal const val HERO_TTL_MS = 15 * 60_000L
 
 private val SplashTimings = StartupTimings(
     minMs = Motion.SPLASH_MIN_MS,

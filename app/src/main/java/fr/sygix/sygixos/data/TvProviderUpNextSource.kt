@@ -6,7 +6,6 @@
 package fr.sygix.sygixos.data
 
 import android.content.Context
-import android.database.ContentObserver
 import android.database.Cursor
 import android.graphics.drawable.Drawable
 import android.os.CancellationSignal
@@ -17,10 +16,7 @@ import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import java.util.concurrent.ConcurrentHashMap
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
 
 class TvProviderUpNextSource(
     private val context: Context,
@@ -39,26 +35,7 @@ class TvProviderUpNextSource(
         cursor.use { c -> buildList { while (c.moveToNext()) mapRow(c)?.let(::add) } }
     }
 
-    override fun changes(): Flow<Unit> = channelFlow {
-        val signals = Channel<Unit>(Channel.CONFLATED)
-        val resolver = context.contentResolver
-        val observer = object : ContentObserver(null) {
-            override fun onChange(selfChange: Boolean) { signals.trySend(Unit) }
-        }
-        val observing = runCatching { resolver.registerContentObserver(W.CONTENT_URI, true, observer) }.isSuccess
-        try {
-            send(Unit)
-            while (observing) {
-                signals.receive()
-                delay(debounceMillis)
-                signals.tryReceive()
-                send(Unit)
-            }
-        } finally {
-            runCatching { resolver.unregisterContentObserver(observer) }
-            signals.close()
-        }
-    }
+    override fun changes(): Flow<Unit> = context.contentResolver.changes(listOf(W.CONTENT_URI), debounceMillis)
 
     internal fun mapRow(c: Cursor): UpNextItem? {
         if (c.optInt(W.COLUMN_BROWSABLE, 1) == 0) return null

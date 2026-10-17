@@ -146,14 +146,17 @@ fun HeroStage(
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
     var failedImages by remember { mutableStateOf(emptySet<String>()) }
     var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
-    val index = items.indexOfFirst { it.id == currentId }.coerceAtLeast(0)
+    val lastIndex = remember { IntArray(1) }
+    val index = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
+        ?: lastIndex[0].coerceAtMost(items.lastIndex).coerceAtLeast(0)
+    lastIndex[0] = index
     val current = items.getOrNull(index)
     val showVideo = current?.videoUrl != null && current.id !in failedVideos
 
     fun viable(item: HeroItem): Boolean =
         item.id !in slowVisuals && (
             (item.videoUrl != null && item.id !in failedVideos) ||
-                (item.imageUrl != null && item.imageUrl in validatedVisuals && item.id !in failedImages)
+                (item.imageUrl != null && item.imageUrl in validatedVisuals && item.imageUrl !in failedImages)
             )
 
     val step: (Int) -> Unit = { delta ->
@@ -173,10 +176,10 @@ fun HeroStage(
         if (current?.id == id && !viable(current)) stepState.value(1)
     }
     val onVideoErrorState = rememberUpdatedState(onVideoError)
-    val onImageError: (HeroItem) -> Unit = { item ->
-        Log.w(TAG, "poster illisible: ${item.imageUrl}")
-        failedImages = failedImages + item.id
-        if (current?.id == item.id && !viable(item)) stepState.value(1)
+    val onImageError: (String) -> Unit = { url ->
+        Log.w(TAG, "poster illisible: $url")
+        failedImages = failedImages + url
+        if (current?.imageUrl == url && !viable(current)) stepState.value(1)
     }
 
     LaunchedEffect(current?.id, validatedVisuals, failedImages, failedVideos, items) {
@@ -239,7 +242,7 @@ fun HeroStage(
         }
     }
 
-    val posterUrl = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals && it.id !in failedImages }?.imageUrl
+    val posterUrl = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals && it.imageUrl !in failedImages }?.imageUrl
     var shownId by remember { mutableStateOf<String?>(null) }
     val targetId = current?.id
     val currentPoster by rememberUpdatedState(targetId to posterUrl)
@@ -318,7 +321,7 @@ fun HeroStage(
                 val (id, poster) = currentPoster
                 if (url == poster) shownId = id
             },
-            onError = { url -> items.firstOrNull { it.imageUrl == url }?.let(onImageError) },
+            onError = onImageError,
             onLoaded = { url -> slowVisuals = slowVisuals - items.filter { it.imageUrl == url }.map { it.id }.toSet() },
         )
         Spacer(

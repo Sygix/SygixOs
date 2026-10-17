@@ -7,7 +7,6 @@ package fr.sygix.sygixos.data
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.database.ContentObserver
 import android.database.Cursor
 import android.media.tv.TvContract
 import android.net.Uri
@@ -15,10 +14,8 @@ import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.ProgramKind
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
 class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
@@ -29,38 +26,19 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         queryAll()
     }
 
-    suspend fun programCounts(): Map<String, Int> =
-        listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)
-            .flatMap { uri ->
-                rows(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE)) { c ->
-                    c.optString(COLUMN_PACKAGE).takeIf { c.optInt(COLUMN_BROWSABLE, 1) != 0 }
-                }
-            }
-            .groupingBy { it }
-            .eachCount()
+    override fun changes(): Flow<Unit> = context.contentResolver.changes(PROGRAM_URIS)
 
-    fun programCountsFlow(debounceMillis: Long = 500): Flow<Map<String, Int>> = channelFlow {
-        val resolver = context.contentResolver
-        val signals = Channel<Unit>(Channel.CONFLATED)
-        val observer = object : ContentObserver(null) {
-            override fun onChange(selfChange: Boolean) {
-                signals.trySend(Unit)
+    suspend fun programCounts(): Map<String, Int> = PROGRAM_URIS
+        .flatMap { uri ->
+            rows(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE)) { c ->
+                c.optString(COLUMN_PACKAGE).takeIf { c.optInt(COLUMN_BROWSABLE, 1) != 0 }
             }
         }
-        val observing = listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)
-            .map { uri -> runCatching { resolver.registerContentObserver(uri, true, observer) }.isSuccess }
-            .any { it }
-        try {
-            send(programCounts())
-            while (observing) {
-                signals.receive()
-                delay(debounceMillis)
-                send(programCounts())
-            }
-        } finally {
-            runCatching { resolver.unregisterContentObserver(observer) }
-        }
-    }
+        .groupingBy { it }
+        .eachCount()
+
+    fun programCountsFlow(debounceMillis: Long = 500): Flow<Map<String, Int>> =
+        context.contentResolver.changes(PROGRAM_URIS, debounceMillis).map { programCounts() }
 
     private suspend fun queryAll(): List<HeroItem> {
         val items = rows(TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
@@ -144,6 +122,7 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     private companion object {
 
+        val PROGRAM_URIS = listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)
         const val COLUMN_PACKAGE = TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME
         const val COLUMN_BROWSABLE = TvContract.PreviewPrograms.COLUMN_BROWSABLE
 

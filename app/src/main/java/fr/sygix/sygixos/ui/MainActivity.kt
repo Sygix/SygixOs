@@ -57,7 +57,6 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         shownSinceStop = true
         launcher.onResume()
-        viewModel.refreshHero()
         viewModel.onForeground()
     }
 
