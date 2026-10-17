@@ -12,9 +12,7 @@ A free and open source launcher for Android TV / Google TV, inspired by tvOS 26:
 
 An immersive home screen, fluid navigation, and your apps where you want them. See SygixOs in this **41-second presentation** (French · Full HD · 60 fps).
 
-[![Watch the SygixOs presentation](.github/assets/sygixos-promo-preview.jpg)](.github/assets/sygixos-promo.mp4)
-
-[▶ Watch or download the video](.github/assets/sygixos-promo.mp4)
+https://github.com/user-attachments/assets/5f70ce5f-76bd-4901-baad-af92669b23b2
 
 Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) — [www.scottbuckley.com.au](https://www.scottbuckley.com.au/library/electric-dreams/). Edited excerpt with original sound effects. Nature footage and demonstration artwork: [Pexels](https://www.pexels.com/license/).
 
