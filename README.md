@@ -56,7 +56,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 | P5 | Replacing the system launcher (guided setup, Home key, boot opening) | ✅ delivered in v0.1.0-rc.2 and archived; boot opening not verifiable on the reference TV (manufacturer auto-start manager) |
 | P6 | "À suivre" row (all apps, deduplication, opened contents first, removal) | ✅ delivered in v0.1.0-rc.2 and archived |
 | P7 | Default home screen: automatic setup through the TV's local ADB, or guided permissions | ✅ implemented and archived; real-TV validation pending |
-| P7 follow-up | Simpler setup for non-technical users, Tsuyu installed from the TV, automatic repair | [Spec](openspec/changes/tsuyu-home-setup/proposal.md) implemented; real-TV validation pending |
+| P7 follow-up | Simpler setup for non-technical users, Tsuyu installed from the TV, automatic repair | ✅ delivered in v0.3.0-rc.1 and archived ([change](openspec/changes/archive/2026-10-18-tsuyu-home-setup/proposal.md)); real-TV validation pending |
 | P8 | Search | planned |
 | P9 | BetaSeries (OAuth): Up Next enrichment and reliability | planned |
 
