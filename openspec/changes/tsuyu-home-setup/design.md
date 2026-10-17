@@ -27,7 +27,7 @@ Tsuyu, état au 2026-10-17 :
 - serveur à l'identité du shell, qui survit à la fermeture de la connexion mais pas à la désactivation du débogage ;
 - API Shizuku 13 (wire 13.1.5) fournie aux applications qui déclarent `moe.shizuku.manager.permission.API_V23` ;
 - demande d'accord par application (« Autoriser » / « Refuser », « Refuser » sélectionné au départ, retour à l'application demandeuse) ;
-- « Démarrage au redémarrage » activable dans Tsuyu ;
+- « Démarrage au redémarrage » proposé par « Démarrer » (bouton « Activer Tsuyu ») ;
 - `MainActivity` exportée en lancement standard (`LEANBACK_LAUNCHER`).
 P2 et P3 de Tsuyu sont en validation : les libellés et comportements cités ici sont repris de son dépôt et vérifiés par la tâche 1.2.
 
@@ -56,7 +56,7 @@ SygixOs ne dépend que de comportements publics de Tsuyu :
 - l'API Shizuku 13 fournie par le mécanisme de « binder » au fournisseur `${applicationId}.shizuku` des applications qui déclarent `API_V23` ;
 - la demande d'accord qui revient à l'application demandeuse ;
 - une activité de lancement qui peut s'ouvrir dans la tâche de l'appelant.
-Les libellés « Démarrer » et « Démarrage au redémarrage », cités en 9.7, sont ceux des ressources françaises de Tsuyu (vérification 1.2). Si Tsuyu change un de ces contrats, seul ce change est à reprendre.
+Les libellés « Démarrer » et « Activer Tsuyu », cités en 9.7, sont ceux de Tsuyu v0.1.0-alpha.4 : « Démarrer » ouvre l'écran « Démarrage au redémarrage », dont « Activer Tsuyu » prépare le redémarrage puis déclenche la fenêtre d'autorisation du débogage (vérifié sur émulateur). Si Tsuyu change un de ces contrats, seul ce change est à reprendre.
 
 ### D3. Disponibilité et installation de Tsuyu
 `GitHubReleaseSource` est paramétré par le dépôt (SygixOs ou Tsuyu). La règle de choix de version de `UpdateRepository` est réutilisée : dernière finale, préversions selon « Inclure les préversions ». L'asset attendu est `tsuyu.apk`. Une seule requête est faite à l'ouverture du parcours ou du panneau. Le dernier résultat connu (version, taille, empreinte, URL) est conservé dans DataStore pour que la ligne Tsuyu ne clignote pas.
@@ -77,13 +77,15 @@ SygixOs ouvre la `MainActivity` de Tsuyu par un intent explicite sans `FLAG_ACTI
 
 Au retour, SygixOs attend la réception du binder (`Shizuku.addBinderReceivedListenerSticky`) au plus 3 s, puis relit `Shizuku.pingBinder()` et `Shizuku.getVersion()`. SygixOs ne démarre jamais Tsuyu lui-même : le serveur de Tsuyu doit être lancé avec la clé de Tsuyu, pour que Tsuyu puisse redémarrer seul avec la TV.
 
-### D5. Accès par Tsuyu : service utilisateur à opérations typées
-Un `PrivilegedAccess` commun remplace l'usage direct de `AdbAccess` par `PrivilegedShell`, avec deux implémentations :
-- l'ADB intégré, existant ;
-- `ShizukuPrivilegedAccess`.
-Celle-ci lie, par `Shizuku.bindUserService`, un service de SygixOs exécuté avec l'identité du shell. Son interface AIDL n'expose que les opérations typées de P7, D2 (pas de chaîne de commande). Le service traduit chaque opération en tableau d'arguments fixe et l'exécute par `ProcessBuilder`, avec le même délai par commande que l'ADB intégré.
+### D5. Accès par Tsuyu : service utilisateur à liste blanche
+`SwitchingAccess` implémente `AdbAccess` et choisit, à chaque connexion, entre deux moyens :
+- l'ADB intégré, existant (`AdbAccessGateway`) ;
+- `TsuyuAccess`.
+`TsuyuAccess` lie, par `Shizuku.bindUserService`, le service `PrivilegedOpsService` de SygixOs, exécuté avec l'identité du shell. Son interface AIDL (`IPrivilegedOps`) n'a qu'une méthode `run(command)`.
 
-La construction des arguments est partagée entre les deux implémentations, pour que la liste des commandes reste unique. Le service est lié au début d'une séquence et délié à la fin (`unbindUserService` avec arrêt du processus).
+`PrivilegedCommands` construit chaque commande des opérations fixes de P7 (D2) et décrit leur forme exacte par des expressions régulières ancrées. `allowed()` refuse tout le reste : autres paquets, autres composants, enchaînements de commandes. Ce contrôle est fait trois fois : dans `PrivilegedShell` avant l'envoi, dans `TsuyuAccess`, puis dans le service lui-même avant l'exécution. Le service exécute la commande avec un délai de 10 s et renvoie code de sortie et sortie.
+
+La liste des commandes reste unique pour les deux moyens. Le service est lié au début d'une séquence et délié à la fin (`unbindUserService` avec arrêt du processus).
 
 Choix du moyen d'accès au début de chaque séquence :
 - Tsuyu « Actif » : `pingBinder`, version 13 ou plus, `checkSelfPermission` accordé ;
@@ -91,7 +93,7 @@ Choix du moyen d'accès au début de chaque séquence :
 
 Alternatives écartées :
 - `Shizuku.newProcess` : privé depuis l'API 13, accessible seulement par réflexion ;
-- un service qui accepte une chaîne de commande : cela rouvre la surface que P7 a fermée.
+- une méthode AIDL par opération : la liste des opérations serait dupliquée entre l'interface, le service et `PrivilegedShell`, alors que la liste blanche vérifiée dans le service donne la même garantie avec une seule liste.
 
 ### D6. Repère d'avancement
 Le contrôleur du parcours calcule la liste des étapes de la façon choisie à son ouverture. Il retire les étapes déjà faites :
@@ -165,9 +167,34 @@ Aucun réseau, aucun Tsuyu réel en CI.
 
 Ces suggestions ne sont requises par aucune exigence de ce change. Elles simplifieraient le parcours ; elles sont à porter, si le propriétaire le souhaite, dans le backlog de Tsuyu.
 - Revenir à l'application appelante dès que le service est actif, quand Tsuyu a été ouvert par une autre application. Cela retire l'étape « revenez avec Retour ».
-- Proposer « Démarrage au redémarrage » juste après le premier démarrage, dans le même enchaînement. Cela retire l'étape 3 de 9.7.
-- Permettre de revenir sur un refus depuis Tsuyu (liste des applications refusées), pour l'écran « Tsuyu ne demande plus » (9.9).
+- Permettre de revenir sur un refus depuis Tsuyu (liste des applications refusées). Tant que ce n'est pas possible, l'écran « Tsuyu ne demande plus » (9.9) propose de continuer sans Tsuyu. Retenue en priorité par Métis dans la PR Tsuyu #14 (« Autoriser une nouvelle demande ») ; une fois livrée, 9.9 pourra de nouveau proposer « Ouvrir Tsuyu ».
 - Une mise à jour intégrée de Tsuyu, comme `self-update`, pour que les utilisateurs non techniques ne restent pas sur une ancienne version.
+
+## Vérifications sur l'appareil
+
+Émulateur Android TV (Android 14), 2026-10-17, APK release signé comme en production, verrou de l'émulateur pris puis rendu. L'état de l'émulateur a été rétabli à la fin : applications d'origine réinstallées, écran d'accueil rendu au launcher d'origine.
+
+- **Parcours avec Tsuyu déjà démarré** (build de développement de Tsuyu) :
+  - 9.1 affiche les trois lignes, Tsuyu sélectionné ;
+  - OK mène directement à « Autoriser SygixOs » (« Étape 1 sur 2 »). La fenêtre de Tsuyu s'ouvre par-dessus SygixOs, « Refuser » sélectionné ; « Autoriser » lance la séquence par Tsuyu, sans fenêtre d'autorisation du débogage pour SygixOs ;
+  - le rôle HOME, le service d'accessibilité et la superposition sont posés par le service à l'identité du shell. L'accueil d'origine de l'émulateur n'est pas dans l'ensemble fermé : la séquence finit sur « SygixOs garde la main » avec « Réparation automatique » « Active ». « Détails » liste les modifications et « Réparations automatiques » ;
+  - Tsuyu désinstallé : « Réparations automatiques » passe à « Arrêtée » au retour.
+- **Installation depuis le panneau** (Tsuyu v0.1.0-alpha.4, préversions activées) :
+  - la ligne « Tsuyu » est « À installer » ; 9.4 sans repère (ouvert depuis le panneau) ;
+  - téléchargement et vérification acceptés : certificat identique à celui de SygixOs.
+  - **Constat 1** : quand SygixOs n'a pas l'autorisation « applis inconnues », Android TV affiche son écran, puis annule la session une fois l'autorisation donnée, au lieu de reprendre l'installation. D'où la relance automatique unique au retour (« Installation de Tsuyu par le système », scénario « autorisation donnée pendant l'installation »), vérifiée : la confirmation d'Android s'affiche sans autre action.
+  - **Constat 2** : la confirmation d'Android sélectionne « Annuler » au départ ; le détail de l'étape 3 de 9.4 le dit.
+  - Installé, l'écran passe à « Démarrer Tsuyu » ; « Ouvrir Tsuyu » ouvre Tsuyu dans la tâche de SygixOs (pile vérifiée).
+  - **Constat 3** : dans Tsuyu alpha.4, « Démarrer » ouvre « Démarrage au redémarrage » ; « Activer Tsuyu » déclenche la fenêtre d'autorisation du débogage. Les étapes de 9.7 sont reprises dans cet ordre.
+  - **Constat 4** : sur l'émulateur, après l'autorisation, le service de Tsuyu alpha.4 reste « arrêté », même après une seconde tentative. Signalé à Tsuyu ; SygixOs affiche correctement « Arrêté » et garde « Ouvrir Tsuyu ».
+- **Audit du contrat par Tsuyu** (2026-10-17, PR Tsuyu #14, en brouillon) :
+  - conformes : « Autoriser » et « Refuser », focus initial sur « Refuser », retour à l'appelant, lancement standard de la `MainActivity`, livraison du binder aux clients `API_V23` (API 13, patch 6), UserService à l'identité du shell ;
+  - différents : le premier parcours passe par « Activer Tsuyu », intégré à « Démarrage au redémarrage » (9.7 corrigé) ; un refus persistant n'est pas réversible depuis Tsuyu (9.9 propose donc de continuer sans Tsuyu) ;
+  - l'attente du binder (3 s) est une règle de SygixOs : le retour suivant relit l'état et « Ouvrir Tsuyu » reste proposé.
+- Non vérifiable sur l'émulateur, à faire sur la TV (tâche 9.2) :
+  - « Un dernier choix » et la désactivation, faute de composants de l'ensemble fermé ;
+  - la réparation automatique sur un service « Bloqué » ;
+  - le guide du débogage en deux temps sur des options pour les développeurs masquées.
 
 ## Risks / Trade-offs
 

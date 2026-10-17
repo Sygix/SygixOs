@@ -19,6 +19,11 @@ import fr.sygix.sygixos.ui.settings.LauncherSystemActions
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import fr.sygix.sygixos.domain.RepairSymptoms
+import fr.sygix.sygixos.model.GuideOrigin
+import fr.sygix.sygixos.model.SystemControlState
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -47,12 +52,30 @@ class LauncherSystemViewModel(
         viewModelScope.launch {
             defaultLauncher.state.collect { if (!it.busy) controller.onResume() }
         }
+        viewModelScope.launch {
+            controller.state.map { it.guide }.distinctUntilChanged().collect { if (it == GuideOrigin.AUTOMATIC) defaultLauncher.openChoice() }
+        }
+        viewModelScope.launch {
+            state.map(::symptoms).distinctUntilChanged().collect(defaultLauncher::repair)
+        }
     }
+
+    private fun symptoms(state: LauncherSystemState) = RepairSymptoms(
+        homeKeyBlocked = state.accessibility == SystemControlState.BLOCKED,
+        bootMissed = state.bootEnabled && state.bootNotObserved,
+    )
 
     private fun setup(action: SetupAction) {
         val automatic = defaultLauncher
         when (action) {
             SetupAction.AUTO -> automatic.automatic()
+            SetupAction.AUTO_TSUYU -> automatic.automaticWithTsuyu()
+            SetupAction.TSUYU_INSTALL -> automatic.installTsuyu()
+            SetupAction.TSUYU_SKIP -> automatic.withoutTsuyu()
+            SetupAction.TSUYU_OPEN -> automatic.openTsuyu()
+            SetupAction.TSUYU_AUTHORIZE -> automatic.authorizeTsuyu()
+            SetupAction.TSUYU_LINE -> automatic.tsuyuLine()
+            SetupAction.REPLACE_CONFIRM -> automatic.requestReplace()
             SetupAction.AUTHORIZE -> automatic.authorize()
             SetupAction.MANUAL -> automatic.openManual()
             SetupAction.DEBUG -> automatic.debugSettings()
@@ -72,7 +95,7 @@ class LauncherSystemViewModel(
         }
     }
 
-    fun onResume() { controller.onResume(); defaultLauncher.onResume() }
+    fun onResume() { controller.onResume(); defaultLauncher.onResume(); defaultLauncher.repair(symptoms(state.value)) }
 
     fun onStartupFinished() = controller.onStartupFinished()
 

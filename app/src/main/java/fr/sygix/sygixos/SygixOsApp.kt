@@ -53,7 +53,7 @@ import fr.sygix.sygixos.data.VisualFreshness
 import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.domain.StartupSession
 
-open class SygixOsApp : Application(), ImageLoaderFactory {
+open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data.InstallStatusRouting {
 
     val installedAppsSource: InstalledAppsSource by lazy { InstalledAppsSource(this) }
     val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
@@ -69,9 +69,54 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val userAgentValue by lazy {
+        "SygixOs/${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()}"
+    }
+    private val userAgent: () -> String = { userAgentValue }
+    val tsuyuReleases by lazy {
+        fr.sygix.sygixos.data.TsuyuReleaseSource(
+            GitHubReleaseSource(HttpsUrlTransport(), userAgent, apiBase = fr.sygix.sygixos.data.TsuyuReleaseSource.API_BASE),
+            fr.sygix.sygixos.data.TsuyuReleasePrefs(this),
+        )
+    }
+    val tsuyuInstaller by lazy {
+        fr.sygix.sygixos.data.TsuyuApkInstaller(
+            releases = tsuyuReleases,
+            includePrereleases = { updatePrefs.data.first().includePrereleases },
+            transport = HttpsUrlTransport(),
+            inspector = PackageManagerApkInspector(packageManager, packageName),
+            gateway = SystemPackageInstallerGateway(this, fr.sygix.sygixos.domain.TsuyuPackage),
+            downloadDir = cacheDir.resolve("tsuyu"),
+            userAgent = userAgent,
+            showUserAction = { intent -> if (!launchFromForeground(intent)) throw android.content.ActivityNotFoundException() },
+        )
+    }
+    override val installStatusRouter by lazy {
+        fr.sygix.sygixos.data.InstallStatusRouter(listOf(tsuyuInstaller), updateRepository::onInstallStatus)
+    }
+    private val shizukuApi by lazy { fr.sygix.sygixos.data.AndroidShizukuApi(this) }
+    val tsuyuLink by lazy { fr.sygix.sygixos.data.ShizukuTsuyuLink(shizukuApi, packageManager, ::launchFromForeground) }
+    private val privilegedAccess by lazy {
+        fr.sygix.sygixos.data.SwitchingAccess(tsuyuLink, fr.sygix.sygixos.data.TsuyuAccess(shizukuApi), fr.sygix.sygixos.data.AdbAccessGateway.create(this))
+    }
+
+    private fun launchFromForeground(intent: Intent): Boolean {
+        val activity = foregroundTracker.resumed?.get() ?: return false
+        return runCatching {
+            if (intent.resolveActivity(packageManager) == null) false else { activity.startActivity(intent); true }
+        }.getOrDefault(false)
+    }
+
+    private fun openSettings(vararg actions: String): Boolean = actions.any { action ->
+        runCatching {
+            val intent = Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (packageManager.resolveActivity(intent, 0) == null) false else { startActivity(intent); true }
+        }.getOrDefault(false)
+    }
+
     val defaultLauncherController by lazy {
         val reader = createHomeStateReader()
-        val access = fr.sygix.sygixos.data.AdbAccessGateway.create(this)
+        val access = privilegedAccess
         val store = fr.sygix.sygixos.data.DefaultLauncherPrefs(this)
         val operations = fr.sygix.sygixos.data.PrivilegedShell(
             access, reader, fr.sygix.sygixos.data.HomeScreenStateReader.currentUser(),
@@ -85,14 +130,20 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
                 launcherPrefs.setBootStartEnabled(true, bootCount())
                 kotlinx.coroutines.withTimeout(10_000) { launcherPrefs.launcherSystem.first { it.bootStart.enabled } }
             },
-            openDebug = {
-                listOf(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, Settings.ACTION_DEVICE_INFO_SETTINGS).any { action ->
-                    runCatching {
-                        val intent = android.content.Intent(action).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                        if (packageManager.resolveActivity(intent, 0) == null) false else { startActivity(intent); true }
-                    }.getOrDefault(false)
-                }
-            },
+            openDebug = { openSettings(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, Settings.ACTION_DEVICE_INFO_SETTINGS) },
+            openAbout = { openSettings(Settings.ACTION_DEVICE_INFO_SETTINGS, Settings.ACTION_SETTINGS) },
+            devOptions = { Settings.Global.getInt(contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0 },
+            tsuyu = fr.sygix.sygixos.domain.TsuyuSupport(
+                link = tsuyuLink,
+                releases = tsuyuReleases,
+                installer = tsuyuInstaller,
+                includePrereleases = { updatePrefs.data.first().includePrereleases },
+                portReachable = { fr.sygix.sygixos.data.DadbLocalTransport(noBackupFilesDir).reachable() },
+                usingTsuyu = { privilegedAccess.usingTsuyu },
+                onForegroundReturn = { tsuyuInstaller.onForegroundReturn() },
+                canInstallPackages = { packageManager.canRequestPackageInstalls() },
+            ),
+            bootCount = ::bootCount,
         )
     }
     val bootStartDispatcher: BootStartDispatcher by lazy {
@@ -168,10 +219,6 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
         val transport = HttpsUrlTransport()
         val inspector = PackageManagerApkInspector(packageManager, packageName)
         val gateway = SystemPackageInstallerGateway(this)
-        val userAgentValue by lazy {
-            "SygixOs/${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()}"
-        }
-        val userAgent = { userAgentValue }
         val source = GitHubReleaseSource(transport, userAgent)
         val updatesDir = cacheDir.resolve("updates")
         return UpdateRepository(

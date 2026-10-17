@@ -5,10 +5,21 @@
 
 package fr.sygix.sygixos.model
 
+import fr.sygix.sygixos.domain.TsuyuInstallError
+import fr.sygix.sygixos.domain.TsuyuInstallStep
+import fr.sygix.sygixos.domain.TsuyuMinimumApi
+import fr.sygix.sygixos.domain.TsuyuProbe
+import fr.sygix.sygixos.domain.TsuyuRelease
+
 enum class AdbAccessState { DISABLED, UNREACHABLE, WAITING, REFUSED, READY, LOST }
 enum class StockHomeState { ACTIVE, DISABLED_USER, OUT_OF_REACH, ABSENT }
-enum class SetupScreen { CHOICE, PANEL, DEBUG, AUTHORIZE, PROGRESS, DONE, MORE, FALLBACK, FAILED, MANUAL, DETAILS, DISABLE, RESTORE }
-enum class SetupStep { VENDOR_BOOT, HOME, VERIFY, STOCK, ACCESSIBILITY, OVERLAY, BOOT }
+enum class SetupScreen { CHOICE, PANEL, DEBUG, AUTHORIZE, TSUYU_INSTALL, TSUYU_START, TSUYU_AUTHORIZE, PROGRESS, DONE, MORE, FALLBACK, FAILED, MANUAL, DETAILS, DISABLE, RESTORE }
+enum class SetupStep { VENDOR_BOOT, HOME, VERIFY, STOCK, ACCESSIBILITY, OVERLAY, BOOT, TSUYU, REPAIR }
+enum class SetupRoute { ADB, TSUYU }
+enum class SetupPhase { DEBUG, INSTALL, START, AUTHORIZE, SETTINGS }
+enum class TsuyuState { HIDDEN, UNAVAILABLE_TV, ABSENT, OUTDATED, STOPPED, UNAUTHORIZED, ACTIVE }
+enum class TsuyuRefusal { NONE, REFUSED, NO_MORE_REQUESTS }
+data class RepairRecord(val step: SetupStep, val timeMs: Long)
 enum class SetupStepState { TODO, RUNNING, DONE, FAILED, CANCELLED }
 enum class AutomaticHomeState { ACTIVE, TODO, UNAVAILABLE }
 enum class ManualHomeState { ACTIVE, PARTIAL, BLOCKED, UNUSED, TODO }
@@ -45,10 +56,51 @@ data class DefaultLauncherState(
     val focusVersion: Long = 0,
     val detailsReturn: SetupScreen = SetupScreen.DONE,
     val bootEnabled: Boolean = false,
+    val devOptions: Boolean = false,
+    val portUnreachable: Boolean = false,
+    val route: SetupRoute = SetupRoute.ADB,
+    val plan: List<SetupPhase> = emptyList(),
+    val fromPanel: Boolean = false,
+    val replacing: Boolean = false,
+    val tsuyu: TsuyuProbe = TsuyuProbe(),
+    val tsuyuRelease: TsuyuRelease? = null,
+    val tsuyuInstall: TsuyuInstallStep? = null,
+    val tsuyuError: TsuyuInstallError? = null,
+    val tsuyuRefusal: TsuyuRefusal = TsuyuRefusal.NONE,
+    val lastRepair: RepairRecord? = null,
 ) {
+    val tsuyuState: TsuyuState get() = when {
+        !tsuyu.installed && tsuyuRelease == null -> TsuyuState.HIDDEN
+        unreachable -> TsuyuState.UNAVAILABLE_TV
+        !tsuyu.installed -> TsuyuState.ABSENT
+        tsuyu.binder && (tsuyu.apiVersion ?: 0) < TsuyuMinimumApi -> TsuyuState.OUTDATED
+        !tsuyu.binder -> TsuyuState.STOPPED
+        !tsuyu.authorized -> TsuyuState.UNAUTHORIZED
+        else -> TsuyuState.ACTIVE
+    }
+
+    val tsuyuAvailable: Boolean get() = tsuyuState != TsuyuState.HIDDEN && tsuyuState != TsuyuState.UNAVAILABLE_TV
+
+    private val unreachable: Boolean get() = access == AdbAccessState.UNREACHABLE || portUnreachable
+
+    val phase: SetupPhase? get() = when (screen) {
+        SetupScreen.DEBUG -> SetupPhase.DEBUG
+        SetupScreen.TSUYU_INSTALL -> SetupPhase.INSTALL
+        SetupScreen.TSUYU_START -> SetupPhase.START
+        SetupScreen.AUTHORIZE, SetupScreen.TSUYU_AUTHORIZE -> SetupPhase.AUTHORIZE
+        SetupScreen.PROGRESS, SetupScreen.DONE, SetupScreen.MORE, SetupScreen.FALLBACK, SetupScreen.FAILED -> SetupPhase.SETTINGS
+        else -> null
+    }
+
+    val counter: Pair<Int, Int>? get() {
+        if (fromPanel || restoring || replacing) return null
+        val index = phase?.let(plan::indexOf) ?: -1
+        return if (index < 0) null else (index + 1) to plan.size
+    }
+
     val automatic: AutomaticHomeState get() = when {
         !readFailed && (snapshot?.effective == true || snapshot?.roleHolder == "fr.sygix.sygixos" && snapshot.accessibilityConnected && snapshot.overlay && bootEnabled) -> AutomaticHomeState.ACTIVE
-        access == AdbAccessState.UNREACHABLE -> AutomaticHomeState.UNAVAILABLE
+        unreachable -> AutomaticHomeState.UNAVAILABLE
         else -> AutomaticHomeState.TODO
     }
 

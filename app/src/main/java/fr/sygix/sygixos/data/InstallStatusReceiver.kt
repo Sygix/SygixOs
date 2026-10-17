@@ -9,7 +9,21 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
-import fr.sygix.sygixos.SygixOsApp
+
+fun interface InstallStatusClaim {
+    fun claim(status: InstallStatus): Boolean
+}
+
+class InstallStatusRouter(private val claims: List<InstallStatusClaim>, private val fallback: (InstallStatus) -> Unit) {
+
+    fun route(status: InstallStatus) {
+        if (claims.none { it.claim(status) }) fallback(status)
+    }
+}
+
+interface InstallStatusRouting {
+    val installStatusRouter: InstallStatusRouter
+}
 
 class InstallStatusReceiver : BroadcastReceiver() {
 
@@ -19,6 +33,6 @@ class InstallStatusReceiver : BroadcastReceiver() {
             sessionId = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, -1),
             intent = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java),
         )
-        (context.applicationContext as SygixOsApp).updateRepository.onInstallStatus(status)
+        (context.applicationContext as InstallStatusRouting).installStatusRouter.route(status)
     }
 }

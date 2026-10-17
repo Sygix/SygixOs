@@ -2,7 +2,7 @@
 
 ## 1. Vérifications sur la TV de référence avant implémentation
 
-Chaque résultat est consigné dans `design.md`, dans une section « Vérifications sur l'appareil » à créer. On y note les versions, les noms de paquets et les résultats, sans donnée personnelle, modèle exact, numéro de série ni adresse. Les réglages touchés par les essais sont rétablis à la fin.
+Chaque résultat est consigné dans `design.md`, section « Vérifications sur l'appareil ». Une première passe sur émulateur y est consignée (2026-10-17) ; elle ne remplace pas la TV. On y note les versions, les noms de paquets et les résultats, sans donnée personnelle, modèle exact, numéro de série ni adresse. Les réglages touchés par les essais sont rétablis à la fin.
 
 - [ ] 1.1 Guide du débogage, à partir d'options pour les développeurs masquées et du débogage désactivé :
   - lire `DEVELOPMENT_SETTINGS_ENABLED` et `ADB_ENABLED` depuis un APK de vérification ;
@@ -36,43 +36,43 @@ Chaque résultat est consigné dans `design.md`, dans une section « Vérificati
 
 ## 3. Disponibilité et installation de Tsuyu
 
-- [ ] 3.1 Paramétrer `GitHubReleaseSource` par dépôt, et la sélection de version de `UpdateRepository` par asset et réglage des préversions. Conserver le dernier résultat de Tsuyu dans DataStore. Vérifié par des tests JUnit de « Disponibilité de Tsuyu » (release trouvée, aucune release éligible, préversions, échec réseau qui garde le dernier résultat, Tsuyu installé sans réseau) et par les tests existants de `self-update`, inchangés et verts.
-- [ ] 3.2 Paramétrer `ApkInspector` et `UpdateInstaller` par le paquet attendu, avec un certificat de référence égal à celui de SygixOs installé. Vérifié par des tests JUnit qui refusent chaque fichier non conforme sans appeler l'installateur, nettoient les fichiers temporaires et distinguent installé, refusé et échec.
+- [x] 3.1 Paramétrer `GitHubReleaseSource` par dépôt, et la sélection de version de `UpdateRepository` par asset et réglage des préversions. Conserver le dernier résultat de Tsuyu dans DataStore. Vérifié par des tests JUnit de « Disponibilité de Tsuyu » (release trouvée, aucune release éligible, préversions, échec réseau qui garde le dernier résultat, Tsuyu installé sans réseau) et par les tests existants de `self-update`, inchangés et verts.
+- [x] 3.2 Paramétrer `ApkInspector` et `UpdateInstaller` par le paquet attendu, avec un certificat de référence égal à celui de SygixOs installé. Vérifié par des tests JUnit qui refusent chaque fichier non conforme sans appeler l'installateur, nettoient les fichiers temporaires et distinguent installé, refusé et échec.
 
 ## 4. Accès par Tsuyu
 
-- [ ] 4.1 Ajouter la dépendance `dev.rikka.shizuku:api` et `:provider` (13.1.5) dans `gradle/libs.versions.toml`, ainsi que le manifeste de D11. Vérifié par `./gradlew assembleRelease` et la lecture du manifeste fusionné.
-- [ ] 4.2 Introduire `PrivilegedAccess` avec deux implémentations, l'ADB intégré et `ShizukuPrivilegedAccess` avec son service utilisateur AIDL à opérations typées, et partager la construction des arguments. Vérifié par :
+- [x] 4.1 Ajouter la dépendance `dev.rikka.shizuku:api` et `:provider` (13.1.5) dans `gradle/libs.versions.toml`, ainsi que le manifeste de D11. Vérifié par `./gradlew assembleRelease` et la lecture du manifeste fusionné.
+- [x] 4.2 Introduire `SwitchingAccess` avec deux moyens, l'ADB intégré et `TsuyuAccess` avec son service utilisateur AIDL (`PrivilegedOpsService`) qui n'exécute que les formes de commande de `PrivilegedCommands`, et partager la construction des commandes. Vérifié par :
   - des tests JUnit qui comparent les arguments exacts des deux implémentations pour chaque opération ;
   - le refus des cibles hors de l'ensemble fermé ;
   - le lien du service ouvert au début de la séquence et fermé à sa fin ;
   - la perte du binder en cours de séquence.
-- [ ] 4.3 Ajouter `TsuyuState` et le choix du moyen d'accès au début de chaque séquence. Vérifié par des tests JUnit de « États de Tsuyu » et du scénario « Tsuyu actif » de `launcher-shell`.
+- [x] 4.3 Ajouter `TsuyuState` et le choix du moyen d'accès au début de chaque séquence. Vérifié par des tests JUnit de « États de Tsuyu » et du scénario « Tsuyu actif » de `launcher-shell`.
 
 ## 5. Parcours
 
-- [ ] 5.1 Contrôleur du parcours : liste des étapes par façon, étapes déjà faites sautées, repère, passage « Sans Tsuyu », test du port avant le téléchargement. Vérifié par un test JUnit par scénario de « Parcours de l'écran d'accueil » et de « Accès par le débogage ».
-- [ ] 5.2 Écrans 9.1 à 9.3 (première page à trois lignes, guide du débogage en deux temps) avec chaînes françaises et testTags. Vérifié par des tests Compose à la taille d'une TV pour l'ordre, le focus, la navigation, les états et le repère, selon « Sélecteurs de l'écran d'accueil ».
-- [ ] 5.3 Écrans 9.4 à 9.9 (installer, démarrer, autoriser Tsuyu, et leurs erreurs). Vérifié par des tests Compose de « Sélecteurs de Tsuyu » et des tests JUnit de « Couverture du parcours avec Tsuyu » (installation vérifiée, parcours complet, port injoignable, refus).
-- [ ] 5.4 Écrans 9.10 à 9.13 : repère sur la séquence, « Un dernier choix » en lignes avec « Garder » focalisé, variantes avec Tsuyu de « SygixOs garde la main » et « SygixOs est votre écran d'accueil ». Vérifié par des tests Compose et par le scénario « tout par OK », qui échoue avec la sélection de départ de P7.
+- [x] 5.1 Contrôleur du parcours : liste des étapes par façon, étapes déjà faites sautées, repère, passage « Sans Tsuyu », test du port avant le téléchargement. Vérifié par un test JUnit par scénario de « Parcours de l'écran d'accueil » et de « Accès par le débogage ».
+- [x] 5.2 Écrans 9.1 à 9.3 (première page à trois lignes, guide du débogage en deux temps) avec chaînes françaises et testTags. Vérifié par des tests Compose à la taille d'une TV pour l'ordre, le focus, la navigation, les états et le repère, selon « Sélecteurs de l'écran d'accueil ».
+- [x] 5.3 Écrans 9.4 à 9.9 (installer, démarrer, autoriser Tsuyu, et leurs erreurs). Vérifié par des tests Compose de « Sélecteurs de Tsuyu » et des tests JUnit de « Couverture du parcours avec Tsuyu » (installation vérifiée, parcours complet, port injoignable, refus).
+- [x] 5.4 Écrans 9.10 à 9.13 : repère sur la séquence, « Un dernier choix » en lignes avec « Garder » focalisé, variantes avec Tsuyu de « SygixOs garde la main » et « SygixOs est votre écran d'accueil ». Vérifié par des tests Compose et par le scénario « tout par OK », qui échoue avec la sélection de départ de P7.
 
 ## 6. Panneau, désactivation, rétablissement et détails
 
-- [ ] 6.1 Panneau « Launcher principal » : ligne « Tsuyu » et ses actions, « Remplacer complètement l'accueil Google TV », texte de « Relancer la configuration » selon Tsuyu. Vérifié par des tests Compose de 9.14 et 9.15 et le scénario « états de Tsuyu dans le panneau ».
-- [ ] 6.2 Désactivation depuis le panneau (succès, échec annulé avec encadré) et rétablissement par Tsuyu sans écrans du débogage. Vérifié par des tests JUnit et Compose des scénarios « remplacement depuis le panneau », « désactivation partielle annulée » et « rétablissement par Tsuyu ».
-- [ ] 6.3 « Détails » avec les lignes « Tsuyu » et « Réparations automatiques ». Vérifié par un test Compose de 9.16.
+- [x] 6.1 Panneau « Launcher principal » : ligne « Tsuyu » et ses actions, « Remplacer complètement l'accueil Google TV », texte de « Relancer la configuration » selon Tsuyu. Vérifié par des tests Compose de 9.14 et 9.15 et le scénario « états de Tsuyu dans le panneau ».
+- [x] 6.2 Désactivation depuis le panneau (succès, échec annulé avec encadré) et rétablissement par Tsuyu sans écrans du débogage. Vérifié par des tests JUnit et Compose des scénarios « remplacement depuis le panneau », « désactivation partielle annulée » et « rétablissement par Tsuyu ».
+- [x] 6.3 « Détails » avec les lignes « Tsuyu » et « Réparations automatiques ». Vérifié par un test Compose de 9.16.
 
 ## 7. Réparation automatique
 
-- [ ] 7.1 Contrôleur de réparation (D9) : symptômes, conditions, ordre des actions, une tentative par réglage et par démarrage, enregistrement horodaté, aucune action sans symptôme. Vérifié par des tests JUnit de chaque scénario de « Réparation automatique » et « Limites de la réparation automatique », dont un test qui échoue si la réparation se déclenche sur un service désactivé par l'utilisateur.
+- [x] 7.1 Contrôleur de réparation (D9) : symptômes, conditions, ordre des actions, une tentative par réglage et par démarrage, enregistrement horodaté, aucune action sans symptôme. Vérifié par des tests JUnit de chaque scénario de « Réparation automatique » et « Limites de la réparation automatique », dont un test qui échoue si la réparation se déclenche sur un service désactivé par l'utilisateur.
 
 ## 8. Documentation
 
-- [ ] 8.1 README : les trois façons, l'installation de Tsuyu depuis la TV et sa vérification, le débogage qui reste activé avec Tsuyu, la réparation automatique et ses limites, le passage sans Tsuyu, le rétablissement. AGENTS.md et `openspec/config.yaml` : P7 et sa suite marquées livrées. Vérifié par relecture du diff contre les specs, et par l'absence de détail d'environnement (contrôle d'AGENTS.md, « Repo public »).
+- [x] 8.1 README : les trois façons, l'installation de Tsuyu depuis la TV et sa vérification, le débogage qui reste activé avec Tsuyu, la réparation automatique et ses limites, le passage sans Tsuyu, le rétablissement. AGENTS.md et `openspec/config.yaml` : P7 et sa suite marquées livrées. Vérifié par relecture du diff contre les specs, et par l'absence de détail d'environnement (contrôle d'AGENTS.md, « Repo public »).
 
 ## 9. Intégration et livraison
 
-- [ ] 9.1 `./gradlew test` et `./gradlew assembleRelease` verts ; `openspec validate --all --strict` sans erreur pour ce change.
+- [x] 9.1 `./gradlew test` et `./gradlew assembleRelease` verts ; `openspec validate --all --strict` sans erreur pour ce change.
 - [ ] 9.2 Validation sur la TV réelle avec l'APK release et une release de Tsuyu :
   - parcours avec Tsuyu de bout en bout, en ne pressant que OK dans SygixOs ;
   - parcours sans Tsuyu ;

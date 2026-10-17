@@ -29,8 +29,16 @@ class ForegroundTracker : ForegroundState, Application.ActivityLifecycleCallback
     }
 
     override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
-    override fun onActivityResumed(activity: Activity) = Unit
-    override fun onActivityPaused(activity: Activity) = Unit
+    @Volatile var resumed: java.lang.ref.WeakReference<Activity>? = null
+        private set
+
+    override fun onActivityResumed(activity: Activity) {
+        resumed = java.lang.ref.WeakReference(activity)
+    }
+
+    override fun onActivityPaused(activity: Activity) {
+        if (resumed?.get() === activity) resumed = null
+    }
     override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
     override fun onActivityDestroyed(activity: Activity) = Unit
 }

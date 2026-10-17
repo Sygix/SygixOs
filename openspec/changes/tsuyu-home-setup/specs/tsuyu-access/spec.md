@@ -30,7 +30,7 @@ Quand Tsuyu n'est pas installé, ou qu'il est « À mettre à jour », l'étape 
 
 #### Scenario: textes de l'écran
 - **WHEN** l'écran 9.4 s'affiche, Tsuyu n'étant pas installé
-- **THEN** il montre le titre « Installer Tsuyu », la description « Tsuyu est une application gratuite de l'auteur de SygixOs. Elle garde l'accès qui permet à SygixOs de se régler et de se réparer tout seul. », l'étape 1 « Choisissez « Installer Tsuyu » » (détail « SygixOs le télécharge et vérifie qu'il vient bien de son auteur. »), l'étape 2 « Si la TV le demande, autorisez SygixOs » (détail « Activez SygixOs dans la liste des sources, puis revenez avec Retour. »), l'étape 3 « Choisissez « Installer » » (détail « Android confirme l'installation de Tsuyu. »), la ligne « Tsuyu » à l'état « Non installé » (détail « Vérifié avant l'installation ») et « Installer Tsuyu » focalisé
+- **THEN** il montre le titre « Installer Tsuyu », la description « Tsuyu est une application gratuite de l'auteur de SygixOs. Elle garde l'accès qui permet à SygixOs de se régler et de se réparer tout seul. », l'étape 1 « Choisissez « Installer Tsuyu » » (détail « SygixOs le télécharge et vérifie qu'il vient bien de son auteur. »), l'étape 2 « Si la TV le demande, autorisez SygixOs » (détail « Activez SygixOs dans la liste des sources, puis revenez avec Retour. »), l'étape 3 « Choisissez « Installer » » (détail « Android sélectionne d'abord « Annuler » : déplacez-vous sur « Installer ». »), la ligne « Tsuyu » à l'état « Non installé » (détail « Vérifié avant l'installation ») et « Installer Tsuyu » focalisé
 
 #### Scenario: sans Tsuyu
 - **WHEN** l'utilisateur presse OK sur « Sans Tsuyu »
@@ -66,6 +66,10 @@ Un fichier vérifié SHALL être installé par une session d'installation du sys
 - **WHEN** l'utilisateur refuse l'installation, ou revient sans qu'Android ait rendu de statut
 - **THEN** la session est abandonnée et l'écran 9.6 affiche l'encadré « Tsuyu n'a pas été installé »
 
+#### Scenario: autorisation donnée pendant l'installation
+- **WHEN** SygixOs n'était pas autorisé à installer des applications, que l'utilisateur l'autorise depuis l'écran d'Android et qu'Android annule alors la session, comme le fait Android TV
+- **THEN** aucun échec n'est affiché, la ligne « Tsuyu » reste « Installation… » et SygixOs relance une seule fois l'installation dès son retour au premier plan, ce qui affiche directement la confirmation d'Android
+
 #### Scenario: autorisation d'installation déjà donnée
 - **WHEN** SygixOs a déjà été autorisé à installer des applications, par exemple pour sa propre mise à jour
 - **THEN** seule la confirmation d'installation d'Android s'affiche
@@ -90,7 +94,7 @@ Quand Tsuyu est installé mais ne fournit pas l'API Shizuku à SygixOs, l'étape
 
 #### Scenario: textes de l'écran
 - **WHEN** l'écran 9.7 s'affiche
-- **THEN** il montre le titre « Démarrer Tsuyu », la description « Tsuyu s'ouvre. Suivez ces étapes, puis revenez dans SygixOs avec Retour. », l'étape 1 « Choisissez « Démarrer » » (détail « Sur l'écran d'accueil de Tsuyu. »), l'étape 2 « Cochez « Toujours autoriser sur cet ordinateur », puis « Autoriser » » (détail « Android le demande une seule fois, pour Tsuyu. »), l'étape 3 « Activez « Démarrage au redémarrage » » (détail « Tsuyu redémarrera avec la TV. ») et « Ouvrir Tsuyu » focalisé
+- **THEN** il montre le titre « Démarrer Tsuyu », la description « Tsuyu s'ouvre. Suivez ces étapes, puis revenez dans SygixOs avec Retour. », l'étape 1 « Choisissez « Démarrer » » (détail « Sur l'écran d'accueil de Tsuyu. »), l'étape 2 « Choisissez « Activer Tsuyu » » (détail « Tsuyu redémarrera ainsi avec la TV. »), l'étape 3 « Cochez « Toujours autoriser sur cet ordinateur », puis « Autoriser » » (détail « Android le demande une seule fois, pour Tsuyu. ») et « Ouvrir Tsuyu » focalisé
 
 #### Scenario: Tsuyu démarré
 - **WHEN** l'utilisateur revient dans SygixOs et que Tsuyu fournit l'API Shizuku dans le délai d'attente
@@ -121,10 +125,10 @@ Quand Tsuyu est actif et que SygixOs n'y est pas autorisé, l'étape « Autorise
 
 #### Scenario: Tsuyu ne demande plus
 - **WHEN** l'API Shizuku indique que Tsuyu ne présentera plus de demande pour SygixOs
-- **THEN** l'encadré a le détail « Tsuyu a gardé votre refus. Ouvrez Tsuyu pour changer ce choix, puis revenez. » et le bouton focalisé est « Ouvrir Tsuyu » à la place de « Réessayer »
+- **THEN** l'encadré a le détail « Tsuyu a gardé votre refus et ne le redemandera pas. Continuez sans Tsuyu : SygixOs se configure avec le débogage. » et le bouton focalisé est « Sans Tsuyu » à la place de « Réessayer » ; OK sur ce bouton poursuit la configuration automatique sans Tsuyu
 
 ### Requirement: Accès privilégié par Tsuyu
-Quand Tsuyu fournit l'API Shizuku et y autorise SygixOs, SygixOs SHALL exécuter les opérations fixes de « Opérations privilégiées limitées » (`launcher-shell`) par Tsuyu, dans un service propre à SygixOs, lancé avec l'identité du shell. Ce service SHALL n'accepter que ces opérations typées. Il SHALL être lancé au début de chaque séquence et arrêté à sa fin. Un accès perdu pendant une séquence SHALL être traité comme un débogage perdu (`launcher-shell`).
+Quand Tsuyu fournit l'API Shizuku et y autorise SygixOs, SygixOs SHALL exécuter les opérations fixes de « Opérations privilégiées limitées » (`launcher-shell`) par Tsuyu, dans un service propre à SygixOs à l'identité du shell. Ce service SHALL refuser toute commande dont la forme exacte n'est pas celle d'une de ces opérations. Il SHALL être lancé au début de chaque séquence et arrêté à sa fin. Un accès perdu pendant une séquence SHALL être traité comme un débogage perdu (`launcher-shell`).
 
 #### Scenario: séquence par Tsuyu
 - **WHEN** une séquence de configuration démarre alors que Tsuyu est actif et que SygixOs y est autorisé

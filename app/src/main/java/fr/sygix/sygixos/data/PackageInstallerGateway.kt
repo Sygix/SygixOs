@@ -51,13 +51,16 @@ sealed interface InstallStatus {
     }
 }
 
-class SystemPackageInstallerGateway(private val context: Context) : PackageInstallerGateway {
+class SystemPackageInstallerGateway(
+    private val context: Context,
+    private val packageName: String = context.packageName,
+) : PackageInstallerGateway {
 
     private val installer: PackageInstaller get() = context.packageManager.packageInstaller
 
     override fun create(size: Long): InstallSession {
         val params = PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
-            setAppPackageName(context.packageName)
+            setAppPackageName(packageName)
             setSize(size)
             setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
         }
