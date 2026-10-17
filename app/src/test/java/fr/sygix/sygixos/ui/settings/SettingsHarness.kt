@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import androidx.datastore.preferences.core.edit
+import fr.sygix.sygixos.data.dataStore
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -60,12 +62,7 @@ internal class SettingsHarness(
 
     init {
         runBlocking {
-            prefs.setDisabledSources(emptySet())
-            prefs.setHidden(emptySet())
-            prefs.setPinned(emptySet())
-            prefs.setGridOrder(emptyList())
-            prefs.setCachedApps(emptyList())
-            prefs.removed.first().forEach { prefs.restoreRemoved(it.key) }
+            context.dataStore.edit { it.clear() }
         }
     }
 

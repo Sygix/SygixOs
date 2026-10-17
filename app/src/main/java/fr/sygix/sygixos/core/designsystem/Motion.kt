@@ -7,7 +7,6 @@ package fr.sygix.sygixos.core.designsystem
 
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.ceil
@@ -25,7 +24,6 @@ object Motion {
     const val HERO_VIDEO_START_TIMEOUT_MS = 12_000L
     const val HERO_VISUAL_TIMEOUT_MS = 1_000L
     const val LONG_PRESS_MS = 450L
-    const val SHELF_SCROLL_MS = 400
     const val SHELF_OPEN_DELAY_MS = 3_000L
     const val SHELF_PREPARE_DELAY_MS = 500L
     const val SHELF_EXPAND_MS = 420
@@ -87,7 +85,6 @@ object Dimens {
     val DockCorner = 24.dp
     val DockTileWidth = 120.dp
     const val ShelfAspectRatio = 1920f / 720f
-    val ShelfPeek = 40.dp
     val Hairline = 0.5.dp
     val GlassShadowOffset = 6.dp
     val GlassShadowRadius = 16.dp
@@ -147,18 +144,4 @@ object Dimens {
     val HeroSourceIconCorner = 4.5.dp
     val QrSize = 120.dp
     val SplashMascot = 180.dp
-
-    val Nested: List<NestedCorner> = listOf(
-        NestedCorner("dropdown-option", outer = DropdownCorner, inner = DropdownOptionCorner, margin = DropdownPadding),
-        NestedCorner("card-badge", outer = TileCorner, inner = UpNextBadgeCorner, margin = UpNextBadgeInset),
-        NestedCorner("menu-entry-icon", outer = PillCorner, inner = MenuEntryIconCorner, margin = (MenuActionHeight - MenuEntryIcon) / 2),
-        NestedCorner("dock-tile", outer = DockCorner, inner = TileCorner, margin = DockPadding),
-        NestedCorner("capsule-gear", outer = CapsuleHeight / 2, inner = GearButton / 2, margin = CapsulePadding),
-        NestedCorner("menu-pill", outer = MenuCorner, inner = PillCorner, margin = MenuPadding),
-        NestedCorner("menu-thumbnail", outer = MenuCorner, inner = MenuThumbnailCorner, margin = MenuPadding + MenuHeaderInsetTop),
-        NestedCorner("settings-row-thumbnail", outer = SettingsRowCorner, inner = SettingsThumbCorner, margin = (SettingsRowHeight - SettingsThumbHeight) / 2),
-        NestedCorner("setup-row", outer = OnboardingCorner, inner = SettingsRowCorner, margin = OnboardingPadding),
-    )
 }
-
-data class NestedCorner(val name: String, val outer: Dp, val inner: Dp, val margin: Dp)

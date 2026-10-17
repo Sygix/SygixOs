@@ -64,7 +64,7 @@ class AppArtworkSourceTest {
     }
 
     @Test fun preloadFillsTheBudgetInOrderWithoutEvicting() {
-        val source = AppArtworkSource(pm, maxBytes = ImageBounds.MAX_ARTWORK_WIDTH * ImageBounds.MAX_ARTWORK_HEIGHT * 4 + 2 * ICON_BYTES)
+        val source = AppArtworkSource(pm, maxBytes = ImageBounds.tile(ImageBounds.MAX_ARTWORK_WIDTH).let { it.width * it.height } * 4 + 2 * ICON_BYTES)
         val catalog = apps(5)
         source.preload(catalog)
         val kept = catalog.map(source::cached)

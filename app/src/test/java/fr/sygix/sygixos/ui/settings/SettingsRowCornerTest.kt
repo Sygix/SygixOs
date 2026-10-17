@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.NestedCorners
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.domain.QrCode
 import fr.sygix.sygixos.model.TvApp
@@ -50,7 +51,7 @@ class SettingsRowCornerTest {
         val density = compose.density.density
         val row = compose.onNodeWithTag("hidden-row-com.row").fetchSemanticsNode().boundsInRoot
         val thumbnail = compose.onNodeWithTag("app-thumbnail-com.row", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
-        val pair = Dimens.Nested.first { it.name == "settings-row-thumbnail" }
+        val pair = NestedCorners.first { it.name == "settings-row-thumbnail" }
         assertEquals(Dimens.SettingsRowHeight.value * density, row.height, 1f)
         assertEquals(pair.margin.value * density, thumbnail.top - row.top, 1f)
         assertEquals(pair.margin.value * density, row.bottom - thumbnail.bottom, 1f)

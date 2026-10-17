@@ -45,9 +45,9 @@ class LauncherProjectionTest {
         val positions = mutableListOf<UpNextPosition>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { prefs.disabledSources.collect { sources += it } }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { prefs.upNextPosition.collect { positions += it } }
-        prefs.setPinned(setOf("com.app"))
+        prefs.updatePinned { setOf("com.app") }
         prefs.setUpNextVisible(false)
-        prefs.setDisabledSources(setOf("com.disabled"))
+        prefs.updateDisabledSources { setOf("com.disabled") }
         prefs.setUpNextPosition(UpNextPosition.AFTER_APPS)
         assertEquals(listOf(emptySet<String>(), setOf("com.disabled")), sources)
         assertEquals(listOf(UpNextPosition.BEFORE_APPS, UpNextPosition.AFTER_APPS), positions)
@@ -64,7 +64,7 @@ class LauncherProjectionTest {
         prefs.setBootStartEnabled(true, 1)
         prefs.setUpNextPosition(UpNextPosition.AFTER_APPS)
         assertEquals(List(flows.size) { 1 }, emissions.toList())
-        prefs.setHidden(setOf("com.hidden"))
+        prefs.hideApps("com.hidden")
         assertEquals(listOf(1, 2, 2, 1, 1, 1), emissions.toList())
     }
 

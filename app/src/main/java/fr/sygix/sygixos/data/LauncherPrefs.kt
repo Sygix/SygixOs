@@ -6,7 +6,6 @@
 package fr.sygix.sygixos.data
 
 import android.content.Context
-import androidx.annotation.VisibleForTesting
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
@@ -28,7 +27,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
-@VisibleForTesting
 internal val Context.dataStore by preferencesDataStore(name = "launcher")
 
 class LauncherPrefs(
@@ -187,8 +185,6 @@ class LauncherPrefs(
 
     val pinned: Flow<Set<String>> = projection { it[pinnedKey] ?: emptySet() }
 
-    // Ensemble des apps sources désactivées ; vide/absent = toutes activées (défaut,
-    // une app installée plus tard est donc activée sans migration).
     val disabledSources: Flow<Set<String>> = projection { it[disabledSourcesKey] ?: emptySet() }
 
     val hidden: Flow<Set<String>> = projection { it[hiddenKey] ?: emptySet() }
@@ -196,10 +192,6 @@ class LauncherPrefs(
     val hiddenWithDates: Flow<Map<String, Long?>> = projection { prefs ->
         val dates = hiddenDates(prefs)
         (prefs[hiddenKey] ?: emptySet()).associateWith { dates[it] }
-    }
-
-    suspend fun setDisabledSources(disabled: Set<String>) {
-        store.edit { it[disabledSourcesKey] = disabled }
     }
 
     suspend fun updateDisabledSources(transform: (Set<String>) -> Set<String>) {
@@ -217,10 +209,6 @@ class LauncherPrefs(
         }
     }
 
-    suspend fun setHidden(hidden: Set<String>) {
-        store.edit { prefs -> writeHidden(prefs, hidden, hiddenDates(prefs)) }
-    }
-
     val gridOrder: Flow<List<String>> = projection { prefs ->
         prefs[orderKey]?.split(LINE)?.filter { it.isNotEmpty() } ?: emptyList()
     }
@@ -231,10 +219,6 @@ class LauncherPrefs(
             if (parts.size < 2 || parts[0].isEmpty()) null
             else TvApp(packageName = parts[0], label = parts[1], activityName = parts.getOrNull(2)?.takeIf { it.isNotEmpty() })
         }
-    }
-
-    suspend fun setPinned(packages: Set<String>) {
-        store.edit { it[pinnedKey] = packages }
     }
 
     suspend fun hideApps(vararg packages: String) {

@@ -17,6 +17,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.NestedCorner
+import fr.sygix.sygixos.core.designsystem.NestedCorners
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -34,7 +35,7 @@ class ConcentricLayoutTest {
 
     private fun px(dp: Dp): Float = dp.value * compose.density.density
 
-    private fun nested(name: String): NestedCorner = Dimens.Nested.first { it.name == name }
+    private fun nested(name: String): NestedCorner = NestedCorners.first { it.name == name }
 
     @Test
     fun `dock tiles sit at the declared margin from the dock edges`() {

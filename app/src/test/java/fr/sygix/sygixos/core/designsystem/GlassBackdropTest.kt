@@ -26,10 +26,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -154,22 +153,13 @@ class GlassBackdropTest {
     }
 
     @Test
-    fun `missing blurred copy falls back to the live glass`() {
+    fun `backdrop is ready only once every poster has its blurred copy`() {
         val backdrop = GlassBackdrop()
+        assertFalse(backdrop.ready)
         val layer = backdrop.layer("poster")
         layer.image = Bitmap.createBitmap(64, 36, Bitmap.Config.ARGB_8888).asImageBitmap()
-        runBlocking { layer.fade.snapTo(1f) }
-        compose.setContent {
-            val haze = rememberHazeState()
-            CompositionLocalProvider(LocalHazeState provides haze, LocalGlassBackdrop provides backdrop) {
-                Box(Modifier.fillMaxSize().hazeSource(haze).glassBackdropOrigin(backdrop)) {
-                    GlassSurface(Modifier.testTag("glass").size(100.dp)) {}
-                }
-            }
-        }
-        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassActive, true))
-        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassPrecomputed, false))
-        compose.runOnIdle { layer.blurred = Bitmap.createBitmap(8, 4, Bitmap.Config.ARGB_8888).asImageBitmap() }
-        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassPrecomputed, true))
+        assertFalse(backdrop.ready)
+        layer.blurred = Bitmap.createBitmap(8, 4, Bitmap.Config.ARGB_8888).asImageBitmap()
+        assertTrue(backdrop.ready)
     }
 }

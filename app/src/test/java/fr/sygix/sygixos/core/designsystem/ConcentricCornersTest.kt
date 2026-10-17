@@ -5,17 +5,34 @@
 
 package fr.sygix.sygixos.core.designsystem
 
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+internal data class NestedCorner(val name: String, val outer: Dp, val inner: Dp, val margin: Dp)
+
+internal val NestedCorners: List<NestedCorner> = with(Dimens) {
+    listOf(
+        NestedCorner("dropdown-option", outer = DropdownCorner, inner = DropdownOptionCorner, margin = DropdownPadding),
+        NestedCorner("card-badge", outer = TileCorner, inner = UpNextBadgeCorner, margin = UpNextBadgeInset),
+        NestedCorner("menu-entry-icon", outer = PillCorner, inner = MenuEntryIconCorner, margin = (MenuActionHeight - MenuEntryIcon) / 2),
+        NestedCorner("dock-tile", outer = DockCorner, inner = TileCorner, margin = DockPadding),
+        NestedCorner("capsule-gear", outer = CapsuleHeight / 2, inner = GearButton / 2, margin = CapsulePadding),
+        NestedCorner("menu-pill", outer = MenuCorner, inner = PillCorner, margin = MenuPadding),
+        NestedCorner("menu-thumbnail", outer = MenuCorner, inner = MenuThumbnailCorner, margin = MenuPadding + MenuHeaderInsetTop),
+        NestedCorner("settings-row-thumbnail", outer = SettingsRowCorner, inner = SettingsThumbCorner, margin = (SettingsRowHeight - SettingsThumbHeight) / 2),
+        NestedCorner("setup-row", outer = OnboardingCorner, inner = SettingsRowCorner, margin = OnboardingPadding),
+    )
+}
+
 class ConcentricCornersTest {
 
     @Test
     fun `every nested corner is the inner corner plus the margin between both edges`() {
-        assertTrue(Dimens.Nested.isNotEmpty())
-        Dimens.Nested.forEach { nested ->
+        assertTrue(NestedCorners.isNotEmpty())
+        NestedCorners.forEach { nested ->
             assertEquals(nested.name, (nested.inner + nested.margin).value, nested.outer.value, 0.001f)
             assertTrue(nested.name, nested.inner.value >= 0f)
         }
@@ -25,7 +42,7 @@ class ConcentricCornersTest {
     fun `declared pairs cover every nesting of the home and settings`() {
         assertEquals(
             setOf("dock-tile", "capsule-gear", "menu-pill", "menu-thumbnail", "settings-row-thumbnail", "dropdown-option", "card-badge", "menu-entry-icon", "setup-row"),
-            Dimens.Nested.map { it.name }.toSet(),
+            NestedCorners.map { it.name }.toSet(),
         )
     }
 
@@ -43,7 +60,7 @@ class ConcentricCornersTest {
     @Test
     fun `capsule and gear are pills`() {
         assertEquals(Dimens.GearButton + Dimens.CapsulePadding * 2, Dimens.CapsuleHeight)
-        val capsule = Dimens.Nested.first { it.name == "capsule-gear" }
+        val capsule = NestedCorners.first { it.name == "capsule-gear" }
         assertEquals(Dimens.CapsuleHeight / 2, capsule.outer)
         assertEquals(Dimens.GearButton / 2, capsule.inner)
     }

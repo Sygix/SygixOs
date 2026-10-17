@@ -185,9 +185,9 @@ class HomeViewModelUpNextTest {
         repo.setUpNextPosition(UpNextPosition.AFTER_APPS)
         repo.setUpNextVisible(true)
         vm.state.await { it is HomeState.Ready && it.upNext?.position == UpNextPosition.AFTER_APPS }
-        repo.setSourceEnabled(item.source.packageName, false)
+        repo.toggleSource(item.source.packageName)
         vm.state.await { it is HomeState.Ready && it.upNext == null }
-        repo.setSourceEnabled(item.source.packageName, true)
+        repo.toggleSource(item.source.packageName)
         awaitItems(listOf(item))
         Unit
     }

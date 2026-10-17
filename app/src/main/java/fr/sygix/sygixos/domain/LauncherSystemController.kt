@@ -83,9 +83,7 @@ class LauncherSystemController(
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                Unit
-            }
+            } catch (_: Exception) {}
         }
     }
 

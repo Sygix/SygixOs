@@ -55,7 +55,6 @@ import fr.sygix.sygixos.domain.StartupSession
 
 open class SygixOsApp : Application(), ImageLoaderFactory {
 
-    // Conteneur app-scope : une seule instance partagée par les deux ViewModel Factories.
     val installedAppsSource: InstalledAppsSource by lazy { InstalledAppsSource(this) }
     val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
     val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
@@ -86,7 +85,6 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
                 launcherPrefs.setBootStartEnabled(true, bootCount())
                 kotlinx.coroutines.withTimeout(10_000) { launcherPrefs.launcherSystem.first { it.bootStart.enabled } }
             },
-            refreshManual = {},
             openDebug = {
                 listOf(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, Settings.ACTION_DEVICE_INFO_SETTINGS).any { action ->
                     runCatching {

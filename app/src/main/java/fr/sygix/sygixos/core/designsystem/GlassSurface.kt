@@ -43,9 +43,6 @@ val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
 val GlassActive = SemanticsPropertyKey<Boolean>("GlassActive")
 var SemanticsPropertyReceiver.glassActive by GlassActive
 
-val GlassPrecomputed = SemanticsPropertyKey<Boolean>("GlassPrecomputed")
-var SemanticsPropertyReceiver.glassPrecomputed by GlassPrecomputed
-
 @Immutable
 data class GlassLook(
     val tint: Color,
@@ -84,10 +81,7 @@ fun GlassSurface(
     }
     Box(
         modifier = modifier
-            .semantics {
-                glassActive = glass
-                glassPrecomputed = backdrop != null && active
-            }
+            .semantics { glassActive = glass }
             .dropShadow(shape, Shadow(radius = look.shadowRadius, color = look.shadow, offset = DpOffset(0.dp, look.shadowOffset)))
             .border(Dimens.Hairline, SygixColors.GlassBorder, shape)
             .then(

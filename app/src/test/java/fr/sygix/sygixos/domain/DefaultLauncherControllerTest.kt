@@ -35,7 +35,7 @@ class DefaultLauncherControllerTest {
         var closed = 0
         val readReplies = ArrayDeque<CompletableDeferred<Result<HomeScreenSnapshot>>>()
         val calls = mutableListOf<String>()
-        val controller = DefaultLauncherController(this, this, this, this, scope, { boot = true }, {}, { true }, verificationMs = 300)
+        val controller = DefaultLauncherController(this, this, this, this, scope, { boot = true }, { true }, verificationMs = 300)
         override fun debugEnabled() = debug
         override fun previouslyAuthorized() = authorized
         override suspend fun connect(): Result<Unit> { calls += "connect"; state.value = if (connectFailure) AdbAccessState.UNREACHABLE else AdbAccessState.READY; return if (connectFailure) Result.failure(IllegalStateException()) else Result.success(Unit) }

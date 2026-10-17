@@ -53,7 +53,6 @@ class HideFlowTest {
         compose.waitForIdle()
         compose.onNodeWithTag("app-tile-com.hide").assertExists()
 
-        // Menu contextuel = appui long sur OK.
         compose.mainClock.autoAdvance = false
         compose.onRoot().performKeyInput { keyDown(Key.DirectionCenter) }
         compose.mainClock.advanceTimeBy(Motion.LONG_PRESS_MS + 100)

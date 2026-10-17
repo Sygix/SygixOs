@@ -7,15 +7,9 @@ package fr.sygix.sygixos.ui.hero
 
 import android.util.Log
 import android.view.TextureView
-import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.graphics.RadialGradientShader
-import androidx.compose.ui.graphics.Shader
-import androidx.compose.ui.graphics.ShaderBrush
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.glassRim
@@ -41,7 +35,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -60,7 +53,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
@@ -75,8 +67,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
@@ -221,7 +211,7 @@ fun HeroStage(
         when {
             visible && item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
             visible && player.loadedItem in slowVisuals -> player.park()
-            keepVideo && showVideo && player.loadedItem == item?.id -> player.park()
+            keepVideo && showVideo && player.loadedItem == item.id -> player.park()
             else -> player.clear()
         }
         onStopOrDispose { }

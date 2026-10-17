@@ -115,7 +115,7 @@ class LauncherViewModelRule : ExternalResource() {
             override suspend fun record(step: SetupStep) = Unit
         }
         return DefaultLauncherController(access, PrivilegedShell(access, reader, 0, { null }, { false }), reader, memory, scope,
-            enableBoot = { store.setBootStartEnabled(true, null) }, refreshManual = {}, openDebug = { false })
+            enableBoot = { store.setBootStartEnabled(true, null) }, openDebug = { false })
     }
 
     override fun after() {

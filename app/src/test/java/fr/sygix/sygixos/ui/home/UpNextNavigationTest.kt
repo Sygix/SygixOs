@@ -27,7 +27,6 @@ import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.domain.UpNextContent
 import fr.sygix.sygixos.domain.UpNextReturn
 import fr.sygix.sygixos.domain.UpNextState
-import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem

@@ -82,7 +82,6 @@ class AppCatalogRepository(
 
     suspend fun setGridOrder(order: List<String>) {
         val apps = installed.value ?: return prefs.setGridOrder(order)
-        // Restauration depuis la liste visible : les packages cachés gardent leur position.
         prefs.updateGridOrder { current, hidden -> withHiddenKept(apps, current, hidden, order) }
     }
 
@@ -106,14 +105,6 @@ class AppCatalogRepository(
         prefs.unhideApps(*packages.toTypedArray())
     }
 
-    suspend fun isSourceEnabled(packageName: String): Boolean =
-        packageName !in prefs.disabledSources.first()
-
-    suspend fun setSourceEnabled(packageName: String, enabled: Boolean) {
-        prefs.updateDisabledSources { disabled -> if (enabled) disabled - packageName else disabled + packageName }
-    }
-
-    // Bascule atomique : lecture et écriture dans la même transaction DataStore.
     suspend fun toggleSource(packageName: String) {
         prefs.updateDisabledSources { disabled ->
             if (packageName in disabled) disabled - packageName else disabled + packageName

@@ -14,14 +14,12 @@ import fr.sygix.sygixos.data.UpdateHarness.Companion.HOUR
 import fr.sygix.sygixos.data.UpdateHarness.Companion.LIST_URL
 import fr.sygix.sygixos.data.UpdateHarness.Companion.tagUrl
 import fr.sygix.sygixos.domain.CheckResult
-import fr.sygix.sygixos.domain.InstallDetail
 import fr.sygix.sygixos.domain.InstallFailure
 import fr.sygix.sygixos.domain.UpdateError
 import fr.sygix.sygixos.domain.UpdateStatusText
 import fr.sygix.sygixos.domain.UpdateStep
 import fr.sygix.sygixos.domain.asset
 import fr.sygix.sygixos.domain.release
-import java.io.IOException
 import javax.net.ssl.SSLException
 import javax.net.ssl.SSLHandshakeException
 import kotlinx.coroutines.runBlocking

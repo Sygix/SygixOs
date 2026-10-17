@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.datastore.preferences.core.edit
+import fr.sygix.sygixos.data.dataStore
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import androidx.activity.ComponentActivity
@@ -96,15 +98,10 @@ class HomeScreenStartupTest {
     fun resetImageLoader() = Coil.reset()
 
     private fun readyViewModel(): HomeViewModel = runBlocking {
-        val prefs = LauncherPrefs(context)
-        prefs.setDisabledSources(emptySet())
-        prefs.setHidden(emptySet())
-        prefs.setPinned(emptySet())
-        prefs.setGridOrder(emptyList())
-        prefs.setCachedApps(emptyList())
+        context.dataStore.edit { it.clear() }
         val loader = WidePosterLoader()
         Coil.setImageLoader(loader)
-        val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
+        val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
         val vm = mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(PosterFeed(listOf(heroItem("h1", "Programme", imageUrl = poster))), PosterFeed(emptyList())),

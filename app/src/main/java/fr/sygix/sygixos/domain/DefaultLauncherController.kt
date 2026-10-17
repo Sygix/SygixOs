@@ -35,7 +35,6 @@ class DefaultLauncherController(
     private val store: DefaultLauncherStore,
     private val scope: CoroutineScope,
     private val enableBoot: suspend () -> Unit,
-    private val refreshManual: () -> Unit,
     private val openDebug: () -> Boolean,
     private val verificationMs: Long = 3_000,
 ) {
@@ -57,7 +56,6 @@ class DefaultLauncherController(
         }
         scope.launch {
             refreshSnapshot()
-            refreshManual()
             try {
                 val memory = store.loadMemory()
                 mutableState.update { it.copy(modifications = memory.modifications) }
@@ -166,7 +164,6 @@ class DefaultLauncherController(
         step(SetupStep.ACCESSIBILITY) { operations.enableAccessibility() }
         step(SetupStep.OVERLAY) { operations.grantOverlay() }
         step(SetupStep.BOOT) { enableBoot(); mutableState.update { it.copy(bootEnabled = true) }; Result.success(Unit) }
-        refreshManual()
         refreshSnapshot()
         show(if (state.value.error) SetupScreen.FAILED else SetupScreen.FALLBACK)
     }
@@ -220,7 +217,6 @@ class DefaultLauncherController(
                 access.close()
                 refreshSnapshot()
                 mutableState.update { it.copy(busy = false) }
-                refreshManual()
             }
         }
     }

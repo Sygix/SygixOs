@@ -23,23 +23,13 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.SygixOsTheme
 import fr.sygix.sygixos.data.AppArtworkSource
@@ -50,14 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.annotation.Config
-import org.robolectric.annotation.GraphicsMode
-import kotlin.math.abs
 
 internal class SlowMotion(override val scaleFactor: Float) : MotionDurationScale
 

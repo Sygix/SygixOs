@@ -264,7 +264,7 @@ internal fun HomeGrid(
                     focusRequester = focusRequester,
                     entryApp = entryApp?.takeIf { entry -> rowApps.any { it.packageName == entry } },
                     movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
-                    shelfUris = if (rowIndex == openRow) shelf?.uris.orEmpty() else NoShelf,
+                    shelfUris = if (rowIndex == openRow) shelf?.uris.orEmpty() else emptyList(),
                     posterSize = posterSize,
                     onTileClick = onTileClick,
                     onTileLongClick = onTileLongClick,
@@ -289,8 +289,6 @@ private fun SectionTitle(@StringRes resource: Int, tag: String, padded: Boolean 
         modifier = Modifier.onSizeChanged { onHeight(it.height.toFloat()) }.testTag(tag)
             .padding(start = if (padded) Dimens.ScreenMarginH else 0.dp, bottom = Dimens.SectionTitleGap))
 }
-
-private val NoShelf: List<String> = emptyList()
 
 private data class Shelf(val app: String, val uris: List<String>)
 

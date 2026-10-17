@@ -19,7 +19,6 @@ import fr.sygix.sygixos.data.HeroRepository
 import fr.sygix.sygixos.data.MascotAnimationSource
 import fr.sygix.sygixos.data.SettingsMotionSource
 import fr.sygix.sygixos.data.NatureFallbackProvider
-import fr.sygix.sygixos.data.RawMascotAnimationSource
 import fr.sygix.sygixos.data.SystemClockSource
 import fr.sygix.sygixos.data.UpdateController
 import fr.sygix.sygixos.data.SystemMotionSource

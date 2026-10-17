@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.datastore.preferences.core.edit
+import fr.sygix.sygixos.data.dataStore
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import androidx.test.core.app.ApplicationProvider
@@ -76,13 +78,8 @@ class StartupValidationTest {
     private val uris = (1..3).map { "https://example.invalid/p$it.jpg" }
 
     @Before
-    fun resetPrefs() = runBlocking {
-        val prefs = LauncherPrefs(context)
-        prefs.setDisabledSources(emptySet())
-        prefs.setHidden(emptySet())
-        prefs.setPinned(emptySet())
-        prefs.setGridOrder(emptyList())
-        prefs.setCachedApps(emptyList())
+    fun resetPrefs() {
+        runBlocking { context.dataStore.edit { it.clear() } }
     }
 
     private fun viewModel(session: StartupSession, loader: CountingLoader): HomeViewModel {

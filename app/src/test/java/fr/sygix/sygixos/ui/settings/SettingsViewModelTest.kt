@@ -69,10 +69,10 @@ class SettingsViewModelTest {
         vm.state.await { it.sources.size == 1 }
         vm.toggleSource("com.a")
         assertFalse(vm.state.await { !it.sources.single().enabled }.sources.single().enabled)
-        assertFalse(h.repo.isSourceEnabled("com.a"))
+        assertEquals(setOf("com.a"), h.repo.disabledSources.first())
         vm.toggleSource("com.a")
         assertTrue(vm.state.await { it.sources.single().enabled }.sources.single().enabled)
-        assertTrue(h.repo.isSourceEnabled("com.a"))
+        assertEquals(emptySet<String>(), h.repo.disabledSources.first())
     }
 
     @Test

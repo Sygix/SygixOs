@@ -31,12 +31,8 @@ class LauncherPrefsTest {
     private val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
 
     @Before
-    fun resetState() = runBlocking {
-        prefs.setDisabledSources(emptySet())
-        prefs.setHidden(emptySet())
-        prefs.setPinned(emptySet())
-        prefs.setGridOrder(emptyList())
-        prefs.setCachedApps(emptyList())
+    fun resetState() {
+        runBlocking { context.dataStore.edit { it.clear() } }
     }
 
     private suspend fun seedApps(vararg packages: String) {
@@ -45,54 +41,43 @@ class LauncherPrefsTest {
     }
 
     @Test
-    fun `sources are enabled by default and unknown source appears enabled`() = runBlocking {
-        assertEquals(emptySet<String>(), prefs.disabledSources.first())
-        assertTrue(repo.isSourceEnabled("com.any"))
-    }
-
-    @Test
-    fun `toggling a source disables it and re-enabling restores the default`() = runBlocking {
+    fun `toggling a source disables it and toggling again restores the default`() = runBlocking {
         seedApps("com.a", "com.b")
-        repo.setSourceEnabled("com.a", false)
-        assertFalse(repo.isSourceEnabled("com.a"))
-        assertTrue(repo.isSourceEnabled("com.b"))
-        repo.setSourceEnabled("com.a", true)
         assertEquals(emptySet<String>(), prefs.disabledSources.first())
-        assertTrue(repo.isSourceEnabled("com.a"))
+        repo.toggleSource("com.a")
+        assertEquals(setOf("com.a"), prefs.disabledSources.first())
+        repo.toggleSource("com.a")
+        assertEquals(emptySet<String>(), prefs.disabledSources.first())
     }
 
     @Test
     fun `hiding an app removes its pin atomically`() = runBlocking {
         seedApps("com.a", "com.b")
-        prefs.setPinned(setOf("com.a", "com.b"))
+        prefs.updatePinned { setOf("com.a", "com.b") }
         repo.hideApp("com.a")
         assertTrue(prefs.hidden.first().contains("com.a"))
         assertFalse(prefs.pinned.first().contains("com.a"))
     }
 
     @Test
-    fun `unhide restores the app in the grid and clearing the hidden set clears everything`() = runBlocking {
+    fun `unhide restores the app in the grid`() = runBlocking {
         seedApps("com.a", "com.b")
-        prefs.setPinned(setOf("com.a", "com.b"))
+        prefs.updatePinned { setOf("com.a", "com.b") }
         repo.hideApp("com.a")
         assertEquals(listOf("com.b"), repo.catalog.first().grid.map { it.packageName })
         assertEquals(listOf("com.b"), repo.catalog.first().dock.map { it.packageName })
         repo.unhideApps(listOf("com.a"))
         assertTrue(repo.catalog.first().grid.map { it.packageName }.contains("com.a"))
-        repo.hideApp("com.b")
-        prefs.setHidden(emptySet())
-        assertEquals(emptySet<String>(), prefs.hidden.first())
     }
 
     @Test
     fun `app reappearing in the cache stays hidden and source state is kept`() = runBlocking {
         seedApps("com.a", "com.b")
-        repo.setSourceEnabled("com.a", false)
+        repo.toggleSource("com.a")
         repo.hideApp("com.a")
-        // Re-scan identique : l'app cachée reste cachée, la source reste désactivée.
         seedApps("com.a", "com.b")
         assertTrue(prefs.hidden.first().contains("com.a"))
-        assertFalse(repo.isSourceEnabled("com.a"))
+        assertEquals(setOf("com.a"), prefs.disabledSources.first())
     }
 
     @Test
@@ -128,7 +113,7 @@ class LauncherPrefsTest {
         repo.setGridOrder(listOf("com.a", "com.c"))
         assertEquals(listOf("com.a", "com.b", "com.c"), prefs.gridOrder.first())
         assertEquals(listOf("com.a", "com.c"), repo.catalog.first().grid.map { it.packageName })
-        prefs.setHidden(emptySet())
+        prefs.unhideApps("com.b")
         repo.setGridOrder(listOf("com.c", "com.a", "com.b"))
         assertEquals(listOf("com.c", "com.a", "com.b"), prefs.gridOrder.first())
     }
@@ -153,14 +138,6 @@ class LauncherPrefsTest {
         prefs.hideApps("com.a")
         assertEquals(mapOf("com.a" to 20L), prefs.hiddenWithDates.first())
         assertEquals("com.a\t20", context.dataStore.data.first()[datesKey])
-    }
-
-    @Test
-    fun `clearing the hidden set clears the dates too`() = runBlocking {
-        prefs.hideApps("com.a", "com.b")
-        prefs.setHidden(emptySet())
-        assertEquals(emptyMap<String, Long?>(), prefs.hiddenWithDates.first())
-        assertNull(context.dataStore.data.first()[datesKey])
     }
 
     @Test
@@ -195,7 +172,7 @@ class LauncherPrefsTest {
     @Test
     fun `toggling an app hides it with a date and unpins it, toggling again unhides it`() = runBlocking {
         seedApps("com.a", "com.b")
-        prefs.setPinned(setOf("com.a", "com.b"))
+        prefs.updatePinned { setOf("com.a", "com.b") }
         now = 30L
         repo.toggleHidden("com.a")
         assertEquals(mapOf<String, Long?>("com.a" to 30L), prefs.hiddenWithDates.first())

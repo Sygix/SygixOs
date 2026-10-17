@@ -9,6 +9,7 @@ import android.content.Context
 import android.database.MatrixCursor
 import android.media.tv.TvContract
 import androidx.test.core.app.ApplicationProvider
+import fr.sygix.sygixos.model.playbackRatio
 import fr.sygix.sygixos.model.HeroItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -142,10 +143,10 @@ class TvProviderHeroSourceTest {
 
     @Test
     fun `progress ratio guards against zero duration and completion`() {
-        assertNull(HeroOrdering.progressRatio(0L, 0L))
-        assertNull(HeroOrdering.progressRatio(100L, 100L))
-        assertNull(HeroOrdering.progressRatio(10L, 0L))
-        assertEquals(0.5f, HeroOrdering.progressRatio(50L, 100L))
+        assertNull(playbackRatio(0L, 0L))
+        assertNull(playbackRatio(100L, 100L))
+        assertNull(playbackRatio(10L, 0L))
+        assertEquals(0.5f, playbackRatio(50L, 100L))
     }
 
     @Test

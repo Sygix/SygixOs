@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.datastore.preferences.core.edit
+import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.data.FakeUpdateController
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
@@ -63,15 +65,8 @@ class HomeViewModelSourceToggleTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
 
     @Before
-    fun resetDataStore() = runBlocking {
-        // Le DataStore est un singleton par process : réinitialiser pour rendre chaque
-        // test indépendant des autres classes de tests.
-        val prefs = LauncherPrefs(context)
-        prefs.setDisabledSources(emptySet())
-        prefs.setHidden(emptySet())
-        prefs.setPinned(emptySet())
-        prefs.setGridOrder(emptyList())
-        prefs.setCachedApps(emptyList())
+    fun resetDataStore() {
+        runBlocking { context.dataStore.edit { it.clear() } }
     }
 
     private val feedItems = listOf(
@@ -110,14 +105,12 @@ class HomeViewModelSourceToggleTest {
         val (vm, repo) = buildViewModel()
         repo.refreshApps()
         vm.refreshHero()
-        // Le héro est alimenté par les apps sources : les deux items sont là.
         assertEquals(listOf("From A", "From B"), awaitTitles(vm, listOf("From A", "From B")))
 
-        // Bascule réactive sans redémarrage : désactiver com.a retire « From A ».
-        repo.setSourceEnabled("com.a", false)
+        repo.toggleSource("com.a")
         assertEquals(listOf("From B"), awaitTitles(vm, listOf("From B")))
 
-        repo.setSourceEnabled("com.a", true)
+        repo.toggleSource("com.a")
         assertEquals(listOf("From A", "From B"), awaitTitles(vm, listOf("From A", "From B")))
     }
 
@@ -127,8 +120,8 @@ class HomeViewModelSourceToggleTest {
         repo.refreshApps()
         vm.refreshHero()
         awaitTitles(vm, listOf("From A", "From B"))
-        repo.setSourceEnabled("com.a", false)
-        repo.setSourceEnabled("com.b", false)
+        repo.toggleSource("com.a")
+        repo.toggleSource("com.b")
         val fallback = vm.state.await { (it as? HomeState.Ready)?.hero?.fromApps == false } as HomeState.Ready
         assertFalse(fallback.hero.fromApps)
         assertEquals(listOf("nature-0"), fallback.hero.items.map { it.id })
@@ -138,14 +131,14 @@ class HomeViewModelSourceToggleTest {
     fun `re-enabling a source re-prepares the shelf of the focused app on the recomputed hero`() = runBlocking {
         val items = (1..25).map { heroItem("b$it", "B$it", imageUrl = "https://x/b$it.jpg", sourcePackage = "com.b") } +
             heroItem("a", "A", imageUrl = "https://x/a.jpg", sourcePackage = "com.a")
-        LauncherPrefs(context).setDisabledSources(setOf("com.a"))
+        LauncherPrefs(context).updateDisabledSources { setOf("com.a") }
         val (vm, repo) = buildViewModel(items)
         repo.refreshApps()
         vm.refreshHero()
         vm.state.await { (it as? HomeState.Ready)?.hero?.items?.size == 25 }
 
         vm.prepareShelf("com.a")
-        repo.setSourceEnabled("com.a", true)
+        repo.toggleSource("com.a")
         vm.state.await { (it as? HomeState.Ready)?.hero?.items?.size == 26 }
 
         vm.state.await { "https://x/a.jpg" in ((it as? HomeState.Ready)?.hero?.checked ?: emptySet()) }

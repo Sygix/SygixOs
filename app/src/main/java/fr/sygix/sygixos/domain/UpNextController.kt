@@ -143,9 +143,7 @@ class UpNextController(
             block()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
-            Unit
-        }
+        } catch (_: Exception) {}
     }
 
     private companion object {

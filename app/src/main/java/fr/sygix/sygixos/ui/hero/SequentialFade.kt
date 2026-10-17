@@ -30,7 +30,6 @@ private class FadeEntry<T>(val value: T, initial: Float) {
 internal fun <T : Any> SequentialFade(
     target: T?,
     durationMillis: Int,
-    modifier: Modifier = Modifier,
     content: @Composable (T) -> Unit,
 ) {
     val entries = remember { mutableStateListOf<FadeEntry<T>>().apply { target?.let { add(FadeEntry(it, 1f)) } } }
@@ -46,7 +45,7 @@ internal fun <T : Any> SequentialFade(
         entries.removeAll(outgoing)
         incoming?.alpha?.animateTo(1f, tween(half, easing = AppleEasing))
     }
-    Box(modifier, contentAlignment = Alignment.BottomStart) {
+    Box(contentAlignment = Alignment.BottomStart) {
         entries.forEach { entry ->
             key(entry.value) {
                 Box(

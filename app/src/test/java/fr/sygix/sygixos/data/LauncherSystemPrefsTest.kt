@@ -32,7 +32,7 @@ class LauncherSystemPrefsTest {
 
     @Test
     fun `existing installation sees onboarding without enabling boot start or writing on read`() = runBlocking {
-        prefs.setPinned(setOf("com.example.tv"))
+        prefs.updatePinned { setOf("com.example.tv") }
         val before = context.dataStore.data.first()
         val state = prefs.launcherSystem.first()
         assertFalse(state.guideSeen)
@@ -53,7 +53,7 @@ class LauncherSystemPrefsTest {
 
     @Test
     fun `onboarding dismissal survives a new preferences instance without changing user choices`() = runBlocking {
-        prefs.setPinned(setOf("com.example.tv"))
+        prefs.updatePinned { setOf("com.example.tv") }
         prefs.setBootStartEnabled(true, 7)
         prefs.markLauncherGuideSeen()
         val state = LauncherPrefs(context).launcherSystem.first()
