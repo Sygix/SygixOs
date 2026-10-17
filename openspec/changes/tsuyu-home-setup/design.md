@@ -186,7 +186,15 @@ Ces suggestions ne sont requises par aucune exigence de ce change. Elles simplif
   - **Constat 2** : la confirmation d'Android sélectionne « Annuler » au départ ; le détail de l'étape 3 de 9.4 le dit.
   - Installé, l'écran passe à « Démarrer Tsuyu » ; « Ouvrir Tsuyu » ouvre Tsuyu dans la tâche de SygixOs (pile vérifiée).
   - **Constat 3** : dans Tsuyu alpha.4, « Démarrer » ouvre « Démarrage au redémarrage » ; « Activer Tsuyu » déclenche la fenêtre d'autorisation du débogage. Les étapes de 9.7 sont reprises dans cet ordre.
-  - **Constat 4** : sur l'émulateur, après l'autorisation, le service de Tsuyu alpha.4 reste « arrêté », même après une seconde tentative. Signalé à Tsuyu ; SygixOs affiche correctement « Arrêté » et garde « Ouvrir Tsuyu ».
+  - **Constat 4** : dans la fenêtre « Autoriser le débogage USB ? », la flèche bas depuis la case à cocher sélectionne « Annuler » ; « Autoriser » est à gauche. Un premier essai avait ainsi annulé l'autorisation et laissé Tsuyu « arrêté » (SygixOs affichait correctement « Arrêté » et gardait « Ouvrir Tsuyu »). Ce n'est pas un défaut de Tsuyu.
+- **Parcours de bout en bout avec la version publiée** (Tsuyu v0.1.0-alpha.4, SygixOs de #78, installation neuve, préversions activées) :
+  1. la première page n'a pas de ligne Tsuyu tant que les préversions sont désactivées et qu'aucune version finale n'existe ;
+  2. panneau, ligne « Tsuyu » « À installer », puis 9.4 ;
+  3. autorisation « applis inconnues », annulation par Android, relance automatique, confirmation, Tsuyu installé ;
+  4. 9.7, puis « Ouvrir Tsuyu », « Démarrer », « Activer Tsuyu », « Toujours autoriser » et « Autoriser » : le serveur de Tsuyu démarre (processus `app_process` à l'identité du shell) ;
+  5. Retour, SygixOs détecte Tsuyu actif et passe à 9.8 ;
+  6. « Continuer », puis « Autoriser » dans Tsuyu : la séquence passe par Tsuyu et finit sur « SygixOs garde la main » avec la touche Home, la superposition et l'ouverture à l'allumage « Fait », et « Réparation automatique » « Active ».
+  - Le service d'accessibilité est relié, mais une touche Home injectée par `input keyevent` ouvre l'accueil d'origine sur l'émulateur : comme pour P7, l'interception réelle de la touche Home se vérifie sur la TV.
 - **Audit du contrat par Tsuyu** (2026-10-17, PR Tsuyu #14, en brouillon) :
   - conformes : « Autoriser » et « Refuser », focus initial sur « Refuser », retour à l'appelant, lancement standard de la `MainActivity`, livraison du binder aux clients `API_V23` (API 13, patch 6), UserService à l'identité du shell ;
   - différents : le premier parcours passe par « Activer Tsuyu », intégré à « Démarrage au redémarrage » (9.7 corrigé) ; un refus persistant n'est pas réversible depuis Tsuyu (9.9 propose donc de continuer sans Tsuyu) ;
@@ -194,6 +202,7 @@ Ces suggestions ne sont requises par aucune exigence de ce change. Elles simplif
 - Non vérifiable sur l'émulateur, à faire sur la TV (tâche 9.2) :
   - « Un dernier choix » et la désactivation, faute de composants de l'ensemble fermé ;
   - la réparation automatique sur un service « Bloqué » ;
+  - la touche Home réelle de la télécommande ;
   - le guide du débogage en deux temps sur des options pour les développeurs masquées.
 
 ## Risks / Trade-offs
