@@ -18,7 +18,7 @@ Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre som
 
 #### Scenario: ouverture
 - **WHEN** l'utilisateur presse OK sur l'engrenage
-- **THEN** la page de réglages plein écran s'ouvre, la lecture du héro est mise en pause
+- **THEN** la page de réglages plein écran s'ouvre et remplace l'accueil selon « Page de réglages » ; la lecture du héro est mise en pause, une vidéo d'aperçu à sa position courante
 
 #### Scenario: zone grille
 - **WHEN** l'utilisateur passe en zone grille et la page de l'accueil défile du héro vers la grille (« Navigation 3 paliers » de `launcher-shell`)
@@ -37,7 +37,7 @@ Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre som
 - **THEN** l'heure affichée redevient l'heure courante dès le retour, sans attendre le changement de minute ; aucune mise à jour n'a lieu tant que le launcher est en arrière-plan
 
 ### Requirement: Page de réglages
-Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », lignes de contenus retirés et lignes « Afficher les N autres », bouton « Tout réactiver », lignes « Afficher À suivre » et « Position d'À suivre » et valeurs de la liste déroulante de « Position d'À suivre », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit.
+Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », lignes de contenus retirés et lignes « Afficher les N autres », bouton « Tout réactiver », lignes « Afficher À suivre » et « Position d'À suivre » et valeurs de la liste déroulante de « Position d'À suivre », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit. Pendant l'affichage de la page, l'accueil SHALL n'être ni dessiné ni focusable, sans être réinitialisé : son état (programme et visuel du héro, vidéo d'aperçu, position de la grille) est conservé pour un retour immédiat.
 
 #### Scenario: structure
 - **WHEN** la page de réglages s'ouvre
@@ -49,7 +49,15 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 
 #### Scenario: retour
 - **WHEN** l'utilisateur presse Retour depuis la page de réglages
-- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend ; seule exception : quand la liste déroulante de « Position d'À suivre » est ouverte, Retour la ferme d'abord, sans quitter les réglages (« Position d'À suivre », scénario « fermeture sans changement »)
+- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend là où elle s'était arrêtée ; seule exception : quand la liste déroulante de « Position d'À suivre » est ouverte, Retour la ferme d'abord, sans quitter les réglages (« Position d'À suivre », scénario « fermeture sans changement »)
+
+#### Scenario: accueil masqué
+- **WHEN** la page de réglages est affichée
+- **THEN** aucun élément de l'accueil (héro, capsule, dock, grille) n'est dessiné sous la page ni ne peut prendre le focus au DPAD ; le panneau du launcher système ouvert depuis les réglages reste affiché au-dessus d'eux ; son verre, comme celui de la liste déroulante de « Position d'À suivre », floute la page de réglages
+
+#### Scenario: retour immédiat
+- **WHEN** l'utilisateur quitte les réglages par Retour, ou par la touche Home au premier plan (« Touche Home avec SygixOs au premier plan » de `launcher-shell`)
+- **THEN** le visuel, le titre et le bouton du héro affichés avant l'ouverture sont affichés immédiatement, sans mascotte ni écran de démarrage, sans fond noir et sans fondu d'entrée ; une vidéo d'aperçu reprend sans être rechargée ; si le launcher est passé en arrière-plan pendant les réglages, la vidéo, libérée entre-temps, est rechargée selon « Préchargement et mémoire » de `launcher-shell`
 
 #### Scenario: fond
 - **WHEN** la page de réglages s'ouvre
@@ -325,36 +333,36 @@ La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher À suivre 
 - **THEN** la ligne a le même rendu, le même focus et la même liste qu'avec la rangée affichée (jamais grisée ni sautée), la valeur choisie est persistée et s'applique dès que « Afficher À suivre » est réactivé
 
 ### Requirement: Réglages du launcher système
-La catégorie « Écran d'accueil » SHALL contenir, après « Afficher À suivre » et « Position d'À suivre » et sans changer son focus initial (« Afficher À suivre » reste son premier contrôle), un intertitre « Launcher système » jamais focusable puis une seule ligne de réglage, « SygixOs comme écran d'accueil », qui ouvre le parcours guidé par-dessus la page de réglages (« Parcours guidé du launcher » de `launcher-shell`) ; à la fermeture du parcours, le focus SHALL revenir sur cette ligne. Aucune autre ligne P5 (rôle HOME, démarrage à l'allumage, service d'accessibilité) et aucune autre catégorie ne SHALL porter ces réglages : ils ne se règlent que dans le parcours guidé. La ligne SHALL avoir le rendu des lignes de « Page de réglages » (pilule de focus, sans zoom) et SHALL résumer l'état du parcours, recalculé à chaque retour au premier plan et à chaque fermeture du parcours, à partir des étapes obligatoires affichées et non « Indisponible » (étapes 1, 2 et 2b ; l'étape 3, facultative, n'entre jamais dans la synthèse) : état « Terminé », précédé d'une pastille ronde verte, et détail « Toutes les étapes sont faites » quand elles sont toutes « Fait » ; état « Bloqué » et détail « Touche Home bloquée par la TV » quand l'étape 1 est « Bloqué », quel que soit le reste ; sinon état « Partiel » quand au moins une étape est « Fait », « À faire » quand aucune ne l'est, avec le détail de ce qui reste : « Touche Home à terminer » (étape 1), « Démarrage à l'allumage à terminer » (étape 2 désactivée ou 2b non faite), ou « Touche Home et démarrage à l'allumage à terminer » ; état « Indisponible », sans pastille, avec le détail « Cette TV ne permet pas ces réglages », quand aucune étape obligatoire n'est disponible (OK ouvre quand même le parcours). Navigation D-pad : haut et bas parcourent toutes les lignes de la catégorie sans boucle (« Afficher À suivre », « Position d'À suivre », « SygixOs comme écran d'accueil »), l'intertitre étant sauté ; droite est sans effet ; gauche et Retour se comportent comme pour « Afficher À suivre ». Dimensions et jetons : maquette Penpot 8.5 et `design.md` (D10).
+La catégorie « Écran d'accueil » SHALL contenir, après « Afficher À suivre » et « Position d'À suivre » et sans changer son focus initial (« Afficher À suivre » reste son premier contrôle), un intertitre « Launcher système » jamais focusable puis une seule ligne de réglage, « Configurer SygixOs comme launcher principal », qui ouvre le panneau « Launcher principal » par-dessus la page de réglages (`launcher-shell`, maquette 8.16) ; à sa fermeture, le focus SHALL revenir sur cette ligne. Aucune autre ligne (rôle HOME, démarrage à l'allumage, service d'accessibilité, débogage, accueil d'origine) et aucune autre catégorie ne SHALL porter ces réglages. La ligne SHALL avoir le rendu des lignes de « Page de réglages » (pilule de focus, sans zoom). Son détail SHALL être « Automatique : <état> · Par autorisations : <état> », avec l'état de chaque voie en minuscules : pour la voie automatique « actif », « à configurer » ou « indisponible sur cette TV » ; pour la voie par autorisations « active », « en partie », « bloquée », « non utilisée » ou « à faire » (états définis par « Configuration automatique de l'écran d'accueil » et « Page Par autorisations » de `launcher-shell`). Son état à droite SHALL être : « Actif », précédé d'une pastille ronde verte, quand l'une des voies est active ; sinon « Bloqué » quand la voie par autorisations est bloquée ; sinon « En partie » quand elle est en partie faite ; sinon « À configurer ». L'état et le détail SHALL être recalculés à chaque retour au premier plan, à chaque fermeture du panneau et à la fin de chaque séquence de la configuration automatique. Navigation D-pad : haut et bas parcourent toutes les lignes de la catégorie sans boucle (« Afficher À suivre », « Position d'À suivre », « Configurer SygixOs comme launcher principal »), l'intertitre étant sauté ; droite est sans effet ; gauche et Retour se comportent comme pour « Afficher À suivre ».
 
 #### Scenario: emplacement
 - **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil »
-- **THEN** le volet droit présente, dans cet ordre, « Afficher À suivre », « Position d'À suivre », l'intertitre « Launcher système » et « SygixOs comme écran d'accueil » avec son détail et son état ; le focus initial reste sur « Afficher À suivre » ; aucune ligne « Remplacer le launcher », « Démarrer à l'allumage » ou « Retour à l'accueil » n'existe, et aucune nouvelle catégorie n'apparaît dans le volet gauche
+- **THEN** le volet droit présente, dans cet ordre, « Afficher À suivre », « Position d'À suivre », l'intertitre « Launcher système » et « Configurer SygixOs comme launcher principal » avec son détail et son état ; le focus initial reste sur « Afficher À suivre » ; aucune ligne « SygixOs comme écran d'accueil », « Remplacer le launcher », « Démarrer à l'allumage » ou « Retour à l'accueil » n'existe, et aucune nouvelle catégorie n'apparaît dans le volet gauche
 
 #### Scenario: navigation D-pad de la ligne P5
 - **WHEN** le focus est sur « Position d'À suivre » (liste fermée) et l'utilisateur presse bas, puis bas encore, puis haut deux fois, puis bas, droite, puis gauche
-- **THEN** le focus passe à « SygixOs comme écran d'accueil » (l'intertitre n'est jamais focalisé), puis y reste (dernière ligne, sans boucle) ; il remonte jusqu'à « Afficher À suivre », redescend ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » ; Retour depuis la ligne ferme les réglages (« Page de réglages », scénario « retour »)
+- **THEN** le focus passe à « Configurer SygixOs comme launcher principal » (l'intertitre n'est jamais focalisé), puis y reste (dernière ligne, sans boucle) ; il remonte jusqu'à « Afficher À suivre », redescend ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » ; Retour depuis la ligne ferme les réglages (« Page de réglages », scénario « retour »)
 
 #### Scenario: ouverture du parcours
-- **WHEN** l'utilisateur presse OK sur « SygixOs comme écran d'accueil »
-- **THEN** le parcours guidé s'affiche par-dessus la page de réglages (maquette 8.6) ; à sa fermeture (« Terminé » ou Retour), il disparaît, la page de réglages est toujours ouverte sur « Écran d'accueil » et la ligne a le focus avec sa synthèse recalculée
+- **WHEN** l'utilisateur presse OK sur « Configurer SygixOs comme launcher principal »
+- **THEN** le panneau « Launcher principal » s'affiche par-dessus la page de réglages ; à sa fermeture, la page de réglages est toujours ouverte sur « Écran d'accueil » et la ligne a le focus avec son état et son détail recalculés
 
 #### Scenario: synthèse partielle
-- **WHEN** l'étape 1 est « Fait » et que l'option de démarrage est désactivée
-- **THEN** la ligne affiche l'état « Partiel », sans pastille, et le détail « Démarrage à l'allumage à terminer » (maquette 8.5)
+- **WHEN** la voie automatique est à configurer et qu'une partie seulement des lignes de la voie par autorisations est faite
+- **THEN** la ligne affiche l'état « En partie », sans pastille, et le détail « Automatique : à configurer · Par autorisations : en partie » (maquette 8.18)
 
 #### Scenario: synthèse terminée
-- **WHEN** l'étape 1 est « Fait », l'option de démarrage activée et la sous-étape 2b « Fait » ou absente, quel que soit l'état du rôle HOME
-- **THEN** la ligne affiche l'état « Terminé » précédé d'une pastille verte et le détail « Toutes les étapes sont faites »
+- **WHEN** la voie automatique est active et que la voie par autorisations n'est pas utilisée
+- **THEN** la ligne affiche l'état « Actif » précédé d'une pastille verte et le détail « Automatique : actif · Par autorisations : non utilisée » (maquette 8.15)
 
 #### Scenario: touche Home bloquée
-- **WHEN** l'étape 1 est « Bloqué »
-- **THEN** la ligne affiche l'état « Bloqué », sans pastille, et le détail « Touche Home bloquée par la TV », quels que soient les autres états
+- **WHEN** la voie par autorisations est bloquée et que la voie automatique est à configurer
+- **THEN** la ligne affiche l'état « Bloqué », sans pastille, et le détail « Automatique : à configurer · Par autorisations : bloquée » (maquette 8.19)
 
 #### Scenario: rien de fait
-- **WHEN** aucune étape obligatoire n'est « Fait »
-- **THEN** la ligne affiche l'état « À faire » et le détail « Touche Home et démarrage à l'allumage à terminer » (ou la seule étape disponible qui reste)
+- **WHEN** aucune voie n'est utilisée
+- **THEN** la ligne affiche l'état « À configurer », sans pastille, et le détail « Automatique : à configurer · Par autorisations : à faire » (maquette 8.20)
 
 #### Scenario: état relu au retour
-- **WHEN** SygixOs revient au premier plan après un écran système ouvert depuis le parcours, ou après tout passage en arrière-plan
-- **THEN** l'état du service d'accessibilité, de la permission et du rôle HOME est relu auprès du système et la synthèse de la ligne est recalculée, sans valeur périmée
+- **WHEN** SygixOs revient au premier plan après un écran système ouvert depuis le parcours, après tout passage en arrière-plan, ou à la fin d'une séquence de la configuration automatique
+- **THEN** l'écran d'accueil effectif, l'accueil d'origine, le service d'accessibilité, la permission et le rôle HOME sont relus auprès du système et l'état et le détail de la ligne sont recalculés, sans valeur périmée
