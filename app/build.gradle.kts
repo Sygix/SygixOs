@@ -11,9 +11,6 @@ plugins {
     alias(libs.plugins.aboutlibraries)
 }
 
-// versionCode dérivé du tag SemVer : major·10⁸ + minor·10⁵ + patch·10² + suffixe
-// (alpha.N → N, beta.N → 30+N, rc.N → 60+N, finale → 99) pour garantir alpha < beta < rc < finale.
-// Plafond Android de 2 100 000 000 : major ≤ 20, minor et patch ≤ 999, N ≤ 29.
 fun versionCodeOf(version: String): Int {
     val match = requireNotNull(
         Regex("""(\d{1,2})\.(\d{1,3})\.(\d{1,3})(?:-(alpha|beta|rc)\.?(\d{1,2}))?""").matchEntire(version)
@@ -41,8 +38,6 @@ android {
     }
 
     signingConfigs {
-        // Signature release fournie par l'environnement (CI ou local.properties), sinon clé de debug :
-        // indispensable pour tester les performances réelles (R8 + AOT) sur la TV sans secret dans le repo.
         create("release") {
             val storePath = System.getenv("SYGIXOS_STORE_FILE")
             if (storePath != null) {
@@ -59,7 +54,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             signingConfig = signingConfigs.getByName("release")
         }
         create("perf") {
@@ -133,14 +128,13 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.ui)
-    implementation(libs.compose.ui.tooling.preview)
     implementation(libs.compose.material3)
     implementation(libs.datastore.preferences)
     implementation(libs.coil.compose)
     implementation(libs.media3.exoplayer)
     implementation(libs.haze)
     implementation(libs.haze.glass)
-    implementation(libs.aboutlibraries.compose.m3)
+    implementation(libs.aboutlibraries.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.zxing.core)
     testImplementation(libs.junit)
@@ -151,7 +145,6 @@ dependencies {
     testImplementation(libs.compose.ui.test.junit4)
 }
 
-// Robolectric accède aux internes de FileDescriptor : le JDK 17+ exige une ouverture explicite.
 tasks.withType<Test>().configureEach {
     maxHeapSize = "1g"
     jvmArgs(
