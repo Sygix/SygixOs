@@ -4,8 +4,7 @@
 
     <application
         android:label="SygixOs perf"
-        android:appComponentFactory="fr.sygix.sygixos.perf.ProfileComponentFactory"
-        tools:replace="android:label,android:appComponentFactory">
+        tools:replace="android:label">
 
         <profileable android:shell="true" />
 
@@ -17,10 +16,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="fr.sygix.sygixos.perf.GridProfileActivity"
-            android:exported="true"
-            android:process=":gridprofile"
-            android:screenOrientation="landscape" />
     </application>
 </manifest>
