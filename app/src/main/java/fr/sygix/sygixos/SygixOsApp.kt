@@ -49,6 +49,7 @@ import fr.sygix.sygixos.data.UpdateInstaller
 import fr.sygix.sygixos.data.UpdatePrefs
 import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
+import fr.sygix.sygixos.data.VisualFreshness
 import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.domain.StartupSession
 
@@ -199,18 +200,18 @@ open class SygixOsApp : Application(), ImageLoaderFactory {
         )
     }
 
-    override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .allowRgb565(true)
-        .crossfade(false)
-        .respectCacheHeaders(false)
-        .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.15).build() }
-        .diskCache {
-            DiskCache.Builder()
-                .directory(cacheDir.resolve("images"))
-                .maxSizeBytes(256L * 1024 * 1024)
-                .build()
-        }
-        .decoderDispatcher(Dispatchers.IO.limitedParallelism(2))
-        .fetcherDispatcher(Dispatchers.IO.limitedParallelism(4))
-        .build()
+    override fun newImageLoader(): ImageLoader {
+        val memory = MemoryCache.Builder(this).maxSizePercent(0.15).build()
+        val disk = DiskCache.Builder().directory(cacheDir.resolve("images")).maxSizeBytes(256L * 1024 * 1024).build()
+        return ImageLoader.Builder(this)
+            .allowRgb565(true)
+            .crossfade(false)
+            .respectCacheHeaders(false)
+            .memoryCache(memory)
+            .diskCache(disk)
+            .components { add(VisualFreshness(disk, memory)) }
+            .decoderDispatcher(Dispatchers.IO.limitedParallelism(2))
+            .fetcherDispatcher(Dispatchers.IO.limitedParallelism(4))
+            .build()
+    }
 }

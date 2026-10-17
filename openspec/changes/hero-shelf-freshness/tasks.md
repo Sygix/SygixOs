@@ -7,7 +7,7 @@
 
 ## 2. Fraîcheur des images
 
-- [ ] 2.1 Intercepteur Coil : une entrée du cache disque de plus d'un jour est relue depuis le réseau, la version en cache servant de repli ; vérifié par des tests JUnit (entrée récente servie, entrée ancienne relue et mémoire invalidée, repli sur échec réseau).
+- [x] 2.1 Intercepteur Coil : une entrée du cache disque de plus d'un jour est relue depuis le réseau, la version en cache servant de repli ; vérifié par des tests JUnit (entrée récente servie, entrée ancienne relue et mémoire invalidée, repli sur échec réseau).
 
 ## 3. Vérification
 
