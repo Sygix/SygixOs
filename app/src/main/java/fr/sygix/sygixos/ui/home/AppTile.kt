@@ -6,6 +6,8 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,6 +83,7 @@ internal fun rememberAppArtwork(app: TvApp): State<AppArtwork?> {
     }
 }
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 internal fun TileBox(
     artwork: AppArtwork?,
@@ -99,26 +102,17 @@ internal fun TileBox(
             .then(border),
         contentAlignment = Alignment.Center,
     ) {
-        Crossfade(targetState = artwork, animationSpec = tween(250), label = "tileArtwork") { art ->
-            when {
-                art == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(label.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = Color.White.copy(alpha = 0.85f))
-                }
-                art.isBanner -> Image(
-                    bitmap = art.image,
-                    contentDescription = label,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Image(
-                        bitmap = art.image,
-                        contentDescription = label,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxHeight(0.56f).aspectRatio(1f),
-                    )
-                }
-            }
-        }
+        val transition = updateTransition(artwork, label = "tileArtwork")
+        if (transition.currentState == transition.targetState) TileArt(artwork, label)
+        else transition.Crossfade(animationSpec = tween(250)) { TileArt(it, label) }
+    }
+}
+
+@Composable
+private fun TileArt(art: AppArtwork?, label: String) = Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    when {
+        art == null -> Text(label.take(1).uppercase(), style = MaterialTheme.typography.titleLarge, color = Color.White.copy(alpha = 0.85f))
+        art.isBanner -> Image(art.image, contentDescription = label, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        else -> Image(art.image, contentDescription = label, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxHeight(0.56f).aspectRatio(1f))
     }
 }

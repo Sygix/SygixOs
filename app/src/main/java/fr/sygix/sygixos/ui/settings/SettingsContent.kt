@@ -6,13 +6,13 @@
 package fr.sygix.sygixos.ui.settings
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import fr.sygix.sygixos.core.designsystem.SygixTypography
 import fr.sygix.sygixos.domain.HiddenGroup
 import fr.sygix.sygixos.domain.UpNextArtworkQuality
@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -363,7 +364,7 @@ internal fun HiddenContentLine(
             .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ContentThumbnail(row.imageUrl, Modifier.testTag("hidden-content-thumbnail-$key"))
+        ContentThumbnail(row.imageUrl, "hidden-content-thumbnail-$key")
         Spacer(Modifier.width(RowGap))
         Column(Modifier.weight(1f)) {
             Text(row.title, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -382,19 +383,23 @@ internal fun HiddenContentLine(
 }
 
 @Composable
-private fun ContentThumbnail(imageUrl: String?, modifier: Modifier = Modifier) {
-    BoxWithConstraints(
-        modifier
+private fun ContentThumbnail(imageUrl: String?, tag: String) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val request = remember(context, density, imageUrl) { with(density) { ImageRequest.Builder(context).data(imageUrl).size(Dimens.SettingsThumbWidth.roundToPx(), Dimens.SettingsThumbHeight.roundToPx()).build() } }
+    val painter = rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+    Box(
+        Modifier
+            .testTag(tag)
             .size(Dimens.SettingsThumbWidth, Dimens.SettingsThumbHeight)
             .clip(RoundedCornerShape(Dimens.SettingsThumbCorner))
             .background(SygixColors.TileBackground),
     ) {
-        val painter = rememberAsyncImagePainter(imageUrl, contentScale = ContentScale.Crop)
         if (painter.state is AsyncImagePainter.State.Success) {
             Image(painter, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, maxHeight.value).dp
-            Box(Modifier.fillMaxWidth().fillMaxHeight(PlaceholderArea).align(Alignment.TopCenter), contentAlignment = Alignment.Center) {
+            val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, Dimens.SettingsThumbHeight.value).dp
+            Box(Modifier.fillMaxWidth().fillMaxHeight(PlaceholderArea).align(Alignment.TopCenter).testTag("$tag-placeholder"), contentAlignment = Alignment.Center) {
                 UpNextGlyph(false, SygixColors.PlaceholderGlyph, Modifier.size(icon))
             }
         }

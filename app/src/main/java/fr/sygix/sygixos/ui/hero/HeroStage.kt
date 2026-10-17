@@ -345,24 +345,20 @@ private fun HeroVideoLayer(player: HeroVideo, visible: Boolean) {
         animationSpec = tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing),
         label = "heroVideoAlpha",
     )
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val containerAspect = maxWidth / maxHeight
-        val videoAspect = player.videoAspect
-        val cover = if (videoAspect > containerAspect) videoAspect / containerAspect else containerAspect / videoAspect
-        val scaleX = if (videoAspect > containerAspect) cover else 1f
-        val scaleY = if (videoAspect > containerAspect) 1f else cover
-        AndroidView(
-            factory = { ctx -> TextureView(ctx).apply { isOpaque = false } },
-            update = { player.attach(it) },
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    this.alpha = alpha
-                    this.scaleX = scaleX
-                    this.scaleY = scaleY
-                },
-        )
-    }
+    AndroidView(
+        factory = { ctx -> TextureView(ctx).apply { isOpaque = false } },
+        update = { player.attach(it) },
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                val containerAspect = size.width / size.height
+                val videoAspect = player.videoAspect
+                val cover = if (videoAspect > containerAspect) videoAspect / containerAspect else containerAspect / videoAspect
+                this.alpha = alpha
+                scaleX = if (videoAspect > containerAspect) cover else 1f
+                scaleY = if (videoAspect > containerAspect) 1f else cover
+            },
+    )
 }
 
 @Composable

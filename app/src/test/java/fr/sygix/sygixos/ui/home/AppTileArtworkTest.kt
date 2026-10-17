@@ -16,6 +16,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.data.AppArtwork
@@ -103,5 +105,25 @@ class AppTileArtworkTest {
         compose.waitForIdle()
         assertNotSame(initial, artwork)
         assertEquals(16, artwork?.bitmap?.width)
+    }
+
+    @Test
+    fun `an artwork arriving after the tile is shown fades in over the letter`() {
+        installWithIcon("com.d")
+        val source = AppArtworkSource(pm)
+        val delta = app("com.d", "Delta")
+        source.preload(listOf(delta))
+        var artwork by mutableStateOf<AppArtwork?>(null)
+        compose.setContent { TileBox(artwork, "Delta") }
+        compose.onNodeWithText("D").assertExists()
+        compose.mainClock.autoAdvance = false
+        artwork = source.cached(delta)
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(125)
+        compose.onNodeWithText("D").assertExists()
+        compose.onNodeWithContentDescription("Delta").assertExists()
+        compose.mainClock.advanceTimeBy(250)
+        compose.onNodeWithText("D").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Delta").assertExists()
     }
 }

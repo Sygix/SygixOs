@@ -13,6 +13,8 @@ import android.graphics.Bitmap
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RectShape
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -20,8 +22,11 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppIconCache
+import fr.sygix.sygixos.domain.UpNextContentKey
+import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.home.LocalAppArtwork
+import java.io.File
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,5 +98,17 @@ class SettingsThumbnailTest {
         }
         compose.onNodeWithTag("app-icon-com.plain", useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("app-banner-com.plain", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `removed content thumbnail replaces its placeholder once the image is loaded`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val file = File.createTempFile("thumb", ".png", context.cacheDir)
+        file.outputStream().use { Bitmap.createBitmap(320, 180, Bitmap.Config.ARGB_8888).compress(Bitmap.CompressFormat.PNG, 100, it) }
+        val row = HiddenContentRow(UpNextContentKey(UpNextContentType.MOVIE, "Film"), "Film", emptyList(), file.toURI().toString(), 0)
+        val placeholder = "hidden-content-thumbnail-${row.key.serialized}-placeholder"
+        compose.setContent { HiddenContentLine(row, focusEnabled = true, focusRequester = remember { FocusRequester() }, onFocused = {}, onRestore = {}) }
+        compose.waitUntil(5_000) { compose.onAllNodes(hasTestTag(placeholder), useUnmergedTree = true).fetchSemanticsNodes().isEmpty() }
+        file.delete()
     }
 }

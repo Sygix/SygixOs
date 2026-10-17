@@ -9,14 +9,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.graphics.GraphicsLayerScope
@@ -32,7 +25,6 @@ import androidx.compose.ui.node.TraversableNode
 import androidx.compose.ui.node.findNearestAncestor
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.invalidateLayer
-import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
@@ -47,7 +39,8 @@ import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyInputModifierNode
 import androidx.compose.ui.input.key.type
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -81,9 +74,6 @@ private object TvLiftKey
 private data class TvLiftElement(val shape: Shape) : ModifierNodeElement<TvLiftNode>() {
     override fun create(): TvLiftNode = TvLiftNode(shape)
     override fun update(node: TvLiftNode) = node.update(shape)
-    override fun InspectorInfo.inspectableProperties() {
-        name = "tvLift"
-    }
 }
 
 private class TvLiftNode(private var shape: Shape) :
@@ -132,9 +122,6 @@ private class TvLiftNode(private var shape: Shape) :
 private data class TvSheenElement(val shape: Shape) : ModifierNodeElement<TvSheenNode>() {
     override fun create(): TvSheenNode = TvSheenNode(shape)
     override fun update(node: TvSheenNode) = node.update(shape)
-    override fun InspectorInfo.inspectableProperties() {
-        name = "tvSheen"
-    }
 }
 
 private class TvSheenNode(private var shape: Shape) : Modifier.Node(), DrawModifierNode {
@@ -187,51 +174,58 @@ private fun sheenBrush(size: Size): Brush {
 fun Modifier.tvClickable(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
-): Modifier = composed {
-    val scope = rememberCoroutineScope()
-    val click by rememberUpdatedState(onClick)
-    val longClick by rememberUpdatedState(onLongClick)
-    var pressJob by remember { mutableStateOf<Job?>(null) }
-    var longFired by remember { mutableStateOf(false) }
-    var pressed by remember { mutableStateOf(false) }
-    this
-        .onKeyEvent { e ->
-            val select = e.key == Key.DirectionCenter || e.key == Key.Enter || e.key == Key.NumPadEnter
-            if (!select) return@onKeyEvent false
-            when (e.type) {
-                KeyEventType.KeyDown -> {
-                    val native = e.nativeKeyEvent
-                    if (native.repeatCount == 0) {
-                        pressed = true
-                        longFired = false
-                        pressJob?.cancel()
-                        pressJob = longClick?.let { long ->
-                            scope.launch {
-                                delay(Motion.LONG_PRESS_MS)
-                                longFired = true
-                                long()
-                            }
-                        }
-                    } else if (native.isLongPress && !longFired && longClick != null) {
-                        pressJob?.cancel()
-                        longFired = true
-                        longClick?.invoke()
-                    }
-                    true
-                }
-                KeyEventType.KeyUp -> {
-                    if (!pressed) return@onKeyEvent false
-                    pressed = false
-                    pressJob?.cancel()
-                    if (!longFired) click()
-                    longFired = false
-                    true
-                }
-                else -> false
+): Modifier = this.then(TvClickElement(onClick, onLongClick)).focusable()
+
+private data class TvClickElement(val onClick: () -> Unit, val onLongClick: (() -> Unit)?) : ModifierNodeElement<TvClickNode>() {
+    override fun create() = TvClickNode(this)
+    override fun update(node: TvClickNode) {
+        node.element = this
+    }
+}
+
+private class TvClickNode(var element: TvClickElement) : Modifier.Node(), KeyInputModifierNode, FocusEventModifierNode {
+    private var pressJob: Job? = null
+    private var longFired = false
+    private var pressed = false
+
+    override fun onKeyEvent(event: KeyEvent): Boolean {
+        if (event.key != Key.DirectionCenter && event.key != Key.Enter && event.key != Key.NumPadEnter) return false
+        val long = element.onLongClick
+        val native = event.nativeKeyEvent
+        when {
+            event.type == KeyEventType.KeyDown && native.repeatCount == 0 -> {
+                release()
+                pressed = true
+                pressJob = long?.let { coroutineScope.launch { delay(Motion.LONG_PRESS_MS); longFired = true; it() } }
             }
+            event.type == KeyEventType.KeyDown -> if (native.isLongPress && !longFired && long != null) {
+                pressJob?.cancel()
+                longFired = true
+                long()
+            }
+            event.type == KeyEventType.KeyUp && pressed -> {
+                val clicked = !longFired
+                release()
+                if (clicked) element.onClick()
+            }
+            else -> return false
         }
-        .onFocusChanged { if (!it.isFocused) { pressJob?.cancel(); longFired = false; pressed = false } }
-        .focusable()
+        return true
+    }
+
+    override fun onPreKeyEvent(event: KeyEvent) = false
+
+    override fun onFocusEvent(focusState: FocusState) {
+        if (!focusState.isFocused) release()
+    }
+
+    override fun onDetach() = release()
+
+    private fun release() {
+        pressJob?.cancel()
+        longFired = false
+        pressed = false
+    }
 }
 
 fun FocusRequester.tryRequestFocus(): Boolean =
