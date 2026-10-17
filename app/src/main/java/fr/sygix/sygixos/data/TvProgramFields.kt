@@ -7,6 +7,7 @@ package fr.sygix.sygixos.data
 
 import android.database.Cursor
 import android.media.tv.TvContract
+import fr.sygix.sygixos.model.ProgramKind
 
 internal fun Cursor.optString(column: String): String? =
     getColumnIndex(column).takeIf { it >= 0 && !isNull(it) }?.let(::getString)?.takeIf { it.isNotBlank() }
@@ -25,3 +26,11 @@ internal fun landscapeImage(c: Cursor, posterColumn: String, aspectColumn: Strin
 }
 
 internal fun isPortraitRatio(ratio: Int): Boolean = ratio == TvContract.PreviewPrograms.ASPECT_RATIO_2_3 || ratio == 5
+
+internal fun watchNextKind(type: Int): ProgramKind = when (type) {
+    TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_CONTINUE -> ProgramKind.CONTINUE
+    TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEXT -> ProgramKind.NEXT
+    TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEW -> ProgramKind.NEW
+    TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_WATCHLIST -> ProgramKind.WATCHLIST
+    else -> ProgramKind.WATCH_NEXT
+}

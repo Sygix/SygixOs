@@ -14,6 +14,9 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -69,7 +72,7 @@ class LauncherSettingsTest {
         compose.waitForIdle()
     }
 
-    private fun detail(tag: String) = compose.onNodeWithTag("$tag-detail", useUnmergedTree = true)
+    private fun detail(tag: String) = compose.onNode(hasAnyAncestor(hasTestTag(tag)) and hasText("Automatique", substring = true), useUnmergedTree = true)
 
     private fun state(tag: String) = compose.onNodeWithTag("$tag-state", useUnmergedTree = true)
 

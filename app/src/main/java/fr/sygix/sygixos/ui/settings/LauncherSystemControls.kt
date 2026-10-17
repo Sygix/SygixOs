@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -26,7 +25,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -35,13 +33,8 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.SemanticsPropertyKey
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.semantics
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.Dimens
-import fr.sygix.sygixos.core.designsystem.SygixColors
-import fr.sygix.sygixos.core.designsystem.SygixTypography
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.model.LauncherSystemState
@@ -52,14 +45,11 @@ class LauncherSystemActions(
     val setup: (fr.sygix.sygixos.ui.home.SetupAction) -> Unit = {},
 )
 
-internal val StateDotColor = SemanticsPropertyKey<Color>("StateDotColor")
-private var SemanticsPropertyReceiver.stateDotColor by StateDotColor
-
 @Composable
 internal fun StateLabel(label: String, dot: Color?, color: Color, tag: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.StateDotGap)) {
         dot?.let {
-            Box(Modifier.testTag("$tag-dot").semantics { stateDotColor = it }.size(Dimens.Badge).background(it, CircleShape))
+            Box(Modifier.testTag("$tag-dot").size(Dimens.Badge).background(it, CircleShape))
         }
         Text(label, style = TextStyles.RowState, color = color, modifier = Modifier.testTag("$tag-state"))
     }
@@ -71,15 +61,7 @@ internal fun ColumnScope.LauncherSystemControls(
     actions: LauncherSystemActions,
     focusEnabled: Boolean,
 ) {
-    Text(
-        stringResource(R.string.launcher_system_group),
-        style = SygixTypography.labelMedium,
-        color = SygixColors.OnDarkSecondary,
-        modifier = Modifier
-            .testTag("setting-launcher-group")
-            .focusProperties { canFocus = false }
-            .padding(start = RowPadding, top = Dimens.SettingsGroupTitleTop, bottom = Dimens.SettingsGroupTitleBottom),
-    )
+    SettingsGroupTitle(stringResource(R.string.launcher_system_group), "setting-launcher-group")
     val requester = remember { FocusRequester() }
     var handled by remember { mutableLongStateOf(state.settingsFocus) }
     LaunchedEffect(state.settingsFocus, focusEnabled) {
@@ -95,7 +77,6 @@ internal fun ColumnScope.LauncherSystemControls(
         onClick = actions.openGuide,
         focusRequester = requester,
         detail = launcherSummaryDetail(state.defaultLauncher, state),
-        partsTag = tag,
         modifier = Modifier
             .testTag(tag)
             .onPreviewKeyEvent { it.type == KeyEventType.KeyDown && (it.key == Key.DirectionRight || it.key == Key.DirectionDown) },

@@ -169,12 +169,6 @@ class SettingsViewModel(
 
     private val aboutUpdate = combine(updates.status, updates.systemScreenReturns) { status, returns -> updateMapper.map(status, returns) }
 
-    val updateActions = UpdateActions(
-        onCheck = updates::check,
-        onInstall = updates::startUpdate,
-        onTogglePrereleases = updates::togglePrereleases,
-    )
-
     val state: StateFlow<SettingsState> = combine(
         apps.disabledSources,
         library,
@@ -227,9 +221,19 @@ class SettingsViewModel(
         hiddenOrder.value = library.value?.let(::hiddenSnapshot)
     }
 
-    val homeScreenActions = HomeScreenActions(
-        onToggleUpNext = { viewModelScope.launch { apps.setUpNextVisible(!state.value.upNextVisible) } },
-        onUpNextPosition = { position -> viewModelScope.launch { apps.setUpNextPosition(position) } },
+    val actions = SettingsActions(
+        onToggleSource = ::toggleSource,
+        onToggleHidden = ::toggleHidden,
+        onUnhideAll = ::unhideAll,
+        onRestoreUpNext = ::restoreUpNext,
+        onExpandHidden = ::expandHidden,
+        onHiddenFocused = ::onHiddenFocused,
+        onCategoryEntered = ::enterCategory,
+        update = UpdateActions(updates::check, updates::startUpdate, updates::togglePrereleases),
+        homeScreen = HomeScreenActions(
+            onToggleUpNext = { viewModelScope.launch { apps.setUpNextVisible(!state.value.upNextVisible) } },
+            onUpNextPosition = { position -> viewModelScope.launch { apps.setUpNextPosition(position) } },
+        ),
     )
 
     private fun hiddenSnapshot(library: Library): List<String> =

@@ -22,6 +22,7 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextPosition
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import fr.sygix.sygixos.ui.settings.HomeScreenActions
+import fr.sygix.sygixos.ui.settings.SettingsActions
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -56,7 +57,7 @@ class ForegroundHomeTest {
                 launcherActions = launcher.actions,
                 onRestoreOrder = { restored = it },
                 upNext = row,
-                homeScreenActions = HomeScreenActions(onUpNextPosition = { positions += it }),
+                settingsActions = SettingsActions(homeScreen = HomeScreenActions(onUpNextPosition = { positions += it })),
             )
         }
         compose.waitForIdle()

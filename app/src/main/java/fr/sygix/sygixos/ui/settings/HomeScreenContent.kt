@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,10 +63,7 @@ internal fun HomeScreenContent(
         refocusPosition = false
     }
     Column(modifier.fillMaxWidth().testTag("settings-home-screen")) {
-        Text(stringResource(R.string.settings_category_home_screen), style = MaterialTheme.typography.headlineSmall, color = SygixColors.OnDark)
-        Spacer(Modifier.height(12.dp))
-        Text(stringResource(R.string.home_screen_description), style = MaterialTheme.typography.bodyMedium, color = SygixColors.OnDarkSecondary)
-        Spacer(Modifier.height(Dimens.SettingsHeaderGap))
+        SettingsHeader(R.string.settings_category_home_screen, R.string.home_screen_description)
         SwitchPreferenceRow(
             label = stringResource(R.string.upnext_visible),
             checked = visible,

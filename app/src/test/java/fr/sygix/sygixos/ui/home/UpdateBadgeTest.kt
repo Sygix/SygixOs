@@ -24,6 +24,7 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.data.UpdateHarness
+import fr.sygix.sygixos.ui.settings.SettingsActions
 import fr.sygix.sygixos.ui.settings.SettingsHarness
 import fr.sygix.sygixos.ui.settings.waitForToggle
 import kotlinx.coroutines.CoroutineScope
@@ -141,7 +142,7 @@ class UpdateBadgeTest {
                 hero = heroStateOf(items = listOf(heroItem("h1", "Programme", sourcePackage = "com.source"))),
                 settings = state,
                 updateBadge = gearBadge,
-                update = harness.viewModel.updateActions,
+                settingsActions = SettingsActions(update = harness.viewModel.actions.update),
             )
         }
         compose.waitForIdle()

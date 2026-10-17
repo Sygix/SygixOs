@@ -64,13 +64,12 @@ class UpdateAboutTest {
             MaterialTheme {
                 SettingsScreen(
                     state = SettingsState(version = "0.0.1", update = update),
-                    onToggleSource = {},
-                    onToggleHidden = {},
-                    onUnhideAll = {},
-                    update = UpdateActions(
-                        onCheck = { checks += Unit },
-                        onInstall = { installs += it },
-                        onTogglePrereleases = { toggles++ },
+                    actions = SettingsActions(
+                        update = UpdateActions(
+                            onCheck = { checks += Unit },
+                            onInstall = { installs += it },
+                            onTogglePrereleases = { toggles++ },
+                        ),
                     ),
                 )
             }

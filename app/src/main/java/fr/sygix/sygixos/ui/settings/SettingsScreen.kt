@@ -70,23 +70,27 @@ enum class SettingsCategory(@StringRes val label: Int) {
     }
 }
 
+class SettingsActions(
+    val onToggleSource: (String) -> Unit = {},
+    val onToggleHidden: (String) -> Unit = {},
+    val onUnhideAll: () -> Unit = {},
+    val onRestoreUpNext: (UpNextContentKey) -> Unit = {},
+    val onExpandHidden: (HiddenGroup) -> Unit = {},
+    val onHiddenFocused: (String) -> Unit = {},
+    val onCategoryEntered: (SettingsCategory) -> Unit = {},
+    val update: UpdateActions = UpdateActions(),
+    val homeScreen: HomeScreenActions = HomeScreenActions(),
+)
+
 @Composable
 fun SettingsScreen(
     state: SettingsState,
+    modifier: Modifier = Modifier,
     counts: State<Map<String, Int>?> = remember { mutableStateOf(emptyMap<String, Int>()) },
-    onToggleSource: (String) -> Unit,
-    onToggleHidden: (String) -> Unit,
-    onUnhideAll: () -> Unit,
-    onCategoryEntered: (SettingsCategory) -> Unit = {},
-    update: UpdateActions = UpdateActions(),
+    actions: SettingsActions = SettingsActions(),
     onBack: () -> Unit = {},
     homeHandlesBack: Boolean = true,
-    modifier: Modifier = Modifier,
-    homeScreenActions: HomeScreenActions = HomeScreenActions(),
     homeScreenRows: @Composable ColumnScope.(Boolean) -> Unit = {},
-    onRestoreUpNext: (UpNextContentKey) -> Unit = {},
-    onExpandHidden: (HiddenGroup) -> Unit = {},
-    onHiddenFocused: (String) -> Unit = {},
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
@@ -102,7 +106,7 @@ fun SettingsScreen(
     fun selectCategory(index: Int) {
         if (index == categoryIndex) return
         categoryIndex = index
-        onCategoryEntered(SettingsCategory.entries[index])
+        actions.onCategoryEntered(SettingsCategory.entries[index])
     }
 
     val contentAvailable = state.canEnter(category)
@@ -179,25 +183,25 @@ fun SettingsScreen(
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
-                        onToggle = onToggleSource,
+                        onToggle = actions.onToggleSource,
                     )
                     SettingsCategory.HIDDEN -> HiddenContent(
                         entries = state.hiddenEntries,
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
-                        onToggle = onToggleHidden,
-                        onUnhideAll = onUnhideAll,
-                        onRestore = onRestoreUpNext,
-                        onExpand = onExpandHidden,
+                        onToggle = actions.onToggleHidden,
+                        onUnhideAll = actions.onUnhideAll,
+                        onRestore = actions.onRestoreUpNext,
+                        onExpand = actions.onExpandHidden,
                         initialFocus = state.hiddenInitialFocus,
                         refocus = state.hiddenRefocus,
-                        onFocused = onHiddenFocused,
+                        onFocused = actions.onHiddenFocused,
                     )
                     SettingsCategory.ABOUT -> AboutContent(
                         version = state.version,
                         update = state.update,
-                        actions = update,
+                        actions = actions.update,
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
@@ -205,7 +209,7 @@ fun SettingsScreen(
                     SettingsCategory.HOME_SCREEN -> HomeScreenContent(
                         visible = state.upNextVisible,
                         position = state.upNextPosition,
-                        actions = homeScreenActions,
+                        actions = actions.homeScreen,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
                         additionalRows = homeScreenRows,

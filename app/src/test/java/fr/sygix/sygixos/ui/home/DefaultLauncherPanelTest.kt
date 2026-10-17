@@ -180,7 +180,7 @@ class DefaultLauncherPanelTest {
 
     @Test fun settingsRowRendersBothRouteStatesAndOnlyActiveHasDot() {
         compose.setContent { SygixOsTheme { Column { LauncherSystemControls(state.value, LauncherSystemActions(), true) } } }
-        val detail = compose.onNodeWithTag("setting-launcher-guide-detail", useUnmergedTree = true)
+        val detail = compose.onNode(hasAnyAncestor(hasTestTag("setting-launcher-guide")) and hasText("Automatique", substring = true), useUnmergedTree = true)
         val label = compose.onNodeWithTag("setting-launcher-guide-state", useUnmergedTree = true)
         detail.assertTextEquals("Automatique : à configurer · Par autorisations : à faire")
         label.assertTextEquals("À configurer")

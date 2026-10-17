@@ -19,7 +19,6 @@ import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.BringIntoViewSpec
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -110,8 +109,6 @@ import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.AppCatalog
 import fr.sygix.sygixos.domain.GridScroll
 import fr.sygix.sygixos.domain.GridSections
-import fr.sygix.sygixos.domain.HiddenGroup
-import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.domain.HomePage
 import fr.sygix.sygixos.domain.StartupPhase
@@ -121,13 +118,11 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
-import fr.sygix.sygixos.ui.settings.HomeScreenActions
+import fr.sygix.sygixos.ui.settings.SettingsActions
 import fr.sygix.sygixos.ui.settings.LocalAppIcons
 import fr.sygix.sygixos.ui.settings.SettingsCategory
 import fr.sygix.sygixos.ui.settings.SettingsScreen
 import fr.sygix.sygixos.ui.settings.SettingsState
-import fr.sygix.sygixos.ui.settings.SettingsViewModel
-import fr.sygix.sygixos.ui.settings.UpdateActions
 import fr.sygix.sygixos.ui.settings.rememberSettingsViewModel
 import fr.sygix.sygixos.model.LauncherSystemState
 import fr.sygix.sygixos.ui.settings.LauncherSystemActions
@@ -179,18 +174,10 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 onHideApp = viewModel::hideApp,
                 settings = settingsState,
                 counts = settingsViewModel.counts,
-                onToggleSource = settingsViewModel::toggleSource,
-                onToggleHidden = settingsViewModel::toggleHidden,
-                onUnhideAll = settingsViewModel::unhideAll,
-                onRestoreUpNext = settingsViewModel::restoreUpNext,
-                onExpandHidden = settingsViewModel::expandHidden,
-                onHiddenFocused = settingsViewModel::onHiddenFocused,
-                onSettingsCategory = settingsViewModel::enterCategory,
+                settingsActions = settingsViewModel.actions,
                 glassBlur = glassBlur,
                 clock = viewModel.clock,
                 updateBadge = viewModel.updateBadge,
-                update = settingsViewModel.updateActions,
-                homeScreenActions = settingsViewModel.homeScreenActions,
                 interactive = interactive,
                 homeHandlesBack = homeHandlesBack,
                 onHeroVisualReady = viewModel::onHeroVisualReady,
@@ -355,12 +342,6 @@ private val NoAutoScroll = object : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
 }
 
-private val NoCounts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap())
-
-private val NoClock: StateFlow<String> = MutableStateFlow("")
-
-private val NoBadge: StateFlow<Boolean> = MutableStateFlow(false)
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun LauncherHome(
@@ -374,20 +355,12 @@ internal fun LauncherHome(
     onRestoreOrder: (List<String>) -> Unit = {},
     onHideApp: (TvApp) -> Unit = {},
     settings: SettingsState? = null,
-    counts: StateFlow<Map<String, Int>?> = NoCounts,
-    onToggleSource: (String) -> Unit = {},
-    onToggleHidden: (String) -> Unit = {},
-    onUnhideAll: () -> Unit = {},
-    onRestoreUpNext: (UpNextContentKey) -> Unit = {},
-    onExpandHidden: (HiddenGroup) -> Unit = {},
-    onHiddenFocused: (String) -> Unit = {},
-    onSettingsCategory: (SettingsCategory) -> Unit = {},
+    counts: StateFlow<Map<String, Int>?> = remember { MutableStateFlow(emptyMap()) },
+    settingsActions: SettingsActions = SettingsActions(),
     initialZone: Zone = Zone.HERO,
     glassBlur: Boolean = true,
-    clock: StateFlow<String> = NoClock,
-    updateBadge: StateFlow<Boolean> = NoBadge,
-    update: UpdateActions = UpdateActions(),
-    homeScreenActions: HomeScreenActions = HomeScreenActions(),
+    clock: StateFlow<String> = remember { MutableStateFlow("") },
+    updateBadge: StateFlow<Boolean> = remember { MutableStateFlow(false) },
     interactive: Boolean = true,
     homeHandlesBack: Boolean = true,
     onHeroVisualReady: () -> Unit = {},
@@ -570,7 +543,7 @@ internal fun LauncherHome(
                                 gearFocus = gearFocus,
                                 onGearFocused = { gearFocused = it },
                                 onOpenSettings = {
-                                    onSettingsCategory(SettingsCategory.Initial)
+                                    settingsActions.onCategoryEntered(SettingsCategory.Initial)
                                     settingsOpen = true
                                 },
                                 modifier = Modifier
@@ -636,15 +609,7 @@ internal fun LauncherHome(
             SettingsScreen(
                 state = settings ?: SettingsState(),
                 counts = countsState,
-                onToggleSource = onToggleSource,
-                onToggleHidden = onToggleHidden,
-                onUnhideAll = onUnhideAll,
-                onRestoreUpNext = onRestoreUpNext,
-                onExpandHidden = onExpandHidden,
-                onHiddenFocused = onHiddenFocused,
-                onCategoryEntered = onSettingsCategory,
-                update = update,
-                homeScreenActions = homeScreenActions,
+                actions = settingsActions,
                 onBack = { settingsOpen = false },
                 homeHandlesBack = homeHandlesBack,
                 homeScreenRows = { enabled -> LauncherSystemControls(launcherState, launcherActions, enabled && !launcherOverlay) },

@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 
 @Stable
-class FocusTargets {
+open class FocusTargets {
     private val targets = mutableMapOf<String, FocusRequester>()
 
     @Composable

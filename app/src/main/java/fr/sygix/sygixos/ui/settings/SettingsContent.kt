@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.focus.focusProperties
@@ -67,13 +68,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.FocusTargets
@@ -128,16 +123,7 @@ internal fun SourcesContent(
         if (focusEnabled) focus.revealRow(listState, target, order.indexOf(target))
     }
     LazyColumn(state = listState, modifier = modifier.testTag("settings-sources").fillMaxWidth().fillMaxHeight()) {
-        item {
-            Text(stringResource(R.string.settings_category_sources), style = MaterialTheme.typography.headlineSmall, color = Color.White)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.sources_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.6f),
-            )
-            Spacer(Modifier.height(Dimens.SettingsHeaderGap))
-        }
+        item { SettingsHeader(R.string.settings_category_sources, R.string.sources_description) }
         items(rows, key = { it.app.packageName }) { row ->
             SourceRowLine(
                 row = row,
@@ -164,37 +150,16 @@ private fun SourceRowLine(
     val programCount by remember(row.app.packageName) {
         derivedStateOf { counts.value?.get(row.app.packageName) ?: 0 }
     }
-    var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
-    Row(
-        Modifier
-            .testTag("source-row-${row.app.packageName}")
-            .fillMaxWidth()
-            .tvFocusable(
-                focusRequester = focusRequester,
-                enabled = focusEnabled,
-                onFocused = {
-                    focused = it
-                    if (it) onFocused()
-                },
-            )
-            .tvClickable(onClick = onToggle)
-            .semantics(mergeDescendants = true) {
-                role = Role.Switch
-                toggleableState = ToggleableState(row.enabled)
-                onClick { onToggle(); true }
-            }
-            .focusPill(colors, RowShape)
-            .heightIn(min = RowHeight)
-            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically,
+    PreferenceRow(
+        label = row.app.label,
+        enabled = focusEnabled,
+        onClick = onToggle,
+        modifier = Modifier.testTag("source-row-${row.app.packageName}").switchSemantics(row.enabled, onToggle),
+        focusRequester = focusRequester,
+        detail = programCountLabel(programCount),
+        onFocused = { if (it) onFocused() },
+        leading = { AppThumbnail(row.app); Spacer(Modifier.width(RowGap)) },
     ) {
-        AppThumbnail(row.app)
-        Spacer(Modifier.width(RowGap))
-        Column(Modifier.weight(1f)) {
-            Text(row.app.label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
-            Text(programCountLabel(programCount), style = TextStyles.RowSecondary, color = colors.secondary)
-        }
         AppleSwitch(checked = row.enabled, tag = "source-switch-${row.app.packageName}")
     }
 }
@@ -233,16 +198,7 @@ internal fun HiddenContent(
     }
     fun onFocused(entry: HiddenEntry) = focused(entry.key)
     LazyColumn(state = listState, modifier = modifier.testTag("hidden-pane").fillMaxWidth().fillMaxHeight()) {
-        item(key = "header") {
-            Text(stringResource(R.string.settings_category_hidden), style = MaterialTheme.typography.headlineSmall, color = Color.White)
-            Spacer(Modifier.height(12.dp))
-            Text(
-                stringResource(R.string.hidden_description),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.6f),
-            )
-            Spacer(Modifier.height(Dimens.SettingsHeaderGap))
-        }
+        item(key = "header") { SettingsHeader(R.string.settings_category_hidden, R.string.hidden_description) }
         items(entries, key = { it.key }) { entry ->
             val requester = focus.bind(entry.key, contentFocus.takeIf { entry.key == initialFocus })
             when (entry) {
@@ -278,15 +234,7 @@ internal fun HiddenContent(
                     )
                     Spacer(Modifier.height(RowSpacing))
                 }
-                HiddenEntry.ContentsTitle -> Text(
-                    stringResource(R.string.hidden_group_upnext),
-                    style = SygixTypography.labelMedium,
-                    color = SygixColors.OnDarkSecondary,
-                    modifier = Modifier
-                        .testTag("hidden-group-upnext")
-                        .focusProperties { canFocus = false }
-                        .padding(start = RowPadding, top = Dimens.SettingsGroupTitleTop, bottom = Dimens.SettingsGroupTitleBottom),
-                )
+                HiddenEntry.ContentsTitle -> SettingsGroupTitle(stringResource(R.string.hidden_group_upnext), "hidden-group-upnext")
                 is HiddenEntry.Content -> {
                     HiddenContentLine(
                         row = entry.row,
@@ -300,6 +248,27 @@ internal fun HiddenContent(
             }
         }
     }
+}
+
+@Composable
+internal fun SettingsHeader(@StringRes title: Int, @StringRes description: Int) {
+    Text(stringResource(title), style = MaterialTheme.typography.headlineSmall, color = SygixColors.OnDark)
+    Spacer(Modifier.height(12.dp))
+    Text(stringResource(description), style = MaterialTheme.typography.bodyMedium, color = SygixColors.OnDarkSecondary)
+    Spacer(Modifier.height(Dimens.SettingsHeaderGap))
+}
+
+@Composable
+internal fun SettingsGroupTitle(text: String, tag: String) {
+    Text(
+        text,
+        style = SygixTypography.labelMedium,
+        color = SygixColors.OnDarkSecondary,
+        modifier = Modifier
+            .testTag(tag)
+            .focusProperties { canFocus = false }
+            .padding(start = RowPadding, top = Dimens.SettingsGroupTitleTop, bottom = Dimens.SettingsGroupTitleBottom),
+    )
 }
 
 @Composable
@@ -413,43 +382,17 @@ internal fun HiddenRowLine(
     focusRequester: FocusRequester,
     onFocused: () -> Unit,
     onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
     val state = stringResource(if (row.hidden) R.string.hidden_state_hidden else R.string.hidden_state_visible)
-    Row(
-        modifier
-            .testTag("hidden-row-${row.app.packageName}")
-            .fillMaxWidth()
-            .tvFocusable(
-                focusRequester = focusRequester,
-                enabled = focusEnabled,
-                onFocused = {
-                    focused = it
-                    if (it) onFocused()
-                },
-            )
-            .tvClickable(onClick = onToggle)
-            .semantics(mergeDescendants = true) {
-                role = Role.Switch
-                toggleableState = ToggleableState(row.hidden)
-                stateDescription = state
-                onClick { onToggle(); true }
-            }
-            .focusPill(colors, RowShape)
-            .heightIn(min = RowHeight)
-            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AppThumbnail(row.app)
-        Spacer(Modifier.width(RowGap))
-        Text(
-            row.app.label,
-            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
-            color = colors.content,
-            modifier = Modifier.weight(1f),
-        )
+    PreferenceRow(
+        label = row.app.label,
+        enabled = focusEnabled,
+        onClick = onToggle,
+        modifier = Modifier.testTag("hidden-row-${row.app.packageName}").switchSemantics(row.hidden, onToggle, state),
+        focusRequester = focusRequester,
+        onFocused = { if (it) onFocused() },
+        leading = { AppThumbnail(row.app); Spacer(Modifier.width(RowGap)) },
+    ) { colors ->
         Text(state, style = TextStyles.RowState, color = colors.tertiary, modifier = Modifier.clearAndSetSemantics { })
         Spacer(Modifier.width(RowGap))
         AppleSwitch(checked = row.hidden, tag = "hidden-switch-${row.app.packageName}")

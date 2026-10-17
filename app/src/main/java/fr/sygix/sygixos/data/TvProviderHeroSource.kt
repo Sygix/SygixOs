@@ -6,9 +6,10 @@
 package fr.sygix.sygixos.data
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.database.Cursor
 import android.media.tv.TvContract
+import android.media.tv.TvContract.PreviewPrograms as P
+import android.media.tv.TvContract.WatchNextPrograms as W
 import android.net.Uri
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.model.HeroItem
@@ -30,8 +31,8 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
 
     suspend fun programCounts(): Map<String, Int> = PROGRAM_URIS
         .flatMap { uri ->
-            rows(uri, arrayOf(COLUMN_PACKAGE, COLUMN_BROWSABLE)) { c ->
-                c.optString(COLUMN_PACKAGE).takeIf { c.optInt(COLUMN_BROWSABLE, 1) != 0 }
+            rows(uri, arrayOf(P.COLUMN_PACKAGE_NAME, P.COLUMN_BROWSABLE)) { c ->
+                c.optString(P.COLUMN_PACKAGE_NAME).takeIf { c.optInt(P.COLUMN_BROWSABLE, 1) != 0 }
             }
         }
         .groupingBy { it }
@@ -41,8 +42,7 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         context.contentResolver.changes(PROGRAM_URIS, debounceMillis).map { programCounts() }
 
     private suspend fun queryAll(): List<HeroItem> {
-        val items = rows(TvContract.PreviewPrograms.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) +
-            rows(TvContract.WatchNextPrograms.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
+        val items = rows(P.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow) + rows(W.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow)
         return HeroOrdering.sort(items.map { it.copy(sourceLabel = labelOf(it.sourcePackage)) })
     }
 
@@ -53,55 +53,29 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
                 .orEmpty()
         }.getOrDefault(emptyList())
 
-    internal fun mapPreviewRow(c: Cursor): HeroItem? {
-        if (c.optInt(TvContract.PreviewPrograms.COLUMN_BROWSABLE, 1) == 0) return null
-        val image = landscapeImage(c, TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI, TvContract.PreviewPrograms.COLUMN_POSTER_ART_ASPECT_RATIO, TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI)
-        val video = playableVideo(c.optString(TvContract.PreviewPrograms.COLUMN_PREVIEW_VIDEO_URI))
-        val intentUri = c.optString(TvContract.PreviewPrograms.COLUMN_INTENT_URI)
+    internal fun mapPreviewRow(c: Cursor): HeroItem? = mapRow(c, "preview", ProgramKind.FEATURED)
+
+    internal fun mapWatchNextRow(c: Cursor): HeroItem? = mapRow(c, "watchnext", watchNextKind(c.optInt(W.COLUMN_WATCH_NEXT_TYPE, -1)))
+
+    private fun mapRow(c: Cursor, idPrefix: String, kind: ProgramKind): HeroItem? {
+        if (c.optInt(P.COLUMN_BROWSABLE, 1) == 0) return null
+        val image = landscapeImage(c, P.COLUMN_POSTER_ART_URI, P.COLUMN_POSTER_ART_ASPECT_RATIO, P.COLUMN_THUMBNAIL_URI)
+        val video = playableVideo(c.optString(P.COLUMN_PREVIEW_VIDEO_URI))
         if (image == null && video == null) return null
         return HeroItem(
-            id = "preview-${c.getLong(c.getColumnIndexOrThrow(TvContract.PreviewPrograms._ID))}",
-            title = c.optString(TvContract.PreviewPrograms.COLUMN_TITLE).orEmpty(),
+            id = "$idPrefix-${c.getLong(c.getColumnIndexOrThrow(P._ID))}",
+            title = c.optString(P.COLUMN_TITLE).orEmpty(),
             videoUrl = video,
             imageUrl = image,
-            sourcePackage = c.optString(TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME),
-            launchUri = intentUri,
-            kind = ProgramKind.FEATURED,
-            season = c.optString(TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER),
-            episode = c.optString(TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER),
-            durationMillis = c.optLong(TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS).takeIf { it > 0 },
-            positionMillis = c.optLong(TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS).takeIf { it > 0 },
+            sourcePackage = c.optString(P.COLUMN_PACKAGE_NAME),
+            launchUri = c.optString(P.COLUMN_INTENT_URI),
+            engagement = c.optLong(W.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
+            kind = kind,
+            season = c.optString(P.COLUMN_SEASON_DISPLAY_NUMBER),
+            episode = c.optString(P.COLUMN_EPISODE_DISPLAY_NUMBER),
+            durationMillis = c.optLong(P.COLUMN_DURATION_MILLIS).takeIf { it > 0 },
+            positionMillis = c.optLong(P.COLUMN_LAST_PLAYBACK_POSITION_MILLIS).takeIf { it > 0 },
         )
-    }
-
-    internal fun mapWatchNextRow(c: Cursor): HeroItem? {
-        if (c.optInt(TvContract.WatchNextPrograms.COLUMN_BROWSABLE, 1) == 0) return null
-        val image = landscapeImage(c, TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI, TvContract.WatchNextPrograms.COLUMN_POSTER_ART_ASPECT_RATIO, TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI)
-        val video = playableVideo(c.optString(TvContract.WatchNextPrograms.COLUMN_PREVIEW_VIDEO_URI))
-        val intentUri = c.optString(TvContract.WatchNextPrograms.COLUMN_INTENT_URI)
-        if (image == null && video == null) return null
-        return HeroItem(
-            id = "watchnext-${c.getLong(c.getColumnIndexOrThrow(TvContract.WatchNextPrograms._ID))}",
-            title = c.optString(TvContract.WatchNextPrograms.COLUMN_TITLE).orEmpty(),
-            videoUrl = video,
-            imageUrl = image,
-            sourcePackage = c.optString(TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME),
-            launchUri = intentUri,
-            engagement = c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
-            kind = watchNextKind(c.optInt(TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE, -1)),
-            season = c.optString(TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER),
-            episode = c.optString(TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER),
-            durationMillis = c.optLong(TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS).takeIf { it > 0 },
-            positionMillis = c.optLong(TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS).takeIf { it > 0 },
-        )
-    }
-
-    private fun watchNextKind(type: Int): ProgramKind = when (type) {
-        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_CONTINUE -> ProgramKind.CONTINUE
-        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEXT -> ProgramKind.NEXT
-        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_NEW -> ProgramKind.NEW
-        TvContract.WatchNextPrograms.WATCH_NEXT_TYPE_WATCHLIST -> ProgramKind.WATCHLIST
-        else -> ProgramKind.WATCH_NEXT
     }
 
     private fun playableVideo(uri: String?): String? = uri?.takeIf { raw ->
@@ -109,7 +83,6 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
         parsed.scheme == "http" || parsed.scheme == "https" ||
             (parsed.scheme == "content" && parsed.authority != TvContract.AUTHORITY)
     }
-
 
     private fun labelOf(packageName: String?): String? = packageName?.let { pkg ->
         labels.getOrPut(pkg) {
@@ -121,42 +94,23 @@ class TvProviderHeroSource(private val context: Context) : HeroContentProvider {
     }
 
     private companion object {
-
-        val PROGRAM_URIS = listOf(TvContract.PreviewPrograms.CONTENT_URI, TvContract.WatchNextPrograms.CONTENT_URI)
-        const val COLUMN_PACKAGE = TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME
-        const val COLUMN_BROWSABLE = TvContract.PreviewPrograms.COLUMN_BROWSABLE
+        val PROGRAM_URIS = listOf(P.CONTENT_URI, W.CONTENT_URI)
 
         val PREVIEW_PROJECTION = arrayOf(
-            TvContract.PreviewPrograms._ID,
-            TvContract.PreviewPrograms.COLUMN_PACKAGE_NAME,
-            TvContract.PreviewPrograms.COLUMN_TITLE,
-            TvContract.PreviewPrograms.COLUMN_POSTER_ART_URI,
-            TvContract.PreviewPrograms.COLUMN_POSTER_ART_ASPECT_RATIO,
-            TvContract.PreviewPrograms.COLUMN_THUMBNAIL_URI,
-            TvContract.PreviewPrograms.COLUMN_PREVIEW_VIDEO_URI,
-            TvContract.PreviewPrograms.COLUMN_INTENT_URI,
-            TvContract.PreviewPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
-            TvContract.PreviewPrograms.COLUMN_DURATION_MILLIS,
-            TvContract.PreviewPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
-            TvContract.PreviewPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
-            TvContract.PreviewPrograms.COLUMN_BROWSABLE,
+            P._ID,
+            P.COLUMN_PACKAGE_NAME,
+            P.COLUMN_TITLE,
+            P.COLUMN_POSTER_ART_URI,
+            P.COLUMN_POSTER_ART_ASPECT_RATIO,
+            P.COLUMN_THUMBNAIL_URI,
+            P.COLUMN_PREVIEW_VIDEO_URI,
+            P.COLUMN_INTENT_URI,
+            P.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
+            P.COLUMN_DURATION_MILLIS,
+            P.COLUMN_SEASON_DISPLAY_NUMBER,
+            P.COLUMN_EPISODE_DISPLAY_NUMBER,
+            P.COLUMN_BROWSABLE,
         )
-        val WATCH_NEXT_PROJECTION = arrayOf(
-            TvContract.WatchNextPrograms._ID,
-            TvContract.WatchNextPrograms.COLUMN_PACKAGE_NAME,
-            TvContract.WatchNextPrograms.COLUMN_TITLE,
-            TvContract.WatchNextPrograms.COLUMN_POSTER_ART_URI,
-            TvContract.WatchNextPrograms.COLUMN_POSTER_ART_ASPECT_RATIO,
-            TvContract.WatchNextPrograms.COLUMN_THUMBNAIL_URI,
-            TvContract.WatchNextPrograms.COLUMN_PREVIEW_VIDEO_URI,
-            TvContract.WatchNextPrograms.COLUMN_INTENT_URI,
-            TvContract.WatchNextPrograms.COLUMN_LAST_PLAYBACK_POSITION_MILLIS,
-            TvContract.WatchNextPrograms.COLUMN_DURATION_MILLIS,
-            TvContract.WatchNextPrograms.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS,
-            TvContract.WatchNextPrograms.COLUMN_WATCH_NEXT_TYPE,
-            TvContract.WatchNextPrograms.COLUMN_SEASON_DISPLAY_NUMBER,
-            TvContract.WatchNextPrograms.COLUMN_EPISODE_DISPLAY_NUMBER,
-            TvContract.WatchNextPrograms.COLUMN_BROWSABLE,
-        )
+        val WATCH_NEXT_PROJECTION = PREVIEW_PROJECTION + arrayOf(W.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS, W.COLUMN_WATCH_NEXT_TYPE)
     }
 }

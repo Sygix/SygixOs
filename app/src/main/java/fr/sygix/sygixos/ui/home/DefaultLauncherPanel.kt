@@ -89,7 +89,7 @@ internal fun DefaultLauncherPanel(state: LauncherSystemState, actions: LauncherS
                 view.rows.forEach { row ->
                     key(row.tag) {
                         if (row.action != null) PreferenceRow(
-                            label = stringResource(row.label), detail = if (row.detail == 0) null else stringResource(row.detail), partsTag = row.tag,
+                            label = stringResource(row.label), detail = if (row.detail == 0) null else stringResource(row.detail),
                             focusRequester = requester(row.tag), enabled = true, onClick = { if (!p7.busy) actions.setup(row.action) },
                             onFocused = { if (it) focused = row.tag }, modifier = Modifier.testTag(row.tag),
                             dimmed = row.action == SetupAction.NONE,

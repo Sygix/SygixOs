@@ -17,9 +17,7 @@ import fr.sygix.sygixos.R
 object AppLauncher {
 
     fun open(context: Context, app: TvApp) {
-        val pm = context.packageManager
-        val intent = pm.getLeanbackLaunchIntentForPackage(app.packageName)
-            ?: pm.getLaunchIntentForPackage(app.packageName)
+        val intent = launchIntent(context, app.packageName)
         if (intent == null || !start(context, intent)) {
             Toast.makeText(context, "Impossible d'ouvrir ${app.label}", Toast.LENGTH_SHORT).show()
         }
@@ -42,9 +40,7 @@ object AppLauncher {
             runCatching { Intent.parseUri(uri, Intent.URI_INTENT_SCHEME).setPackage(source.packageName) }.getOrNull()
         }
         if (published != null && start(context, published)) return true
-        val pm = context.packageManager
-        val fallback = pm.getLeanbackLaunchIntentForPackage(source.packageName)
-            ?: pm.getLaunchIntentForPackage(source.packageName)
+        val fallback = launchIntent(context, source.packageName)
         if (fallback != null && start(context, fallback)) {
             if (fromMenu && source.intentUri != null) {
                 Toast.makeText(context, context.getString(R.string.upnext_open_fallback, source.label), Toast.LENGTH_SHORT).show()
@@ -54,6 +50,9 @@ object AppLauncher {
         Toast.makeText(context, context.getString(R.string.upnext_open_error, item.displayTitle), Toast.LENGTH_SHORT).show()
         return false
     }
+
+    private fun launchIntent(context: Context, packageName: String): Intent? =
+        context.packageManager.run { getLeanbackLaunchIntentForPackage(packageName) ?: getLaunchIntentForPackage(packageName) }
 
     private fun start(context: Context, intent: Intent): Boolean = runCatching {
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

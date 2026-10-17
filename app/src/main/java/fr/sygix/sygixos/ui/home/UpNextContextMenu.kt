@@ -41,39 +41,34 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
         }
         item.sources.forEachIndexed { index, entry ->
             key(entry.packageName) {
-                var focused by remember { mutableStateOf(false) }
-                val colors = animatedPillColors(focused)
-                Row(
-                    Modifier.testTag("upnext-menu-entry-${entry.packageName}").fillMaxWidth()
-                        .tvFocusable(focusRequester = if (index == 0) first else null, onFocused = { focused = it })
-                        .tvClickable(onClick = { onOpen(entry) }).focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
-                        .heightIn(min = Dimens.MenuActionHeight).padding(horizontal = Dimens.MenuEntryPadding),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.MenuEntryGap),
-                ) {
+                MenuEntry("upnext-menu-entry-${entry.packageName}", entry.label, { onOpen(entry) }, if (index == 0) first else null) {
                     entry.icon?.let { icon ->
                         val bitmap = remember(icon) { icon.toBitmap().asImageBitmap() }
                         Image(bitmap, null, Modifier.size(Dimens.MenuEntryIcon).clip(RoundedCornerShape(Dimens.MenuEntryIconCorner)))
                     }
-                    Text(entry.label, style = if (focused) TextStyles.RowFocused else TextStyles.Row,
-                        color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
-        var removeFocused by remember { mutableStateOf(false) }
-        val removeColors = animatedPillColors(removeFocused)
-        Row(
-            Modifier.testTag("upnext-menu-remove").fillMaxWidth()
-                .tvFocusable(onFocused = { removeFocused = it })
-                .tvClickable(onClick = onRemove).focusPill(removeColors, RoundedCornerShape(Dimens.PillCorner))
-                .heightIn(min = Dimens.MenuActionHeight).padding(horizontal = Dimens.MenuEntryPadding),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.MenuEntryGap),
-        ) {
-            HiddenEyeGlyph(removeColors.content, Modifier.size(Dimens.MenuEntryIcon).testTag("upnext-menu-remove-icon"))
-            Text(stringResource(R.string.upnext_remove), style = if (removeFocused) TextStyles.RowFocused else TextStyles.Row,
-                color = removeColors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        MenuEntry("upnext-menu-remove", stringResource(R.string.upnext_remove), onRemove) { color ->
+            HiddenEyeGlyph(color, Modifier.size(Dimens.MenuEntryIcon).testTag("upnext-menu-remove-icon"))
         }
+    }
+}
+
+@Composable
+private fun MenuEntry(tag: String, label: String, onClick: () -> Unit, focusRequester: FocusRequester? = null, icon: @Composable (Color) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val colors = animatedPillColors(focused)
+    Row(
+        Modifier.testTag(tag).fillMaxWidth()
+            .tvFocusable(focusRequester = focusRequester, onFocused = { focused = it })
+            .tvClickable(onClick = onClick).focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
+            .heightIn(min = Dimens.MenuActionHeight).padding(horizontal = Dimens.MenuEntryPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Dimens.MenuEntryGap),
+    ) {
+        icon(colors.content)
+        Text(label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

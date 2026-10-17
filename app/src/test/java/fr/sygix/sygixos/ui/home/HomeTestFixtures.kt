@@ -19,10 +19,9 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.model.LauncherSystemState
-import fr.sygix.sygixos.ui.settings.HomeScreenActions
+import fr.sygix.sygixos.ui.settings.SettingsActions
 import fr.sygix.sygixos.ui.settings.LauncherSystemActions
 import fr.sygix.sygixos.ui.settings.SettingsState
-import fr.sygix.sygixos.ui.settings.UpdateActions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,7 +66,6 @@ internal fun TestHome(
     counts: StateFlow<Map<String, Int>?> = MutableStateFlow(emptyMap()),
     clock: StateFlow<String> = MutableStateFlow("21:47"),
     updateBadge: StateFlow<Boolean> = MutableStateFlow(false),
-    update: UpdateActions = UpdateActions(),
     onHeroVisualReady: () -> Unit = {},
     interactive: Boolean = true,
     onAppFocused: (String) -> Unit = {},
@@ -78,7 +76,7 @@ internal fun TestHome(
     onRestoreOrder: (List<String>) -> Unit = {},
     onMoveInGrid: (TvApp, Int) -> Unit = { _, _ -> },
     upNext: UpNextState? = null,
-    homeScreenActions: HomeScreenActions = HomeScreenActions(),
+    settingsActions: SettingsActions = SettingsActions(),
 ) {
     val packageManager = LocalContext.current.packageManager
     val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
@@ -95,7 +93,6 @@ internal fun TestHome(
                 counts = counts,
                 clock = clock,
                 updateBadge = updateBadge,
-                update = update,
                 onHeroVisualReady = onHeroVisualReady,
                 interactive = interactive,
                 onAppFocused = onAppFocused,
@@ -105,7 +102,7 @@ internal fun TestHome(
                 onRestoreOrder = onRestoreOrder,
                 onMoveInGrid = onMoveInGrid,
                 upNext = upNext,
-                homeScreenActions = homeScreenActions,
+                settingsActions = settingsActions,
             )
         }
     }

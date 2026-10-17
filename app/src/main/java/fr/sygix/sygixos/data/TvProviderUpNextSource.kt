@@ -11,7 +11,6 @@ import android.graphics.drawable.Drawable
 import android.os.CancellationSignal
 import android.media.tv.TvContract.WatchNextPrograms as W
 import fr.sygix.sygixos.domain.UpNextSource
-import fr.sygix.sygixos.model.ProgramKind
 import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
@@ -68,13 +67,7 @@ class TvProviderUpNextSource(
             portrait = image != null && image == c.optString(W.COLUMN_POSTER_ART_URI) && isPortraitRatio(c.optInt(W.COLUMN_POSTER_ART_ASPECT_RATIO, -1)),
             positionMillis = c.optLong(W.COLUMN_LAST_PLAYBACK_POSITION_MILLIS).takeIf { it > 0 },
             durationMillis = c.optLong(W.COLUMN_DURATION_MILLIS).takeIf { it > 0 },
-            watchNextType = when (c.optInt(W.COLUMN_WATCH_NEXT_TYPE, -1)) {
-                W.WATCH_NEXT_TYPE_CONTINUE -> ProgramKind.CONTINUE
-                W.WATCH_NEXT_TYPE_NEXT -> ProgramKind.NEXT
-                W.WATCH_NEXT_TYPE_NEW -> ProgramKind.NEW
-                W.WATCH_NEXT_TYPE_WATCHLIST -> ProgramKind.WATCHLIST
-                else -> ProgramKind.WATCH_NEXT
-            },
+            watchNextType = watchNextKind(c.optInt(W.COLUMN_WATCH_NEXT_TYPE, -1)),
             engagement = c.optLong(W.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
             internalProviderId = c.optString(W.COLUMN_INTERNAL_PROVIDER_ID),
             contentId = c.optString(W.COLUMN_CONTENT_ID),

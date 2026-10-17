@@ -87,9 +87,7 @@ class SettingsNavigationTest {
                                 version = "0.1.0",
                             ),
                             counts = mutableStateOf(counts),
-                            onToggleSource = { toggled.add(it) },
-                            onToggleHidden = {},
-                            onUnhideAll = {},
+                            actions = SettingsActions(onToggleSource = { toggled.add(it) }),
                             onBack = onBack,
                         )
                     }

@@ -92,8 +92,7 @@ class UpNextSettingsHomeTest {
                     LauncherHome(
                         catalog = catalogOf(emptyList(), listOf(app("com.alpha", "Alpha"), app("com.beta", "Beta"))),
                         hero = heroStateOf(emptyList()), onTogglePin = {}, glassBlur = false,
-                        settings = settings, onToggleSource = harness.viewModel::toggleSource,
-                        onSettingsCategory = harness.viewModel::enterCategory, homeScreenActions = harness.viewModel.homeScreenActions,
+                        settings = settings, settingsActions = harness.viewModel.actions,
                         upNext = upNext,
                     )
                 }

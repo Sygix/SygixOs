@@ -145,16 +145,18 @@ internal class SettingsHarness(
             SettingsScreen(
                 state = state,
                 counts = counts,
-                onToggleSource = viewModel::toggleSource,
-                onToggleHidden = { toggled += it; viewModel.toggleHidden(it) },
-                onUnhideAll = { unhideAllCalls++; viewModel.unhideAll() },
-                onCategoryEntered = viewModel::enterCategory,
-                update = viewModel.updateActions,
+                actions = SettingsActions(
+                    onToggleSource = viewModel::toggleSource,
+                    onToggleHidden = { toggled += it; viewModel.toggleHidden(it) },
+                    onUnhideAll = { unhideAllCalls++; viewModel.unhideAll() },
+                    onRestoreUpNext = { restored += it; viewModel.restoreUpNext(it) },
+                    onExpandHidden = viewModel::expandHidden,
+                    onHiddenFocused = viewModel::onHiddenFocused,
+                    onCategoryEntered = viewModel::enterCategory,
+                    update = viewModel.actions.update,
+                    homeScreen = viewModel.actions.homeScreen,
+                ),
                 onBack = { backs++; open = false },
-                homeScreenActions = viewModel.homeScreenActions,
-                onRestoreUpNext = { restored += it; viewModel.restoreUpNext(it) },
-                onExpandHidden = viewModel::expandHidden,
-                onHiddenFocused = viewModel::onHiddenFocused,
             )
         }
     }

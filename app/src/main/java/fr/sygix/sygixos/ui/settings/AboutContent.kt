@@ -7,14 +7,12 @@ package fr.sygix.sygixos.ui.settings
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,12 +37,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.FocusTargets
@@ -63,7 +57,6 @@ import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.animatedPillColors
 import fr.sygix.sygixos.core.designsystem.focusPill
-import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.domain.QrCode
 
@@ -123,10 +116,12 @@ internal fun AboutContent(
                         modifier = Modifier.testTag("update-withdrawn"),
                     )
                 }
-                PrereleasesRow(
+                SwitchPreferenceRow(
+                    label = stringResource(R.string.update_prereleases),
                     checked = update.includePrereleases,
-                    focusEnabled = focusEnabled,
+                    enabled = focusEnabled,
                     onToggle = actions.onTogglePrereleases,
+                    tag = "update-prereleases",
                 )
             }
             Spacer(Modifier.height(24.dp))
@@ -144,10 +139,7 @@ internal fun AboutContent(
             entries == null -> item(key = "about-licenses-loading") { AboutStatus(stringResource(R.string.about_licenses_loading), "about-licenses-loading") }
             entries.isEmpty() -> item(key = "about-licenses-empty") { AboutStatus(stringResource(R.string.about_licenses_empty), "about-licenses-empty") }
             else -> items(entries, key = { it.uniqueId }) { library ->
-                LicenseRow(
-                    library = library,
-                    focusEnabled = focusEnabled,
-                    )
+                LicenseRow(library = library, focusEnabled = focusEnabled)
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -225,41 +217,14 @@ private fun AboutActionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
-    Column(
-        modifier
-            .fillMaxWidth()
-            .tvFocusable(
-                focusRequester = focusRequester,
-                enabled = focusEnabled,
-                onFocused = { focused = it },
-            )
-            .tvClickable(onClick = onClick)
-            .semantics(mergeDescendants = true) { onClick { onClick(); true } }
-            .focusPill(colors, RowShape)
-            .heightIn(min = RowHeight)
-            .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(title, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
-        if (detail != null) Text(detail, style = TextStyles.RowSecondary, color = colors.secondary)
-    }
-}
-
-@Composable
-private fun PrereleasesRow(
-    checked: Boolean,
-    focusEnabled: Boolean,
-    onToggle: () -> Unit,
-) {
-    SwitchPreferenceRow(
-        label = stringResource(R.string.update_prereleases),
-        checked = checked,
+    PreferenceRow(
+        label = title,
         enabled = focusEnabled,
-        onToggle = onToggle,
-        tag = "update-prereleases",
-    )
+        onClick = onClick,
+        modifier = modifier.semantics(mergeDescendants = true) { onClick { onClick(); true } },
+        focusRequester = focusRequester,
+        detail = detail,
+    ) { }
 }
 
 @Composable
