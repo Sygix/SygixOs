@@ -5,8 +5,92 @@ Page de réglages du launcher : choix des apps sources du héro et du Top Shelf,
 
 ## Requirements
 
+### Requirement: Focus des réglages
+Toute ligne focusable SHALL être une pilule claire à texte/icônes sombres, sans zoom, halo ni verre : catégories, apps, contenus, dépliage, Tout réactiver, visibilité/position et options, À propos. La catégorie active SHALL garder une pilule grise discrète au focus à droite.
+
+#### Scenario: focus de ligne et catégorie
+- **WHEN** le focus change de volet ou de ligne
+- **THEN** « focus d'une ligne » et « catégorie active, focus à droite » de « Page de réglages » s'appliquent à tous les contrôles listés
+
+### Requirement: Compteurs des sources
+Les compteurs SHALL compter tous les PreviewPrograms et WatchNextPrograms par app dès l'accueil au lancement, non à l'ouverture des réglages, par l'unique observation existante sans seconde lecture. Elle SHALL réagir aux deux tables, s'arrêter en arrière-plan sans relecture, conserver ses valeurs puis recompter aussitôt au retour au premier plan.
+
+#### Scenario: comptage partagé et cycle de vie
+- **WHEN** le launcher démarre, passe en arrière-plan ou revient
+- **THEN** les scénarios de compteurs de « Apps sources », y compris Watch Next seul et aucun compteur disponible, s'appliquent
+
+### Requirement: Tri stable des sources
+À chaque entrée de catégorie, les apps SHALL être triées : compteur > 0 décroissant, égalité par nom sans casse, puis zéros par nom. Sans premier comptage, alphabet puis un seul retri à son arrivée, focus par app, pas position. Ensuite les nombres seuls SHALL changer, ordre figé jusqu'à nouvelle entrée ; un aller-retour entre volets ne recalcule pas.
+
+#### Scenario: compteurs en retard ou actualisés
+- **WHEN** un compteur arrive dans la catégorie
+- **THEN** « compteurs en retard », « compteurs mis à jour dans la catégorie » et « nouvel ordre à la prochaine entrée » de « Apps sources » s'appliquent sans saut sous le focus
+
+### Requirement: Lignes des contenus retirés
+Les contenus SHALL être triés par retrait décroissant, avec vignette 16:9/image persistée sinon placeholder, titre et « Série · <apps> » ou « Film · <apps> » (sources persistées encore installées séparées par virgules, type seul sinon). Seul le focus SHALL montrer « Réafficher » à droite. OK SHALL supprimer le retrait persisté et sa ligne ; retour en rangée au prochain chargement si encore publié.
+
+#### Scenario: retrait réaffiché
+- **WHEN** un contenu est réaffiché
+- **THEN** « contenus retirés » et « réafficher un contenu » de « Applications cachées » s'appliquent sans action sur les switches d'apps
+
+### Requirement: Groupes repliés
+Chaque groupe SHALL montrer au plus 3 lignes, puis « Afficher les N autres » pour N masquées ou « Afficher l'autre ». OK SHALL afficher tout dans l'ordre, supprimer cette ligne et focaliser la 4e. Le dépliage ne SHALL pas être persisté et revient replié à chaque entrée de catégorie.
+
+#### Scenario: dépliage et retour
+- **WHEN** un groupe dépasse trois éléments
+- **THEN** « groupe limité à 3 lignes », « dépliage d'un groupe » et « retour dans le volet » de « Applications cachées » s'appliquent
+
+### Requirement: Liste des apps cachées
+Les apps SHALL être triées par masquage décroissant, sans date en fin par nom sans casse. La liste SHALL être reconstruite depuis l'état persisté à chaque entrée de catégorie, avant la première image, jamais pour un aller-retour entre volets sans changer de catégorie.
+
+#### Scenario: entrée et changement de volet
+- **WHEN** les apps ont été réactivées ou recachées
+- **THEN** « recalcul au retour dans la catégorie » et « pas de recalcul sans changer de catégorie » de « Applications cachées » préservent l'état attendu sans image d'une ancienne liste
+
+### Requirement: Réactivation des apps cachées
+Réactiver par switch ou Tout réactiver SHALL agir et persister immédiatement sur grille/dock, en gardant la ligne visible et son switch visible tant que catégorie active. Tout réactiver SHALL viser seulement les apps de la liste, repliées comprises, sans réafficher les contenus ; une cachée désinstallée non listée reste cachée, même réinstallée.
+
+#### Scenario: réactivation et annulation locale
+- **WHEN** une app ou la liste est réactivée
+- **THEN** « réactivation », « recacher avant le recalcul », « tout réactiver » et « tout réactiver avec une app cachée désinstallée » de « Applications cachées » s'appliquent sans recalcul prématuré
+
+### Requirement: Focus des éléments cachés
+L'ordre SHALL être Tout réactiver, apps, dépliage apps, contenus, dépliage contenus, sans intertitre focusable. Initialement première ligne du premier groupe non vide, Haut atteignant Tout réactiver. Une ligne désinstallée/réaffichée SHALL disparaître ; si focusée, focus au successeur de sa position sinon dernier, puis catégorie si vide.
+
+#### Scenario: disparition ou volet vide
+- **WHEN** une ligne disparaît pendant l'affichage
+- **THEN** les scénarios « app de la ligne focalisée désinstallée », « liste vidée pendant l'affichage » et « autre app désinstallée » de « Applications cachées » gardent la navigation sans boucler
+
+### Requirement: Ligne de position fermée
+Selon 7.7/7.8 et les composants « Ligne de réglage à valeur »/« Liste déroulante », la ligne SHALL montrer libellé à gauche, valeur `TextStyles.RowState` à droite, couleur tertiaire `SygixColors.OnDarkSecondary` au repos / `OnPillTertiary` au focus, puis chevron bas `Dimens.SettingsChevron` à `Dimens.SettingsChevronGap`, même couleur.
+
+#### Scenario: ligne ouverte
+- **WHEN** la liste est ouverte
+- **THEN** la ligne prend `SygixColors.PillSelected` et son chevron pointe vers le haut, selon les scénarios de « Position d'À suivre »
+
+### Requirement: Liste de position ouverte
+Le panneau SHALL être `GlassSurface` / `GlassLook.Menu`, largeur `Dimens.DropdownWidth`, coins `Dimens.DropdownCorner`, padding `Dimens.DropdownPadding`, ancré `Dimens.DropdownOffset` sous la ligne et `Dimens.DropdownInsetEnd` en retrait du bord droit. Il SHALL couvrir le volet sans voile et présenter les deux valeurs dans leur ordre, selon « Options de position ».
+
+#### Scenario: ancrage et matériau
+- **WHEN** le menu de position est affiché
+- **THEN** les scénarios de liste ouverte de « Position d'À suivre » gardent la géométrie et le matériau du menu contextuel
+
+### Requirement: Options de position
+Chaque option SHALL avoir hauteur `Dimens.DropdownOptionHeight`, coins `Dimens.DropdownOptionCorner` concentriques au panneau, écart `Dimens.DropdownOptionGap`, colonne gauche `Dimens.DropdownCheck` avec coche pour la seule valeur courante, texte `TextStyles.Row` / `RowFocused` au focus, pilule de « Page de réglages ».
+
+#### Scenario: option courante et focus
+- **WHEN** la liste de position est parcourue
+- **THEN** « déplacements dans la liste » et les scénarios de validation/fermeture de « Position d'À suivre » gardent la coche et le focus dans la liste
+
+### Requirement: État de la ligne launcher
+État/détail SHALL être recalculés au retour au premier plan, à la fermeture du panneau et en fin de séquence. Le détail SHALL être « Automatique : <état> · Par autorisations : <état> », états en minuscules. À droite : « Actif » avec point vert si une voie active, sinon « Bloqué » si voie bloquée, sinon « En partie » si partielle, sinon « À configurer ».
+
+#### Scenario: libellés des états des voies
+- **WHEN** la ligne est relue
+- **THEN** la voie automatique donne « actif », « à configurer » ou « indisponible sur cette TV », la voie par autorisations « active », « en partie », « bloquée », « non utilisée » ou « à faire », selon launcher-shell ; le premier contrôle reste « Afficher À suivre », et aucune autre ligne rôle HOME, allumage, accessibilité, débogage ou accueil d'origine n'est ajoutée
+
 ### Requirement: Capsule heure et réglages
-Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre sombre (« Thème » de `launcher-shell`) qui contient l'heure courante puis un engrenage dessiné au trait ouvrant la page de réglages ; elle remplace l'engrenage seul. L'heure SHALL suivre le format 12 ou 24 h choisi dans le système, n'est jamais focusable et SHALL se mettre à jour au changement de minute sans recomposer le reste de l'écran. Seul l'engrenage SHALL prendre le focus. La capsule SHALL être solidaire du héro, comme le dock (« Dock d'apps épinglées » de `launcher-shell`) : elle n'a aucun fondu propre, sort par le haut avec le héro pendant le défilement vers la grille, revient avec lui, et n'est jamais visible en vue grille.
+Sur le héro en haut à droite, la capsule verre de « Thème » SHALL montrer heure puis engrenage au trait ouvrant les réglages. Seul l'engrenage SHALL être focusable. L'heure système 12/24 h SHALL changer par minute sans recomposer le reste. Solidaire du héro comme le dock, la capsule SHALL sortir/revenir avec lui sans fondu propre, invisible en grille, remplaçant l'ancien engrenage seul.
 
 #### Scenario: affichage
 - **WHEN** le héro est affiché
@@ -37,7 +121,7 @@ Le home SHALL afficher sur le héro, en haut à droite, une capsule en verre som
 - **THEN** l'heure affichée redevient l'heure courante dès le retour, sans attendre le changement de minute ; aucune mise à jour n'a lieu tant que le launcher est en arrière-plan
 
 ### Requirement: Page de réglages
-Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet catégories à gauche, contenu de la catégorie à droite, sur le même fond que la zone grille de l'accueil (« Fond de la zone grille » de `launcher-shell`), navigable au DPAD uniquement. Le focus de toute ligne focusable de la page (catégories, lignes d'« Apps sources » et d'« Applications cachées », lignes de contenus retirés et lignes « Afficher les N autres », bouton « Tout réactiver », lignes « Afficher À suivre » et « Position d'À suivre » et valeurs de la liste déroulante de « Position d'À suivre », lignes d'« À propos ») SHALL être une pilule claire à texte et icônes sombres, sans zoom, sans halo et sans matériau verre. La catégorie active SHALL rester marquée par une pilule grise discrète quand le focus est dans le volet droit. Pendant l'affichage de la page, l'accueil SHALL n'être ni dessiné ni focusable, sans être réinitialisé : son état (programme et visuel du héro, vidéo d'aperçu, position de la grille) est conservé pour un retour immédiat.
+Les réglages SHALL être plein écran tvOS au DPAD : catégories à gauche, contenu à droite, fond de « Fond de la zone grille » de launcher-shell. L'accueil ne SHALL être ni dessiné ni focusable dessous, sans réinitialiser programme/visuel/vidéo du héro ni position grille. Les lignes SHALL suivre « Focus des réglages » ; le retour garde les scénarios ci-dessous.
 
 #### Scenario: structure
 - **WHEN** la page de réglages s'ouvre
@@ -76,7 +160,7 @@ Le launcher SHALL offrir une page de réglages plein écran à la tvOS : volet c
 - **THEN** l'icône de l'app est présentée dans une vignette 16:9 : la bannière TV de l'app quand elle en a une, sinon son icône entière centrée, comme le repli des tuiles de l'accueil
 
 ### Requirement: Apps sources
-La catégorie « Apps sources » SHALL lister toutes les apps TV installées avec, pour chacune, un toggle switch (style Apple) activant sa contribution au héro, au Top Shelf et à la rangée Up Next ; par défaut toutes les apps sont activées. La description du volet SHALL être « Choisissez les applications qui alimentent le héro, le Top Shelf et À suivre. » et la catégorie SHALL ne lister que des apps : les contenus retirés d'À suivre sont listés dans « Applications cachées ». Le nombre affiché SHALL compter tous les programmes publiés par chaque app dans le TV Provider, `PreviewPrograms` et `WatchNextPrograms` compris. La liste SHALL être triée : d'abord les apps dont le nombre de programmes publiés affiché est supérieur à 0, par nombre décroissant et, à nombre égal, par ordre alphabétique de leur nom (insensible à la casse), puis les apps à 0, par ordre alphabétique de leur nom (insensible à la casse). Les compteurs de programmes par app SHALL être calculés dès l'affichage de l'accueil au lancement du launcher, et non à l'ouverture des réglages, par l'unique observation existante du TV Provider (sans seconde lecture), qui SHALL réagir aux changements des `PreviewPrograms` comme des `WatchNextPrograms`. Cette observation SHALL être mise en pause quand le launcher passe en arrière-plan (aucune relecture du TV Provider pour les compteurs tant qu'une autre app est au premier plan) et un nouveau comptage SHALL être lancé à chaque retour du launcher au premier plan (décision de Sygix). Cet ordre SHALL être calculé à l'entrée dans la catégorie (ouverture des réglages ou passage depuis une autre catégorie) avec les compteurs connus à ce moment. Si aucun comptage n'est encore arrivé à l'entrée, la liste SHALL s'afficher d'abord par ordre alphabétique, puis être retriée une seule fois, à l'arrivée du premier comptage, le focus restant sur l'app qui l'avait (et non sur la position). L'ordre SHALL ensuite rester figé tant que la catégorie reste active : les compteurs affichés se mettent à jour sur place, mais les lignes ne changent plus de position sous le focus. Un aller-retour entre le volet gauche et le volet droit sans changer de catégorie ne recalcule pas l'ordre.
+« Apps sources » SHALL lister toutes les apps TV installées avec switch Apple activé par défaut pour leur contribution au héro, Top Shelf et Up Next. La description SHALL être « Choisissez les applications qui alimentent le héro, le Top Shelf et À suivre. ». Seules les apps y figurent, les contenus retirés allant dans Applications cachées. Comptage et ordre SHALL suivre « Compteurs des sources » et « Tri stable des sources ».
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
@@ -150,7 +234,7 @@ Le menu contextuel d'une tuile SHALL offrir une option « Cacher » en plus des 
 - **THEN** ces apps restent cachées (grille et dock), sont listées dans « Applications cachées » sans date, et aucune donnée n'est perdue ni réécrite au démarrage
 
 ### Requirement: Applications cachées
-La catégorie « Applications cachées » SHALL afficher directement dans le volet de droite, dans une même liste défilante, deux groupes : d'abord la liste des apps cachées, chacune avec un toggle switch reflétant son état (cachée / visible), précédée d'un bouton « Tout réactiver » placé au-dessus de la liste ; puis le groupe « Retirés d'À suivre », sous un intertitre non focusable, qui liste les contenus retirés de la rangée Up Next (« Contenus retirés d'À suivre » de up-next ; maquette Penpot 7.9). Un groupe vide n'est pas affiché (ni son intertitre, ni « Tout réactiver » pour les apps) ; aucun sous-écran n'est ouvert. Chaque ligne de contenu retiré SHALL montrer la vignette 16:9 des lignes d'apps avec l'image persistée du contenu (placeholder à défaut), son titre et le détail « Série · <apps> » ou « Film · <apps> » (noms des apps sources persistées encore installées, séparés par des virgules ; « Série » ou « Film » seul si aucune ne l'est), et, sur la ligne focusée seulement, l'action « Réafficher » à droite ; les contenus SHALL être triés par instant du retrait décroissant. OK sur une ligne de contenu SHALL retirer ce contenu de l'ensemble des contenus retirés, de façon persistée, la ligne disparaissant aussitôt ; le contenu revient dans la rangée Up Next au chargement suivant s'il est encore publié. Chaque groupe SHALL montrer au plus 3 lignes : au-delà, ses 3 premières lignes sont suivies d'une ligne « Afficher les N autres » (N lignes masquées ; « Afficher l'autre » pour une seule) dont OK déplie le groupe, toutes ses lignes s'affichant, la ligne « Afficher les N autres » disparaissant et le focus passant à la 4e ligne du groupe ; le dépliage n'est jamais persisté et revient replié à chaque entrée dans la catégorie. La liste des apps SHALL être triée par date de masquage décroissante (la plus récemment cachée en premier), les apps cachées sans date étant placées en fin de liste par ordre alphabétique de leur nom (insensible à la casse). Réactiver une app (par son switch ou par « Tout réactiver ») SHALL agir immédiatement sur la grille et le dock et être persisté, mais SHALL laisser sa ligne affichée dans le volet, switch en position « visible », tant que la catégorie reste active. « Tout réactiver » SHALL ne réactiver que les apps de la liste affichée, lignes repliées comprises (décision de Sygix), et ne SHALL pas réafficher de contenu retiré : une app cachée puis désinstallée n'est pas listée et reste cachée, y compris à sa réinstallation. La liste SHALL être recalculée à partir de l'état persisté à chaque entrée dans la catégorie (passage depuis une autre catégorie ou ouverture des réglages), avant son premier affichage : aucune image ne montre l'ancienne liste ; passer du volet droit au volet gauche sans changer de catégorie ne la recalcule pas. Si l'app d'une ligne disparaît pendant l'affichage (désinstallée), ou qu'une ligne de contenu est réaffichée, sa ligne SHALL disparaître ; si cette ligne avait le focus, le focus SHALL passer à l'élément qui occupe désormais sa position dans l'ordre de focus du volet (le nouveau dernier élément si c'était le dernier), et si le volet devient vide, le focus SHALL revenir sur la catégorie « Applications cachées » du volet gauche (décision de Sygix). L'ordre de focus du volet est : « Tout réactiver », lignes d'apps affichées, « Afficher les N autres » des apps, lignes de contenus affichées, « Afficher les N autres » des contenus ; l'intertitre n'est jamais focalisé. Le focus initial du volet SHALL être la première ligne du premier groupe non vide ; « Tout réactiver » est atteint par Haut depuis la première ligne d'app (exception assumée à la règle de « Page de réglages » qui porte le focus sur le premier élément du volet droit).
+Le volet SHALL afficher sans sous-écran une liste défilante : « Tout réactiver » puis apps cachées avec switch cachée/visible, puis « Retirés d'À suivre » non focusable et contenus (7.9). Un groupe vide et son en-tête/bouton SHALL être absents. Les règles SHALL suivre « Lignes des contenus retirés », « Groupes repliés », « Réactivation des apps cachées », « Liste des apps cachées » et « Focus des éléments cachés ».
 
 #### Scenario: sous-écran
 - **WHEN** l'utilisateur sélectionne ou valide « Applications cachées » dans le volet gauche
@@ -248,7 +332,7 @@ La catégorie « À propos » SHALL afficher la version du launcher et les licen
 - **THEN** les lignes de mise à jour de `self-update` sont visibles avant la liste des licences, avec le comportement que `self-update` spécifie
 
 ### Requirement: Catégorie « Écran d'accueil »
-Le volet droit de la catégorie « Écran d'accueil » (`SettingsCategory.HOME_SCREEN`, placée avant « À propos » dans le volet des catégories) SHALL reprendre l'en-tête des autres catégories, conformément à la maquette Penpot validée (« SygixOs Maquette », page « TV », écran 7.7) : le titre « Écran d'accueil » en `headlineSmall`, puis la description « Choisissez ce qu'affiche l'accueil de SygixOs. » en `bodyMedium` blanc à 60 %, avec les mêmes espacements que « Apps sources » et « Applications cachées », puis les lignes de réglage. Les lignes SHALL avoir la forme des lignes des réglages (`Dimens.SettingsRowCorner`), une hauteur minimale `Dimens.SettingsRowHeight` et les retraits des lignes d'« Apps sources », avec la pilule de focus de « Page de réglages » ; « Afficher À suivre » est la première, « Position d'À suivre » la suit ; les réglages ajoutés par d'autres changes viennent après, sans changer ce focus initial.
+Avant À propos, `SettingsCategory.HOME_SCREEN` SHALL suivre 7.7 : titre « Écran d'accueil » en `headlineSmall`, description « Choisissez ce qu'affiche l'accueil de SygixOs. » en `bodyMedium` blanc 60 %, espacements des autres catégories. Les lignes SHALL garder `Dimens.SettingsRowCorner`, minimum `Dimens.SettingsRowHeight`, retraits Apps sources et focus standard ; afficher À suivre puis sa position, autres réglages après, sans changer le focus initial.
 
 #### Scenario: en-tête du volet
 - **WHEN** la catégorie « Écran d'accueil » est active
@@ -259,7 +343,7 @@ Le volet droit de la catégorie « Écran d'accueil » (`SettingsCategory.HOME_S
 - **THEN** son rectangle a la même hauteur minimale et les mêmes retraits que les lignes d'« Apps sources », et son libellé est en `TextStyles.Row` au repos et `TextStyles.RowFocused` au focus
 
 ### Requirement: Afficher À suivre
-La catégorie « Écran d'accueil » SHALL proposer, en première ligne, le réglage « Afficher À suivre » : une ligne avec un toggle switch (style Apple) identique à la ligne « Inclure les préversions » d'« À propos » (libellé à gauche, switch à droite ; maquette Penpot 7.7), activée par défaut et persistée dans DataStore. Ce réglage autorise l'affichage sans le forcer : la rangée n'est visible que si elle dispose de contenu affichable et que la permission requise est accordée. Lorsqu'il est désactivé, la rangée et son titre sont masqués et ignorés par la navigation (« Rangée Up Next » et « Navigation 3 paliers » de `launcher-shell`), sans modifier les programmes publiés ni les filtres des apps sources. La navigation D-pad de la ligne SHALL suivre « Page de réglages » : gauche rend le focus au volet des catégories, Retour ferme les réglages, haut et bas passent d'un contrôle de la catégorie à l'autre.
+« Afficher À suivre » SHALL être le premier contrôle : switch Apple identique aux préversions, libellé gauche/switch droite (7.7), activé par défaut, persisté DataStore. Il autorise sans forcer : contenu affichable et permission restent requis. Désactivé, rangée/titre SHALL disparaître de la navigation sans modifier programmes ni filtres. Gauche SHALL rendre les catégories, Retour fermer, haut/bas parcourir les contrôles selon « Page de réglages ».
 
 #### Scenario: réglage activé
 - **WHEN** « Afficher À suivre » est activé
@@ -286,7 +370,7 @@ La catégorie « Écran d'accueil » SHALL proposer, en première ligne, le rég
 - **THEN** le focus est placé sur le premier contrôle de la catégorie, « Afficher À suivre », qui prend la pilule de focus des lignes (« Page de réglages », scénario « focus d'une ligne ») ; après gauche vers le volet puis droite, le focus revient sur « Afficher À suivre » et les valeurs des deux réglages sont inchangées
 
 ### Requirement: Position d'À suivre
-La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher À suivre », le contrôle « Position d'À suivre » : une liste déroulante à deux valeurs, « Avant les applications » (défaut) et « Après les applications », persistée dans DataStore et restaurée au démarrage ; l'effet sur la zone grille est spécifié par « Grille d'apps » et « Navigation 3 paliers » de `launcher-shell`. Son rendu SHALL suivre les maquettes Penpot validées (« SygixOs Maquette », page « TV », écrans 7.7 et 7.8 ; composants « Ligne de réglage à valeur » et « Liste déroulante » de la page « Composants »). Fermée, la ligne affiche le libellé « Position d'À suivre » à gauche et, à droite, la valeur courante en `TextStyles.RowState` dans la couleur tertiaire de la pilule (`SygixColors.OnDarkSecondary` au repos, `OnPillTertiary` au focus) suivie, à `Dimens.SettingsChevronGap`, d'un chevron vers le bas de `Dimens.SettingsChevron` de la même couleur. Ouverte, la ligne SHALL prendre le fond `SygixColors.PillSelected` et son chevron SHALL pointer vers le haut ; la liste SHALL présenter les deux valeurs dans cet ordre dans un panneau verre `GlassSurface` au look `GlassLook.Menu` (le matériau du menu contextuel), de largeur `Dimens.DropdownWidth`, coins `Dimens.DropdownCorner`, padding `Dimens.DropdownPadding`, ancré `Dimens.DropdownOffset` sous la ligne avec son bord droit à `Dimens.DropdownInsetEnd` à l'intérieur du bord droit de la ligne, dessiné par-dessus le volet droit, sans voile ; chaque option est une ligne de `Dimens.DropdownOptionHeight` aux coins `Dimens.DropdownOptionCorner` (concentriques avec le panneau), séparée de la suivante par `Dimens.DropdownOptionGap`, avec à gauche une colonne de `Dimens.DropdownCheck` qui porte une coche sur la valeur courante seulement, puis le libellé en `TextStyles.Row` (`RowFocused` au focus) ; la pilule de focus est celle de « Page de réglages ». Aucune animation n'est imposée au-delà de celles du design system. Tant que la liste est ouverte, le focus SHALL y rester. La navigation D-pad de la ligne fermée SHALL suivre « Page de réglages », comme « Afficher À suivre ».
+Sous « Afficher À suivre », « Position d'À suivre » SHALL proposer « Avant les applications » par défaut et « Après les applications », persistés DataStore/restaurés au démarrage. Effet : grille/navigation de launcher-shell. Rendu SHALL suivre 7.7/7.8 et « Ligne de position fermée »/« Liste de position ouverte ». Le focus SHALL rester dans la liste ouverte ; fermée, navigation de « Page de réglages », sans animation supplémentaire au design system.
 
 #### Scenario: contrôle fermé
 - **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil » des réglages
@@ -333,7 +417,7 @@ La catégorie « Écran d'accueil » SHALL proposer, sous « Afficher À suivre 
 - **THEN** la ligne a le même rendu, le même focus et la même liste qu'avec la rangée affichée (jamais grisée ni sautée), la valeur choisie est persistée et s'applique dès que « Afficher À suivre » est réactivé
 
 ### Requirement: Réglages du launcher système
-La catégorie « Écran d'accueil » SHALL contenir, après « Afficher À suivre » et « Position d'À suivre » et sans changer son focus initial (« Afficher À suivre » reste son premier contrôle), un intertitre « Launcher système » jamais focusable puis une seule ligne de réglage, « Configurer SygixOs comme launcher principal », qui ouvre le panneau « Launcher principal » par-dessus la page de réglages (`launcher-shell`, maquette 9.14, 9.15 et 8.21) ; à sa fermeture, le focus SHALL revenir sur cette ligne. Aucune autre ligne (rôle HOME, démarrage à l'allumage, service d'accessibilité, débogage, accueil d'origine) et aucune autre catégorie ne SHALL porter ces réglages. La ligne SHALL avoir le rendu des lignes de « Page de réglages » (pilule de focus, sans zoom). Son détail SHALL être « Automatique : <état> · Par autorisations : <état> », avec l'état de chaque voie en minuscules : pour la voie automatique « actif », « à configurer » ou « indisponible sur cette TV » ; pour la voie par autorisations « active », « en partie », « bloquée », « non utilisée » ou « à faire » (états définis par « Configuration automatique de l'écran d'accueil » et « Page Par autorisations » de `launcher-shell`). Son état à droite SHALL être : « Actif », précédé d'une pastille ronde verte, quand l'une des voies est active ; sinon « Bloqué » quand la voie par autorisations est bloquée ; sinon « En partie » quand elle est en partie faite ; sinon « À configurer ». L'état et le détail SHALL être recalculés à chaque retour au premier plan, à chaque fermeture du panneau et à la fin de chaque séquence de la configuration automatique. Navigation D-pad : haut et bas parcourent toutes les lignes de la catégorie sans boucle (« Afficher À suivre », « Position d'À suivre », « Configurer SygixOs comme launcher principal »), l'intertitre étant sauté ; droite est sans effet ; gauche et Retour se comportent comme pour « Afficher À suivre ».
+Après visibilité/position d'À suivre, « Launcher système » non focusable SHALL précéder la seule ligne « Configurer SygixOs comme launcher principal », ouvrant le panneau de launcher-shell (9.14/9.15/8.21) puis retrouvant le focus. Ces réglages ne SHALL figurer sur aucune autre ligne/catégorie. Focus sans zoom et D-pad standard SHALL sauter l'intertitre, sans boucle ni effet droite ; synthèse selon « État de la ligne launcher ».
 
 #### Scenario: emplacement
 - **WHEN** l'utilisateur ouvre la catégorie « Écran d'accueil »

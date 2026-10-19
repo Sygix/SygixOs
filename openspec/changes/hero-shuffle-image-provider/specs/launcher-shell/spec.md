@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Contenu héro TV Provider
-Le héro SHALL afficher les programmes publiés dans le TV Provider système par les apps installées (watch next + preview programs), sans autre configuration que l'octroi de la permission système de lecture des programmes TV. Toute colonne autre que l'identifiant et le package SHALL être traitée comme facultative : une colonne absente ou vide retire seulement l'élément qu'elle alimente. Le remplissage réel du type, de la saison, de l'épisode et de la durée par les apps de la TV de référence est une hypothèse à vérifier sur l'appareil. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés : le launcher relit le provider quand celui-ci signale un changement et au plus tard toutes les 15 minutes tant que l'accueil est au premier plan, jamais en arrière-plan ; une relecture sans changement ne republie rien.
+Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission système de lecture. Les colonnes et la fraîcheur SHALL suivre « Données facultatives du héro » et « Relecture des programmes du héro ».
 
 #### Scenario: permission
 - **WHEN** le launcher démarre sans `android.permission.READ_TV_LISTINGS`

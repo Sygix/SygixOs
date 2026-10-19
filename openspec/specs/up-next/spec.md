@@ -5,8 +5,106 @@ Rangée Up Next de l'écran d'accueil : agrégation des programmes watch next pu
 
 ## Requirements
 
+### Requirement: Barre de progression des cartes
+CONTINUE avec progression SHALL montrer une barre de `Dimens.ProgressHeight`, piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`, à `Dimens.UpNextTextBottom` du bas ; textes à `Dimens.UpNextTextAboveProgress` au-dessus. Sans barre, textes à `Dimens.UpNextTextBottom`.
+
+#### Scenario: barre présente ou absente
+- **WHEN** une carte avec ou sans progression est affichée
+- **THEN** les scénarios « carte épisode » et « carte film » de « Carte Up Next » gardent les retraits de texte correspondants
+
+### Requirement: Badge des cartes
+L'icône réelle PackageManager SHALL être en haut à droite à `Dimens.UpNextBadgeInset`, taille `Dimens.HeroSourceIcon`, coins `Dimens.UpNextBadgeCorner` concentriques avec la carte (« Thème », couple card-badge). Sans icône disponible, aucun badge SHALL être affiché.
+
+#### Scenario: app sans icône
+- **WHEN** PackageManager ne fournit pas d'icône
+- **THEN** « badge et image » de « Carte Up Next » omet le badge sans logo embarqué ni texte substitué
+
+### Requirement: Titres des items
+Un item sans `COLUMN_TITLE` SHALL être rejeté sauf épisode publié/inféré ayant `COLUMN_EPISODE_TITLE` : son titre d'épisode SHALL servir à l'affichage et à la normalisation de dédoublonnage. Ni l'un ni l'autre : rejet. Cette règle conserve la décision du 2026-10-10.
+
+#### Scenario: titre d'épisode en repli
+- **WHEN** le titre principal manque
+- **THEN** « titre absent » et « épisode sans titre » de « Champs facultatifs » s'appliquent
+
+### Requirement: Inférence des types Up Next
+Un `watch_next_type` absent ou inconnu hors CONTINUE/NEXT/NEW/WATCHLIST SHALL rejoindre NEXT/NEW, après CONTINUE avant WATCHLIST pour tri et gagnant d'un doublon. Sans `COLUMN_TYPE`, le type SHALL être épisode si saison et épisode présents, film sinon, utilisé comme un type publié pour carte et dédoublonnage.
+
+#### Scenario: types manquants
+- **WHEN** les types publiés sont absents ou inconnus
+- **THEN** les scénarios de type de « Champs facultatifs » vérifient ces replis sans écarter l'item
+
+### Requirement: Clé des contenus
+La clé de contenu SHALL être indépendante de l'app et de l'épisode : titre de série normalisé pour épisode publié/inféré (clé partagée par toute la série), titre normalisé et année connue pour film ; année inconnue d'un côté correspond à toute année selon le niveau 4.
+
+#### Scenario: épisode suivant ou autre app
+- **WHEN** le même contenu change d'épisode ou de source
+- **THEN** « épisode suivant publié entre-temps » de « Contenus ouverts depuis SygixOs » et les scénarios de retrait conservent la même identité
+
+### Requirement: Enregistrement des ouvertures
+L'ouverture SHALL être enregistrée quand une carte ou une entrée d'app de son menu lance l'intent publié ou l'app en repli. Aucune ouverture ne SHALL être enregistrée si rien ne s'ouvre, ni depuis héro, Top Shelf ou grille.
+
+#### Scenario: lancement ou échec
+- **WHEN** une action tente d'ouvrir le contenu
+- **THEN** « ouverture depuis le menu » et « rien ne s'ouvre » de « Contenus ouverts depuis SygixOs » déterminent l'enregistrement
+
+### Requirement: Purge des ouvertures
+Après lecture réussie, la mémoire SHALL retirer seulement les contenus plus publiés par aucune app du TV Provider. Erreur, timeout, permission manquante ou désactivation d'une app source ne SHALL supprimer aucune entrée.
+
+#### Scenario: lecture fiable ou indisponible
+- **WHEN** la source est rechargée
+- **THEN** « purge des contenus disparus » et « pas de purge sans lecture fiable » de « Contenus ouverts depuis SygixOs » s'appliquent
+
+### Requirement: Géométrie des cartes
+La rangée horizontale SHALL commencer à `Dimens.ScreenMarginH`, sans marge droite, cartes de largeur (contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4 et même espacement : quatre entières, cinquième coupée. Elle SHALL défiler juste pour garder la carte focusée entière ; en fin, le rectangle sans zoom finit à la marge symétrique `ScreenMarginH`, le zoom pouvant déborder de son demi-agrandissement (7.10).
+
+#### Scenario: largeur et défilement
+- **WHEN** la rangée est parcourue
+- **THEN** « largeur et débordement », « défilement horizontal », « fin de rangée » et « rangée qui tient dans la largeur » de « Carte Up Next » s'appliquent
+
+### Requirement: Médias des cartes
+La carte SHALL être 16:9, coins `Dimens.TileCorner`, fond `SygixColors.TileBackground`, image plein cadre sinon portrait centré sinon pictogramme image `Dimens.UpNextPlaceholderIcon` / `SygixColors.PlaceholderGlyph` dans la moitié haute centrée. Dégradé SHALL aller du transparent à `Dimens.CardScrimStart` jusqu'à `SygixColors.CardScrimEnd` en bas ; fond continu avec la grille.
+
+#### Scenario: portrait ou absence d'image
+- **WHEN** le média paysage n'est pas exploitable
+- **THEN** « poster portrait » et « placeholder » de « Carte Up Next » gardent le portrait à pleine hauteur centré ou le pictogramme, sans changer taille ni coins
+
+### Requirement: Textes des cartes
+En bas à gauche à `Dimens.UpNextTextInset`, le titre SHALL utiliser `TextStyles.Row` / `SygixColors.OnDark` (série pour épisode, film sinon). L'épisode SHALL ajouter « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` / `SygixColors.OnDarkDetails`, selon les champs disponibles. Aucun autre texte, action ni nom d'app ne SHALL apparaître.
+
+#### Scenario: épisode ou film
+- **WHEN** une carte est affichée
+- **THEN** « carte épisode » et « carte film » de « Carte Up Next » gardent les textes et leurs replis
+
+### Requirement: Progression et badge des cartes
+La progression SHALL suivre « Barre de progression des cartes » et le badge « Badge des cartes », avec les mêmes métadonnées et replis.
+
+#### Scenario: données ou icône absentes
+- **WHEN** progression ou icône manque
+- **THEN** « carte épisode », « carte film » et « badge et image » de « Carte Up Next » omettent seulement l'élément absent
+
+### Requirement: Qualité des cartes
+La qualité SHALL être propre aux cartes, sans appliquer la règle « ≥ 1080 px » de « Qualité des visuels » du héro. La largeur décodée SHALL atteindre au moins deux fois la largeur de carte en pixels selon « image trop petite » de « Carte Up Next » ; sinon l'item reste avec placeholder.
+
+#### Scenario: qualité insuffisante
+- **WHEN** l'image est trop petite pour la carte
+- **THEN** le scénario « image trop petite » de « Carte Up Next » garde l'item et son placeholder
+
+### Requirement: Rendu du menu des sources
+Le menu SHALL être centré sous voile `SygixColors.Scrim`, verre `GlassLook.Menu`, largeur `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`. Son en-tête SHALL montrer vignette 16:9 `Dimens.MenuThumbnailWidth` avec image sinon placeholder, titre `TextStyles.MenuTitle`, sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` / `SygixColors.MenuSubtitle`.
+
+#### Scenario: contenu du panneau
+- **WHEN** le menu est ouvert
+- **THEN** « ouverture du menu » et « rendu des entrées » de « Menu « Ouvrir avec… » » s'appliquent avec le verre du menu des tuiles
+
+### Requirement: Entrées du menu des sources
+Les sources SHALL avoir pilule `Dimens.PillCorner`, minimum `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, vraie icône `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom `TextStyles.Row` / `RowFocused` au focus. Retirer SHALL suivre la dernière app sans séparateur, même pilule, œil barré de `Dimens.MenuEntryIcon` dans la couleur du texte.
+
+#### Scenario: entrée de retrait et sources
+- **WHEN** le menu liste ses actions
+- **THEN** « rendu des entrées » et « retirer d'À suivre » de « Menu « Ouvrir avec… » » gardent la même présentation que la maquette 7.6
+
 ### Requirement: Source multi-apps
-La rangée Up Next SHALL agréger les programmes `WatchNextPrograms` de toutes les apps visibles dans le TV Provider Android, lues sous `READ_TV_LISTINGS` et filtrées sur `COLUMN_BROWSABLE`, sans limiter aux programmes d'une app en particulier. Seuls les `WatchNextPrograms` alimentent la rangée : les `PreviewPrograms` ne sont pas lus. Les filtres des réglages (apps sources désactivées, apps cachées) s'appliquent tels que définis par la capability settings (« Apps sources », « Cacher une application ») et par launcher-shell (« Sélection des apps sources »).
+La rangée SHALL agréger les `WatchNextPrograms` de toutes les apps visibles du TV Provider sous `READ_TV_LISTINGS`, filtrés sur `COLUMN_BROWSABLE`, sans app privilégiée ni lecture de `PreviewPrograms`. Les filtres SHALL suivre settings (« Apps sources », « Cacher une application ») et launcher-shell (« Sélection des apps sources »).
 
 #### Scenario: agrégation
 - **WHEN** plusieurs apps publient des programmes watch next
@@ -40,7 +138,7 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus ; en P6, `externalIds` reste vide et le niveau 5 ne s'applique jamais
 
 ### Requirement: Champs facultatifs
-Toute colonne d'un programme watch next SHALL être traitée comme facultative : un champ absent ou vide dégrade l'item sans le rejeter, sauf l'absence de tout titre (ni `COLUMN_TITLE`, ni, pour un épisode, `COLUMN_EPISODE_TITLE`) ; un épisode (type publié ou inféré) sans `COLUMN_TITLE` mais avec un `COLUMN_EPISODE_TITLE` SHALL être conservé, son titre d'épisode servant de titre d'affichage et de titre normalisé pour le dédoublonnage (décision du 2026-10-10) ; `package_name` et `_ID` sont fournis par le provider et servent de repli. Un programme sans `watch_next_type` SHALL être rattaché au groupe « à suivre » (`NEXT`/`NEW`), après les reprises (`CONTINUE`) et avant `WATCHLIST`, pour le tri comme pour le gagnant d'un doublon. Une valeur de `watch_next_type` inconnue (hors des quatre valeurs définies par Android : `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`) SHALL être traitée comme une valeur absente, donc rattachée au groupe « à suivre ». Un programme sans `COLUMN_TYPE` SHALL recevoir un type inféré : épisode si le numéro de saison et le numéro d'épisode sont présents, film sinon ; ce type inféré sert au dédoublonnage et à la carte comme un type publié.
+Toute colonne watch next SHALL être facultative : absence/vide dégrade sans rejet, sauf tout titre absent selon « Titres des items ». `package_name` et `_ID` fournis par le provider SHALL servir de repli. Types et groupes SHALL suivre « Inférence des types Up Next » ; les autres champs suivent les scénarios ci-dessous.
 
 #### Scenario: titre absent
 - **WHEN** un programme n'a ni titre (`COLUMN_TITLE`) ni, pour un épisode, titre d'épisode (`COLUMN_EPISODE_TITLE`), ou qu'un film n'a pas de titre
@@ -99,7 +197,7 @@ Toute colonne d'un programme watch next SHALL être traitée comme facultative :
 - **THEN** le programme est considéré comme browsable, comme dans le héro
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner les items par une clé d'identité en 5 niveaux, du plus fiable au moins fiable : (1) doublons exacts dans une app ; (2) au plus une carte par série dans une app ; (3) même épisode entre apps ; (4) même film entre apps ; (5) identifiant externe apporté par l'enrichissement BetaSeries du change P9 dédié, prenant le pas sur les niveaux 3 et 4 quand il est connu (inactif en P6). Aux niveaux 3 et 4, le type (épisode ou film) est le `COLUMN_TYPE` publié, sinon le type inféré défini par « Champs facultatifs ».
+La rangée SHALL dédoublonner par 5 niveaux : exact dans une app, une carte par série/app, même épisode inter-apps, même film inter-apps, identifiant externe BetaSeries P9 (prioritaire sur 3/4 si connu, inactif en P6). Aux niveaux 3/4, le type SHALL être `COLUMN_TYPE`, sinon l'inférence de « Champs facultatifs ».
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
@@ -161,7 +259,7 @@ Quand plusieurs items partagent une même clé, la carte retenue SHALL être dé
 - **THEN** l'ordre de préférence des apps (constante en P6, Jellyfin d'abord) tranche
 
 ### Requirement: Tri et limite
-La rangée SHALL placer en tête les contenus ouverts depuis SygixOs (« Contenus ouverts depuis SygixOs »), par date d'ouverture décroissante ; les autres items SHALL suivre, triés de façon déterministe en trois groupes : les items en cours (`CONTINUE`) d'abord, puis les items à suivre (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), puis les items `WATCHLIST` ; dans chaque groupe, par timestamp d'activité décroissant et à égalité par `_ID` croissant ; le tri est stable et la rangée est limitée à 20 items, après l'exclusion des contenus retirés (« Contenus retirés d'À suivre »). « En cours » désigne le type `CONTINUE` ; la progression ne sert qu'à la barre de la carte.
+Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts SygixOs par ouverture décroissante, puis CONTINUE, NEXT/NEW (type absent compris), WATCHLIST ; dans chaque groupe, activité décroissante puis `_ID` croissant. La limite SHALL être 20 items. « En cours » SHALL désigner CONTINUE, la progression servant seulement à la barre.
 
 #### Scenario: ordre des groupes
 - **WHEN** la rangée est affichée et qu'aucun de ses contenus n'a été ouvert depuis SygixOs
@@ -180,7 +278,7 @@ La rangée SHALL placer en tête les contenus ouverts depuis SygixOs (« Contenu
 - **THEN** la rangée commence par le contenu `NEXT` puis le contenu `WATCHLIST`, puis les autres items dans l'ordre des groupes (`CONTINUE`, `NEXT`/`NEW`, `WATCHLIST`)
 
 ### Requirement: Contenus ouverts depuis SygixOs
-La rangée SHALL tenir une mémoire locale, persistée dans DataStore, de l'instant de la dernière ouverture de chaque contenu depuis SygixOs. Un contenu est identifié par sa clé de contenu, indépendante de l'app et de l'épisode : pour un épisode (type publié ou inféré), le titre de série normalisé (toute la série partage la clé) ; pour un film, le titre normalisé et l'année quand elle est connue, une année inconnue d'un côté correspondant à toute année (règle du niveau 4). Une ouverture SHALL être enregistrée quand SygixOs lance une app depuis une carte de la rangée ou depuis une entrée d'app du menu « Ouvrir avec… », que l'intent publié s'ouvre ou que l'app source soit lancée en repli ; aucune ouverture n'est enregistrée quand rien ne s'ouvre, ni depuis le héro, le Top Shelf ou la grille. L'ordre affiché ne change pas avant que SygixOs passe en arrière-plan. Au retour au premier plan qui suit une telle ouverture, le contenu ouvert SHALL être en première place de la rangée et sa carte SHALL recevoir le focus, la rangée étant ramenée à son début (« Navigation 3 paliers » de launcher-shell, scénario « retour depuis une app »). Après chaque chargement réussi de la source, les entrées de la mémoire dont le contenu n'est plus publié par aucune app dans le TV Provider SHALL être supprimées ; aucune entrée n'est supprimée après un chargement en erreur, en timeout ou sans permission, ni parce que l'app qui publie le contenu est désactivée dans « Apps sources ».
+DataStore SHALL mémoriser la dernière ouverture locale selon « Clé des contenus » et « Enregistrement des ouvertures ». Le tri SHALL rester inchangé jusqu'à l'arrière-plan ; au retour, le contenu ouvert revient premier et focusé, rangée au début (« retour depuis une app » de launcher-shell). La mémoire SHALL suivre « Purge des ouvertures ».
 
 #### Scenario: contenu ouvert passé en tête
 - **WHEN** l'utilisateur ouvre depuis la rangée le contenu de la quatrième carte, puis revient dans SygixOs
@@ -219,7 +317,7 @@ La rangée SHALL tenir une mémoire locale, persistée dans DataStore, de l'inst
 - **THEN** l'ordre est recalculé avec la mémoire courante, sans changer le focus d'une carte encore présente, hormis le retour qui suit une ouverture depuis la rangée
 
 ### Requirement: Contenus retirés d'À suivre
-L'utilisateur SHALL pouvoir retirer un contenu de la rangée par l'entrée « Retirer d'À suivre » du menu « Ouvrir avec… ». Le retrait SHALL porter sur la clé de contenu (« Contenus ouverts depuis SygixOs ») : toute la série, chacun de ses épisodes présents et futurs, ou le film, quelle que soit l'app qui le publie. Il SHALL être persisté dans DataStore avec le titre, le type, les apps sources, l'image et l'instant du retrait, et SHALL s'appliquer après le dédoublonnage, avant le tri et la limite. Un contenu retiré ne revient dans la rangée que par l'action « Réafficher » de la catégorie « Applications cachées » des réglages (capability settings) ; l'ensemble des contenus retirés n'est jamais purgé automatiquement.
+« Retirer d'À suivre » du menu SHALL retirer la clé de contenu : série entière et épisodes présents/futurs, ou film, toutes apps. DataStore SHALL persister titre, type, sources, image et date ; exclusion après dédoublonnage, avant tri/limite. Aucun retrait ne SHALL être purgé automatiquement ; seul « Réafficher » dans Applications cachées de settings permet le retour.
 
 #### Scenario: retrait d'une série
 - **WHEN** l'utilisateur choisit « Retirer d'À suivre » sur la carte d'un épisode publié par deux apps
@@ -246,7 +344,7 @@ L'utilisateur SHALL pouvoir retirer un contenu de la rangée par l'entrée « Re
 - **THEN** il revient dans la rangée au chargement suivant s'il est encore publié, à la place que lui donne l'ordre de la rangée
 
 ### Requirement: Position de la rangée
-La rangée Up Next SHALL être une ligne style tvOS de la zone grille, sous son titre de section « À suivre » (« Grille d'apps » de launcher-shell) : première ligne de la zone, au-dessus de la section « Applications », quand le réglage « Position d'À suivre » de la capability settings vaut « Avant les applications » (défaut), dernière ligne, sous la dernière rangée d'apps, quand il vaut « Après les applications ». Elle n'est pas un palier distinct de launcher-shell : la zone grille masque le héro comme pour les apps, sans changement de fond entre la rangée et les apps. La navigation D-pad de la zone grille, rangée Up Next incluse, est spécifiée par « Navigation 3 paliers » de launcher-shell.
+Up Next SHALL être une ligne tvOS de la grille sous « À suivre », avant les apps par défaut ou après selon settings. Elle ne SHALL pas créer de palier ni de changement de fond : la grille masque le héro. Sections et D-pad SHALL suivre « Grille d'apps » et « Navigation 3 paliers » de launcher-shell.
 
 #### Scenario: position par défaut
 - **WHEN** la zone grille prend le focus et que le réglage vaut « Avant les applications »
@@ -268,7 +366,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-La rangée Up Next SHALL porter le titre de section « À suivre » défini par « Grille d'apps » de launcher-shell ; ce titre nomme la rangée et non une catégorie de contenu, qui peut réunir les groupes `CONTINUE`, `NEXT`/`NEW` et `WATCHLIST`. Le rendu de la rangée et des cartes SHALL suivre les maquettes Penpot validées (« SygixOs Maquette », page « TV », écrans 7.1 à 7.5, composant « Carte Up Next » de la page « Composants » ; mesures en px à 1920 × 1080 = dp × 2), dont cette exigence fixe les valeurs structurantes avec les jetons du design system (`design.md`, « Rangée et cartes »). La rangée SHALL être une ligne horizontale défilante alignée à gauche sur la marge de la grille (`Dimens.ScreenMarginH`), sans marge droite : la largeur d'une carte est (largeur de contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4, l'écart entre cartes `Dimens.GridSpacing`, de sorte que quatre cartes sont entièrement visibles et que la cinquième dépasse du bord droit de l'écran ; la carte focalisée SHALL toujours être entière à l'écran, la rangée ne défilant que pour l'y ramener. Le retrait de fin de la rangée SHALL être la marge de la grille (`Dimens.ScreenMarginH`) : quand la dernière carte a le focus, le bord droit de son emplacement (rectangle sans zoom) SHALL être sur la marge droite du contenu de la grille, symétrique de la première carte sur la marge gauche, le zoom de focus pouvant déborder de cette marge de la moitié de son agrandissement (maquette Penpot 7.10). Chaque carte Up Next SHALL être au format 16:9 uniforme, avec les coins des tuiles d'apps (`Dimens.TileCorner`, « Thème » de launcher-shell) et le fond des tuiles (`SygixColors.TileBackground`), et afficher : l'image du programme en plein cadre quand elle est exploitable, sinon le poster portrait centré sur ce fond, sinon le placeholder (pictogramme « image » de `Dimens.UpNextPlaceholderIcon` en `SygixColors.PlaceholderGlyph`, centré horizontalement dans la moitié haute) ; un dégradé noir sur toute la carte, de transparent à `Dimens.CardScrimStart` de la hauteur jusqu'à `SygixColors.CardScrimEnd` en bas ; le texte de l'item en bas à gauche au retrait `Dimens.UpNextTextInset` (titre en `TextStyles.Row` et `SygixColors.OnDark` : titre de série pour un épisode, titre pour un film ; pour un épisode, une seconde ligne « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` et `SygixColors.OnDarkDetails`), sans autre texte, ni libellé d'action ni nom d'app ; pour les items `CONTINUE` avec progression seulement, une barre de progression de `Dimens.ProgressHeight` (piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`) à `Dimens.UpNextTextBottom` du bas, les textes `Dimens.UpNextTextAboveProgress` au-dessus d'elle (sinon à `Dimens.UpNextTextBottom` du bas) ; un badge en haut à droite, au retrait `Dimens.UpNextBadgeInset`, qui est l'icône de l'app source prise dans le `PackageManager`, de `Dimens.HeroSourceIcon` et coins `Dimens.UpNextBadgeCorner` (concentriques avec la carte : « Thème », couple `card-badge`). Le fond reste continu avec la zone grille. Le focus d'une carte SHALL suivre intégralement « Focus tvOS » de launcher-shell, comme celui d'une tuile d'app. Le seuil de qualité des visuels est propre aux cartes : la règle « ≥ 1080 px » de « Qualité des visuels » (launcher-shell) ne s'applique pas. Cette présentation ne modifie pas le héro.
+« À suivre » SHALL nommer la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes Penpot 7.1 à 7.5 et Carte Up Next (1920 × 1080 px = dp × 2), « Géométrie des cartes », « Médias des cartes », « Textes des cartes », « Progression et badge des cartes » et « Qualité des cartes ». Le focus SHALL suivre intégralement « Focus tvOS » ; cette présentation ne modifie pas le héro.
 
 #### Scenario: largeur et débordement
 - **WHEN** la rangée est affichée avec au moins cinq cartes sur un écran de 960 dp de large
@@ -326,7 +424,7 @@ L'appui sur une carte SHALL ouvrir l'intent publié par le programme de la rang�
 - **THEN** l'app source est lancée, sans crash
 
 ### Requirement: Menu « Ouvrir avec… »
-L'appui long sur une carte SHALL ouvrir un menu « Ouvrir avec… » listant les apps qui possèdent ce contenu, chacune ouverte via l'intent qu'elle publie, suivie d'une dernière entrée « Retirer d'À suivre » (« Contenus retirés d'À suivre ») ; le menu s'ouvre même quand une seule app possède le contenu ; aucun choix d'app n'est persisté, l'ouverture étant seulement inscrite dans la mémoire de « Contenus ouverts depuis SygixOs ». Son rendu SHALL être celui du menu contextuel des tuiles (« Grille d'apps » de launcher-shell, scénario « lisibilité du menu contextuel » ; maquette Penpot 7.6, composant « Menu Ouvrir avec ») : voile `SygixColors.Scrim`, panneau verre `GlassLook.Menu` de `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`, centré ; en tête, une vignette 16:9 de `Dimens.MenuThumbnailWidth` avec l'image du programme (le placeholder de la carte à défaut), le titre du contenu en `TextStyles.MenuTitle` et le sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` et `SygixColors.MenuSubtitle` ; en dessous, une entrée par source, pilule de focus de coins `Dimens.PillCorner` et hauteur minimale `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, icône réelle de l'app de `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom de l'app en `TextStyles.Row` (`RowFocused` au focus) ; l'entrée « Retirer d'À suivre » suit immédiatement la dernière app, sans séparateur, avec la même pilule et, à la place de l'icône d'app, un pictogramme « œil barré » de `Dimens.MenuEntryIcon` dans la couleur du texte de la pilule (maquette Penpot 7.6).
+L'appui long SHALL ouvrir « Ouvrir avec… », même pour une seule source, listant les apps via leur intent puis « Retirer d'À suivre ». Aucun choix d'app ne SHALL être persisté ; seule l'ouverture suit sa mémoire. Rendu et entrées SHALL suivre « Rendu du menu des sources » et « Entrées du menu des sources », maquette 7.6/composant Menu Ouvrir avec et lisibilité du menu de « Grille d'apps » dans launcher-shell.
 
 #### Scenario: ouverture du menu
 - **WHEN** l'utilisateur fait un appui long sur une carte
