@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import fr.sygix.sygixos.data.artworkPolicy
+import fr.sygix.sygixos.domain.ArtworkPolicy
+import fr.sygix.sygixos.model.ProgramArtwork
 import coil.size.Scale
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -41,16 +44,19 @@ import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.domain.PixelSize
 import kotlinx.coroutines.delay
 
-internal const val ShelfPosterZoom = 1.06f
+internal const val ShelfPosterZoom = fr.sygix.sygixos.domain.VisualQuality.SHELF_ZOOM
 private const val PanStart = -12f
 private const val PanEnd = 12f
 
-internal fun posterRequest(context: Context, uri: String, size: PixelSize): ImageRequest =
-    ImageRequest.Builder(context).data(uri).size(size.width, size.height).scale(Scale.FILL).build()
+internal fun posterRequest(context: Context, uri: String, size: PixelSize, artwork: ProgramArtwork? = null): ImageRequest =
+    ImageRequest.Builder(context).data(artwork?.withCandidates(listOf(uri)) ?: uri)
+        .artworkPolicy(ArtworkPolicy.Shelf((size.width / ShelfPosterZoom).toInt()))
+        .size(size.width, size.height).scale(Scale.FILL).precision(coil.size.Precision.INEXACT).build()
 
 @Composable
-internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier) {
-    var failed by remember { mutableStateOf(emptySet<String>()) }
+internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier, sources: Map<String, ProgramArtwork> = emptyMap()) {
+    val revision = artworkRevision()
+    var failed by remember(uris, revision) { mutableStateOf(emptySet<String>()) }
     val loadable = uris.filter { it !in failed }
     var current by remember { mutableStateOf(loadable.firstOrNull()) }
     LaunchedEffect(loadable) {
@@ -74,9 +80,8 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
             animationSpec = tween(Motion.SHELF_FADE_MS, easing = AppleEasing),
             label = "shelfCrossfade",
         ) { uri ->
-            if (uri != null) {
-                LoadedPoster(uri, posterSize, onError = {
-                    Log.w("ShelfPanel", "poster illisible: $uri")
+            if (uri != null && uri in loadable) {
+                LoadedPoster(uri, posterSize, sources[uri], onError = {
                     failed = failed + uri
                 })
             }
@@ -85,9 +90,9 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
 }
 
 @Composable
-private fun LoadedPoster(uri: String, size: PixelSize, onError: () -> Unit) {
+private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, onError: () -> Unit) {
     val painter = rememberAsyncImagePainter(
-        model = posterRequest(LocalContext.current, uri, size),
+        model = posterRequest(LocalContext.current, uri, size, source),
         onState = { if (it is AsyncImagePainter.State.Error) onError() },
     )
     val ready = painter.state is AsyncImagePainter.State.Success

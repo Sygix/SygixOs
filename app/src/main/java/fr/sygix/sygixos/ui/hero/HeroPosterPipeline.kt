@@ -29,6 +29,9 @@ import coil.transform.Transformation
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.domain.PixelSize
+import fr.sygix.sygixos.model.ProgramArtwork
+import fr.sygix.sygixos.data.artworkPolicy
+import fr.sygix.sygixos.domain.ArtworkPolicy
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -209,19 +212,20 @@ internal class HeroPosterImages(val poster: ImageBitmap, val backdrop: ImageBitm
 
 internal object HeroPosterLoader {
 
-    suspend fun load(context: Context, url: String, spec: PosterSpec): HeroPosterImages? {
+    suspend fun load(context: Context, url: String, spec: PosterSpec, artwork: ProgramArtwork? = null): HeroPosterImages? = kotlinx.coroutines.withTimeoutOrNull(8_000) {
         val loader = context.imageLoader
-        val poster = loader.execute(request(context, url, PixelSize(spec.width, spec.height), VeiledPosterTransformation(spec)))
-            .bitmap(spec.width, spec.height) ?: return null
+        val poster = loader.execute(request(context, artwork ?: url, PixelSize(spec.width, spec.height), VeiledPosterTransformation(spec)))
+            .bitmap(spec.width, spec.height) ?: return@withTimeoutOrNull null
         val backdropSize = spec.backdrop
-        val backdrop = loader.execute(request(context, url, backdropSize, GlassBackdropTransformation(spec)))
+        val backdrop = loader.execute(request(context, artwork ?: url, backdropSize, GlassBackdropTransformation(spec)))
             .bitmap(backdropSize.width, backdropSize.height)
-        return HeroPosterImages(poster.asImageBitmap(), backdrop?.asImageBitmap())
+        HeroPosterImages(poster.asImageBitmap(), backdrop?.asImageBitmap())
     }
 
-    private fun request(context: Context, url: String, size: PixelSize, transformation: Transformation): ImageRequest =
+    private fun request(context: Context, url: Any, size: PixelSize, transformation: Transformation): ImageRequest =
         ImageRequest.Builder(context)
             .data(url)
+            .artworkPolicy(ArtworkPolicy.Hero)
             .size(size.width, size.height)
             .scale(Scale.FILL)
             .precision(Precision.INEXACT)

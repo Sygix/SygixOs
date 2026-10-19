@@ -8,7 +8,6 @@ package fr.sygix.sygixos.data
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.drawable.ShapeDrawable
-import android.util.Log
 import coil.ImageLoader
 import coil.decode.DecodeResult
 import coil.decode.DecodeUtils
@@ -20,6 +19,9 @@ import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.pxOrElse
 import fr.sygix.sygixos.domain.VisualQuality
+import fr.sygix.sygixos.domain.ArtworkDimensions
+import fr.sygix.sygixos.domain.ArtworkPolicy
+import fr.sygix.sygixos.model.ProgramArtwork
 import java.io.IOException
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineDispatcher
@@ -43,6 +45,40 @@ class VisualValidator(
     private val imageLoader: ImageLoader = context.imageLoader,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    suspend fun prepare(source: ProgramArtwork, width: Int): VisualCheck = kotlinx.coroutines.withTimeoutOrNull(8_000) {
+        prepareWithinBudget(source, width)
+    } ?: VisualCheck(null, retryable = true)
+
+    private suspend fun prepareWithinBudget(source: ProgramArtwork, width: Int): VisualCheck {
+        val policy = ArtworkPolicy.Shelf(width)
+        val check = validate(source, policy)
+        val uri = check.visual ?: return check
+        val zoomedWidth = width * VisualQuality.SHELF_ZOOM
+        val size = fr.sygix.sygixos.domain.ImageBounds.screen(zoomedWidth.roundToInt(), (zoomedWidth / fr.sygix.sygixos.core.designsystem.Dimens.ShelfAspectRatio).roundToInt())
+        val result = imageLoader.execute(ImageRequest.Builder(context).data(source.withCandidates(listOf(uri)))
+            .size(size.width, size.height).scale(coil.size.Scale.FILL).precision(coil.size.Precision.INEXACT)
+            .artworkPolicy(policy).build())
+        return if (result is SuccessResult) check else VisualCheck(null, retryable = true)
+    }
+
+    suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck = kotlinx.coroutines.withTimeoutOrNull(8_000) {
+        validateWithinBudget(source, policy)
+    } ?: VisualCheck(null, retryable = true)
+
+    private suspend fun validateWithinBudget(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck = withContext(dispatcher) {
+        var retryable = false
+        for (candidate in source.candidates.flatMap(::visualCandidates).distinct()) {
+            val request = ImageRequest.Builder(context).data(source.withCandidates(listOf(candidate)))
+                .size(1920, 1080).decoderFactory(boundsDecoder)
+                .setParameter(ProgramArtworkInterceptor.BOUNDS, true, null).artworkPolicy(policy).build()
+            val result = imageLoader.execute(request)
+            val drawable = (result as? SuccessResult)?.drawable
+            if (drawable != null && policy.accepts(ArtworkDimensions(drawable.intrinsicWidth, drawable.intrinsicHeight))) return@withContext VisualCheck(candidate)
+            retryable = retryable || (result as? ErrorResult)?.throwable?.isTransient() == true
+        }
+        VisualCheck(null, retryable)
+    }
+
     suspend fun validate(uri: String): VisualCheck = withContext(dispatcher) {
         var retryable = false
         for (candidate in visualCandidates(uri)) {
@@ -51,16 +87,17 @@ class VisualValidator(
             val drawable = (result as? SuccessResult)?.drawable
             val width = drawable?.intrinsicWidth ?: 0
             if (width >= VisualQuality.MIN_IMAGE_WIDTH_PX && width >= drawable!!.intrinsicHeight) return@withContext VisualCheck(candidate)
-            Log.d(TAG, "visuel écarté (${width}px): $candidate")
             retryable = retryable || (result as? ErrorResult)?.throwable?.isTransient() == true
         }
         VisualCheck(null, retryable)
     }
 
-    private fun Throwable.isTransient() = this is IOException || this is HttpException && response.code >= 500
+    private fun Throwable.isTransient() = when (this) {
+        is ArtworkLoadException -> reason in setOf(ArtworkFailure.TIMEOUT, ArtworkFailure.TRANSPORT, ArtworkFailure.PROVIDER)
+        else -> this is IOException || this is HttpException && response.code >= 500
+    }
 
     private companion object {
-        const val TAG = "VisualValidator"
         val boundsDecoder = Decoder.Factory { result, options, _ ->
             Decoder {
                 var failure: IOException? = null

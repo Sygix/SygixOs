@@ -136,14 +136,15 @@ class HeroPosterLayersTest {
         val second = poster("h2", "Second")
         show(first, second)
         advance(2_000)
-        assertEquals(listOf(first.imageUrl), backdrop.layers.map { it.key })
+        assertEquals(listOf(first.imageUrl), backdrop.layers.map { it.key.substringBeforeLast(':').substringBeforeLast(':') })
         compose.onRoot().performKeyInput {
             keyDown(Key.DirectionRight)
             keyUp(Key.DirectionRight)
         }
         advance(Motion.HERO_CROSSFADE_MS / 2L)
         val upper = backdrop.layers.last()
-        assertEquals(second.imageUrl, upper.key)
+        assertTrue(upper.key.startsWith("${second.imageUrl}:"))
+        val secondKey = upper.key
         val before = upper.fade.value
         assertTrue(before > 0.2f && before < 0.95f)
         compose.onRoot().performKeyInput {
@@ -151,12 +152,12 @@ class HeroPosterLayersTest {
             keyUp(Key.DirectionLeft)
         }
         advance(32)
-        assertEquals(second.imageUrl, backdrop.layers.last().key)
+        assertEquals(secondKey, backdrop.layers.last().key)
         assertEquals(1f, backdrop.layers.first().fade.value, 0.001f)
         val after = backdrop.layers.last().fade.value
         assertTrue("avant $before, après $after", after in (before - 0.15f)..(before + 0.05f))
         advance(Motion.HERO_CROSSFADE_MS.toLong())
-        assertEquals(listOf(first.imageUrl), backdrop.layers.map { it.key })
+        assertEquals(listOf(first.imageUrl), backdrop.layers.map { it.key.substringBeforeLast(':').substringBeforeLast(':') })
         assertEquals(1f, backdrop.layers.single().fade.value, 0.001f)
     }
 }

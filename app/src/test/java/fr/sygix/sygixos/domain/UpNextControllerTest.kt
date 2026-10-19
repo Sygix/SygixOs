@@ -24,6 +24,26 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class UpNextControllerTest {
+    @Test fun `already displayed programs expire exactly twenty four hours after confirmation despite reload errors`() = runTest {
+        val source = Source(Result.success(listOf(item)))
+        val controller = UpNextController(source, MutableStateFlow(true), MutableStateFlow(UpNextPosition.BEFORE_APPS), MutableStateFlow(emptySet()), backgroundScope, clock = { testScheduler.currentTime })
+        controller.refresh()
+        runCurrent()
+        assertTrue(controller.state.value?.content is UpNextContent.Items)
+        source.result = Result.failure(java.io.IOException())
+        advanceTimeBy(ArtworkAge.FRESH_MS - 1)
+        controller.refresh()
+        runCurrent()
+        assertTrue(controller.state.value?.content is UpNextContent.Items)
+        advanceTimeBy(1)
+        runCurrent()
+        assertEquals(UpNextContent.Error, controller.state.value?.content)
+        source.result = Result.success(listOf(item))
+        controller.refresh()
+        runCurrent()
+        assertTrue(controller.state.value?.content is UpNextContent.Items)
+    }
+
     private val item = UpNextItem(1, UpNextSourceEntry("a"), UpNextContentType.MOVIE, "Film")
     private class Source(var result: Result<List<UpNextItem>>) : UpNextSource {
         val signals = MutableSharedFlow<Unit>()

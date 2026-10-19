@@ -10,5 +10,6 @@ import kotlinx.coroutines.flow.Flow
 
 interface UpNextSource {
     suspend fun load(): Result<List<UpNextItem>>
+    suspend fun accessible(items: List<UpNextItem>): List<UpNextItem> = items
     fun changes(): Flow<Unit>
 }

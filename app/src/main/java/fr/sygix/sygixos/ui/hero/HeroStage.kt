@@ -131,23 +131,31 @@ fun HeroStage(
     backdrop: GlassBackdrop = remember { GlassBackdrop() },
     stillActive: () -> Boolean = { true },
     keepVideo: Boolean = false,
+    onDisplayed: (String?) -> Unit = {},
+    generations: Map<String, Long> = emptyMap(),
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
-    var failedImages by remember { mutableStateOf(emptySet<String>()) }
+    val revision = fr.sygix.sygixos.ui.home.artworkRevision()
+    var natureIndex by remember { mutableStateOf(0) }
     var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
     val lastIndex = remember { IntArray(1) }
     val index = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
         ?: lastIndex[0].coerceAtMost(items.lastIndex).coerceAtLeast(0)
     lastIndex[0] = index
     val current = items.getOrNull(index)
-    val showVideo = current?.videoUrl != null && current.id !in failedVideos
+    val generation = current?.id?.let { generations[it] } ?: 0L
+    var failedImages by remember(current?.artwork, revision) { mutableStateOf(emptySet<String>()) }
+    val programVideo = current?.videoUrl != null && current.id !in failedVideos
+    val imageCandidate = current?.artwork?.candidates?.firstOrNull()
+    val fallback = current != null && !programVideo && (imageCandidate == null || imageCandidate in failedImages)
+    val natureUrl = fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.getOrNull(natureIndex)
+    val mediaId = if (fallback) "fallback-${current?.id}-$natureIndex" else current?.id
+    val mediaUrl = if (fallback) natureUrl else current?.videoUrl
+    val showVideo = programVideo || fallback && natureUrl != null
 
     fun viable(item: HeroItem): Boolean =
-        item.id !in slowVisuals && (
-            (item.videoUrl != null && item.id !in failedVideos) ||
-                (item.imageUrl != null && item.imageUrl in validatedVisuals && item.imageUrl !in failedImages)
-            )
+        item.id !in slowVisuals
 
     val step: (Int) -> Unit = { delta ->
         var i = index
@@ -161,15 +169,11 @@ fun HeroStage(
     }
     val stepState = rememberUpdatedState(step)
     val onVideoError: (String) -> Unit = { id ->
-        Log.w(TAG, "vidéo illisible: ${items.firstOrNull { it.id == id }?.videoUrl}")
-        failedVideos = failedVideos + id
-        if (current?.id == id && !viable(current)) stepState.value(1)
+        if (id.startsWith("fallback-")) natureIndex += 1 else failedVideos = failedVideos + id
     }
     val onVideoErrorState = rememberUpdatedState(onVideoError)
     val onImageError: (String) -> Unit = { url ->
-        Log.w(TAG, "poster illisible: $url")
         failedImages = failedImages + url
-        if (current?.imageUrl == url && !viable(current)) stepState.value(1)
     }
 
     LaunchedEffect(current?.id, validatedVisuals, failedImages, failedVideos, items) {
@@ -206,41 +210,42 @@ fun HeroStage(
         }
     }
 
-    LifecycleStartEffect(current?.id, showVideo, visible, motion, items.size, keepVideo) {
+    LifecycleStartEffect(mediaId, showVideo, visible, motion, items.size, keepVideo) {
         val item = current
         when {
-            visible && item?.videoUrl != null && showVideo -> player.show(item.id, item.videoUrl, play = motion, loop = items.size == 1)
+            visible && mediaId != null && mediaUrl != null && showVideo -> player.show(mediaId, mediaUrl, play = motion, loop = fallback || items.size == 1)
             visible && player.loadedItem in slowVisuals -> player.park()
-            keepVideo && showVideo && player.loadedItem == item.id -> player.park()
+            keepVideo && showVideo && player.loadedItem == mediaId -> player.park()
             else -> player.clear()
         }
         onStopOrDispose { }
     }
-    LaunchedEffect(current?.id, showVideo, visible) {
+    LaunchedEffect(mediaId, showVideo, visible) {
         val item = current ?: return@LaunchedEffect
         if (!showVideo || !visible) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             delay(Motion.HERO_VIDEO_START_TIMEOUT_MS)
-            if (!player.firstFrameRendered) onVideoErrorState.value(item.id)
+            if (!player.firstFrameRendered) mediaId?.let { onVideoErrorState.value(it) }
         }
     }
-    LaunchedEffect(current?.id, showVideo, visible, items.size) {
-        if (current == null || showVideo || !visible || items.size < 2) return@LaunchedEffect
+    LaunchedEffect(current?.id, showVideo, fallback, visible, items.size) {
+        if (current == null || showVideo && !fallback || !visible || items.size < 2) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             delay(Motion.HERO_DWELL_MS)
             stepState.value(1)
         }
     }
 
-    val posterUrl = current?.takeIf { !showVideo && it.imageUrl != null && it.imageUrl in validatedVisuals && it.imageUrl !in failedImages }?.imageUrl
+    val posterUrl = imageCandidate?.takeIf { !showVideo && it !in failedImages }
     var shownId by remember { mutableStateOf<String?>(null) }
     val targetId = current?.id
     val currentPoster by rememberUpdatedState(targetId to posterUrl)
-    LaunchedEffect(targetId, showVideo, posterUrl) {
+    LaunchedEffect(targetId, mediaId, showVideo, posterUrl, fallback) {
         when {
             targetId == null -> shownId = null
+            fallback -> shownId = targetId
             showVideo -> {
-                snapshotFlow { player.renderedItem }.first { it == targetId }
+                snapshotFlow { player.renderedItem }.first { it == mediaId }
                 shownId = targetId
             }
             posterUrl == null -> shownId = targetId
@@ -250,7 +255,7 @@ fun HeroStage(
         if (!visible) return@LaunchedEffect
         val id = targetId ?: return@LaunchedEffect
         if (shownId == id) return@LaunchedEffect
-        if (posterUrl == null && !(showVideo && shownId != null)) return@LaunchedEffect
+        if (!programVideo || !(showVideo && shownId != null)) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             delay(Motion.HERO_VISUAL_TIMEOUT_MS)
             if (shownId != id) {
@@ -260,9 +265,10 @@ fun HeroStage(
         }
     }
     val shown = items.firstOrNull { it.id == shownId }
+    LaunchedEffect(shown?.id) { onDisplayed(shown?.id) }
     var buttonFocused by remember { mutableStateOf(false) }
     val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null)
-    val hasVisual = current != null && (showVideo || (current.imageUrl != null && current.imageUrl in validatedVisuals))
+    val hasVisual = showVideo && player.firstFrameRendered || posterUrl != null
     LaunchedEffect(launchable, active, claimFocus) {
         if (!active || !claimFocus) return@LaunchedEffect
         withFrameNanos { }
@@ -287,10 +293,11 @@ fun HeroStage(
             .focusable(),
     ) {
         AmbientGradient(
-            animated = visible && !hasVisual && motion,
+            animated = visible && !hasVisual && !showVideo && motion,
             deferred = !motion,
             covered = { backdrop.covered },
         )
+        if (fallback) Spacer(Modifier.fillMaxSize().testTag(if (showVideo && player.firstFrameRendered) "hero-fallback-nature" else "hero-fallback-neutral"))
         if (showVideo) {
             HeroVideoLayer(player, visible = player.firstFrameRendered)
         }
@@ -304,6 +311,9 @@ fun HeroStage(
         HeroPosterLayers(
             backdrop = backdrop,
             url = posterUrl,
+            artwork = current?.artwork,
+            revision = revision,
+            generation = generation,
             running = visible && motion,
             animated = motion,
             onReady = { url ->
@@ -374,8 +384,12 @@ private fun HeroPosterLayers(
     onError: (String) -> Unit,
     animated: Boolean = true,
     onLoaded: (String) -> Unit = {},
+    artwork: fr.sygix.sygixos.model.ProgramArtwork? = null,
+    revision: Long = 0,
+    generation: Long = 0,
 ) {
     val context = LocalContext.current
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val density = LocalDensity.current
     val currentOnReady by rememberUpdatedState(onReady)
     val currentOnError by rememberUpdatedState(onError)
@@ -387,7 +401,9 @@ private fun HeroPosterLayers(
         val spec = remember(constraints.maxWidth, constraints.maxHeight, density) {
             with(density) { PosterSpec.of(constraints.maxWidth, constraints.maxHeight, CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) }
         }
-        LaunchedEffect(url, spec) {
+        LaunchedEffect(url, spec, artwork, revision, generation) {
+            lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.STARTED) }
+            if (revision != 0L) backdrop.clear()
             if (url == null) {
                 coroutineScope {
                     backdrop.layers.toList().forEach { layer ->
@@ -397,13 +413,14 @@ private fun HeroPosterLayers(
                 backdrop.clear()
                 return@LaunchedEffect
             }
-            val first = backdrop.layers.none { it.image != null && it.fade.value > 0f && it.key != url }
-            val layer = backdrop.layer(url)
+            val loadKey = url + ":" + (artwork?.let { fr.sygix.sygixos.data.artworkHash(it.packageName + it.identity + generation) } ?: "") + ":" + revision
+            val first = backdrop.layers.none { it.image != null && it.fade.value > 0f && it.key != loadKey }
+            val layer = backdrop.layer(loadKey)
             if (layer.image == null) {
-                val pending = loads.getOrPut(url) {
-                    loadScope.async { HeroPosterLoader.load(context, url, spec) }.also { load ->
+                val pending = loads.getOrPut(loadKey) {
+                    loadScope.async { HeroPosterLoader.load(context, url, spec, artwork) }.also { load ->
                         load.invokeOnCompletion { cause ->
-                            if (loads[url] === load) loads.remove(url)
+                            if (loads[loadKey] === load) loads.remove(loadKey)
                             if (cause == null) currentOnLoaded(url)
                         }
                     }

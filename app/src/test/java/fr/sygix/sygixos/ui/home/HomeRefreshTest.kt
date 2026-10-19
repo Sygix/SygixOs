@@ -68,6 +68,35 @@ import org.robolectric.Shadows.shadowOf
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeRefreshTest {
+    @Test fun lateValidationCannotApproveAReplacementWithTheSameRowAndSharedEpisodeArtwork() = runBlocking {
+        val uri = "https://example.invalid/shared.jpg"
+        val original = heroItem("same-row", "First fiction", imageUrl = uri).copy(episodeArtwork = true)
+        var feed = listOf(original)
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val finished = CompletableDeferred<Unit>()
+        val home = home(provider { feed }) { _, attempt ->
+            if (attempt == 1) {
+                entered.complete(Unit)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { release.await() }
+                finished.complete(Unit)
+                null
+            } else broken
+        }
+        try {
+            home.refreshHero()
+            withTimeout(5_000) { entered.await() }
+            feed = listOf(original.copy(title = "Replacement fiction"))
+            home.refreshHero()
+            home.state.await { (it as? HomeState.Ready)?.hero?.checked == setOf(uri) }
+            release.complete(Unit)
+            withTimeout(5_000) { finished.await() }
+            assertEquals("Replacement fiction", home.hero()?.items?.single()?.title)
+            assertEquals(emptySet<String>(), home.hero()?.validated)
+            assertEquals(2, attempts[uri])
+        } finally { release.complete(Unit) }
+    }
+
     @get:Rule val main = MainDispatcherRule()
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val attempts = ConcurrentHashMap<String, Int>()
@@ -78,6 +107,7 @@ class HomeRefreshTest {
 
     private class Wide : ColorDrawable() {
         override fun getIntrinsicWidth() = VisualQuality.MIN_WIDTH_PX
+        override fun getIntrinsicHeight() = 360
     }
 
     private inner class Loader(val respond: suspend (String, Int) -> Throwable?) : ImageLoader {
@@ -87,7 +117,7 @@ class HomeRefreshTest {
         override val diskCache: DiskCache? = null
         override fun enqueue(request: ImageRequest): Disposable = error("unused")
         override suspend fun execute(request: ImageRequest): ImageResult {
-            val uri = request.data.toString()
+            val uri = (request.data as? fr.sygix.sygixos.model.ProgramArtwork)?.candidates?.firstOrNull() ?: request.data.toString()
             val error = respond(uri, attempts.merge(uri, 1) { a, b -> a + b }!!)
             return if (error == null) SuccessResult(Wide(), request, DataSource.NETWORK) else ErrorResult(null, request, error)
         }
@@ -101,6 +131,10 @@ class HomeRefreshTest {
             override fun current() = ""
             override fun time() = emptyFlow<String>()
         }, FakeUpdateController(), StartupSession().apply { claimColdStart() }, FakeMotionSource(), FakeMascotSource(),
+        order = object : fr.sygix.sygixos.domain.HeroOrder {
+            override var displayedId: String? = null
+            override fun arrange(items: List<HeroItem>) = items
+        },
     ))
 
     private suspend fun home(programs: HeroContentProvider, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {

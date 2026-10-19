@@ -9,11 +9,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class UpNextArtworkQualityTest {
-    @Test fun `quality boundary is twice displayed width and not hero minimum`() {
-        assertFalse(UpNextArtworkQuality.usable(395, 198))
-        assertTrue(UpNextArtworkQuality.usable(396, 198))
+    @Test fun `quality boundary is displayed width and not hero minimum`() {
+        assertFalse(UpNextArtworkQuality.usable(395, 396))
+        assertTrue(UpNextArtworkQuality.usable(396, 396))
         assertTrue(UpNextArtworkQuality.usable(800, 400))
-        assertFalse(UpNextArtworkQuality.usable(1080, 600))
+        assertTrue(UpNextArtworkQuality.usable(1080, 600))
     }
     @Test fun `missing decoded or displayed dimensions fail closed`() {
         assertFalse(UpNextArtworkQuality.usable(0, 198))

@@ -333,7 +333,7 @@ internal fun HiddenContentLine(
             .padding(horizontal = RowPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ContentThumbnail(row.imageUrl, "hidden-content-thumbnail-$key")
+        ContentThumbnail(row.imageUrl, "hidden-content-thumbnail-$key", row.sourcePackage)
         Spacer(Modifier.width(RowGap))
         Column(Modifier.weight(1f)) {
             Text(row.title, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -352,10 +352,15 @@ internal fun HiddenContentLine(
 }
 
 @Composable
-private fun ContentThumbnail(imageUrl: String?, tag: String) {
+private fun ContentThumbnail(imageUrl: String?, tag: String, sourcePackage: String?) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val request = remember(context, density, imageUrl) { with(density) { ImageRequest.Builder(context).data(imageUrl).size(Dimens.SettingsThumbWidth.roundToPx(), Dimens.SettingsThumbHeight.roundToPx()).build() } }
+    val revision = fr.sygix.sygixos.ui.home.artworkRevision()
+    val request = remember(context, density, imageUrl, sourcePackage, revision) { with(density) {
+        val source = sourcePackage?.let { fr.sygix.sygixos.model.ProgramArtwork(it, listOfNotNull(imageUrl), "removed:$imageUrl") }
+        ImageRequest.Builder(context).data(source ?: imageUrl).setParameter("artwork-revision", revision)
+            .size(Dimens.SettingsThumbWidth.roundToPx(), Dimens.SettingsThumbHeight.roundToPx()).build()
+    } }
     val painter = rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
     Box(
         Modifier

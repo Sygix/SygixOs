@@ -92,6 +92,10 @@ class HomeViewModelSourceToggleTest {
             session = StartupSession(),
             motion = FakeMotionSource(),
             mascot = FakeMascotSource(),
+            order = object : fr.sygix.sygixos.domain.HeroOrder {
+                override var displayedId: String? = null
+                override fun arrange(items: List<HeroItem>) = items
+            },
         ))
         return vm to repo
     }

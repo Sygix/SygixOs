@@ -35,7 +35,15 @@ data class UpNextItem(
     val year: Int? = null,
     val externalIds: Map<String, String> = emptyMap(),
     val sources: List<UpNextSourceEntry> = listOf(source),
+    val posterUrl: String? = imageUrl,
+    val thumbnailUrl: String? = null,
+    val posterAspectRatio: Int = -1,
+    val releaseDate: String? = null,
 ) {
+    val artwork: ProgramArtwork get() = ProgramArtwork(
+        source.packageName, listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
+        if (type == UpNextContentType.EPISODE) "episode-artwork" else listOf("watchnext-$id", title, source.intentUri, internalProviderId, contentId, releaseDate).joinToString("\u0000"),
+    )
     val key: String get() = "${source.packageName}:$id"
     val displayTitle: String get() = if (type == UpNextContentType.EPISODE) seriesTitle ?: title else title
     val progress: Float? get() = playbackRatio(positionMillis, durationMillis)

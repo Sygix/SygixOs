@@ -24,6 +24,7 @@ class TvProviderUpNextSource(
     private val query: (CancellationSignal) -> Cursor? = { signal ->
         context.contentResolver.query(W.CONTENT_URI, PROJECTION, null, null, null, signal)
     },
+    private val installed: (String) -> Boolean = { pkg -> runCatching { context.packageManager.getApplicationInfo(pkg, 0) }.isSuccess },
 ) : UpNextSource {
     private val apps = ConcurrentHashMap<String, SourceApp>()
 
@@ -32,6 +33,11 @@ class TvProviderUpNextSource(
     override suspend fun load(): Result<List<UpNextItem>> = providerQuery(timeoutMillis) { signal ->
         val cursor = query(signal) ?: error("Watch Next provider unavailable")
         cursor.use { c -> buildList { while (c.moveToNext()) mapRow(c)?.let(::add) } }
+    }.map { accessible(it) }
+
+    override suspend fun accessible(items: List<UpNextItem>): List<UpNextItem> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val available = items.map { it.source.packageName }.distinct().associateWith(installed)
+        items.filter { available[it.source.packageName] == true }
     }
 
     override fun changes(): Flow<Unit> = context.contentResolver.changes(listOf(W.CONTENT_URI), debounceMillis)
@@ -71,6 +77,10 @@ class TvProviderUpNextSource(
             engagement = c.optLong(W.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS),
             internalProviderId = c.optString(W.COLUMN_INTERNAL_PROVIDER_ID),
             contentId = c.optString(W.COLUMN_CONTENT_ID),
+            posterUrl = c.optString(W.COLUMN_POSTER_ART_URI),
+            thumbnailUrl = c.optString(W.COLUMN_THUMBNAIL_URI),
+            posterAspectRatio = c.optInt(W.COLUMN_POSTER_ART_ASPECT_RATIO, -1),
+            releaseDate = c.optString(W.COLUMN_RELEASE_DATE),
             year = c.optString(W.COLUMN_RELEASE_DATE)?.let { Regex("^\\d{4}").find(it)?.value?.toIntOrNull() },
         )
     }

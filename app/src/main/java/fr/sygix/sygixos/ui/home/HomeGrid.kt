@@ -172,14 +172,15 @@ internal fun HomeGrid(
         if (shelf == null) {
             launch {
                 val first = snapshotFlow { postersOf(target).firstOrNull() }.filterNotNull().first()
-                context.imageLoader.execute(posterRequest(context, first, posterSize))
+                context.imageLoader.execute(posterRequest(context, first, posterSize, programs().firstOrNull { it.imageUrl == first }?.artwork))
             }
             delay(Motion.SHELF_OPEN_DELAY_MS)
         }
         snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
             when {
-                posters.isEmpty() -> if (!pending) shelf = null
+                posters.isEmpty() -> shelf = null
                 shelf?.app != target || !pending -> shelf = Shelf(target, posters)
+                else -> shelf = shelf?.let { it.copy(uris = it.uris.intersect(posters.toSet()).toList()) }?.takeIf { it.uris.isNotEmpty() }
             }
         }
     }
@@ -266,6 +267,7 @@ internal fun HomeGrid(
                     movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
                     shelfUris = if (rowIndex == openRow) shelf?.uris.orEmpty() else emptyList(),
                     posterSize = posterSize,
+                    shelfSources = programs().mapNotNull { item -> item.imageUrl?.let { it to item.artwork } }.toMap(),
                     onTileClick = onTileClick,
                     onTileLongClick = onTileLongClick,
                     indexOffset = sections.appIndexOffset,
@@ -303,6 +305,7 @@ private fun GridRow(
     movingApp: String?,
     shelfUris: List<String>,
     posterSize: PixelSize,
+    shelfSources: Map<String, fr.sygix.sygixos.model.ProgramArtwork>,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
     indexOffset: Int = 0,
@@ -318,7 +321,7 @@ private fun GridRow(
             exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
                 fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
         ) {
-            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing))
+            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing), shelfSources)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),

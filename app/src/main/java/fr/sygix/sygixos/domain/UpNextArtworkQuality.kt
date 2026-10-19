@@ -7,7 +7,7 @@ package fr.sygix.sygixos.domain
 
 object UpNextArtworkQuality {
     fun usable(decodedWidth: Int, displayedWidth: Int): Boolean =
-        displayedWidth > 0 && decodedWidth.toLong() >= displayedWidth.toLong() * 2
+        displayedWidth > 0 && decodedWidth.toLong() >= displayedWidth.toLong()
 
     fun portrait(width: Int, height: Int): Boolean = height > width
 

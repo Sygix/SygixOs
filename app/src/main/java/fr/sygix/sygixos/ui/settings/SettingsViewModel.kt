@@ -46,6 +46,7 @@ data class HiddenContentRow(
     val apps: List<String>,
     val imageUrl: String?,
     val removedAt: Long,
+    val sourcePackage: String? = null,
 )
 
 sealed interface HiddenEntry {
@@ -161,6 +162,7 @@ class SettingsViewModel(
                 apps = content.packages.mapNotNull { labels[it] ?: labelOf(it) },
                 imageUrl = content.imageUrl,
                 removedAt = content.removedAt,
+                sourcePackage = content.packages.firstOrNull(),
             )
         }
     }

@@ -13,6 +13,7 @@ import fr.sygix.sygixos.model.playbackRatio
 import fr.sygix.sygixos.model.HeroItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,9 +94,9 @@ class TvProviderHeroSourceTest {
     }
 
     @Test
-    fun `row without any visual is skipped`() {
+    fun `row without any visual remains eligible for program fallback`() {
         val c = cursor(watchNextColumns, 4L, "app.pkg", "Vide", null, null, null, null, "intent://x", 0L, 0L, 1L, 1)
-        assertNull(source.mapWatchNextRow(c))
+        assertNotNull(source.mapWatchNextRow(c))
     }
 
     @Test

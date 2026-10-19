@@ -53,6 +53,8 @@ class UpNextController(
 
     private val raw = MutableStateFlow(Loaded(UpNextContent.Pending))
     private var reload: Job? = null
+    private var expiry: Job? = null
+    private var confirmedAt: Long? = null
     private var pendingReturn: Pair<UpNextContentKey, Long>? = null
     private var returns = 0L
 
@@ -76,8 +78,13 @@ class UpNextController(
     val updates: Flow<Unit> = source.changes().onEach { refresh() }
 
     fun refresh() {
+        expireIfNeeded()
         reload?.cancel()
         reload = scope.launch {
+            (raw.value.content as? UpNextContent.Items)?.let { previous ->
+                val accessible = source.accessible(previous.items)
+                if (accessible != previous.items) raw.update { it.copy(content = UpNextContent.Items(accessible)) }
+            }
             val skeleton = if (raw.value.content == UpNextContent.Pending) launch {
                 delay(SKELETON_DELAY_MS)
                 raw.update { it.copy(content = UpNextContent.Skeleton) }
@@ -105,7 +112,18 @@ class UpNextController(
         pendingReturn = null
         val opened = if (pending == null) stored else stored.filterKeys { it != pending.first } + pending
         raw.value = Loaded(UpNextContent.Items(items), opened, pending?.first, if (pending == null) 0 else ++returns)
+        confirmedAt = clock()
+        expiry?.cancel()
+        expiry = scope.launch { delay(ArtworkAge.FRESH_MS); expireIfNeeded() }
         guard { memory.pruneOpened { key -> UpNextFeed.stillPublished(key, items) } }
+    }
+
+    private fun expireIfNeeded() {
+        val at = confirmedAt ?: return
+        if (clock() < at || clock() - at >= ArtworkAge.FRESH_MS) {
+            raw.update { it.copy(content = UpNextContent.Error, returnKey = null) }
+            confirmedAt = null
+        }
     }
 
     fun opened(item: UpNextItem) {

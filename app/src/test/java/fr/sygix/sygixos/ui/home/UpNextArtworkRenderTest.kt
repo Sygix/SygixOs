@@ -21,6 +21,7 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import java.io.File
 import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,12 +31,26 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class UpNextArtworkRenderTest {
+    @Before fun resetLoader() { coil.Coil.reset() }
     @get:Rule val compose = createComposeRule()
     private val files = mutableListOf<File>()
     private val item = UpNextItem(1, UpNextSourceEntry("com.source"), UpNextContentType.MOVIE, "Movie")
     private val placeholder = "upnext-card-placeholder-${item.key}"
 
-    @After fun clearFiles() { files.forEach { it.delete() } }
+    @After fun clearFiles() { coil.Coil.reset(); files.forEach { it.delete() } }
+
+    @Test fun `program image source can be retrieved and decoded through the production loader`() = kotlinx.coroutines.runBlocking {
+        val context: Context = ApplicationProvider.getApplicationContext()
+        val uri = image(396, 224)
+        val source = fr.sygix.sygixos.data.AndroidArtworkTransport(context.contentResolver).read(uri, fr.sygix.sygixos.data.ArtworkCancellation())
+        org.junit.Assert.assertEquals(396, source.dimensions.width)
+        val loader = (context.applicationContext as fr.sygix.sygixos.SygixOsApp).newImageLoader().newBuilder()
+            .interceptorDispatcher(kotlinx.coroutines.Dispatchers.Unconfined).build()
+        try {
+            val result = loader.execute(coil.request.ImageRequest.Builder(context).data(item.copy(imageUrl = uri).artwork).size(396, 224).build())
+            org.junit.Assert.assertTrue((result as? coil.request.ErrorResult)?.throwable?.stackTraceToString(), result is coil.request.SuccessResult)
+        } finally { loader.shutdown() }
+    }
 
     private fun image(width: Int, height: Int): String {
         val context: Context = ApplicationProvider.getApplicationContext()
@@ -55,8 +70,8 @@ class UpNextArtworkRenderTest {
         compose.onNodeWithTag(placeholder).assertExists()
     }
 
-    @Test fun `landscape at twice displayed width replaces placeholder`() {
-        render(image(792, 448))
+    @Test fun `landscape at displayed width replaces placeholder`() {
+        render(image(396, 224))
         compose.waitUntil(5_000) { compose.onAllNodesWithTag(placeholder).fetchSemanticsNodes().isEmpty() }
         compose.onNodeWithTag(placeholder).assertDoesNotExist()
     }
@@ -67,8 +82,8 @@ class UpNextArtworkRenderTest {
         compose.onNodeWithTag(placeholder).assertDoesNotExist()
     }
 
-    @Test fun `image narrower than twice the displayed width keeps the placeholder`() {
-        val small = item.copy(id = 2, imageUrl = image(600, 338))
+    @Test fun `image narrower than displayed width keeps the placeholder`() {
+        val small = item.copy(id = 2, imageUrl = image(395, 224))
         val large = item.copy(id = 3, imageUrl = image(792, 448))
         val showLarge = mutableStateOf(false)
         compose.setContent {

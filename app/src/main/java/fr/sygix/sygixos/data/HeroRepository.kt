@@ -16,9 +16,9 @@ class HeroRepository(
     private val fallback: HeroContentProvider,
 ) {
     suspend fun load(): HeroFeed {
-        val published = items(programs)
-        if (published.isNotEmpty()) return HeroFeed(published, fromApps = true)
-        return HeroFeed(fallbackItems(), fromApps = false)
+        val published = programs.read()
+        if (published.items.isNotEmpty()) return HeroFeed(published.items, fromApps = true, published.errors)
+        return HeroFeed(fallbackItems(), fromApps = false, published.errors)
     }
 
     suspend fun fallbackItems(): List<HeroItem> = items(fallback)

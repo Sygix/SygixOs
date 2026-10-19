@@ -16,6 +16,7 @@ import fr.sygix.sygixos.domain.UpNextFeed
 import fr.sygix.sygixos.model.ProgramKind
 import fr.sygix.sygixos.model.UpNextContentType
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.robolectric.Shadows.shadowOf
@@ -108,7 +109,9 @@ class TvProviderUpNextSourceTest {
         assertTrue(TvProviderUpNextSource(context, query = { null }).load().isFailure)
         assertTrue(TvProviderUpNextSource(context, query = { throw SecurityException("denied") }).load().exceptionOrNull() is SecurityException)
         val latch = CountDownLatch(1)
-        assertTrue(TvProviderUpNextSource(context, timeoutMillis = 50, query = { latch.await(); null }).load().exceptionOrNull() is TimeoutCancellationException)
+        try {
+            assertTrue(TvProviderUpNextSource(context, timeoutMillis = 50, query = { latch.await(); null }).load().exceptionOrNull() is java.util.concurrent.TimeoutException)
+        } finally { latch.countDown() }
     }
 
     @Test
@@ -117,7 +120,7 @@ class TvProviderUpNextSourceTest {
         c.moveToPosition(-1)
         val caller = Thread.currentThread()
         var queryThread: Thread? = null
-        val actual = TvProviderUpNextSource(context, query = { queryThread = Thread.currentThread(); c }).load().getOrThrow()
+        val actual = TvProviderUpNextSource(context, query = { queryThread = Thread.currentThread(); c }, installed = { true }).load().getOrThrow()
         assertEquals(1, actual.size)
         assertNotEquals(caller, queryThread)
         assertTrue(c.isClosed)
@@ -143,19 +146,19 @@ class TvProviderUpNextSourceTest {
 
     @Test
     fun `timeout cancels the provider query through its cancellation signal`() = runBlocking {
-        var cancelled = false
+        val cancelled = CompletableDeferred<Unit>()
         val slow = TvProviderUpNextSource(context, timeoutMillis = 50, query = { signal ->
             val released = CountDownLatch(1)
             signal.setOnCancelListener { released.countDown() }
             while (released.count > 0) {
                 try { released.await() } catch (_: InterruptedException) { }
             }
-            cancelled = signal.isCanceled
+            if (signal.isCanceled) cancelled.complete(Unit)
             throw OperationCanceledException()
         })
         val result = withTimeout(5_000) { slow.load() }
         assertTrue(result.isFailure)
-        assertTrue(cancelled)
+        withTimeout(5_000) { cancelled.await() }
     }
 
     @Test

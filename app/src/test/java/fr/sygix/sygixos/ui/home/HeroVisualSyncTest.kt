@@ -51,8 +51,9 @@ private class GatedImageLoader(private val gated: String) : ImageLoader {
     override val diskCache: DiskCache? = null
     override fun enqueue(request: ImageRequest): Disposable = error("unused")
     override suspend fun execute(request: ImageRequest): ImageResult {
-        counts[request.data] = (counts[request.data] ?: 0) + 1
-        if (request.data == gated) gate.await()
+        val uri = (request.data as? fr.sygix.sygixos.model.ProgramArtwork)?.candidates?.firstOrNull() ?: request.data
+        counts[uri] = (counts[uri] ?: 0) + 1
+        if (uri == gated) gate.await()
         return SuccessResult(ColorDrawable(Color.DKGRAY), request, DataSource.MEMORY)
     }
     override fun shutdown() = Unit
@@ -92,7 +93,7 @@ class HeroVisualSyncTest {
     }
 
     @Test
-    fun `title and button wait for the next visual, and a slow visual gives way to the next program`() {
+    fun `title and button wait for artwork then keep the requested program on timeout fallback`() {
         val first = program("h1", "Premier titre fictif")
         val slow = program("h2", "Titre fictif lent")
         val third = program("h3", "Troisième titre fictif")
@@ -118,22 +119,21 @@ class HeroVisualSyncTest {
         press(Key.DirectionCenter)
         assertEquals(listOf("h1"), opened)
 
-        advance(Motion.HERO_VISUAL_TIMEOUT_MS + Motion.HERO_CROSSFADE_MS + 500L)
-        compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
-        compose.onAllNodesWithText(slow.title, useUnmergedTree = true).assertCountEquals(0)
+        advance(8_000 + Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("hero-fallback-neutral").assertExists()
         compose.onAllNodesWithText(first.title, useUnmergedTree = true).assertCountEquals(0)
         press(Key.DirectionCenter)
-        assertEquals(listOf("h1", "h3"), opened)
-        advance(Motion.HERO_VISUAL_TIMEOUT_MS * 2)
+        assertEquals(listOf("h1", "h2"), opened)
         assertEquals(1, loader.requests(slow.imageUrl!!))
-
+        press(Key.DirectionRight)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
         loader.gate.complete(Unit)
         advance(500)
-        press(Key.DirectionLeft)
-        advance(Motion.HERO_CROSSFADE_MS + 500L)
-        compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
+        compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
         press(Key.DirectionCenter)
-        assertEquals(listOf("h1", "h3", "h2"), opened)
+        assertEquals(listOf("h1", "h2", "h3"), opened)
     }
 
     @Test

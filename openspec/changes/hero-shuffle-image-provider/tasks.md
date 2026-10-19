@@ -2,6 +2,8 @@
 
 ## 1. Vérification des données sur la TV avant implémentation
 
+Prérequis dispensé par Sygix pour cette implémentation. Le relevé ci-dessous n'a pas été effectué et reste décoché comme preuve de validation manquante ; il ne bloque plus le code. Les schémas et identifiants non vérifiés restent des hypothèses.
+
 - [ ] 1.1 Sur la TV Google TV sous Android 14, relever pour Jellyfin, Disney+ et Crunchyroll les schémas d'URI, colonnes réellement présentes, compteurs de candidates, ratios et dimensions, causes et durées d'échec dans les trois zones. Vérifier si une échéance ou une identité de contenu fiable est réellement publiée, sans en présumer l'existence ; livrer dans `design.md` un relevé structurel sans URI brute, titre, intent personnel, serveur ni donnée de visionnage. Si un constat invalide le modèle retenu, réconcilier les documents avant le code.
 
 ## 2. Programmes, candidates et confirmations

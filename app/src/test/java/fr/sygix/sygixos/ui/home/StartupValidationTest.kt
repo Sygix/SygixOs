@@ -112,7 +112,7 @@ class StartupValidationTest {
         val vm = viewModel(StartupSession(), loader)
         vm.state.await { (it as? HomeState.Ready)?.hero?.checked?.isNotEmpty() == true }
         delay(300)
-        assertEquals(setOf(uris[0]), vm.checked())
+        assertEquals(setOf((vm.state.value as HomeState.Ready).hero.items.first().imageUrl), vm.checked())
         assertEquals(1, loader.requests.get())
     }
 

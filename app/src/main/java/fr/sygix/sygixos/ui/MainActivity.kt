@@ -62,6 +62,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         shownSinceStop = false
+        viewModel.onBackground()
         super.onStop()
     }
 

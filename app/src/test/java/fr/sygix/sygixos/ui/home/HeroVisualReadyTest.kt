@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.compose.ui.test.onNodeWithTag
+
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -85,16 +87,17 @@ class HeroVisualReadyTest {
     }
 
     @Test
-    fun `program without a validated visual never reports a hero visual`() {
+    fun `program poster uses the shared loader without awaiting prevalidation`() {
         Coil.setImageLoader(PosterImageLoader(succeed = true))
         show(heroStateOf(items = listOf(heroItem("h1", "Programme", imageUrl = "https://x/p.jpg"))))
-        assertEquals(0, signals)
+        assertTrue(signals > 0)
     }
 
     @Test
-    fun `unreadable poster never reports a hero visual`() {
+    fun `unreadable poster exposes neutral fallback without reporting a loaded visual`() {
         Coil.setImageLoader(PosterImageLoader(succeed = false))
         show(heroStateOf(items = listOf(heroItem("h1", "Programme", imageUrl = "https://x/p.jpg")), validated = setOf("https://x/p.jpg")))
         assertEquals(0, signals)
+        compose.onNodeWithTag("hero-fallback-neutral").assertExists()
     }
 }

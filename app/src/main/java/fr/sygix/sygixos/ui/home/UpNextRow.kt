@@ -44,6 +44,7 @@ import androidx.core.graphics.drawable.toBitmap
 import coil.compose.AsyncImagePainter
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
+import fr.sygix.sygixos.data.artworkPolicy
 import coil.size.Precision
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.*
@@ -233,14 +234,17 @@ internal fun UpNextArtwork(item: UpNextItem, modifier: Modifier = Modifier) {
         val width = with(density) { maxWidth.roundToPx() }
         val height = with(density) { maxHeight.roundToPx() }
         val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, maxHeight.value).dp
-        val request = remember(context, item.imageUrl, width, height) {
-            ImageRequest.Builder(context).data(item.imageUrl)
-                .size((width * 2).coerceAtLeast(1), (height * 2).coerceAtLeast(1))
+        val revision = artworkRevision()
+        val request = remember(context, item.artwork, width, height, revision) {
+            ImageRequest.Builder(context).data(item.artwork)
+                .setParameter("artwork-revision", revision)
+                .artworkPolicy(fr.sygix.sygixos.domain.ArtworkPolicy.Card(width))
+                .size(width.coerceAtLeast(1), height.coerceAtLeast(1))
                 .precision(Precision.INEXACT).build()
         }
-        val painter = rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+        val painter = androidx.compose.runtime.key(item.artwork, revision) { rememberAsyncImagePainter(request, contentScale = ContentScale.Crop) }
         val decoded = (painter.state as? AsyncImagePainter.State.Success)?.result?.drawable
-        val usable = UpNextArtworkQuality.usable(decoded?.intrinsicWidth ?: 0, width)
+        val usable = decoded != null
         if (usable) Image(painter, contentDescription = null,
             contentScale = if (UpNextArtworkQuality.portrait(decoded!!.intrinsicWidth, decoded.intrinsicHeight)) ContentScale.Fit else ContentScale.Crop,
             modifier = Modifier.fillMaxSize())

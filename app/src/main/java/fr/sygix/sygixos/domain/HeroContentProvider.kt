@@ -11,5 +11,14 @@ import kotlinx.coroutines.flow.flowOf
 
 interface HeroContentProvider {
     suspend fun load(): List<HeroItem>
+    suspend fun read(): HeroRead = try {
+        HeroRead(load())
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        HeroRead(emptyList(), listOf(error))
+    }
     fun changes(): Flow<Unit> = flowOf(Unit)
 }
+
+data class HeroRead(val items: List<HeroItem>, val errors: List<Throwable> = emptyList())

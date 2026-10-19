@@ -14,7 +14,7 @@ class NatureFallbackProvider : HeroContentProvider {
         HeroItem(id = "nature-$i", title = "", videoUrl = url)
     }
 
-    private companion object {
+    companion object {
         val CLIPS = listOf(
             "https://videos.pexels.com/video-files/4763824/4763824-uhd_2560_1440_24fps.mp4",
             "https://videos.pexels.com/video-files/9981939/9981939-uhd_2560_1440_30fps.mp4",

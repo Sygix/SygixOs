@@ -49,7 +49,10 @@ import fr.sygix.sygixos.data.UpdateInstaller
 import fr.sygix.sygixos.data.UpdatePrefs
 import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
-import fr.sygix.sygixos.data.VisualFreshness
+import fr.sygix.sygixos.data.ArtworkDiskStore
+import fr.sygix.sygixos.data.AndroidArtworkTransport
+import fr.sygix.sygixos.data.ProgramArtworkService
+import fr.sygix.sygixos.data.ProgramArtworkInterceptor
 import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.domain.StartupSession
 
@@ -64,7 +67,11 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
         AppArtworkSource(packageManager, bounds = ImageBounds.tile(tile))
     }
     val startupSession = StartupSession()
+    val heroOrder = fr.sygix.sygixos.domain.HeroSessionOrder()
     val foregroundTracker = ForegroundTracker()
+    private val imageDisk by lazy { DiskCache.Builder().directory(cacheDir.resolve("images")).maxSizeBytes(256L * 1024 * 1024).build() }
+    private val programArtworkInstance = lazy { ProgramArtworkService(ArtworkDiskStore(imageDisk), AndroidArtworkTransport(contentResolver)) }
+    internal val programArtwork by programArtworkInstance
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
@@ -207,6 +214,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
 
     override fun onTerminate() {
         appScope.cancel()
+        if (programArtworkInstance.isInitialized()) programArtwork.close()
         super.onTerminate()
     }
 
@@ -247,15 +255,14 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
 
     override fun newImageLoader(): ImageLoader {
         val memory = MemoryCache.Builder(this).maxSizePercent(0.15).build()
-        val disk = DiskCache.Builder().directory(cacheDir.resolve("images")).maxSizeBytes(256L * 1024 * 1024).build()
         return ImageLoader.Builder(this)
             .allowRgb565(true)
             .crossfade(false)
             .respectCacheHeaders(false)
             .memoryCache(memory)
-            .diskCache(disk)
-            .components { add(VisualFreshness(disk, memory)) }
-            .decoderDispatcher(Dispatchers.IO.limitedParallelism(2))
+            .diskCache(imageDisk)
+            .components { add(ProgramArtworkInterceptor(this@SygixOsApp, programArtwork)) }
+            .decoderDispatcher(fr.sygix.sygixos.data.ArtworkDecodeDispatcher)
             .fetcherDispatcher(Dispatchers.IO.limitedParallelism(4))
             .build()
     }

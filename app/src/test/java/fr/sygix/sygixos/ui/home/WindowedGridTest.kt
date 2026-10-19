@@ -65,7 +65,8 @@ private class RecordingImageLoader : ImageLoader {
     override fun enqueue(request: ImageRequest): Disposable = error("unused")
     override suspend fun execute(request: ImageRequest): ImageResult {
         val size = request.sizeResolver.size()
-        requests += "${request.data}@${size.width}x${size.height}"
+        val uri = (request.data as? fr.sygix.sygixos.model.ProgramArtwork)?.candidates?.firstOrNull() ?: request.data
+        requests += "$uri@${size.width}x${size.height}"
         return SuccessResult(ColorDrawable(Color.WHITE), request, DataSource.MEMORY)
     }
     override fun shutdown() = Unit

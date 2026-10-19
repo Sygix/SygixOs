@@ -19,7 +19,19 @@ data class HeroItem(
     val episode: String? = null,
     val durationMillis: Long? = null,
     val positionMillis: Long? = null,
+    val posterUrl: String? = imageUrl,
+    val thumbnailUrl: String? = null,
+    val posterAspectRatio: Int = -1,
+    val expiresAt: Long = Long.MAX_VALUE,
+    val internalProviderId: String? = null,
+    val contentId: String? = null,
+    val releaseDate: String? = null,
+    val episodeArtwork: Boolean = season != null || episode != null,
 ) {
+    val artwork: ProgramArtwork get() = ProgramArtwork(
+        sourcePackage.orEmpty(), listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
+        if (episodeArtwork) "episode-artwork" else listOf(id, title, launchUri, internalProviderId, contentId, releaseDate).joinToString("\u0000"),
+    )
     val progress: Float?
         get() = playbackRatio(positionMillis, durationMillis)
 }
