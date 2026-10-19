@@ -5,101 +5,14 @@ Couverture de test de l'écran home : assertions sémantiques sur JVM (Robolectr
 
 ## Requirements
 
-### Requirement: Taille des tests TV
-Les tests Compose désignés à taille TV dans cette capability SHALL utiliser `@Config(qualifiers = "w960dp-h540dp-xhdpi")`, jamais la taille Robolectric par défaut.
-
-#### Scenario: configuration des tests Compose
-- **WHEN** un scénario de cette capability demande un test à taille TV
-- **THEN** ses dimensions et sa densité sont celles du qualifier, y compris pour le démarrage, les mises à jour et la configuration automatique
-
-### Requirement: Sélecteurs des éléments cachés
-Les tags SHALL être « hidden-pane », « unhide-all », « hidden-row-<package> », « hidden-switch-<package> », « hidden-empty », « hidden-group-upnext » pour l'intertitre, « hidden-content-row-<clé> », « hidden-content-action-<clé> » (clé sérialisée), « hidden-show-more-apps », « hidden-show-more-upnext ».
-
-#### Scenario: volet déterministe
-- **WHEN** les tests de « Couverture du volet Applications cachées » ciblent un élément
-- **THEN** ces sélecteurs stables identifient les lignes, groupes et actions indépendamment de leur texte ou position
-
-### Requirement: Sélecteurs du style du héro
-Les tags SHALL être « hero-capsule », « hero-clock », « settings-gear », « dock-glass », « hero-open », « hero-metadata », « hero-progress », « hero-poster », « hero-header », « hero-header-label », « hero-source-icon », « hero-details », « hero-progress-bar », « hero-remaining ».
-
-#### Scenario: assertions de style du héro
-- **WHEN** « Couverture du style tvOS » vérifie le héro
-- **THEN** ces sélecteurs identifient les surfaces et métadonnées sans capture d'image
-
-### Requirement: Sélecteurs du style des apps et menus
-Les tags SHALL être « app-menu », « menu-glass », « menu-thumbnail », « menu-dock-full », « move-banner », préfixes « app-banner-<package> », « app-icon-<package> », « app-tile-<package> », « app-tile-art-<package> » (visuel transformé au focus), « app-thumbnail-<package> », « menu-action-<action> », « settings-category-<CATEGORY> », « source-row-<package> », « hidden-row-<package> », « unhide-all ».
-
-#### Scenario: assertions du menu et des apps
-- **WHEN** « Couverture du style tvOS » vise une app, un menu ou réglage
-- **THEN** ces sélecteurs identifient les éléments et le visuel des tuiles avec ses transformations de focus
-
-### Requirement: Sélecteurs des mises à jour
-Les tags SHALL être « update-check », « update-install », « update-withdrawn », « update-release-notes-qr », « update-prereleases », « update-prereleases-switch », « update-badge-gear », « update-badge-about ».
-
-#### Scenario: lignes et pastilles déterministes
-- **WHEN** « Couverture des mises à jour » vérifie affichage et D-pad
-- **THEN** ces sélecteurs stables désignent chaque ligne, QR, switch et pastille
-
-### Requirement: Doubles du parcours d'accueil
-Les doubles SHALL contrôler HOME/rôle effectif, service activé/connecté, fin/numéro/temps depuis démarrage, superposition, écran constructeur, ouverture des écrans et débogage. JUnit SHALL couvrir enchaînements et états du parcours, synthèses, affichage automatique, démarrage observé, filtre Home, ouverture unique et attente de connexion.
-
-#### Scenario: logique sans Android réel
-- **WHEN** « Couverture du parcours de l'écran d'accueil » est exécutée
-- **THEN** les enchaînements 8.2, 8.4, 8.8, 8.10 à 8.17 et 9.1 à 9.16 et les états des deux voies sont contrôlés par ces doubles ; l'affichage/navigation reste vérifié par Compose TV
-
-### Requirement: Cadre du parcours testé
-Les tags communs SHALL être « setup-panel » (voile/panneau), « setup-mascot », « setup-step-counter » (Étape X sur N), « setup-title », « setup-description », « setup-hint ». La mascotte SHALL être absente des dialogues/détails ; le compteur absent de la première page, « setup-manual », détails, dialogues, panneau et écrans ouverts depuis lui.
-
-#### Scenario: éléments présents selon l'écran
-- **WHEN** un écran de parcours est testé
-- **THEN** les scénarios de mascotte et de repère de « Sélecteurs de l'écran d'accueil » suivent launcher-shell ; « setup-details » et « setup-manual » n'ont pas de compteur ; la synthèse suit « Réglages du launcher système » de settings
-
-### Requirement: Sélecteurs des étapes
-Les choix, le guide et l'autorisation ADB SHALL exposer les tags par écran ci-dessous. Les erreurs SHALL exposer « setup-error », « setup-error-title » et « setup-error-detail ». Les tags de la séquence SHALL inclure « setup-progress », « setup-step-boot », « setup-step-home », « setup-step-verify » et « setup-step-stock ».
-
-#### Scenario: choix et guide
-- **WHEN** les écrans 8.2/9.1 et 9.2/9.3/8.10 sont testés
-- **THEN** les choix exposent « setup-choice-tsuyu », « setup-choice-auto », « setup-choice-manual », « setup-later » ; le guide « setup-debug », « setup-debug-step-1 », « setup-debug-step-2 », « setup-debug-open », « setup-debug-back »
-
-#### Scenario: autorisation ADB
-- **WHEN** 8.4/8.11 est testé
-- **THEN** les tags sont « setup-authorize », « setup-authorize-step-1 », « setup-authorize-step-2 », « setup-authorize-status », « setup-authorize-continue », « setup-authorize-retry », « setup-authorize-back »
-
-### Requirement: Sélecteurs des résultats
-Les résultats effectif, secours, dernier choix et échec SHALL exposer les tags ci-dessous, en conservant leurs scénarios d'ordre, focus et fermeture de « Sélecteurs de l'écran d'accueil ».
-
-#### Scenario: succès et dernier choix
-- **WHEN** 9.13 ou 9.11 est testé
-- **THEN** 9.13 expose « setup-done », « setup-done-tip », « setup-done-repair », « setup-done-details », « setup-done-finish » ; 9.11 expose « setup-more », « setup-more-keep », « setup-more-disable »
-
-#### Scenario: secours et échec
-- **WHEN** 9.12 ou 8.12 est testé
-- **THEN** 9.12 expose « setup-fallback », « setup-fallback-home », « setup-fallback-overlay », « setup-fallback-boot », « setup-fallback-repair », « setup-fallback-tip », « setup-fallback-details », « setup-fallback-finish » ; 8.12 expose « setup-failed », « setup-failed-close », « setup-failed-retry »
-
-### Requirement: Sélecteurs des panneaux et dialogues
-Autorisations, détails, panneau Launcher et confirmations SHALL exposer les tags ci-dessous. Les réglages SHALL exposer « setting-launcher-group » et « setting-launcher-guide ». Chaque ligne SHALL ajouter « <ligne>-title », « <ligne>-detail » et « <ligne>-state », et « <ligne>-dot » seulement si son état a une pastille.
-
-#### Scenario: autorisations et détails
-- **WHEN** 8.13 ou 8.14/9.16 est testé
-- **THEN** 8.13 expose « setup-manual », « setup-manual-home », « setup-manual-boot », « setup-manual-overlay », « setup-manual-vendor-boot », « setup-manual-tip », « setup-manual-finish » ; les détails exposent « setup-details », « setup-details-item-<réglage> », « setup-details-close »
-
-#### Scenario: panneau et confirmations
-- **WHEN** 9.14/9.15/8.21 ou les dialogues 8.8/8.17 sont testés
-- **THEN** le panneau expose « launcher-panel », « launcher-panel-auto », « launcher-panel-tsuyu », « launcher-panel-manual », « launcher-panel-relaunch », « launcher-panel-replace », « launcher-panel-restore » ; les dialogues exposent « confirm-disable » / « confirm-restore » et chacun « <dialogue>-title », « <dialogue>-text », « <dialogue>-accept », « <dialogue>-cancel »
-
-### Requirement: Sélecteurs retirés du parcours
-Les anciens tags « onboarding-* », « setting-home-role », « setting-boot-start », « setting-accessibility-home », « launcher-overlay-* », « setup-debug-status » et « setup-more-home » ne SHALL plus exister.
-
-#### Scenario: absence des anciens sélecteurs
-- **WHEN** les tests du parcours recherchent les anciens tags
-- **THEN** ils ne correspondent à aucun élément, les sélecteurs des écrans actuels servant aux assertions
-
 ### Requirement: Tests UI sans capture d'image
 La suite UI SHALL tester l'écran home par assertions sémantiques (Robolectric + Compose), sans dépendance de capture d'image ni de comparaison visuelle.
 
 #### Scenario: indépendance des tests
 - **WHEN** la suite UI s'exécute
 - **THEN** tous les tests tournent sur JVM via Robolectric, sans émulateur ni génération de PNG, et font partie de la task `test` standard
+
+**Détails.** — Taille des tests TV : Les tests Compose désignés à taille TV dans cette capability SHALL utiliser `@Config(qualifiers = "w960dp-h540dp-xhdpi")`, jamais la taille Robolectric par défaut. Cas « configuration des tests Compose » : quand un scénario de cette capability demande un test à taille TV, ses dimensions et sa densité sont celles du qualifier, y compris pour le démarrage, les mises à jour et la configuration automatique.
 
 ### Requirement: Sélecteurs stables
 Les zones et tuiles de l'écran home SHALL exposer des testTags stables utilisés par les tests à la place de sélecteurs fragiles (texte, position).
@@ -314,7 +227,7 @@ La transition en défilement entre le héro et la grille SHALL être couverte pa
 - **THEN** ils passent inchangés dans leurs assertions de focus ; toute assertion fondée sur l'alpha des couches est remplacée par une assertion de position
 
 ### Requirement: Couverture du volet Applications cachées
-Applications cachées SHALL être testé en Compose TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), données déterministes, testTags de « Sélecteurs des éléments cachés ».
+Le volet « Applications cachées » SHALL être couvert par des tests Compose TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), données déterministes et testTags stables pour le volet, « Tout réactiver », chaque app, chaque contenu retiré, les lignes « Afficher les N autres » et l'état vide.
 
 #### Scenario: liste dans le volet
 - **WHEN** la catégorie « Applications cachées » est sélectionnée avec des apps cachées
@@ -368,8 +281,10 @@ Applications cachées SHALL être testé en Compose TV (`@Config(qualifiers = "w
 - **WHEN** la catégorie est sélectionnée sans app cachée mais avec un contenu retiré
 - **THEN** ni « unhide-all » ni « hidden-row-<package> » ne sont rendus, « hidden-group-upnext » et la ligne de contenu le sont, et droite depuis la catégorie donne le focus à cette ligne
 
+**Détails.** — Sélecteurs des éléments cachés : Les tags SHALL être « hidden-pane », « unhide-all », « hidden-row-<package> », « hidden-switch-<package> », « hidden-empty », « hidden-group-upnext » pour l'intertitre, « hidden-content-row-<clé> », « hidden-content-action-<clé> » (clé sérialisée), « hidden-show-more-apps », « hidden-show-more-upnext ». Cas « volet déterministe » : quand les tests de « Couverture du volet Applications cachées » ciblent un élément, ces sélecteurs stables identifient les lignes, groupes et actions indépendamment de leur texte ou position.
+
 ### Requirement: Couverture du style tvOS
-Le style tvOS accueil/menu/réglages SHALL être testé à taille TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) par assertions sémantiques, positions et couleurs calculées, sans captures. Les tests SHALL utiliser « Sélecteurs du style du héro » et « Sélecteurs du style des apps et menus ».
+Le style tvOS accueil/menu/réglages SHALL être testé à taille TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) par assertions sémantiques, positions et couleurs calculées, sans captures, avec des testTags stables pour la capsule, le héro, le dock, les tuiles, le menu et les lignes de réglages.
 
 #### Scenario: tuile focusée sans débordement
 - **WHEN** une tuile de la grille, puis une tuile du dock prend le focus et l'animation se termine
@@ -438,6 +353,8 @@ Le style tvOS accueil/menu/réglages SHALL être testé à taille TV (`@Config(q
 #### Scenario: focus qui passe
 - **WHEN** le focus traverse trois tuiles en moins de 0,5 s chacune, puis reste sur la dernière
 - **THEN** la préparation du panneau Top Shelf n'est demandée que pour la dernière tuile, 0,5 s après que le focus s'y est posé
+
+**Détails.** — Sélecteurs du style du héro : Les tags SHALL être « hero-capsule », « hero-clock », « settings-gear », « dock-glass », « hero-open », « hero-metadata », « hero-progress », « hero-poster », « hero-header », « hero-header-label », « hero-source-icon », « hero-details », « hero-progress-bar », « hero-remaining ». Cas « assertions de style du héro » : quand « Couverture du style tvOS » vérifie le héro, ces sélecteurs identifient les surfaces et métadonnées sans capture d'image. — Sélecteurs du style des apps et menus : Les tags SHALL être « app-menu », « menu-glass », « menu-thumbnail », « menu-dock-full », « move-banner », préfixes « app-banner-<package> », « app-icon-<package> », « app-tile-<package> », « app-tile-art-<package> » (visuel transformé au focus), « app-thumbnail-<package> », « menu-action-<action> », « settings-category-<CATEGORY> », « source-row-<package> », « hidden-row-<package> », « unhide-all ». Cas « assertions du menu et des apps » : quand « Couverture du style tvOS » vise une app, un menu ou réglage, ces sélecteurs identifient les éléments et le visuel des tuiles avec ses transformations de focus.
 
 ### Requirement: Couverture de l'écran de démarrage
 Le démarrage SHALL être testé en Compose TV avec horloge, catalogue/premier visuel contrôlés et mascotte déterministe, assertions sémantiques sur « startup-splash » et « startup-splash-mascot ». Fichier d'animation et écran système SHALL être testés sans capture. Retour pendant le fondu de sortie SHALL avoir un test échouant si l'accueil l'intercepte (« Écran de démarrage », launcher-shell).
@@ -523,7 +440,7 @@ Le démarrage SHALL être testé en Compose TV avec horloge, catalogue/premier v
 - **THEN** pendant l'écran de démarrage, l'app quitte le premier plan sans action déclenchée sur l'accueil ; après le remplacement, Retour suit « Navigation 3 paliers » (le héro reprend le focus, l'app reste au premier plan)
 
 ### Requirement: Couverture des mises à jour
-Lignes de mise à jour, QR et pastille SHALL être testés en Compose TV avec état déterministe et événements physiques D-pad, testTags de « Sélecteurs des mises à jour ». Logique/transport SHALL suivre « Couverture de test des mises à jour » de self-update, rendu « Pastille » de launcher-shell.
+Lignes de mise à jour, QR et pastille SHALL être testés en Compose TV avec état déterministe et événements physiques D-pad, testTags stables pour « Vérifier », « Mettre à jour », la version retirée, le QR, les préversions et la pastille. Logique/transport SHALL suivre « Couverture de test des mises à jour » de self-update, rendu « Pastille » de launcher-shell.
 
 #### Scenario: navigation dans À propos
 - **WHEN** le test ouvre « À propos » et presse droite, puis bas et haut
@@ -552,6 +469,8 @@ Lignes de mise à jour, QR et pastille SHALL être testés en Compose TV avec é
 #### Scenario: pastille sans effet sur le focus
 - **WHEN** une version est proposée et le test parcourt héro, engrenage et retour au héro
 - **THEN** « update-badge-gear » est affichée, n'est jamais focusée, et la position et la taille de la capsule et de l'engrenage sont identiques à celles d'un test sans version proposée
+
+**Détails.** — Sélecteurs des mises à jour : Les tags SHALL être « update-check », « update-install », « update-withdrawn », « update-release-notes-qr », « update-prereleases », « update-prereleases-switch », « update-badge-gear », « update-badge-about ». Cas « lignes et pastilles déterministes » : quand « Couverture des mises à jour » vérifie affichage et D-pad, ces sélecteurs stables désignent chaque ligne, QR, switch et pastille.
 
 ### Requirement: Couverture du rendu du héro et du verre
 Le rendu héro/verre de launcher-shell SHALL tester en JVM tailles de décodage, transformations du visuel/fond verre et Robolectric natif (`@GraphicsMode(NATIVE)`) ; les changements de programme SHALL être testés en Compose TV avec chargeur d'images de test. La fluidité SHALL être mesurée sur TV réelle par `dumpsys gfxinfo`, APK release ou minifiée équivalente.
@@ -616,7 +535,7 @@ Les infos du programme dans le héro (« Diaporama héro » de `launcher-shell`)
 - **THEN** des états Compose sont modifiés (zoom) mais aucune recomposition n'a lieu (`IdleFrameTest`)
 
 ### Requirement: Couverture du parcours de l'écran d'accueil
-Parcours, autorisations, panneau Launcher et secours SHALL être testés sans Android réel selon « Doubles du parcours d'accueil » : logique JUnit, affichage/navigation Compose TV et tags de « Sélecteurs de l'écran d'accueil ». Les tests SHALL distinguer service activé/connecté, activé/non connecté et non activé ; aucun « Fait »/« Active » sans confirmation du double.
+Parcours, autorisations, panneau Launcher et secours SHALL être testés sans Android réel : logique JUnit et affichage/navigation Compose TV avec des doubles contrôlés (rôle HOME, accueil effectif, service, démarrage, superposition, auto-démarrage, écrans système, débogage). Les tests SHALL distinguer service activé/connecté, activé/non connecté et non activé ; aucun « Fait » ou « Active » sans confirmation du double.
 
 #### Scenario: premier lancement et plus tard
 - **WHEN** le test lance SygixOs sans parcours enregistré comme fermé, simule la réponse à la demande de permission « Programmes TV » (le parcours n'apparaît qu'après), puis presse Retour sur la première page
@@ -653,6 +572,8 @@ Parcours, autorisations, panneau Launcher et secours SHALL être testés sans An
 #### Scenario: mise à jour sans opération privilégiée
 - **WHEN** le test exécute une mise à jour intégrée factice jusqu'à la relance
 - **THEN** aucune demande du rôle HOME ni connexion au débogage n'a lieu
+
+**Détails.** — Doubles du parcours d'accueil : Les doubles SHALL contrôler HOME/rôle effectif, service activé/connecté, fin/numéro/temps depuis démarrage, superposition, écran constructeur, ouverture des écrans et débogage. JUnit SHALL couvrir enchaînements et états du parcours, synthèses, affichage automatique, démarrage observé, filtre Home, ouverture unique et attente de connexion. Cas « logique sans Android réel » : quand « Couverture du parcours de l'écran d'accueil » est exécutée, les enchaînements 8.2, 8.4, 8.8, 8.10 à 8.17 et 9.1 à 9.16 et les états des deux voies sont contrôlés par ces doubles ; l'affichage/navigation reste vérifié par Compose TV.
 
 ### Requirement: Couverture de la configuration automatique
 Configuration, accès, désactivation/rétablissement SHALL être testés en JUnit et Compose TV avec doubles d'accès/opérations/état (D10), sans ADB réel : écrans, ordre, étapes sans objet, secours, annulation des dépendantes, délais/perte, garde-fous/rollback, rétablissement avec/sans accueil relevé, refus des cibles hors ensemble, conservation des services et fermeture de connexion.
@@ -694,7 +615,7 @@ Configuration, accès, désactivation/rétablissement SHALL être testés en JUn
 - **THEN** le panneau se ferme, la séquence du double continue jusqu'à sa fin, et la réouverture affiche l'écran de l'état relu
 
 ### Requirement: Sélecteurs de l'écran d'accueil
-Les écrans 8.2/8.4/8.8/8.10–8.15/8.17–8.21 et 9.1–9.16 et la ligne des réglages SHALL exposer les tags de « Cadre du parcours testé », « Sélecteurs des étapes », « Sélecteurs des résultats » et « Sélecteurs des panneaux et dialogues ». Les tests Compose TV SHALL utiliser ces tags plutôt que textes/positions, vérifier ordre, focus, D-pad, états, fermeture définitive et synthèse settings. Les écrans Tsuyu SHALL suivre « Sélecteurs de Tsuyu ».
+Les écrans 8.2/8.4/8.8/8.10–8.15/8.17–8.21 et 9.1–9.16 et la ligne des réglages SHALL exposer des testTags stables, utilisés par les tests Compose TV à la place du texte ou de la position, pour vérifier ordre, focus, D-pad, états, fermeture définitive et synthèse settings. Les écrans Tsuyu SHALL suivre leurs sélecteurs.
 
 #### Scenario: ordre et focus initial
 - **WHEN** le test compose l'accueil avec le parcours à afficher, rien n'étant fait, sans Tsuyu disponible, puis avec Tsuyu disponible
@@ -731,6 +652,8 @@ Les écrans 8.2/8.4/8.8/8.10–8.15/8.17–8.21 et 9.1–9.16 et la ligne des r�
 #### Scenario: synthèse de la ligne des réglages
 - **WHEN** le test affiche « Écran d'accueil » avec rien de fait, puis la voie automatique active, puis la voie par autorisations en partie, puis bloquée
 - **THEN** « setting-launcher-guide-state » et « setting-launcher-guide-detail » affichent « À configurer » et « Automatique : à configurer · Par autorisations : à faire », « Actif » (avec « setting-launcher-guide-dot ») et « Automatique : actif · Par autorisations : non utilisée », « En partie » et « Automatique : à configurer · Par autorisations : en partie », « Bloqué » et « Automatique : à configurer · Par autorisations : bloquée »
+
+**Détails.** — Cadre du parcours testé : Les tags communs SHALL être « setup-panel » (voile/panneau), « setup-mascot », « setup-step-counter » (Étape X sur N), « setup-title », « setup-description », « setup-hint ». La mascotte SHALL être absente des dialogues/détails ; le compteur absent de la première page, « setup-manual », détails, dialogues, panneau et écrans ouverts depuis lui. Cas « éléments présents selon l'écran » : quand un écran de parcours est testé, les scénarios de mascotte et de repère de « Sélecteurs de l'écran d'accueil » suivent launcher-shell ; « setup-details » et « setup-manual » n'ont pas de compteur ; la synthèse suit « Réglages du launcher système » de settings. — Sélecteurs des étapes : Les choix, le guide et l'autorisation ADB SHALL exposer les tags par écran ci-dessous. Les erreurs SHALL exposer « setup-error », « setup-error-title » et « setup-error-detail ». Les tags de la séquence SHALL inclure « setup-progress », « setup-step-boot », « setup-step-home », « setup-step-verify » et « setup-step-stock ». Cas « choix et guide » : quand les écrans 8.2/9.1 et 9.2/9.3/8.10 sont testés, les choix exposent « setup-choice-tsuyu », « setup-choice-auto », « setup-choice-manual », « setup-later » ; le guide « setup-debug », « setup-debug-step-1 », « setup-debug-step-2 », « setup-debug-open », « setup-debug-back ». Cas « autorisation ADB » : quand 8.4/8.11 est testé, les tags sont « setup-authorize », « setup-authorize-step-1 », « setup-authorize-step-2 », « setup-authorize-status », « setup-authorize-continue », « setup-authorize-retry », « setup-authorize-back ». — Sélecteurs des résultats : Les résultats effectif, secours, dernier choix et échec SHALL exposer les tags ci-dessous, en conservant leurs scénarios d'ordre, focus et fermeture de « Sélecteurs de l'écran d'accueil ». Cas « succès et dernier choix » : quand 9.13 ou 9.11 est testé, 9.13 expose « setup-done », « setup-done-tip », « setup-done-repair », « setup-done-details », « setup-done-finish » ; 9.11 expose « setup-more », « setup-more-keep », « setup-more-disable ». Cas « secours et échec » : quand 9.12 ou 8.12 est testé, 9.12 expose « setup-fallback », « setup-fallback-home », « setup-fallback-overlay », « setup-fallback-boot », « setup-fallback-repair », « setup-fallback-tip », « setup-fallback-details », « setup-fallback-finish » ; 8.12 expose « setup-failed », « setup-failed-close », « setup-failed-retry ». — Sélecteurs des panneaux et dialogues : Autorisations, détails, panneau Launcher et confirmations SHALL exposer les tags ci-dessous. Les réglages SHALL exposer « setting-launcher-group » et « setting-launcher-guide ». Chaque ligne SHALL ajouter « <ligne>-title », « <ligne>-detail » et « <ligne>-state », et « <ligne>-dot » seulement si son état a une pastille. Cas « autorisations et détails » : quand 8.13 ou 8.14/9.16 est testé, 8.13 expose « setup-manual », « setup-manual-home », « setup-manual-boot », « setup-manual-overlay », « setup-manual-vendor-boot », « setup-manual-tip », « setup-manual-finish » ; les détails exposent « setup-details », « setup-details-item-<réglage> », « setup-details-close ». Cas « panneau et confirmations » : quand 9.14/9.15/8.21 ou les dialogues 8.8/8.17 sont testés, le panneau expose « launcher-panel », « launcher-panel-auto », « launcher-panel-tsuyu », « launcher-panel-manual », « launcher-panel-relaunch », « launcher-panel-replace », « launcher-panel-restore » ; les dialogues exposent « confirm-disable » / « confirm-restore » et chacun « <dialogue>-title », « <dialogue>-text », « <dialogue>-accept », « <dialogue>-cancel ». — Sélecteurs retirés du parcours : Les anciens tags « onboarding-* », « setting-home-role », « setting-boot-start », « setting-accessibility-home », « launcher-overlay-* », « setup-debug-status » et « setup-more-home » ne SHALL plus exister. Cas « absence des anciens sélecteurs » : quand les tests du parcours recherchent les anciens tags, ils ne correspondent à aucun élément, les sélecteurs des écrans actuels servant aux assertions.
 
 ### Requirement: Couverture du parcours avec Tsuyu
 Le parcours avec Tsuyu et la réparation automatique (`tsuyu-access`, `launcher-shell`) SHALL être couverts en JUnit et en tests Compose à la taille d'une TV (`w960dp-h540dp-xhdpi`), sans réseau, sans Tsuyu réel ni connexion ADB réelle. Des doubles contrôlés SHALL fournir la source des releases de Tsuyu, le téléchargement, l'installateur du système, la présence et la version de Tsuyu, l'API Shizuku, le service lancé par Tsuyu, le numéro de démarrage et le test du port.

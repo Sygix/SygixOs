@@ -5,475 +5,8 @@
 
 ## Requirements
 
-### Requirement: Synthèse du panneau Launcher
-Le panneau SHALL afficher « Configuration automatique », « Tsuyu » seulement si disponible, puis « Par autorisations », états et détails de synthèse. Une voie active SHALL faire décrire SygixOs comme accueil ; sinon comme pas encore accueil. La ligne Tsuyu SHALL refléter « États de Tsuyu » de tsuyu-access, avec les détails ci-dessous.
-
-#### Scenario: description et synthèses
-- **WHEN** le panneau « Launcher principal » s'ouvre
-- **THEN** une voie active donne « SygixOs est l'écran d'accueil de la TV. Voici l'état de chaque façon de le configurer. », sinon « SygixOs n'est pas encore l'écran d'accueil. Voici l'état de chaque façon de le configurer. » ; exemples de détails : « Accueil Google TV désactivé · SygixOs est l'écran d'accueil », « Accueil Google TV gardé · touche Home et allumage réglés », « Pas encore configurée », « Pas utilisée sur cette TV », « Aucune autorisation donnée »
-
-#### Scenario: détails de Tsuyu
-- **WHEN** la ligne Tsuyu est présente
-- **THEN** Actif dit « Répare les réglages si la TV les défait », À installer « Pour que SygixOs se répare tout seul », Arrêté « OK : ouvre Tsuyu pour le démarrer », À autoriser « OK : autorise SygixOs dans Tsuyu », À mettre à jour « Version trop ancienne pour SygixOs », Indisponible sur cette TV « Le débogage de cette TV ne permet pas à Tsuyu de démarrer »
-
-### Requirement: Actions du panneau Launcher
-Le panneau SHALL proposer relancer, remplacer si voie active/accueil actif modifiable/garde-fous tenus, rétablir si un composant est désactivé par l'utilisateur. OK sur automatique/relancer SHALL suivre le parcours via Tsuyu actif sinon sans ; autorisations ouvre 8.13, remplacer 8.8, rétablir sa confirmation. L'aide SHALL être « Retour : fermer ».
-
-#### Scenario: libellés des actions
-- **WHEN** les actions sont affichées
-- **THEN** « Relancer la configuration » dit « Refait les réglages automatiques » avec Tsuyu actif, sinon « Refait les réglages automatiques (débogage nécessaire) » ; « Remplacer complètement l'accueil Google TV » dit « Le désactive : selon la TV, des touches de la télécommande ne marchent plus » ; « Rétablir l'accueil Google TV » dit « Le réactive et lui rend l'écran d'accueil »
-
-#### Scenario: action de la ligne Tsuyu
-- **WHEN** OK est pressé sur Tsuyu
-- **THEN** À installer/À mettre à jour ouvre débogage si besoin puis 9.4, Arrêté 9.7, À autoriser 9.8, Actif Tsuyu, Indisponible sur cette TV reste sans effet
-
-### Requirement: Confirmation de désactivation
-Seules la ligne « Désactiver l'accueil Google TV » en 9.11 et l'action « Remplacer complètement l'accueil Google TV » SHALL ouvrir 8.8. « Annuler » SHALL être focusé, puis « Désactiver », aide « Retour : annuler » ; gauche/droite sans boucle, haut/bas sans effet. Retour/Annuler SHALL rendre l'écran et le focus ouvrants sans modification.
-
-#### Scenario: avertissement explicite
-- **WHEN** « Désactiver l'accueil Google TV ? » s'affiche
-- **THEN** le texte est « SygixOs deviendra l'écran d'accueil. Selon la TV, des fonctions de l'accueil Google TV peuvent disparaître : réglages rapides, guide des programmes, appui long sur Home, choix du profil. Rétablissez-le dans Réglages › Écran d'accueil, et avant de désinstaller SygixOs. »
-
-### Requirement: Garde-fous de désactivation
-Juste avant l'opération, SygixOs SHALL relire : accès prêt, configuration initiale de la TV terminée, activité HOME SygixOs déclarée et activée, au moins un composant d'origine actif/modifiable. Toute condition non tenue SHALL empêcher toute désactivation.
-
-#### Scenario: appareil pas encore prêt
-- **WHEN** une condition manque
-- **THEN** « appareil pas encore configuré » de « Désactivation de l'accueil d'origine » et les garde-fous de p7-default-launcher D6 empêchent l'opération
-
-### Requirement: Séquence de désactivation
-Selon p7-default-launcher D6, les composants actifs SHALL être désactivés un par un dans l'ordre de l'ensemble, chacun relu, puis HOME effectif vérifié. La progression SHALL être « Configuration en cours » avec ligne « Accueil Google TV ». Succès depuis 9.11 : résultat effectif ; depuis panneau : états recalculés, focus « Rétablir l'accueil Google TV ».
-
-#### Scenario: opération réussie
-- **WHEN** tous les composants et l'accueil effectif sont confirmés
-- **THEN** « désactivation réussie » et « remplacement depuis le panneau » de « Désactivation de l'accueil d'origine » s'appliquent
-
-### Requirement: Annulation d'une désactivation échouée
-Échec, délai ou HOME non confirmé SHALL remettre par défaut les composants touchés par cette opération, dans l'ordre inverse, puis relire. Depuis 9.11, les secours SHALL suivre ; depuis panneau, 8.12 SHALL afficher l'échec, sans laisser la TV sans accueil activé.
-
-#### Scenario: retour arrière de l'opération
-- **WHEN** la désactivation échoue depuis le panneau
-- **THEN** l'encadré dit « L'accueil Google TV n'a pas pu être désactivé », détail « Il est resté actif et rien d'autre n'a changé. Vérifiez l'accès, puis réessayez. » ; le scénario « désactivation partielle annulée » de « Désactivation de l'accueil d'origine » reste applicable
-
-### Requirement: Lignes des modifications
-Le panneau SHALL montrer les réglages réellement modifiés, l'accueil Google TV toujours, Tsuyu seulement installé par SygixOs et les réparations si configuration via Tsuyu. Les lignes SHALL être non focusables avec états relus, selon les détails ci-dessous, sans prétendre que d'autres réglages ont changé.
-
-#### Scenario: contenu du panneau de détails
-- **WHEN** « Ce que SygixOs a modifié » est affiché
-- **THEN** la description est « Rien d'autre n'a été touché. « Rétablir l'accueil Google TV » ne concerne que l'accueil ; les autorisations se retirent dans les paramètres Android. » ; les lignes sont « Démarrage automatique » / « La TV laisse SygixOs démarrer avec elle », « Écran d'accueil » / « SygixOs défini comme écran d'accueil d'Android », « Superposer aux autres applications » / « Permet à SygixOs de s'ouvrir au démarrage de la TV », « Touche Home » / « Le service de SygixOs ne lit que la touche Home »
-
-#### Scenario: accueil et réparations dans les détails
-- **WHEN** les lignes d'accueil ou Tsuyu sont présentes
-- **THEN** « Accueil Google TV » dit « Toujours actif : désactivé seulement si vous le choisissez » avec « Inchangé », sinon « Désactivé à votre demande » avec « Fait » ; « Tsuyu » dit « Installé par SygixOs : il garde l'accès au débogage » avec « Fait » ; « Réparations automatiques » dit « Dernière : <date> · <réglage> » ou « Aucune pour l'instant », « Active » si Tsuyu « Actif », sinon « Arrêtée »
-
-### Requirement: Progression de la configuration
-9.10 SHALL afficher « Configuration en cours », étapes relues une à une, sans bouton, aide « Patientez… ». Les états SHALL être « Fait » vert, « En cours… » bleu ou « À venir ». Les résultats/échecs SHALL porter le repère « Réglages » ; leurs écrans à deux boutons naviguent gauche/droite sans boucle, haut/bas sans effet.
-
-#### Scenario: contenu de la progression
-- **WHEN** la séquence de configuration s'exécute
-- **THEN** la description est « SygixOs règle la TV. Ne l'éteignez pas pendant la configuration. » ; les lignes sont « Démarrage automatique » / « La TV laisse SygixOs démarrer avec elle » seulement si cette autorisation existe, « Écran d'accueil » / « SygixOs devient l'écran d'accueil d'Android », « Vérification » / « SygixOs vérifie que la TV l'ouvre comme écran d'accueil »
-
-### Requirement: Résultat de configuration effectif
-Accueil effectif vérifié, le résultat SHALL afficher « SygixOs est votre écran d'accueil », les étapes faites et le conseil sans Tsuyu ou la réparation active avec lui. Aide « Retour : fermer », boutons « Détails » et « Terminé » focusé SHALL suivre « Progression de la configuration ».
-
-#### Scenario: succès et lignes
-- **WHEN** SygixOs est devenu l'accueil effectif
-- **THEN** la description est « SygixOs a vérifié que la TV l'ouvre maintenant comme écran d'accueil. » ; « Démarrage automatique » / « La TV laisse SygixOs démarrer avec elle » et « Écran d'accueil » / « La TV ouvre SygixOs comme écran d'accueil » sont « Fait » ; sans Tsuyu, « Conseil : désactivez le débogage » dit « SygixOs n'en a plus besoin. Réactivez-le pour relancer la configuration ou rétablir l'accueil Google TV. » tant qu'activé ; avec Tsuyu actif (9.13), « Réparation automatique » est « Active », détail « Tsuyu permet à SygixOs de refaire ses réglages si la TV les défait. Gardez le débogage activé. »
-
-### Requirement: Dernier choix de configuration
-Si l'accueil d'origine reste actif/modifiable et les garde-fous le permettent, 9.11 SHALL proposer « Un dernier choix », deux lignes sans état, garder conseillé focusé puis désactiver ouvrant 8.8, aide « Retour : garder ». Haut/bas SHALL passer entre elles sans boucle, gauche/droite sans effet.
-
-#### Scenario: contenu du choix
-- **WHEN** 9.11 est affiché
-- **THEN** la description est « Sur cette TV, l'accueil Google TV reste l'écran d'accueil du système. SygixOs peut le garder ou le remplacer complètement. Vous pourrez changer d'avis dans Réglages › Écran d'accueil. » ; « Garder l'accueil Google TV (conseillé) » dit « La touche Home et l'allumage ouvrent SygixOs. Toutes les touches de la télécommande continuent de marcher. » ; « Désactiver l'accueil Google TV » dit « SygixOs le remplace complètement. Selon la TV, des touches de la télécommande ne marchent plus. »
-
-### Requirement: Réglages de secours automatiques
-Garder ou Retour en 9.11, désactivation impossible ou échouée/annulée SHALL activer le service d'accessibilité en conservant les autres, accorder la superposition et activer « Démarrage à l'allumage », chacun relu, puis montrer « SygixOs garde la main ». Aucun succès SHALL être supposé.
-
-#### Scenario: résultat de secours
-- **WHEN** les réglages de secours ont été relus
-- **THEN** « SygixOs garde la main » décrit « L'accueil Google TV reste actif : SygixOs a réglé la touche Home et l'ouverture au démarrage. » ; « Touche Home » / « Le service de SygixOs ramène à SygixOs », « Superposer aux autres applications » / « Permet à SygixOs de s'ouvrir au démarrage de la TV », « Ouverture à l'allumage » / « SygixOs demande à s'ouvrir au démarrage de la TV » montrent leurs états ; aide « Retour : fermer », boutons « Détails » et « Terminé » focusé
-
-#### Scenario: indications de réparation du secours
-- **WHEN** ce résultat s'affiche avec ou sans Tsuyu actif
-- **THEN** avec Tsuyu (9.12), « Réparation automatique » est « Active », détail « Tsuyu permet à SygixOs de refaire ces réglages si la TV les défait. Gardez le débogage activé. », puis « Bon à savoir » / « Si la touche Home ne ramène plus à SygixOs après un redémarrage, ouvrez SygixOs une fois : il refait ses réglages. » ; sans Tsuyu, « Bon à savoir » dit « Sur certaines TV, après un redémarrage complet, l'accueil Google TV peut reprendre la main ; SygixOs vous le signale. »
-
-### Requirement: Échec de configuration et état automatique
-Une étape en échec SHALL arrêter les dépendantes et afficher 8.12, sans réessai sans action. La voie automatique SHALL être « Active » si accueil effectif ou secours en place, « Indisponible sur cette TV » selon l'accès, sinon « À configurer », sur première page et panneau Launcher.
-
-#### Scenario: écran interrompu
-- **WHEN** une étape de configuration échoue
-- **THEN** « Configuration interrompue » dit « Une étape n'a pas abouti. Ce qui est fait reste en place ; vous pouvez réessayer. » ; erreur propre à l'étape, pour HOME « L'écran d'accueil n'a pas pu être réglé » / « La touche Home ouvre encore l'accueil Google TV. Vérifiez que le débogage est toujours activé, puis réessayez. » ; étapes « Fait », « Échec » rouge ou « Annulée » / « Non effectuée » ; aide « Retour : fermer », boutons « Fermer » et « Réessayer » focusé
-
-### Requirement: Lignes de la page Par autorisations
-8.13 SHALL afficher Home, allumage, permission de démarrage conditionnelle puis autorisation constructeur si détectée (D8). Sans action, la page ne SHALL rien activer. Après les lignes, « Bon à savoir » non focusable, aide « Retour : fermer » et « Terminé » SHALL être présents.
-
-#### Scenario: texte de la page
-- **WHEN** « Par autorisations » s'affiche
-- **THEN** sa description est « Pour chaque ligne, OK ouvre le réglage Android à changer. Activez SygixOs, puis revenez ici : l'état se met à jour tout seul. » ; les lignes sont « Ouvrir SygixOs avec la touche Home », « Ouvrir SygixOs à l'allumage », « Autoriser l'ouverture au démarrage » si option activée et superposition manquante, et « Autoriser le démarrage automatique » si gestionnaire détecté ; « Bon à savoir » dit « Sur certaines TV, après un redémarrage complet, l'accueil Google TV peut reprendre la main ; SygixOs vous le signale. »
-
-#### Scenario: ligne du constructeur
-- **WHEN** le gestionnaire de démarrage constructeur est détecté
-- **THEN** avec écran retenu, le détail est « OK : ouvre l'écran de démarrage automatique de la TV », « À faire » jusqu'à une ouverture observée après sa consultation puis « Fait » ; sans écran, « Indisponible » explique « Pas de réglage sur cette TV : seule la configuration automatique peut l'autoriser »
-
-### Requirement: Navigation des autorisations
-Focus initial SHALL être première ligne non « Fait », sinon « Terminé ». Haut/bas SHALL parcourir les lignes focusables puis Terminé sans boucle ; gauche/droite sans effet. États à droite : « À faire », « En attente… » dans Android/vérification, « Fait », « Bloqué » pour Home seulement, « Indisponible » avec raison à la place du détail, focusable et OK sans effet.
-
-#### Scenario: déplacement et retour système
-- **WHEN** la page est parcourue ou Android est fermé
-- **THEN** « ouverture de la page » et « retour d'un réglage Android » de « Page Par autorisations » gardent le panneau et restaurent la ligne ouvrante
-
-### Requirement: État de la voie par autorisations
-Sur la première page et le panneau Launcher, la voie SHALL être « Active » si toutes les lignes affichées/disponibles sont « Fait », « Bloquée » si Home est « Bloqué », « En partie » si au moins une est faite, « Non utilisée » si aucune faite et voie automatique active, sinon « À faire ».
-
-#### Scenario: synthèse de la voie
-- **WHEN** les états des autorisations sont relus
-- **THEN** la première page et le panneau affichent cette synthèse sans modifier les réglages ni contourner un refus
-
-### Requirement: Choix du parcours
-La première page SHALL présenter les choix et leurs états à droite, avec Tsuyu seulement s'il est disponible et la voie automatique non indisponible. « Active » SHALL identifier seulement la façon active (avec Tsuyu s'il est actif, sinon sans), l'autre « Non utilisée ». La voie par autorisations SHALL montrer son état propre ; la voie indisponible suit 8.2 quel que soit Tsuyu.
-
-#### Scenario: première page et aide
-- **WHEN** la première page s'affiche
-- **THEN** le titre est « Faire de SygixOs l'écran d'accueil », la description « Choisissez comment SygixOs remplace l'accueil Google TV. Vous pourrez changer d'avis dans Réglages › Écran d'accueil. », avec aide « Retour : plus tard » et bouton « Plus tard »
-
-#### Scenario: trois choix avec Tsuyu
-- **WHEN** Tsuyu est disponible et la voie utilisable (9.1)
-- **THEN** les lignes sont « Automatique avec Tsuyu (recommandée) » / « Un guide pas à pas installe Tsuyu : SygixOs se règle seul et se répare si la TV défait ses réglages. », « Automatique sans Tsuyu » / « Activez le débogage une fois : SygixOs fait les réglages, sans réparation ensuite. », puis « Par autorisations (sans débogage) » / « Quelques autorisations à donner. Limite : sur certaines TV, l'accueil Google TV peut reprendre la main après un redémarrage complet. »
-
-#### Scenario: deux choix sans Tsuyu
-- **WHEN** la page 9.1 ne propose pas Tsuyu
-- **THEN** « Configuration automatique (recommandée) » / « Activez le débogage une fois : SygixOs fait les réglages lui-même. » précède la même ligne par autorisations
-
-#### Scenario: façon automatique indisponible
-- **WHEN** la voie est « Indisponible sur cette TV » (8.2)
-- **THEN** la ligne « Configuration automatique » affiche « SygixOs n'arrive pas à utiliser le débogage sur cette TV : utilisez la configuration par autorisations. », focusable sans effet sur OK, même si Tsuyu est disponible
-
-### Requirement: Navigation du parcours
-Le focus SHALL rester dans le panneau, initialement première ligne non indisponible, puis étape conseillée pour chaque écran. Haut/bas SHALL parcourir choix puis « Plus tard », sans boucle ; gauche/droite sans effet. Des OK successifs suivant Android/Tsuyu SHALL terminer sans désactiver l'accueil d'origine. Retour ne SHALL jamais modifier la TV et suit l'aide affichée.
-
-#### Scenario: précédent ou fermeture
-- **WHEN** Retour est pressé
-- **THEN** « Retour : précédent » rend l'écran précédent et le focus à l'élément ouvrant ; « Retour : plus tard » et « Retour : fermer » ferment ; « Plus tard », « Terminé », « Fermer » et Home ferment aussi ; affiché automatiquement, le parcours ne revient plus automatiquement et le héro reprend le focus ; tout reste accessible dans Réglages › Écran d'accueil
-
-### Requirement: Étapes du parcours
-OK sur le choix SHALL ouvrir le premier écran encore nécessaire dans l'ordre de sa façon, les étapes faites sautées. Avec Tsuyu : débogage 9.2/9.3, installation 9.4, démarrage 9.7, autorisation 9.8, réglages 9.10 ; sans : débogage 9.2/9.3, autorisation 8.4, réglages 9.10. La voie par autorisations SHALL ouvrir 8.13.
-
-#### Scenario: premier écran nécessaire
-- **WHEN** un choix est validé
-- **THEN** « étapes déjà faites » et « tout par OK » de « Parcours de l'écran d'accueil » s'appliquent dans l'ordre « Activer le débogage », « Installer Tsuyu », « Démarrer Tsuyu », « Autoriser SygixOs », « Configuration en cours » selon la façon
-
-### Requirement: Avancement du parcours
-Les écrans automatiques SHALL montrer au-dessus du titre « Étape X sur N » : étapes restantes à l'ouverture parmi débogage, installation/démarrage Tsuyu seulement avec lui, autorisation, réglages toujours ; X est le rang courant. L'erreur SHALL garder son repère. N ne SHALL être recalculé que pour « Sans Tsuyu » en 9.4/9.6. Première page, autorisations, détails, dialogues et panneau n'ont pas ce repère.
-
-#### Scenario: repère et changement de façon
-- **WHEN** une étape est affichée ou « Sans Tsuyu » choisi
-- **THEN** « repère d'avancement » et « passage sans Tsuyu » de « Parcours de l'écran d'accueil » s'appliquent
-
-### Requirement: Guide du débogage
-Le guide SHALL relire les états à l'ouverture et au retour, présenter deux étapes numérotées non focusables, « À faire »/« Fait » avec pastille verte, aide « Retour : précédent » et un seul bouton focusé. Avant options développeur activées : 9.2 « Ouvrir À propos » (sinon Paramètres) ; après : 9.3 « Ouvrir les options pour les développeurs » (sinon À propos). Au retour débogage activé, il SHALL avancer sans action.
-
-#### Scenario: contenu des deux étapes
-- **WHEN** « Activer le débogage » est affiché
-- **THEN** la description est « Une option de la TV que SygixOs utilise pour se régler lui-même. Deux réglages à changer, puis revenez ici. » ; étape 1 « Affichez les options pour les développeurs », détail « Dans À propos, appuyez 7 fois sur la ligne du build (son nom varie selon la TV), puis revenez avec Retour. », faite quand le système confirme les options ; étape 2 « Activez le débogage USB », détail « Dans Options pour les développeurs, activez « Débogage USB », puis revenez avec Retour. », faite quand le débogage est activé
-
-### Requirement: Autorisation ADB guidée
-Sans Tsuyu, l'étape 8.4 SHALL demander « Autoriser SygixOs », avec aide « Retour : précédent » et « Continuer » focusé déclenchant la demande. La ligne « Débogage » SHALL être « Activé », détail « Détecté au retour dans SygixOs » ; l'acceptation démarre la configuration.
-
-#### Scenario: explications de l'autorisation
-- **WHEN** 8.4 s'affiche
-- **THEN** la description est « Le débogage est activé. Android va afficher la fenêtre « Autoriser le débogage USB ? » : SygixOs en a besoin pour se configurer. » ; étapes 1 « Cochez « Toujours autoriser sur cet ordinateur » » / « Sinon, Android vous le redemandera à chaque configuration. », 2 « Choisissez « Autoriser » » / « La configuration démarre aussitôt. »
-
-### Requirement: Erreurs du débogage
-Refus ou expiration d'autorisation SHALL afficher 8.11, même titre/description que 8.4, ligne Débogage, boutons « Retour » et « Réessayer » focusé relançant la demande. Débogage désactivé entre-temps SHALL afficher 8.10, titre/description du guide, étapes relues, boutons « Retour » et « Ouvrir les options pour les développeurs » focusé.
-
-#### Scenario: erreur d'autorisation
-- **WHEN** l'autorisation est refusée ou expire
-- **THEN** l'encadré « Autorisation refusée » dit « Android n'a pas autorisé SygixOs et rien n'a été modifié. Réessayez, cochez « Toujours autoriser sur cet ordinateur » puis choisissez « Autoriser ». »
-
-#### Scenario: débogage désactivé
-- **WHEN** le débogage a été désactivé
-- **THEN** l'encadré « Le débogage est désactivé » dit « Rien n'a été modifié. Activez « Débogage USB » dans les options pour les développeurs, puis revenez dans SygixOs. »
-
-### Requirement: Clé et connexion ADB locale
-L'ADB SHALL se connecter au bouclage sur le port réseau de l'appareil seulement, après action explicite dans le parcours, puis fermer à la fin de la séquence. La paire de clés propre à SygixOs SHALL être générée à la première connexion, conservée en stockage privé, autorisée dans « Autoriser le débogage USB ? » et ne jamais sortir de l'appareil.
-
-#### Scenario: autorisation et fermeture
-- **WHEN** le parcours utilise l'ADB intégré
-- **THEN** « clé déjà autorisée » de « Accès par le débogage » et « fin de séquence » de « Opérations privilégiées limitées » s'appliquent sans connexion à un autre appareil
-
-### Requirement: États de l'accès privilégié
-L'accès SHALL distinguer débogage désactivé (lu sans connexion), connexion impossible, autorisation en attente/refusée et prêt (clé acceptée et commande test shell réussie, ou Tsuyu actif). Connexion, attente et chaque commande SHALL être bornées selon p7-default-launcher D1 ; un délai dépassé ne SHALL donner ni prêt ni succès.
-
-#### Scenario: perte d'accès
-- **WHEN** le débogage disparaît ou un délai expire
-- **THEN** « débogage perdu pendant une séquence » de « Accès par le débogage » s'applique sans succès ni crash supposé
-
-### Requirement: Port du débogage avant Tsuyu
-Avec Tsuyu, débogage activé et avant téléchargement, une simple ouverture au bouclage SHALL tester le port ADB réseau, sans authentification ni fenêtre système, avec le délai de connexion. Aucun port joignable SHALL rendre la voie « Indisponible sur cette TV » jusqu'à une tentative réussie.
-
-#### Scenario: port testé avant téléchargement
-- **WHEN** la façon avec Tsuyu est choisie
-- **THEN** « port testé avant Tsuyu » et « port injoignable » de « Accès par le débogage » s'appliquent
-
-### Requirement: Confirmation du rétablissement
-Le dialogue 8.17 SHALL demander « Rétablir l'accueil Google TV ? », proposer « Annuler » et « Rétablir » focalisé, aide « Retour : annuler », avec navigation de 8.8. Son texte SHALL expliquer la portée exacte du rétablissement.
-
-#### Scenario: texte du dialogue
-- **WHEN** le dialogue de rétablissement est affiché
-- **THEN** il dit « L'accueil Google TV sera réactivé et redeviendra l'écran d'accueil. Les autres réglages faits par SygixOs restent en place : si son service reste activé, la touche Home ouvrira encore SygixOs. » ; « rétablissement annulé » de « Rétablissement de l'accueil d'origine » préserve la TV
-
-### Requirement: Opération de rétablissement
-Confirmé, le rétablissement SHALL remettre par défaut les composants désactivés par l'utilisateur dans l'ordre inverse de l'ensemble ; si l'accueil précédent relevé est présent et activé, le redéfinir. Tout SHALL être relu avant le résultat, sans toucher les autres réglages.
-
-#### Scenario: avec ou sans accueil précédent
-- **WHEN** l'utilisateur confirme le rétablissement
-- **THEN** « rétablissement réussi », « rétablissement par Tsuyu », « sans écran d'accueil précédent relevé » et « échec du rétablissement » de « Rétablissement de l'accueil d'origine » s'appliquent
-
-### Requirement: Ligne de démarrage à l'allumage
-La ligne SHALL afficher « Fait » si l'option est activée et « Autoriser l'ouverture au démarrage » absente, « À faire » sinon ; détail « SygixOs demande à s'ouvrir au démarrage de la TV ». L'ouverture observée SHALL être mémorisée par démarrage ; non observée, le détail devient « SygixOs ne s'est pas ouvert automatiquement à ce démarrage ».
-
-#### Scenario: ouverture observée ou non
-- **WHEN** l'utilisateur consulte la page après le démarrage
-- **THEN** les scénarios de « Démarrage à l'allumage » déterminent l'état, sans assimiler une activation tardive à une tentative déjà due
-
-### Requirement: Ouverture unique au démarrage
-Option activée, SygixOs SHALL demander l'accueil par les mécanismes Android autorisés seulement : fin du démarrage système et connexion de son service activé moins de 5 minutes après le démarrage (valeur à valider sur TV). Le premier chemin observé SHALL ouvrir une seule fois ; l'autre et une connexion tardive ne font rien. Option désactivée, aucune demande.
-
-#### Scenario: deux chemins et refus du système
-- **WHEN** les deux chemins arrivent, tardent ou sont bloqués
-- **THEN** les scénarios « deux chemins dans le même démarrage », « connexion tardive du service » et « ouverture refusée par le système » de « Démarrage à l'allumage » s'appliquent sans contournement Android
-
-### Requirement: Ligne d'autorisation de démarrage
-« Autoriser l'ouverture au démarrage » SHALL apparaître sous l'option activée si la permission manque et l'écran existe, détail « Android l'exige : choisissez SygixOs dans la liste, puis autorisez-le. ». État « À faire » sans accord, « En attente… » dans Android, masquée après accord système. OK SHALL ouvrir la permission de SygixOs ; son libellé exact reste celui relevé par la tâche 1.5 de P7.
-
-#### Scenario: permission et retour
-- **WHEN** l'utilisateur ouvre ou quitte l'écran système
-- **THEN** les scénarios « ouverture de l'écran de la permission », « permission refusée » et « permission déjà accordée » de « Permission d'affichage superposé pour le démarrage » s'appliquent
-
-### Requirement: Superposition indisponible
-Si l'écran de permission est absent ou impossible à ouvrir, l'option SHALL devenir « Indisponible », raison « Cette TV ne permet pas d'autoriser l'ouverture au démarrage », sans ligne de permission ni crash. L'activation SHALL être refusée ou annulée si juste faite. L'état dure jusqu'au prochain processus sauf accord système ultérieur ; une option déjà activée reste désactivable.
-
-#### Scenario: écran absent ou inaccessible
-- **WHEN** l'ouverture de la permission échoue
-- **THEN** « écran de la permission absent » et « écran de la permission impossible à ouvrir » de « Permission d'affichage superposé pour le démarrage » vérifient l'option sans bloquer le launcher
-
-### Requirement: Filtrage de Home
-Le service SHALL observer seulement Home par `AccessibilityService.onKeyEvent`, sans lire les fenêtres ni rien conserver. Connecté, il SHALL consommer appui, répétitions et relâchement pour les soustraire au système/launcher constructeur, et ouvrir aussitôt au relâchement non annulé, appui long comme court. Inactif/arrêté, il ne consomme rien. Il SHALL être livré même sans signal Home sur l'appareil, sans action alors.
-
-#### Scenario: événements de touche
-- **WHEN** Home est reçu ou absent
-- **THEN** les scénarios de touches et de signal absent de « Retour Home par le service d'accessibilité » s'appliquent ; SygixOs reste utilisable sans le service
-
-### Requirement: État du service Home
-Activé mais non connecté au lancement ou au retour au premier plan, le service SHALL être attendu pendant un délai borné sans tentative de liaison par SygixOs. La ligne SHALL refléter activation, connexion, attente et disponibilité des réglages, avec les libellés ci-dessous ; « Bloqué » dure jusqu'à connexion ou désactivation.
-
-#### Scenario: présentation de la ligne du service
-- **WHEN** l'état est relu
-- **THEN** activé/connecté affiche « Fait », non activé « À faire », détail « OK : ouvre le réglage Android correspondant » ; réglages ouverts ou attente non conclue affiche « En attente… » ; délai écoulé activé/non connecté affiche « Bloqué », détail « La TV a bloqué ce service au démarrage. Désactivez-le puis réactivez-le dans Accessibilité, ou utilisez la configuration automatique. » ; réglages impossibles à ouvrir affiche « Indisponible », raison « Les réglages d'accessibilité ne peuvent pas s'ouvrir sur cette TV »
-
-### Requirement: Lectures de l'état du launcher
-Les lectures SHALL couvrir écran d'accueil effectif, rôle HOME, composants d'origine (actif, désactivé par l'utilisateur, hors de portée), configuration initiale terminée, accessibilité (activée, connectée) et superposition. SygixOs SHALL être effectif seulement si HOME se résout vers lui et qu'aucune autre activité HOME activée n'a de priorité supérieure.
-
-#### Scenario: résolution et état relus
-- **WHEN** une lecture est déclenchée selon « État de l'écran d'accueil »
-- **THEN** ces champs sont relus ; « configuration défaite hors de SygixOs », « accueil désactivé par la procédure ADB » et « erreur de lecture » restent applicables
-
-### Requirement: Conservation des services et accès privilégiés
-Les autres services d'accessibilité activés SHALL être conservés. Retirer puis remettre celui de SygixOs ne SHALL être permis que pour la réparation automatique de tsuyu-access. Aucune connexion privilégiée ni service SygixOs lancé par Tsuyu ne SHALL rester ouvert hors séquence utilisateur ou réparation automatique.
-
-#### Scenario: service et fin de séquence
-- **WHEN** une opération privilégiée touche le service ou se termine
-- **THEN** « service d'accessibilité ajouté », « service relié par la réparation » et « fin de séquence » de « Opérations privilégiées limitées » s'appliquent
-
-### Requirement: Préparation du démarrage
-Le catalogue chargé et le premier visuel du héro prêt SHALL rendre l'accueil prêt : image chargée ou première image vidéo programme/nature rendue, pas le dégradé animé. L'attente du visuel SHALL être plafonnée à 2 s depuis la première image de démarrage. La mascotte SHALL être décodée dès le début du processus, hors fil principal.
-
-#### Scenario: attente du premier média
-- **WHEN** le premier visuel tarde ou que l'animation est illisible
-- **THEN** « attente du premier visuel », « visuel trop lent », « animation illisible » et « mascotte décodée tard » de « Écran de démarrage » s'appliquent
-
-### Requirement: Durées du démarrage
-Le démarrage SHALL durer au moins 600 ms depuis la première image montrant la mascotte, ou sa propre première image si elle est illisible ; il attend l'accueil prêt, au plus 5 s depuis sa première image. Dès minimum atteint et accueil prêt, ou à 5 s, le fondu SHALL révéler l'accueil ; au plafond ses états de chargement/erreur prennent le relais.
-
-#### Scenario: minimum et plafonds
-- **WHEN** l'accueil est prêt tôt ou reste incomplet
-- **THEN** « accueil prêt avant la durée minimale » et « plafond global » de « Écran de démarrage » déterminent la sortie, même sans animation
-
-### Requirement: Composition avant révélation
-L'accueil SHALL être composé après le fondu d'entrée de la mascotte, dès fenêtre active ou au plus tard 400 ms après ce fondu sinon, ou au début du fondu de sortie. Avant révélation, il SHALL être dessiné sous le démarrage opaque, invisible et sans animation, sans retarder mascotte ni touches : image sans fondu, vidéo préparée en pause, Ken Burns/lecture au fondu de sortie, grille hors écran composée seulement à sa fin.
-
-#### Scenario: fenêtre active ou surcouche
-- **WHEN** une permission ou autre surcouche prive la fenêtre de focus
-- **THEN** « composition de l'accueil » et « fenêtre sans focus » de « Écran de démarrage » gardent ces bornes et un accueil déjà dessiné pour le fondu
-
-### Requirement: Sortie du démarrage
-Le fondu de sortie SHALL utiliser durée/courbe de « Focus tvOS », sans noir, saut, flash ni calque plein écran hors écran. Pendant tout le démarrage, fondu compris, D-pad/OK ne SHALL pas atteindre l'accueil ; Retour SHALL suivre Android, quitter le premier plan et ne déclencher aucune action de l'accueil.
-
-#### Scenario: touches et transition
-- **WHEN** l'utilisateur agit pendant le démarrage ou son fondu
-- **THEN** « touches pendant l'écran de démarrage », « Retour pendant le fondu de sortie » et « fluidité de l'écran de démarrage » restent applicables
-
-### Requirement: Retour sans écran de démarrage
-Un accueil déjà créé dans le processus ne SHALL jamais remontrer le démarrage au retour Home, d'une autre app ou au premier plan. Recréé hors démarrage à froid avec catalogue non chargé, il SHALL montrer seulement un fond noir uni, sans mascotte ni animation, jusqu'à l'accueil.
-
-#### Scenario: retour ou recréation
-- **WHEN** le launcher revient sans nouveau processus
-- **THEN** « retour sur le launcher » et « accueil recréé hors démarrage à froid » de « Écran de démarrage » s'appliquent
-
-### Requirement: En-tête du héro
-L'en-tête SHALL précéder le titre selon la maquette 960 × 540 dp : icône carrée sans masque de 18 dp, coins 4,5 dp, puis libellé par type publié. Pour l'app X : CONTINUE (`WATCH_NEXT_TYPE_CONTINUE`) « Continuer dans X », NEXT « Épisode suivant dans X », NEW « Nouveau dans X », WATCHLIST « À regarder dans X », preview ou type absent/inconnu « X ». Il SHALL ne montrer que les éléments disponibles.
-
-#### Scenario: données manquantes de l'en-tête
-- **WHEN** le nom ou l'icône manque
-- **THEN** le type seul ou le libellé sans icône est montré, et sans les deux l'en-tête disparaît ; les scénarios de types et de nom/icône manquants de « Diaporama héro » s'appliquent
-
-### Requirement: Infos et progression du héro
-La ligne sous le titre SHALL réunir seulement saison, épisode et durée publiés, séparés par « · ». La durée SHALL être arrondie à la minute (minimum 1 min), en heures au-delà d'une heure (« 1 h 35 min », « 2 h »). Barre et « Reste X min » SHALL exister seulement avec position et durée connues ; le restant est arrondi à la minute supérieure avec la même écriture des heures.
-
-#### Scenario: infos partielles
-- **WHEN** les données du programme sont partielles
-- **THEN** « infos partielles », « progression sans position ou sans durée » et « programme en cours » de « Diaporama héro » s'appliquent sans réserver d'espace aux lignes absentes
-
-### Requirement: Synchronisation du héro
-Titre, en-tête, infos et bouton SHALL correspondre au visuel affiché ; « Ouvrir »/« Reprendre » SHALL ouvrir ce programme et changer avec son visuel, jamais avant. Les textes SHALL rester fixes sans recomposition ni dessin pendant le Ken Burns, sans espace pour les lignes absentes, et lisibles sur visuel clair grâce aux voiles.
-
-#### Scenario: changement et animation
-- **WHEN** le visuel change ou zoome
-- **THEN** « changement de programme », « textes avec le visuel », « textes immobiles pendant le Ken Burns » et « lisibilité sur un poster clair » de « Diaporama héro » s'appliquent
-
-### Requirement: Visuel du héro en attente
-Si l'image ou la première image vidéo suivante n'est pas prête 1 s après une avance automatique ou gauche/droite, le héro SHALL passer au prochain visuel utilisable sans changer ses textes avant. Le visuel lent SHALL continuer sans nouvelle requête ; la vidéo reste préparée en pause jusqu'à la demande d'une autre vidéo. Le programme redevient éligible prêt. La toute première vidéo sans visuel à remplacer est exemptée.
-
-#### Scenario: préparation lente
-- **WHEN** le visuel suivant n'est pas prêt dans la seconde
-- **THEN** le scénario « visuel lent » de « Diaporama héro » s'applique ; une image préparée n'est pas retenue en bitmap par le héro et est relue depuis le cache à son retour
-
-### Requirement: Reprise des visuels du héro
-Une vidéo en échec ou une image définitivement rejetée (trop étroite, HTTP 4xx, indécodable) ne SHALL pas être redemandée pendant la session. Une image injoignable par erreur d'entrée-sortie ou HTTP 5xx SHALL être revérifiée selon « Préchargement et mémoire », scénario « visuel injoignable ».
-
-#### Scenario: classement de l'échec
-- **WHEN** un visuel échoue
-- **THEN** les scénarios « visuel injoignable » et « visuel rejeté » de « Préchargement et mémoire » déterminent la possibilité de reprise
-
-### Requirement: Sections de la grille
-La grille SHALL afficher « À suivre » au-dessus d'Up Next et « Applications » au-dessus des apps, sur le même fond. L'ordre SHALL suivre « Position d'À suivre » de settings : avant les applications par défaut, après quand choisi. Les titres SHALL être alignés sur la première carte ou tuile (`Dimens.ScreenMarginH`) et ne jamais prendre le focus.
-
-#### Scenario: ordre des sections
-- **WHEN** la position d'À suivre change
-- **THEN** ses cartes et son titre changent de place ensemble, selon les scénarios « titres de section » de « Grille d'apps »
-
-### Requirement: Style des titres de section
-Les titres SHALL suivre « SygixOs Maquette », page TV, écrans 4.1, 7.1, 7.2 et 7.5 et composant « Titre de section » : `SygixTypography.titleLarge`, `SygixColors.OnDarkSecondary`, premier titre à `Dimens.GridTopMargin`, écart à la première ligne `Dimens.SectionTitleGap` et à la section précédente `Dimens.GridRowSpacing`.
-
-#### Scenario: géométrie du titre
-- **WHEN** une section est affichée
-- **THEN** son titre respecte le scénario « style des titres » de « Grille d'apps » et défile avec sa section
-
-### Requirement: Visibilité des sections
-Le titre SHALL défiler avec sa section. Une rangée Up Next masquée SHALL masquer « À suivre » sans place réservée. En erreur, la carte d'état remplace le contenu et le titre SHALL rester au-dessus (« États de la rangée » de up-next).
-
-#### Scenario: erreur ou masquage
-- **WHEN** Up Next devient vide, masqué ou en erreur
-- **THEN** le titre suit respectivement les scénarios « section Up Next masquée » et « titre au-dessus de la carte d'erreur » de « Grille d'apps »
-
-### Requirement: Matériau Liquid Glass
-Les seules surfaces floutées SHALL être dock, capsule heure/réglages, menu contextuel et bandeau de déplacement. Le verre tvOS 26 SHALL avoir un flou de 28 px saturé à 170 %, teinte rgb 22, 22, 28 à 36 % pour le dock et 38 % pour la capsule, bordure blanche de 1 px à 16 %, reflet haut à 32 %, bas à 6 %, transparence sombre et ombre légère.
-
-#### Scenario: surface verre
-- **WHEN** une surface verre est visible
-- **THEN** elle respecte « surfaces verre » et « verre sur un visuel sombre » de « Thème » ; les autres éléments ne floutent pas leur arrière-plan
-
-### Requirement: Calcul du flou
-Sur une image de programme, dock et capsule SHALL utiliser une copie réduite du visuel voilé, floutée et saturée une fois, animée avec son Ken Burns/fondu sans recalcul par frame, sinon le flou direct. Sur vidéo ou dégradé, et pour menu/bandeau, le flou SHALL être direct, à partir d'une image réduite et limité à la zone de la surface.
-
-#### Scenario: copie ou calcul direct
-- **WHEN** le média ou la disponibilité de la copie change
-- **THEN** les scénarios « coût du flou », « copie floutée indisponible » et « verre sur un visuel en mouvement » de « Thème » restent applicables
-
-### Requirement: Rayons des surfaces
-Les rayons SHALL être ceux du design system, en dp pour 960 × 540 dp : tuiles grille/dock 14, dock 24, menu 26 et pilules 12, lignes de réglages 14 ; capsule et engrenage en pilule à demi-hauteur. Ombre/reflet de tuile, focus, verre précalculé, bordure et reflets SHALL suivre le rayon de leur surface.
-
-#### Scenario: effets concentriques
-- **WHEN** une surface ou un effet de focus est dessiné
-- **THEN** le scénario « effets qui suivent le rayon » de « Thème » s'applique sans halo coloré
-
-### Requirement: Coins concentriques
-Une surface arrondie imbriquée SHALL respecter rayon extérieur = rayon intérieur + plus petite marge : dock/tuile 24 = 14 + 10 ; capsule/engrenage de 36 de haut 18 = 14 + 4 ; menu/pilule 26 = 12 + 14 ; menu/vignette marge 16 et rayon 10 ; ligne/vignette 16:9 marge verticale 10,5 et rayon 3,5. Le QR SHALL avoir un fond blanc arrondi au rayon de sa marge blanche, sans rogner ses modules carrés.
-
-#### Scenario: imbrication
-- **WHEN** une surface arrondie en contient une autre
-- **THEN** le scénario « coins concentriques » de « Thème » vérifie ces couples, en retenant la plus petite marge si les axes diffèrent
-
-### Requirement: Défilement de l'accueil
-L'accueil SHALL être une page verticale continue : héro avec dock en overlay sur le premier écran, grille dessous. Les passages dock/grille SHALL défiler sans fondu ni saut avec durée/courbe de « Focus tvOS ». À la première entrée, la page SHALL descendre d'un écran au début de la grille, titre de sa première section en haut et première ligne dessous.
-
-#### Scenario: première entrée ou traversée
-- **WHEN** le focus passe du dock à la grille ou revient
-- **THEN** « continuité de l'animation » et les scénarios de première descente de « Navigation 3 paliers » s'appliquent
-
-### Requirement: Restauration de la grille
-Au retour dans la grille, la page SHALL retrouver sa position laissée, pas descendre d'un écran exactement, et la carte ou tuile laissée SHALL reprendre le focus. La disparition de cette carte SHALL suivre « Repli du focus des cartes ».
-
-#### Scenario: retour dans la grille
-- **WHEN** la grille redevient active après une sortie
-- **THEN** « retour dans la grille à la position laissée » et « carte laissée disparue avant le retour » de « Navigation 3 paliers » restent applicables
-
-### Requirement: Repli du focus des cartes
-Si la carte focusée ou dernière visitée disparaît et que d'autres restent, le focus SHALL aller à celle qui prend sa position, ou à la précédente si c'était la dernière. Une rangée vide ou masquée SHALL appliquer « Focus d'une app disparue » à la grille entière, Up Next comprise.
-
-#### Scenario: disparition d'une carte ou rangée
-- **WHEN** le contenu change pendant l'affichage ou avant le retour
-- **THEN** « carte focusée disparue », « carte laissée disparue avant le retour » et « rangée devenue vide » de « Navigation 3 paliers » déterminent le focus
-
-### Requirement: Données facultatives du héro
-Hors identifiant et package, les colonnes du TV Provider SHALL être facultatives : absentes ou vides, elles retirent seulement l'élément alimenté. Le remplissage réel du type, de la saison, de l'épisode et de la durée sur la TV de référence reste une hypothèse à vérifier sur l'appareil.
-
-#### Scenario: métadonnées partielles
-- **WHEN** une colonne facultative n'est pas publiée
-- **THEN** « colonnes facultatives » de « Contenu héro TV Provider » s'applique sans inventer la valeur manquante
-
-### Requirement: Relecture des programmes du héro
-Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés. Le launcher SHALL relire le provider sur signal de changement et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; un résultat inchangé ne SHALL rien republier.
-
-#### Scenario: modification de publication
-- **WHEN** une app retire ou modifie un programme
-- **THEN** les scénarios « rafraîchissement automatique », « programme retiré » et « programme modifié » de « Contenu héro TV Provider » s'appliquent
-
-### Requirement: Bloc focusé de la grille
-Le bloc focusé SHALL comprendre la ligne focusée (apps ou Up Next), son titre si c'est la première ligne de sa section, et le panneau ouvert au-dessus. L'ordre SHALL rester titre, panneau, ligne selon la maquette 4.2 ; le panneau reste immédiatement au-dessus de la rangée, sous le titre.
-
-#### Scenario: première ligne de section
-- **WHEN** le panneau s'ouvre sur la première rangée d'apps
-- **THEN** « titre de section dans le bloc » et « panneau sous le titre de section » de « Panneau Top Shelf au focus » déterminent le placement
-
-### Requirement: Placement du bloc focusé
-Le bloc SHALL rester entre les marges haute de 40 dp et basse de 32 dp (espacement des rangées). La grille SHALL défiler seulement pour le ramener entre elles, avec durée/courbe de l'expansion du panneau. En grille active, elle ne SHALL jamais remonter avant le haut de son premier titre : le héro reste hors écran.
-
-#### Scenario: bloc déplacé ou trop grand
-- **WHEN** le focus ou le panneau change de rangée, ou que le bloc dépasse la hauteur disponible
-- **THEN** les scénarios de placement de « Panneau Top Shelf au focus » restent applicables, sans défilement supplémentaire
-
-### Requirement: Fluidité de release
-Sur la TV de référence et l'APK release, le héro au repos/au focus du dock SHALL atteindre au moins 55 images/s et moins de 10 % d'images en retard. La navigation grille/panneau SHALL avoir moins de 10 % de retard : seules les tuiles et la rangée concernées sont recomposées, sans décodage ni validation avant le focus posé.
-
-#### Scenario: navigation et repos
-- **WHEN** les scénarios « navigation dans la grille » et « écran au repos » de « Préchargement et mémoire » sont mesurés
-- **THEN** ces seuils s'appliquent sans animations hors écran ni recomposition par frame
-
-### Requirement: Fenêtre de composition de la grille
-Jusqu'à 12 rangées, Up Next comprise, toutes SHALL être composées ; au-delà, seulement celles couvrant l'écran aux positions courante et cible, plus 2 rangées de prélecture de chaque côté, les autres remplacées par leur hauteur. La page SHALL garder une seule autorité verticale ; grille, verre, ambiance, placement, navigation, persistance et repli du focus conservent leurs règles.
-
-#### Scenario: grande grille et rangée visée
-- **WHEN** la grille dépasse 12 rangées
-- **THEN** « grande grille », « rangée visée hors fenêtre » et « panneau sur une rangée profonde » de « Préchargement et mémoire » s'appliquent, la grille restant source du verre et du dégradé d'ambiance
-
 ### Requirement: Grille d'apps
-Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher en grille.
-
-Auto-détection de toutes les apps TV installées (category LEANBACK_LAUNCHER / LAUNCHER).
-
-La zone grille SHALL suivre « Sections de la grille », « Style des titres de section » et « Visibilité des sections ». Son origine de défilement SHALL être le haut du titre de sa première section.
+Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher en grille, avec les sections « À suivre » et « Applications » dans l'ordre de « Position d'À suivre » de settings. Chaque section SHALL avoir un titre non focusable aligné sur sa première carte, masqué avec la section vide ; le titre « À suivre » reste en erreur. Le haut de la zone grille SHALL être le haut du titre de sa première section. Style et espacements SHALL suivre les scénarios ci-dessous.
 
 #### Scenario: affichage
 - **WHEN** le home s'ouvre
@@ -515,6 +48,8 @@ La zone grille SHALL suivre « Sections de la grille », « Style des titres de 
 - **WHEN** les deux titres de section sont affichés
 - **THEN** ils sont en `SygixTypography.titleLarge` et `SygixColors.OnDarkSecondary`, chacun aligné à gauche sur la première carte ou tuile de sa section, à `Dimens.SectionTitleGap` au-dessus de sa première ligne ; le second titre est à `Dimens.GridRowSpacing` sous la dernière ligne de la section précédente
 
+**Détails.** — Détection des apps : Le launcher SHALL lister les activités des catégories `LEANBACK_LAUNCHER` et `LAUNCHER` installées sur la TV. — Sections de la grille : La grille SHALL afficher « À suivre » au-dessus d'Up Next et « Applications » au-dessus des apps, sur le même fond. L'ordre SHALL suivre « Position d'À suivre » de settings : avant les applications par défaut, après quand choisi. Les titres SHALL être alignés sur la première carte ou tuile (`Dimens.ScreenMarginH`) et ne jamais prendre le focus. Cas « ordre des sections » : quand la position d'À suivre change, ses cartes et son titre changent de place ensemble, selon les scénarios « titres de section » de « Grille d'apps ». — Style des titres de section : Les titres SHALL suivre « SygixOs Maquette », page TV, écrans 4.1, 7.1, 7.2 et 7.5 et composant « Titre de section » : `SygixTypography.titleLarge`, `SygixColors.OnDarkSecondary`, premier titre à `Dimens.GridTopMargin`, écart à la première ligne `Dimens.SectionTitleGap` et à la section précédente `Dimens.GridRowSpacing`. Cas « géométrie du titre » : quand une section est affichée, son titre respecte le scénario « style des titres » de « Grille d'apps » et défile avec sa section. — Visibilité des sections : Le titre SHALL défiler avec sa section. Une rangée Up Next masquée SHALL masquer « À suivre » sans place réservée. En erreur, la carte d'état remplace le contenu et le titre SHALL rester au-dessus (« États de la rangée » de up-next). Cas « erreur ou masquage » : quand Up Next devient vide, masqué ou en erreur, le titre suit respectivement les scénarios « section Up Next masquée » et « titre au-dessus de la carte d'erreur » de « Grille d'apps ».
+
 ### Requirement: Focus tvOS
 Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et de toute carte dont la spec renvoie à cette exigence, à la tvOS : la tuile focusée se soulève (zoom, légère montée, ombre portée douce, reflet blanc en diagonale), sans halo ni liseré, de façon à ce que la tuile active soit identifiable d'un coup d'œil. La tuile agrandie SHALL ne recouvrir aucune tuile voisine et SHALL n'être coupée par aucun conteneur.
 
@@ -546,10 +81,7 @@ Le home SHALL afficher une rangée Up Next dans la zone grille, sous le titre de
 - **THEN** ni la rangée ni son titre ne sont affichés, aucune place ne leur est réservée, la navigation de la zone grille ne passe que par les rangées d'apps ; réactiver le réglage réaffiche la rangée à la position réglée, sans redémarrage
 
 ### Requirement: Thème
-L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtree (SIL Open Font License 1.1, listée dans « À propos »). Le relief SHALL venir d'ombres douces et de reflets clairs, jamais d'un halo coloré. Le design system (`core/designsystem`) SHALL fournir verre et rayons selon « Matériau Liquid Glass », « Calcul du flou », « Rayons des surfaces » et « Coins concentriques ».
-
-
-
+L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtree (SIL OFL, listée dans À propos). Le relief SHALL venir d'ombres douces et de reflets clairs, jamais d'un halo coloré. Les surfaces verre (dock, capsule, menu, bandeau) SHALL seules être floutées, avec une teinte sombre translucide, une bordure claire et des reflets ; les rayons et coins concentriques SHALL suivre le design system. Les scénarios ci-dessous SHALL préciser les valeurs et couples imbriqués.
 
 #### Scenario: comportement
 - **WHEN** la capability est utilisée
@@ -587,6 +119,8 @@ L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtre
 - **WHEN** une tuile prend le focus, qu'une pilule de focus s'affiche ou que le dock montre son verre précalculé
 - **THEN** l'ombre et le reflet de la tuile, la pilule et le verre découpé du dock ont les mêmes coins que la surface qu'ils épousent ; aucun angle ne dépasse ni ne laisse apparaître un autre rayon
 
+**Détails.** — Matériau Liquid Glass : Les seules surfaces floutées SHALL être dock, capsule heure/réglages, menu contextuel et bandeau de déplacement. Le verre tvOS 26 SHALL avoir un flou de 28 px saturé à 170 %, teinte rgb 22, 22, 28 à 36 % pour le dock et 38 % pour la capsule, bordure blanche de 1 px à 16 %, reflet haut à 32 %, bas à 6 %, transparence sombre et ombre légère. Cas « surface verre » : quand une surface verre est visible, elle respecte « surfaces verre » et « verre sur un visuel sombre » de « Thème » ; les autres éléments ne floutent pas leur arrière-plan. — Calcul du flou : Sur une image de programme, dock et capsule SHALL utiliser une copie réduite du visuel voilé, floutée et saturée une fois, animée avec son Ken Burns/fondu sans recalcul par frame, sinon le flou direct. Sur vidéo ou dégradé, et pour menu/bandeau, le flou SHALL être direct, à partir d'une image réduite et limité à la zone de la surface. Cas « copie ou calcul direct » : quand le média ou la disponibilité de la copie change, les scénarios « coût du flou », « copie floutée indisponible » et « verre sur un visuel en mouvement » de « Thème » restent applicables. — Rayons des surfaces : Les rayons SHALL être ceux du design system, en dp pour 960 × 540 dp : tuiles grille/dock 14, dock 24, menu 26 et pilules 12, lignes de réglages 14 ; capsule et engrenage en pilule à demi-hauteur. Ombre/reflet de tuile, focus, verre précalculé, bordure et reflets SHALL suivre le rayon de leur surface. Cas « effets concentriques » : quand une surface ou un effet de focus est dessiné, le scénario « effets qui suivent le rayon » de « Thème » s'applique sans halo coloré. — Coins concentriques : Une surface arrondie imbriquée SHALL respecter rayon extérieur = rayon intérieur + plus petite marge : dock/tuile 24 = 14 + 10 ; capsule/engrenage de 36 de haut 18 = 14 + 4 ; menu/pilule 26 = 12 + 14 ; menu/vignette marge 16 et rayon 10 ; ligne/vignette 16:9 marge verticale 10,5 et rayon 3,5. Le QR SHALL avoir un fond blanc arrondi au rayon de sa marge blanche, sans rogner ses modules carrés. Cas « imbrication » : quand une surface arrondie en contient une autre, le scénario « coins concentriques » de « Thème » vérifie ces couples, en retenant la plus petite marge si les axes diffèrent.
+
 ### Requirement: Navigation
 Le launcher SHALL être navigable au DPAD uniquement.
 
@@ -608,7 +142,7 @@ Le home SHALL s'ouvrir sur un héro plein écran sans cadre : visuel d'un progra
 - **THEN** le héro joue les vidéos nature en boucle ; tant qu'aucune vidéo ne joue, un dégradé sombre animé est affiché (un seul passage lent, puis figé sur sa dernière position, comme le Ken Burns), jamais d'écran noir ni de crash
 
 ### Requirement: Navigation 3 paliers
-Le DPAD SHALL naviguer héro → dock → grille et inversement ; seule la zone active est focusable. À suivre SHALL rester une ligne de la grille, pas un palier, à la position de « Sections de la grille », sautée avec son titre quand elle est masquée. La page, le retour et les disparitions SHALL suivre « Défilement de l'accueil », « Restauration de la grille » et « Repli du focus des cartes ».
+Le DPAD SHALL naviguer héro → dock → grille et inversement ; seule la zone active est focusable. À suivre SHALL rester une ligne de la grille, pas un palier, sautée avec son titre quand elle est masquée. La page SHALL défiler d'un seul tenant, sans fondu ni saut, et restaurer à la grille sa position et son focus ; une carte Up Next disparue SHALL passer le focus à sa voisine. Les scénarios ci-dessous SHALL préciser les cas.
 
 #### Scenario: descente depuis le héro
 - **WHEN** l'utilisateur presse bas depuis le héro
@@ -682,6 +216,8 @@ Le DPAD SHALL naviguer héro → dock → grille et inversement ; seule la zone 
 - **WHEN** une zone n'est pas active
 - **THEN** aucun de ses éléments ne peut prendre le focus ; gauche et droite restent dans la zone active
 
+**Détails.** — Défilement de l'accueil : L'accueil SHALL être une page verticale continue : héro avec dock en overlay sur le premier écran, grille dessous. Les passages dock/grille SHALL défiler sans fondu ni saut avec durée/courbe de « Focus tvOS ». À la première entrée, la page SHALL descendre d'un écran au début de la grille, titre de sa première section en haut et première ligne dessous. Cas « première entrée ou traversée » : quand le focus passe du dock à la grille ou revient, « continuité de l'animation » et les scénarios de première descente de « Navigation 3 paliers » s'appliquent. — Restauration de la grille : Au retour dans la grille, la page SHALL retrouver sa position laissée, pas descendre d'un écran exactement, et la carte ou tuile laissée SHALL reprendre le focus. La disparition de cette carte SHALL suivre « Repli du focus des cartes ». Cas « retour dans la grille » : quand la grille redevient active après une sortie, « retour dans la grille à la position laissée » et « carte laissée disparue avant le retour » de « Navigation 3 paliers » restent applicables.
+
 ### Requirement: Dock d'apps épinglées
 Le home SHALL afficher un dock en verre sombre (« Thème », rail overlay bas) contenant au plus 6 apps épinglées qui restent dans la grille. Il SHALL se déplacer avec le héro et n'être visible qu'avec lui. Le verre SHALL rester actif pendant le défilement jusqu'à la sortie complète du héro, sans changement d'aspect au début de la descente ni recréation du contenu lors de sa bascule.
 
@@ -729,7 +265,7 @@ L'ordre des apps et les épinglages SHALL être persistés localement (DataStore
 - **THEN** l'ordre d'avant le déplacement est restauré
 
 ### Requirement: Contenu héro TV Provider
-Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission système de lecture. Les colonnes et la fraîcheur SHALL suivre « Données facultatives du héro » et « Relecture des programmes du héro ».
+Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission système de lecture. Toute colonne absente ou vide SHALL retirer seulement l'élément concerné. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, relus au changement signalé et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; une relecture sans changement ne republie rien.
 
 #### Scenario: permission
 - **WHEN** le launcher démarre sans `android.permission.READ_TV_LISTINGS`
@@ -759,6 +295,8 @@ Le héro SHALL afficher les programmes watch next et preview des apps installée
 - **WHEN** une app modifie le titre ou le visuel d'un programme publié
 - **THEN** le héro et le Top Shelf montrent le nouveau titre et le nouveau visuel à la relecture suivante ; un nouveau visuel est vérifié comme un visuel inconnu (« Qualité des visuels »)
 
+**Détails.** — Données facultatives du héro : Hors identifiant et package, les colonnes du TV Provider SHALL être facultatives : absentes ou vides, elles retirent seulement l'élément alimenté. Le remplissage réel du type, de la saison, de l'épisode et de la durée sur la TV de référence reste une hypothèse à vérifier sur l'appareil. Cas « métadonnées partielles » : quand une colonne facultative n'est pas publiée, « colonnes facultatives » de « Contenu héro TV Provider » s'applique sans inventer la valeur manquante. — Relecture des programmes du héro : Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés. Le launcher SHALL relire le provider sur signal de changement et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; un résultat inchangé ne SHALL rien republier. Cas « modification de publication » : quand une app retire ou modifie un programme, les scénarios « rafraîchissement automatique », « programme retiré » et « programme modifié » de « Contenu héro TV Provider » s'appliquent.
+
 ### Requirement: Clic programme publié
 Le clic sur un poster du TV Provider SHALL ouvrir le contenu via l'intent publié par l'app source.
 
@@ -771,7 +309,7 @@ Le clic sur un poster du TV Provider SHALL ouvrir le contenu via l'intent publi�
 - **THEN** une barre de progression est visible sur le poster héro
 
 ### Requirement: Panneau Top Shelf au focus
-Le panneau SHALL s'ouvrir à la demande au-dessus de la rangée focusée, se fermer si son app n'a rien à montrer et ne réserver aucune place fermé. Le bloc focusé et son défilement SHALL suivre « Bloc focusé de la grille » et « Placement du bloc focusé », sans révéler le héro tant que la grille est active.
+Le panneau SHALL s'ouvrir à la demande au-dessus de la rangée focusée, se fermer si son app n'a rien à montrer et ne réserver aucune place fermé. Le bloc focusé (titre de section si première ligne, panneau, ligne focusée) SHALL rester entre les marges haute et basse de la grille ; la grille ne défile que pour le ramener, et jamais au-dessus du début de la zone grille. Les scénarios ci-dessous SHALL préciser le placement.
 
 #### Scenario: arrivée dans la grille
 - **WHEN** l'utilisateur descend du dock vers la grille
@@ -821,6 +359,8 @@ Le panneau SHALL s'ouvrir à la demande au-dessus de la rangée focusée, se fer
 - **WHEN** l'utilisateur quitte la zone grille (Retour, ou remontée vers le dock ou le héro) puis y revient
 - **THEN** la page défile jusqu'au héro (« Navigation 3 paliers »), mais la position de la grille n'est pas remise à zéro : au retour, la page redescend jusqu'à la position de la grille laissée à la sortie, la ligne focusée à la même place à l'écran (le panneau éventuellement ouvert s'est refermé à la sortie), le focus va au dernier élément visité, carte Up Next ou tuile (« Navigation 3 paliers »), et la grille ne défile davantage que si cet élément est hors des marges
 
+**Détails.** — Bloc focusé de la grille : Le bloc focusé SHALL comprendre la ligne focusée (apps ou Up Next), son titre si c'est la première ligne de sa section, et le panneau ouvert au-dessus. L'ordre SHALL rester titre, panneau, ligne selon la maquette 4.2 ; le panneau reste immédiatement au-dessus de la rangée, sous le titre. Cas « première ligne de section » : quand le panneau s'ouvre sur la première rangée d'apps, « titre de section dans le bloc » et « panneau sous le titre de section » de « Panneau Top Shelf au focus » déterminent le placement. — Placement du bloc focusé : Le bloc SHALL rester entre les marges haute de 40 dp et basse de 32 dp (espacement des rangées). La grille SHALL défiler seulement pour le ramener entre elles, avec durée/courbe de l'expansion du panneau. En grille active, elle ne SHALL jamais remonter avant le haut de son premier titre : le héro reste hors écran. Cas « bloc déplacé ou trop grand » : quand le focus ou le panneau change de rangée, ou que le bloc dépasse la hauteur disponible, les scénarios de placement de « Panneau Top Shelf au focus » restent applicables, sans défilement supplémentaire.
+
 ### Requirement: Contenu du panneau
 Le panneau SHALL n'afficher que des visuels validés et chargés de l'app focus, et ne pas s'ouvrir sinon.
 
@@ -852,11 +392,7 @@ Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro 
 - **THEN** sa lecture est interrompue et ses animations arrêtées conformément à « Préchargement et mémoire » (scénario « économie de ressources ») et « Fond vidéo de secours » ; son lecteur vidéo n'est pas libéré
 
 ### Requirement: Diaporama héro
-Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable.
-
-Les textes et médias SHALL suivre « En-tête du héro », « Infos et progression du héro », « Synchronisation du héro », « Visuel du héro en attente » et « Reprise des visuels du héro ».
-
-
+Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable. En-tête, ligne d'infos, progression et bouton SHALL toujours correspondre au visuel affiché et changer avec lui. Si le visuel suivant n'est pas prêt après 1 s, le héro SHALL passer au suivant utilisable sans changer les textes ; les scénarios ci-dessous SHALL préciser les textes, médias et échecs.
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
@@ -934,6 +470,8 @@ Les textes et médias SHALL suivre « En-tête du héro », « Infos et progress
 - **WHEN** le visuel du programme zoome (Ken Burns)
 - **THEN** l'en-tête, le titre, la ligne d'infos et la progression ne sont pas recomposés
 
+**Détails.** — En-tête du héro : L'en-tête SHALL précéder le titre selon la maquette 960 × 540 dp : icône carrée sans masque de 18 dp, coins 4,5 dp, puis libellé par type publié. Pour l'app X : CONTINUE (`WATCH_NEXT_TYPE_CONTINUE`) « Continuer dans X », NEXT « Épisode suivant dans X », NEW « Nouveau dans X », WATCHLIST « À regarder dans X », preview ou type absent/inconnu « X ». Il SHALL ne montrer que les éléments disponibles. Cas « données manquantes de l'en-tête » : quand le nom ou l'icône manque, le type seul ou le libellé sans icône est montré, et sans les deux l'en-tête disparaît ; les scénarios de types et de nom/icône manquants de « Diaporama héro » s'appliquent. — Infos et progression du héro : La ligne sous le titre SHALL réunir seulement saison, épisode et durée publiés, séparés par « · ». La durée SHALL être arrondie à la minute (minimum 1 min), en heures au-delà d'une heure (« 1 h 35 min », « 2 h »). Barre et « Reste X min » SHALL exister seulement avec position et durée connues ; le restant est arrondi à la minute supérieure avec la même écriture des heures. Cas « infos partielles » : quand les données du programme sont partielles, « infos partielles », « progression sans position ou sans durée » et « programme en cours » de « Diaporama héro » s'appliquent sans réserver d'espace aux lignes absentes. — Synchronisation du héro : Titre, en-tête, infos et bouton SHALL correspondre au visuel affiché ; « Ouvrir »/« Reprendre » SHALL ouvrir ce programme et changer avec son visuel, jamais avant. Les textes SHALL rester fixes sans recomposition ni dessin pendant le Ken Burns, sans espace pour les lignes absentes, et lisibles sur visuel clair grâce aux voiles. Cas « changement et animation » : quand le visuel change ou zoome, « changement de programme », « textes avec le visuel », « textes immobiles pendant le Ken Burns » et « lisibilité sur un poster clair » de « Diaporama héro » s'appliquent. — Visuel du héro en attente : Si l'image ou la première image vidéo suivante n'est pas prête 1 s après une avance automatique ou gauche/droite, le héro SHALL passer au prochain visuel utilisable sans changer ses textes avant. Le visuel lent SHALL continuer sans nouvelle requête ; la vidéo reste préparée en pause jusqu'à la demande d'une autre vidéo. Le programme redevient éligible prêt. La toute première vidéo sans visuel à remplacer est exemptée. Cas « préparation lente » : quand le visuel suivant n'est pas prêt dans la seconde, le scénario « visuel lent » de « Diaporama héro » s'applique ; une image préparée n'est pas retenue en bitmap par le héro et est relue depuis le cache à son retour.
+
 ### Requirement: Fond vidéo de secours
 Le fallback du héro SHALL être une liste de clips nature libres de droits (Pexels, 2K sinon 1080p, mp4 H.264 en https) lus en boucle par un unique lecteur, muet.
 
@@ -968,7 +506,7 @@ Le launcher SHALL permettre, dans ses réglages, de cocher les apps dont les pro
 - **THEN** ses programmes n'apparaissent plus dans le héro, le Top Shelf ni la rangée Up Next, sans redémarrage
 
 ### Requirement: Préchargement et mémoire
-Le launcher SHALL borner la validation : premiers visuels du héro au chargement, affiches d'une app au focus posé. Il SHALL décoder à la taille d'affichage, jamais à celle de la dalle, et respecter « Fluidité de release » et « Fenêtre de composition de la grille ».
+Le launcher SHALL borner la validation des visuels (premiers du héro au chargement, affiches d'une app au focus posé), décoder à la taille d'affichage et garder le héro fluide au repos comme au focus du dock (au moins 55 images/s, moins de 10 % en retard, APK release). La grille SHALL borner sa composition à 12 rangées, puis à la fenêtre visible/cible plus 2 rangées de prélecture, avec une seule autorité de défilement vertical. Les scénarios ci-dessous SHALL préciser les seuils.
 
 #### Scenario: validation au chargement
 - **WHEN** les programmes sont chargés
@@ -1038,6 +576,8 @@ Le launcher SHALL borner la validation : premiers visuels du héro au chargement
 - **WHEN** un visuel du héro ou une affiche du panneau est demandé alors que son entrée du cache disque date de plus d'un jour
 - **THEN** l'image est relue depuis le réseau et remplace l'entrée du cache disque et les images en mémoire issues de cette URL ; si le réseau échoue, la version en cache est affichée ; une entrée plus récente est servie sans requête réseau
 
+**Détails.** — Reprise des visuels du héro : Une vidéo en échec ou une image définitivement rejetée (trop étroite, HTTP 4xx, indécodable) ne SHALL pas être redemandée pendant la session. Une image injoignable par erreur d'entrée-sortie ou HTTP 5xx SHALL être revérifiée selon « Préchargement et mémoire », scénario « visuel injoignable ». Cas « classement de l'échec » : quand un visuel échoue, les scénarios « visuel injoignable » et « visuel rejeté » de « Préchargement et mémoire » déterminent la possibilité de reprise. — Fluidité de release : Sur la TV de référence et l'APK release, le héro au repos/au focus du dock SHALL atteindre au moins 55 images/s et moins de 10 % d'images en retard. La navigation grille/panneau SHALL avoir moins de 10 % de retard : seules les tuiles et la rangée concernées sont recomposées, sans décodage ni validation avant le focus posé. Cas « navigation et repos » : quand les scénarios « navigation dans la grille » et « écran au repos » de « Préchargement et mémoire » sont mesurés, ces seuils s'appliquent sans animations hors écran ni recomposition par frame. — Fenêtre de composition de la grille : Jusqu'à 12 rangées, Up Next comprise, toutes SHALL être composées ; au-delà, seulement celles couvrant l'écran aux positions courante et cible, plus 2 rangées de prélecture de chaque côté, les autres remplacées par leur hauteur. La page SHALL garder une seule autorité verticale ; grille, verre, ambiance, placement, navigation, persistance et repli du focus conservent leurs règles. Cas « grande grille et rangée visée » : quand la grille dépasse 12 rangées, « grande grille », « rangée visée hors fenêtre » et « panneau sur une rangée profonde » de « Préchargement et mémoire » s'appliquent, la grille restant source du verre et du dégradé d'ambiance.
+
 ### Requirement: Focus d'une app disparue
 Quand l'app focusée disparaît du dock ou de la grille (app cachée, retirée du dock, désinstallée), le focus SHALL passer à la tuile voisine à la même position dans la zone. Si la zone devient vide, le focus SHALL revenir au héro. Les autres règles de focus restent celles de « Navigation 3 paliers ».
 
@@ -1057,10 +597,10 @@ Quand l'app focusée disparaît du dock ou de la grille (app cachée, retirée d
 - **WHEN** la dernière tuile visitée d'une zone disparaît pendant que l'utilisateur est dans une autre zone
 - **THEN** le focus ne change pas de zone ; au retour dans la zone, la tuile voisine à la même position prend le focus
 
+**Détails.** — Repli du focus des cartes : Si la carte focusée ou dernière visitée disparaît et que d'autres restent, le focus SHALL aller à celle qui prend sa position, ou à la précédente si c'était la dernière. Une rangée vide ou masquée SHALL appliquer « Focus d'une app disparue » à la grille entière, Up Next comprise. Cas « disparition d'une carte ou rangée » : quand le contenu change pendant l'affichage ou avant le retour, « carte focusée disparue », « carte laissée disparue avant le retour » et « rangée devenue vide » de « Navigation 3 paliers » déterminent le focus.
+
 ### Requirement: Écran de démarrage
-À la première création de l'accueil du processus, y compris processus lancé en arrière-plan ou après mise à jour, le launcher SHALL afficher plein écran la mascotte seule (fantôme sans TV, nom ni texte), centrée sur le noir de « Thème », avec un court fondu sans saut. Il SHALL respecter « Préparation du démarrage », « Durées du démarrage », « Composition avant révélation » et « Sortie du démarrage ».
-
-
+À la première création de l'accueil du processus, y compris en arrière-plan ou après mise à jour, le launcher SHALL afficher plein écran la mascotte seule, centrée sur le noir, avec un court fondu. L'accueil SHALL être prêt quand catalogue et premier visuel le sont (attente plafonnée à 2 s) ; l'écran SHALL durer au moins 600 ms et au plus 5 s, puis laisser place par fondu sans saut ni flash. Composition, touches et sortie SHALL suivre les scénarios ci-dessous ; Retour suit le système.
 
 #### Scenario: démarrage à froid
 - **WHEN** l'accueil est créé pour la première fois dans le processus du launcher
@@ -1138,6 +678,8 @@ Quand l'app focusée disparaît du dock ou de la grille (app cachée, retirée d
 - **WHEN** l'utilisateur presse Retour pendant le fondu de sortie, entre son début et sa fin
 - **THEN** le comportement normal du système s'applique comme pendant le reste de l'écran de démarrage : SygixOs quitte le premier plan, sans crash ; la touche n'est pas interceptée par l'accueil et aucune action n'est déclenchée sur lui
 
+**Détails.** — Préparation du démarrage : Le catalogue chargé et le premier visuel du héro prêt SHALL rendre l'accueil prêt : image chargée ou première image vidéo programme/nature rendue, pas le dégradé animé. L'attente du visuel SHALL être plafonnée à 2 s depuis la première image de démarrage. La mascotte SHALL être décodée dès le début du processus, hors fil principal. Cas « attente du premier média » : quand le premier visuel tarde ou que l'animation est illisible, « attente du premier visuel », « visuel trop lent », « animation illisible » et « mascotte décodée tard » de « Écran de démarrage » s'appliquent. — Durées du démarrage : Le démarrage SHALL durer au moins 600 ms depuis la première image montrant la mascotte, ou sa propre première image si elle est illisible ; il attend l'accueil prêt, au plus 5 s depuis sa première image. Dès minimum atteint et accueil prêt, ou à 5 s, le fondu SHALL révéler l'accueil ; au plafond ses états de chargement/erreur prennent le relais. Cas « minimum et plafonds » : quand l'accueil est prêt tôt ou reste incomplet, « accueil prêt avant la durée minimale » et « plafond global » de « Écran de démarrage » déterminent la sortie, même sans animation. — Composition avant révélation : L'accueil SHALL être composé après le fondu d'entrée de la mascotte, dès fenêtre active ou au plus tard 400 ms après ce fondu sinon, ou au début du fondu de sortie. Avant révélation, il SHALL être dessiné sous le démarrage opaque, invisible et sans animation, sans retarder mascotte ni touches : image sans fondu, vidéo préparée en pause, Ken Burns/lecture au fondu de sortie, grille hors écran composée seulement à sa fin. Cas « fenêtre active ou surcouche » : quand une permission ou autre surcouche prive la fenêtre de focus, « composition de l'accueil » et « fenêtre sans focus » de « Écran de démarrage » gardent ces bornes et un accueil déjà dessiné pour le fondu. — Sortie du démarrage : Le fondu de sortie SHALL utiliser durée/courbe de « Focus tvOS », sans noir, saut, flash ni calque plein écran hors écran. Pendant tout le démarrage, fondu compris, D-pad/OK ne SHALL pas atteindre l'accueil ; Retour SHALL suivre Android, quitter le premier plan et ne déclencher aucune action de l'accueil. Cas « touches et transition » : quand l'utilisateur agit pendant le démarrage ou son fondu, « touches pendant l'écran de démarrage », « Retour pendant le fondu de sortie » et « fluidité de l'écran de démarrage » restent applicables. — Retour sans écran de démarrage : Un accueil déjà créé dans le processus ne SHALL jamais remontrer le démarrage au retour Home, d'une autre app ou au premier plan. Recréé hors démarrage à froid avec catalogue non chargé, il SHALL montrer seulement un fond noir uni, sans mascotte ni animation, jusqu'à l'accueil. Cas « retour ou recréation » : quand le launcher revient sans nouveau processus, « retour sur le launcher » et « accueil recréé hors démarrage à froid » de « Écran de démarrage » s'appliquent.
+
 ### Requirement: Animation de la mascotte
 La mascotte SHALL flotter et cligner dans une animation pré-rendue de 2 s / 120 images, à 60 images/s en boucle sans raccord visible, décodée par le système sans lecteur vidéo. Centrée à 180 dp, native 360 px en 1080p, elle SHALL ne jamais être agrandie au-delà, avec pixels extérieurs transparents sans cadre ni écart de fond. La première image SHALL être la pose fixe de repos, yeux ouverts au centre du flottement, utilisée sans animation.
 
@@ -1188,7 +730,7 @@ Sur Android 12+, l'écran de lancement système SHALL avoir le même noir que le
 - **THEN** cet écran a le même fond noir, sans icône, et aucun écran de démarrage n'est affiché ensuite (« Écran de démarrage », scénario « accueil recréé hors démarrage à froid »)
 
 ### Requirement: Écran de démarrage sans animation
-À chaque démarrage à froid, le launcher SHALL lire l'échelle de durée système, commune à « Supprimer les animations » et aux options développeur. À 0, il SHALL montrer la première image fixe de la mascotte, sans flottement, clignement ni fondu d'entrée/sortie, en conservant « Durées du démarrage ». Une échelle propre aux apps forcée par le constructeur ne SHALL pas désactiver l'animation.
+À chaque démarrage à froid, le launcher SHALL lire l'échelle de durée système, commune à « Supprimer les animations » et aux options développeur. À 0, il SHALL montrer la première image fixe de la mascotte, sans flottement, clignement ni fondu d'entrée/sortie, en conservant les durées du démarrage (600 ms au moins, plafonds de 2 s et de 5 s). Une échelle propre aux apps forcée par le constructeur ne SHALL pas désactiver l'animation.
 
 #### Scenario: animations désactivées
 - **WHEN** le launcher démarre à froid alors que les animations sont désactivées dans le système
@@ -1245,7 +787,7 @@ L'APK release SHALL embarquer le profil de référence de l'app et de ses biblio
 - **THEN** le profil est installé avec l'APK quand il est disponible et vérifié (« Installation de la mise à jour » de `self-update`)
 
 ### Requirement: Démarrage à l'allumage
-La ligne « Ouvrir SygixOs à l'allumage » de « Par autorisations » SHALL être désactivée par défaut, activable par l'utilisateur ou la configuration automatique de secours. OK SHALL basculer et persister aussitôt sans perdre le focus. Présentation, mécanismes et suivi SHALL suivre « Ligne de démarrage à l'allumage » et « Ouverture unique au démarrage », pour le démarrage à froid seulement, pas la sortie de veille.
+La ligne « Ouvrir SygixOs à l'allumage » de « Par autorisations » SHALL être désactivée par défaut, activable par l'utilisateur ou la configuration automatique de secours. OK SHALL basculer et persister aussitôt sans perdre le focus. Option activée, l'ouverture SHALL être demandée une seule fois par démarrage à froid, par la fin du démarrage ou le service d'accessibilité connecté moins de 5 minutes après, sans sortie de veille. Les scénarios ci-dessous SHALL préciser les états.
 
 #### Scenario: ouverture au démarrage observée
 - **WHEN** l'appareil démarre, que l'option est activée et que la demande d'ouverture aboutit
@@ -1283,8 +825,10 @@ La ligne « Ouvrir SygixOs à l'allumage » de « Par autorisations » SHALL êt
 - **WHEN** la configuration automatique pose les réglages de secours
 - **THEN** l'option est persistée activée et la ligne « Ouvrir SygixOs à l'allumage » la montre activée ; l'utilisateur peut la désactiver comme une option qu'il a activée
 
+**Détails.** — Ligne de démarrage à l'allumage : La ligne SHALL afficher « Fait » si l'option est activée et « Autoriser l'ouverture au démarrage » absente, « À faire » sinon ; détail « SygixOs demande à s'ouvrir au démarrage de la TV ». L'ouverture observée SHALL être mémorisée par démarrage ; non observée, le détail devient « SygixOs ne s'est pas ouvert automatiquement à ce démarrage ». Cas « ouverture observée ou non » : quand l'utilisateur consulte la page après le démarrage, les scénarios de « Démarrage à l'allumage » déterminent l'état, sans assimiler une activation tardive à une tentative déjà due. — Ouverture unique au démarrage : Option activée, SygixOs SHALL demander l'accueil par les mécanismes Android autorisés seulement : fin du démarrage système et connexion de son service activé moins de 5 minutes après le démarrage (valeur à valider sur TV). Le premier chemin observé SHALL ouvrir une seule fois ; l'autre et une connexion tardive ne font rien. Option désactivée, aucune demande. Cas « deux chemins et refus du système » : quand les deux chemins arrivent, tardent ou sont bloqués, les scénarios « deux chemins dans le même démarrage », « connexion tardive du service » et « ouverture refusée par le système » de « Démarrage à l'allumage » s'appliquent sans contournement Android.
+
 ### Requirement: Permission d'affichage superposé pour le démarrage
-La permission de superposition SHALL être proposée par « Ligne d'autorisation de démarrage », sans confirmation intermédiaire. Seule la configuration automatique peut l'accorder par le débogage ; sinon OK ouvre Android. Son état SHALL être relu au retour, jamais supposé accordé ; un refus ne bloque pas SygixOs ni n'efface le choix. « Superposition indisponible » SHALL traiter l'écran absent ; l'accord ne garantit pas le démarrage.
+La permission de superposition SHALL être proposée par la ligne « Autoriser l'ouverture au démarrage », sans confirmation, quand l'option est activée et l'écran système présent. Seule la configuration automatique peut l'accorder par le débogage ; sinon OK ouvre Android. Son état SHALL être relu au retour, jamais supposé accordé ; un refus ne bloque pas SygixOs. Sans écran système, la ligne devient « Indisponible » et l'option ne s'active pas. L'accord ne garantit pas le démarrage.
 
 #### Scenario: sous-étape affichée à l'activation
 - **WHEN** l'utilisateur active l'option alors que la permission manque et que son écran existe
@@ -1314,8 +858,10 @@ La permission de superposition SHALL être proposée par « Ligne d'autorisation
 - **WHEN** la configuration automatique accorde la permission comme réglage de secours
 - **THEN** la permission est relue auprès du système, et la ligne « Superposer aux autres applications » de « SygixOs garde la main » (9.12) n'est « Fait » que si le système la déclare accordée
 
+**Détails.** — Ligne d'autorisation de démarrage : « Autoriser l'ouverture au démarrage » SHALL apparaître sous l'option activée si la permission manque et l'écran existe, détail « Android l'exige : choisissez SygixOs dans la liste, puis autorisez-le. ». État « À faire » sans accord, « En attente… » dans Android, masquée après accord système. OK SHALL ouvrir la permission de SygixOs ; son libellé exact reste celui relevé par la tâche 1.5 de P7. Cas « permission et retour » : quand l'utilisateur ouvre ou quitte l'écran système, les scénarios « ouverture de l'écran de la permission », « permission refusée » et « permission déjà accordée » de « Permission d'affichage superposé pour le démarrage » s'appliquent. — Superposition indisponible : Si l'écran de permission est absent ou impossible à ouvrir, l'option SHALL devenir « Indisponible », raison « Cette TV ne permet pas d'autoriser l'ouverture au démarrage », sans ligne de permission ni crash. L'activation SHALL être refusée ou annulée si juste faite. L'état dure jusqu'au prochain processus sauf accord système ultérieur ; une option déjà activée reste désactivable. Cas « écran absent ou inaccessible » : quand l'ouverture de la permission échoue, « écran de la permission absent » et « écran de la permission impossible à ouvrir » de « Permission d'affichage superposé pour le démarrage » vérifient l'option sans bloquer le launcher.
+
 ### Requirement: Retour Home par le service d'accessibilité
-Le service SHALL ramener l'accueil sur Home après activation par l'utilisateur (ligne « Ouvrir SygixOs avec la touche Home » ouvrant seulement Accessibilité) ou par la configuration automatique de secours, autres services conservés. Hors ces cas SygixOs ne SHALL pas l'activer/désactiver ; après refus, nouvelle proposition seulement dans Réglages › Écran d'accueil. Il SHALL suivre « Filtrage de Home » et « État du service Home ».
+Le service SHALL ramener l'accueil sur Home après activation par l'utilisateur (ligne « Ouvrir SygixOs avec la touche Home » ouvrant Accessibilité) ou par la configuration automatique de secours, autres services conservés. Hors ces cas SygixOs ne SHALL pas l'activer ; après refus, reproposition seulement dans Réglages. Connecté, il SHALL consommer tous les événements Home et ouvrir au relâchement non annulé ; non connecté, rien n'est consommé. Les états SHALL suivre les scénarios ci-dessous.
 
 #### Scenario: activation par l'utilisateur
 - **WHEN** l'utilisateur valide « Ouvrir SygixOs avec la touche Home »
@@ -1361,6 +907,8 @@ Le service SHALL ramener l'accueil sur Home après activation par l'utilisateur 
 - **WHEN** le service est activé dans les réglages du système mais n'est toujours pas connecté au terme de l'attente bornée
 - **THEN** la ligne affiche « Bloqué » avec son explication, reste focalisable, et OK ouvre les réglages d'accessibilité du système ; la voie par autorisations est « Bloquée » ; quand le système relie de nouveau le service, la ligne affiche « Fait » au retour au premier plan
 
+**Détails.** — Filtrage de Home : Le service SHALL observer seulement Home par `AccessibilityService.onKeyEvent`, sans lire les fenêtres ni rien conserver. Connecté, il SHALL consommer appui, répétitions et relâchement pour les soustraire au système/launcher constructeur, et ouvrir aussitôt au relâchement non annulé, appui long comme court. Inactif/arrêté, il ne consomme rien. Il SHALL être livré même sans signal Home sur l'appareil, sans action alors. Cas « événements de touche » : quand Home est reçu ou absent, les scénarios de touches et de signal absent de « Retour Home par le service d'accessibilité » s'appliquent ; SygixOs reste utilisable sans le service. — État du service Home : Activé mais non connecté au lancement ou au retour au premier plan, le service SHALL être attendu pendant un délai borné sans tentative de liaison par SygixOs. La ligne SHALL refléter activation, connexion, attente et disponibilité des réglages, avec les libellés ci-dessous ; « Bloqué » dure jusqu'à connexion ou désactivation. Cas « présentation de la ligne du service » : quand l'état est relu, activé/connecté affiche « Fait », non activé « À faire », détail « OK : ouvre le réglage Android correspondant » ; réglages ouverts ou attente non conclue affiche « En attente… » ; délai écoulé activé/non connecté affiche « Bloqué », détail « La TV a bloqué ce service au démarrage. Désactivez-le puis réactivez-le dans Accessibilité, ou utilisez la configuration automatique. » ; réglages impossibles à ouvrir affiche « Indisponible », raison « Les réglages d'accessibilité ne peuvent pas s'ouvrir sur cette TV ».
+
 ### Requirement: Touche Home avec SygixOs au premier plan
 Home reçu au premier plan, directement ou par le service (premier plan à l'appui), SHALL fermer tous les réglages d'un coup, liste « Position d'À suivre » comprise, puis les surcouches comme Retour, parcours compris ; page en haut, héro focusé et lecture reprise. L'allumage ne SHALL pas compter comme Home. Hors premier plan, « retour sur le launcher » de « Écran de démarrage » reste inchangé.
 
@@ -1389,7 +937,7 @@ Home reçu au premier plan, directement ou par le service (premier plan à l'app
 - **THEN** l'écran de démarrage se poursuit sans changement et le héro prend le focus à son fondu de sortie (« Écran de démarrage »)
 
 ### Requirement: Parcours de l'écran d'accueil
-Le parcours « Faire de SygixOs l'écran d'accueil » SHALL s'afficher une fois tant que jamais fermé, installations mises à jour comprises (drapeau conservé depuis v0.1.0-rc.2), après démarrage et réponse à « Programmes TV » (`READ_TV_LISTINGS`), jamais sur un dialogue système. Il SHALL suivre « Choix du parcours », « Navigation du parcours », « Étapes du parcours » et « Avancement du parcours ».
+Le parcours « Faire de SygixOs l'écran d'accueil » SHALL s'afficher une fois tant que jamais fermé, installations mises à jour comprises (drapeau conservé depuis v0.1.0-rc.2), après démarrage et réponse à « Programmes TV », jamais sur un dialogue système. Sa première page SHALL proposer les choix disponibles (Tsuyu, automatique, autorisations) avec leur état, l'aide « Retour : plus tard » et le bouton « Plus tard ». Choix, navigation, étapes et avancement SHALL suivre les scénarios ci-dessous.
 
 #### Scenario: premier lancement
 - **WHEN** SygixOs se lance, que le parcours n'a jamais été fermé, que Tsuyu n'est pas disponible et que rien n'est encore fait
@@ -1439,8 +987,10 @@ Le parcours « Faire de SygixOs l'écran d'accueil » SHALL s'afficher une fois 
 - **WHEN** le système arrête le processus de SygixOs pendant qu'un écran système ou Tsuyu, ouvert depuis le parcours affiché automatiquement, est affiché, puis SygixOs se relance
 - **THEN** le parcours, jamais fermé, s'affiche de nouveau sur sa première page avec les états relus
 
+**Détails.** — Choix du parcours : La première page SHALL présenter les choix et leurs états à droite, avec Tsuyu seulement s'il est disponible et la voie automatique non indisponible. « Active » SHALL identifier seulement la façon active (avec Tsuyu s'il est actif, sinon sans), l'autre « Non utilisée ». La voie par autorisations SHALL montrer son état propre ; la voie indisponible suit 8.2 quel que soit Tsuyu. Cas « première page et aide » : quand la première page s'affiche, le titre est « Faire de SygixOs l'écran d'accueil », la description « Choisissez comment SygixOs remplace l'accueil Google TV. Vous pourrez changer d'avis dans Réglages › Écran d'accueil. », avec aide « Retour : plus tard » et bouton « Plus tard ». Cas « trois choix avec Tsuyu » : quand Tsuyu est disponible et la voie utilisable (9.1), les lignes sont « Automatique avec Tsuyu (recommandée) » / « Un guide pas à pas installe Tsuyu : SygixOs se règle seul et se répare si la TV défait ses réglages. », « Automatique sans Tsuyu » / « Activez le débogage une fois : SygixOs fait les réglages, sans réparation ensuite. », puis « Par autorisations (sans débogage) » / « Quelques autorisations à donner. Limite : sur certaines TV, l'accueil Google TV peut reprendre la main après un redémarrage complet. ». Cas « deux choix sans Tsuyu » : quand la page 9.1 ne propose pas Tsuyu, « Configuration automatique (recommandée) » / « Activez le débogage une fois : SygixOs fait les réglages lui-même. » précède la même ligne par autorisations. Cas « façon automatique indisponible » : quand la voie est « Indisponible sur cette TV » (8.2), la ligne « Configuration automatique » affiche « SygixOs n'arrive pas à utiliser le débogage sur cette TV : utilisez la configuration par autorisations. », focusable sans effet sur OK, même si Tsuyu est disponible. — Navigation du parcours : Le focus SHALL rester dans le panneau, initialement première ligne non indisponible, puis étape conseillée pour chaque écran. Haut/bas SHALL parcourir choix puis « Plus tard », sans boucle ; gauche/droite sans effet. Des OK successifs suivant Android/Tsuyu SHALL terminer sans désactiver l'accueil d'origine. Retour ne SHALL jamais modifier la TV et suit l'aide affichée. Cas « précédent ou fermeture » : quand Retour est pressé, « Retour : précédent » rend l'écran précédent et le focus à l'élément ouvrant ; « Retour : plus tard » et « Retour : fermer » ferment ; « Plus tard », « Terminé », « Fermer » et Home ferment aussi ; affiché automatiquement, le parcours ne revient plus automatiquement et le héro reprend le focus ; tout reste accessible dans Réglages › Écran d'accueil. — Étapes du parcours : OK sur le choix SHALL ouvrir le premier écran encore nécessaire dans l'ordre de sa façon, les étapes faites sautées. Avec Tsuyu : débogage 9.2/9.3, installation 9.4, démarrage 9.7, autorisation 9.8, réglages 9.10 ; sans : débogage 9.2/9.3, autorisation 8.4, réglages 9.10. La voie par autorisations SHALL ouvrir 8.13. Cas « premier écran nécessaire » : quand un choix est validé, « étapes déjà faites » et « tout par OK » de « Parcours de l'écran d'accueil » s'appliquent dans l'ordre « Activer le débogage », « Installer Tsuyu », « Démarrer Tsuyu », « Autoriser SygixOs », « Configuration en cours » selon la façon. — Avancement du parcours : Les écrans automatiques SHALL montrer au-dessus du titre « Étape X sur N » : étapes restantes à l'ouverture parmi débogage, installation/démarrage Tsuyu seulement avec lui, autorisation, réglages toujours ; X est le rang courant. L'erreur SHALL garder son repère. N ne SHALL être recalculé que pour « Sans Tsuyu » en 9.4/9.6. Première page, autorisations, détails, dialogues et panneau n'ont pas ce repère. Cas « repère et changement de façon » : quand une étape est affichée ou « Sans Tsuyu » choisi, « repère d'avancement » et « passage sans Tsuyu » de « Parcours de l'écran d'accueil » s'appliquent.
+
 ### Requirement: Accès par le débogage
-Les opérations privilégiées SHALL passer par Tsuyu « Actif » (tsuyu-access), sinon par l'ADB local sans ordinateur ni app tierce. La connexion SHALL suivre « Clé et connexion ADB locale », ses états « États de l'accès privilégié » et le test pré-Tsuyu « Port du débogage avant Tsuyu ». Absence de débogage, refus ou perte de connexion ne SHALL rendre SygixOs inutilisable ni provoquer de crash.
+Les opérations privilégiées SHALL passer par Tsuyu « Actif » (tsuyu-access), sinon par l'ADB local, après action explicite, délais bornés. La connexion SHALL viser la boucle locale, utiliser une clé propre à SygixOs et ne jamais la transmettre ; elle SHALL être fermée à la fin de chaque séquence. Les états distinguent débogage désactivé, connexion impossible, autorisation en attente/refusée et prêt ; le port ADB SHALL être testé avant Tsuyu. Aucun échec ne SHALL rendre SygixOs inutilisable.
 
 #### Scenario: clé déjà autorisée
 - **WHEN** la clé de SygixOs a déjà été autorisée avec « Toujours autoriser sur cet ordinateur », que le débogage est activé et que Tsuyu n'est pas « Actif »
@@ -1462,8 +1012,10 @@ Les opérations privilégiées SHALL passer par Tsuyu « Actif » (tsuyu-access)
 - **WHEN** le débogage est désactivé ou la connexion perdue pendant une séquence
 - **THEN** la séquence s'arrête, l'état du système est relu, l'écran « Configuration interrompue » (8.12) montre ce qui est fait et l'étape en échec, sans succès supposé
 
+**Détails.** — États de l'accès privilégié : L'accès SHALL distinguer débogage désactivé (lu sans connexion), connexion impossible, autorisation en attente/refusée et prêt (clé acceptée et commande test shell réussie, ou Tsuyu actif). Connexion, attente et chaque commande SHALL être bornées selon p7-default-launcher D1 ; un délai dépassé ne SHALL donner ni prêt ni succès. Cas « perte d'accès » : quand le débogage disparaît ou un délai expire, « débogage perdu pendant une séquence » de « Accès par le débogage » s'applique sans succès ni crash supposé. — Port du débogage avant Tsuyu : Avec Tsuyu, débogage activé et avant téléchargement, une simple ouverture au bouclage SHALL tester le port ADB réseau, sans authentification ni fenêtre système, avec le délai de connexion. Aucun port joignable SHALL rendre la voie « Indisponible sur cette TV » jusqu'à une tentative réussie. Cas « port testé avant téléchargement » : quand la façon avec Tsuyu est choisie, « port testé avant Tsuyu » et « port injoignable » de « Accès par le débogage » s'appliquent.
+
 ### Requirement: Écrans du débogage
-Débogage désactivé, la configuration SHALL commencer par « Guide du débogage ». Activé sans Tsuyu, elle SHALL suivre « Autorisation ADB guidée » ; refus/expiration et désactivation suivent « Erreurs du débogage ». Entre boutons, gauche/droite SHALL naviguer sans boucle, haut/bas sans effet ; Retour bouton ou touche revient à l'écran précédent. Les chemins et libellés restent ceux vérifiés sur la TV (`tasks.md` de Tsuyu, 1.1).
+Débogage désactivé, la configuration SHALL commencer par « Activer le débogage » (deux étapes relues, bouton vers À propos puis options développeur). Activé sans Tsuyu, elle SHALL montrer « Autoriser SygixOs » avec « Toujours autoriser », puis « Continuer ». Refus, expiration et désactivation SHALL afficher l'erreur et revenir au parcours. Gauche/droite naviguent sans boucle, haut/bas sans effet ; Retour revient à l'écran précédent. Les scénarios ci-dessous SHALL préciser libellés et chemins.
 
 #### Scenario: activer le débogage
 - **WHEN** l'utilisateur ouvre la configuration automatique alors que les options pour les développeurs sont masquées et le débogage désactivé
@@ -1493,8 +1045,10 @@ Débogage désactivé, la configuration SHALL commencer par « Guide du débogag
 - **WHEN** ni l'écran demandé ni son écran de repli ne peuvent s'ouvrir
 - **THEN** le bouton ne change rien, sans crash, et les étapes restent affichées
 
+**Détails.** — Guide du débogage : Le guide SHALL relire les états à l'ouverture et au retour, présenter deux étapes numérotées non focusables, « À faire »/« Fait » avec pastille verte, aide « Retour : précédent » et un seul bouton focusé. Avant options développeur activées : 9.2 « Ouvrir À propos » (sinon Paramètres) ; après : 9.3 « Ouvrir les options pour les développeurs » (sinon À propos). Au retour débogage activé, il SHALL avancer sans action. Cas « contenu des deux étapes » : quand « Activer le débogage » est affiché, la description est « Une option de la TV que SygixOs utilise pour se régler lui-même. Deux réglages à changer, puis revenez ici. » ; étape 1 « Affichez les options pour les développeurs », détail « Dans À propos, appuyez 7 fois sur la ligne du build (son nom varie selon la TV), puis revenez avec Retour. », faite quand le système confirme les options ; étape 2 « Activez le débogage USB », détail « Dans Options pour les développeurs, activez « Débogage USB », puis revenez avec Retour. », faite quand le débogage est activé. — Autorisation ADB guidée : Sans Tsuyu, l'étape 8.4 SHALL demander « Autoriser SygixOs », avec aide « Retour : précédent » et « Continuer » focusé déclenchant la demande. La ligne « Débogage » SHALL être « Activé », détail « Détecté au retour dans SygixOs » ; l'acceptation démarre la configuration. Cas « explications de l'autorisation » : quand 8.4 s'affiche, la description est « Le débogage est activé. Android va afficher la fenêtre « Autoriser le débogage USB ? » : SygixOs en a besoin pour se configurer. » ; étapes 1 « Cochez « Toujours autoriser sur cet ordinateur » » / « Sinon, Android vous le redemandera à chaque configuration. », 2 « Choisissez « Autoriser » » / « La configuration démarre aussitôt. ». — Erreurs du débogage : Refus ou expiration d'autorisation SHALL afficher 8.11, même titre/description que 8.4, ligne Débogage, boutons « Retour » et « Réessayer » focusé relançant la demande. Débogage désactivé entre-temps SHALL afficher 8.10, titre/description du guide, étapes relues, boutons « Retour » et « Ouvrir les options pour les développeurs » focusé. Cas « erreur d'autorisation » : quand l'autorisation est refusée ou expire, l'encadré « Autorisation refusée » dit « Android n'a pas autorisé SygixOs et rien n'a été modifié. Réessayez, cochez « Toujours autoriser sur cet ordinateur » puis choisissez « Autoriser ». ». Cas « débogage désactivé » : quand le débogage a été désactivé, l'encadré « Le débogage est désactivé » dit « Rien n'a été modifié. Activez « Débogage USB » dans les options pour les développeurs, puis revenez dans SygixOs. ».
+
 ### Requirement: Configuration automatique de l'écran d'accueil
-La configuration SHALL suivre p7-default-launcher D5 par l'accès choisi : autorisation constructeur, définition HOME après relevé du précédent, puis vérification, sans autre confirmation. Progression, succès, choix et secours SHALL suivre les exigences dédiées ci-dessous. Fermer le panneau ne SHALL pas arrêter la séquence avant fin/délai ; rouvert, il montre l'état relu. Aucune étape faite sans relecture ni réessai sans action.
+La configuration automatique SHALL enchaîner selon p7-default-launcher D5 : autorisation constructeur, relevé de l'écran d'accueil précédent, définition de SygixOs comme HOME, puis vérification. « Configuration en cours » SHALL relire chaque étape (fait/en cours/à venir) et SHALL survivre à la fermeture du panneau jusqu'à la fin ou au délai ; rouvert, il affiche l'état relu. Succès, secours, échec et annulation SHALL suivre les scénarios ci-dessous.
 
 #### Scenario: configuration sans désactivation
 - **WHEN** l'accès est prêt et que SygixOs devient l'écran d'accueil effectif après la définition de l'écran d'accueil
@@ -1528,8 +1082,10 @@ La configuration SHALL suivre p7-default-launcher D5 par l'accès choisi : autor
 - **WHEN** l'utilisateur presse Retour ou la touche Home pendant « Configuration en cours »
 - **THEN** le panneau se ferme, la séquence continue jusqu'à sa fin ou son délai, et à la réouverture l'écran correspondant à l'état relu s'affiche
 
+**Détails.** — Progression de la configuration : 9.10 SHALL afficher « Configuration en cours », étapes relues une à une, sans bouton, aide « Patientez… ». Les états SHALL être « Fait » vert, « En cours… » bleu ou « À venir ». Les résultats/échecs SHALL porter le repère « Réglages » ; leurs écrans à deux boutons naviguent gauche/droite sans boucle, haut/bas sans effet. Cas « contenu de la progression » : quand la séquence de configuration s'exécute, la description est « SygixOs règle la TV. Ne l'éteignez pas pendant la configuration. » ; les lignes sont « Démarrage automatique » / « La TV laisse SygixOs démarrer avec elle » seulement si cette autorisation existe, « Écran d'accueil » / « SygixOs devient l'écran d'accueil d'Android », « Vérification » / « SygixOs vérifie que la TV l'ouvre comme écran d'accueil ». — Résultat de configuration effectif : Accueil effectif vérifié, le résultat SHALL afficher « SygixOs est votre écran d'accueil », les étapes faites et le conseil sans Tsuyu ou la réparation active avec lui. Aide « Retour : fermer », boutons « Détails » et « Terminé » focusé SHALL suivre « Progression de la configuration ». Cas « succès et lignes » : quand SygixOs est devenu l'accueil effectif, la description est « SygixOs a vérifié que la TV l'ouvre maintenant comme écran d'accueil. » ; « Démarrage automatique » / « La TV laisse SygixOs démarrer avec elle » et « Écran d'accueil » / « La TV ouvre SygixOs comme écran d'accueil » sont « Fait » ; sans Tsuyu, « Conseil : désactivez le débogage » dit « SygixOs n'en a plus besoin. Réactivez-le pour relancer la configuration ou rétablir l'accueil Google TV. » tant qu'activé ; avec Tsuyu actif (9.13), « Réparation automatique » est « Active », détail « Tsuyu permet à SygixOs de refaire ses réglages si la TV les défait. Gardez le débogage activé. ». — Dernier choix de configuration : Si l'accueil d'origine reste actif/modifiable et les garde-fous le permettent, 9.11 SHALL proposer « Un dernier choix », deux lignes sans état, garder conseillé focusé puis désactiver ouvrant 8.8, aide « Retour : garder ». Haut/bas SHALL passer entre elles sans boucle, gauche/droite sans effet. Cas « contenu du choix » : quand 9.11 est affiché, la description est « Sur cette TV, l'accueil Google TV reste l'écran d'accueil du système. SygixOs peut le garder ou le remplacer complètement. Vous pourrez changer d'avis dans Réglages › Écran d'accueil. » ; « Garder l'accueil Google TV (conseillé) » dit « La touche Home et l'allumage ouvrent SygixOs. Toutes les touches de la télécommande continuent de marcher. » ; « Désactiver l'accueil Google TV » dit « SygixOs le remplace complètement. Selon la TV, des touches de la télécommande ne marchent plus. ». — Réglages de secours automatiques : Garder ou Retour en 9.11, désactivation impossible ou échouée/annulée SHALL activer le service d'accessibilité en conservant les autres, accorder la superposition et activer « Démarrage à l'allumage », chacun relu, puis montrer « SygixOs garde la main ». Aucun succès SHALL être supposé. Cas « résultat de secours » : quand les réglages de secours ont été relus, « SygixOs garde la main » décrit « L'accueil Google TV reste actif : SygixOs a réglé la touche Home et l'ouverture au démarrage. » ; « Touche Home » / « Le service de SygixOs ramène à SygixOs », « Superposer aux autres applications » / « Permet à SygixOs de s'ouvrir au démarrage de la TV », « Ouverture à l'allumage » / « SygixOs demande à s'ouvrir au démarrage de la TV » montrent leurs états ; aide « Retour : fermer », boutons « Détails » et « Terminé » focusé. Cas « indications de réparation du secours » : quand ce résultat s'affiche avec ou sans Tsuyu actif, avec Tsuyu (9.12), « Réparation automatique » est « Active », détail « Tsuyu permet à SygixOs de refaire ces réglages si la TV les défait. Gardez le débogage activé. », puis « Bon à savoir » / « Si la touche Home ne ramène plus à SygixOs après un redémarrage, ouvrez SygixOs une fois : il refait ses réglages. » ; sans Tsuyu, « Bon à savoir » dit « Sur certaines TV, après un redémarrage complet, l'accueil Google TV peut reprendre la main ; SygixOs vous le signale. ». — Échec de configuration et état automatique : Une étape en échec SHALL arrêter les dépendantes et afficher 8.12, sans réessai sans action. La voie automatique SHALL être « Active » si accueil effectif ou secours en place, « Indisponible sur cette TV » selon l'accès, sinon « À configurer », sur première page et panneau Launcher. Cas « écran interrompu » : quand une étape de configuration échoue, « Configuration interrompue » dit « Une étape n'a pas abouti. Ce qui est fait reste en place ; vous pouvez réessayer. » ; erreur propre à l'étape, pour HOME « L'écran d'accueil n'a pas pu être réglé » / « La touche Home ouvre encore l'accueil Google TV. Vérifiez que le débogage est toujours activé, puis réessayez. » ; étapes « Fait », « Échec » rouge ou « Annulée » / « Non effectuée » ; aide « Retour : fermer », boutons « Fermer » et « Réessayer » focusé.
+
 ### Requirement: Page Par autorisations
-La page 8.13 SHALL suivre « Lignes de la page Par autorisations », « Navigation des autorisations » et « État de la voie par autorisations ». OK SHALL ouvrir le réglage Android correspondant sans activation implicite ; au retour, états relus et focus sur la ligne ouvrante. Chaque ligne SHALL montrer à droite son état réel, jamais une réussite supposée.
+La page 8.13 SHALL afficher les lignes dans l'ordre suivant : touche Home, démarrage à l'allumage, superposition si requise, démarrage automatique si le constructeur en déclare un, puis « Bon à savoir ». OK SHALL ouvrir le réglage Android correspondant sans activation implicite ; au retour, états relus et focus sur la ligne ouvrante. Chaque ligne SHALL montrer à droite son état réel, jamais une réussite supposée. Navigation et bouton « Terminé » SHALL suivre les scénarios ci-dessous.
 
 #### Scenario: ouverture de la page
 - **WHEN** l'utilisateur presse OK sur « Par autorisations (sans débogage) » sur une TV sans gestionnaire d'auto-démarrage du constructeur, rien n'étant fait
@@ -1547,8 +1103,10 @@ La page 8.13 SHALL suivre « Lignes de la page Par autorisations », « Navigati
 - **WHEN** l'appareil a un gestionnaire d'auto-démarrage du constructeur sans écran retenu, comme la TV de référence
 - **THEN** « Autoriser le démarrage automatique » est affichée « Indisponible » avec la raison « Pas de réglage sur cette TV : seule la configuration automatique peut l'autoriser », reste focalisable, et OK n'ouvre rien
 
+**Détails.** — Lignes de la page Par autorisations : 8.13 SHALL afficher Home, allumage, permission de démarrage conditionnelle puis autorisation constructeur si détectée (D8). Sans action, la page ne SHALL rien activer. Après les lignes, « Bon à savoir » non focusable, aide « Retour : fermer » et « Terminé » SHALL être présents. Cas « texte de la page » : quand « Par autorisations » s'affiche, sa description est « Pour chaque ligne, OK ouvre le réglage Android à changer. Activez SygixOs, puis revenez ici : l'état se met à jour tout seul. » ; les lignes sont « Ouvrir SygixOs avec la touche Home », « Ouvrir SygixOs à l'allumage », « Autoriser l'ouverture au démarrage » si option activée et superposition manquante, et « Autoriser le démarrage automatique » si gestionnaire détecté ; « Bon à savoir » dit « Sur certaines TV, après un redémarrage complet, l'accueil Google TV peut reprendre la main ; SygixOs vous le signale. ». Cas « ligne du constructeur » : quand le gestionnaire de démarrage constructeur est détecté, avec écran retenu, le détail est « OK : ouvre l'écran de démarrage automatique de la TV », « À faire » jusqu'à une ouverture observée après sa consultation puis « Fait » ; sans écran, « Indisponible » explique « Pas de réglage sur cette TV : seule la configuration automatique peut l'autoriser ». — Navigation des autorisations : Focus initial SHALL être première ligne non « Fait », sinon « Terminé ». Haut/bas SHALL parcourir les lignes focusables puis Terminé sans boucle ; gauche/droite sans effet. États à droite : « À faire », « En attente… » dans Android/vérification, « Fait », « Bloqué » pour Home seulement, « Indisponible » avec raison à la place du détail, focusable et OK sans effet. Cas « déplacement et retour système » : quand la page est parcourue ou Android est fermé, « ouverture de la page » et « retour d'un réglage Android » de « Page Par autorisations » gardent le panneau et restaurent la ligne ouvrante. — État de la voie par autorisations : Sur la première page et le panneau Launcher, la voie SHALL être « Active » si toutes les lignes affichées/disponibles sont « Fait », « Bloquée » si Home est « Bloqué », « En partie » si au moins une est faite, « Non utilisée » si aucune faite et voie automatique active, sinon « À faire ». Cas « synthèse de la voie » : quand les états des autorisations sont relus, la première page et le panneau affichent cette synthèse sans modifier les réglages ni contourner un refus.
+
 ### Requirement: Panneau Launcher principal
-« Configurer SygixOs comme launcher principal » SHALL ouvrir « Launcher principal » (9.14/9.15/8.21) au-dessus des réglages selon « Synthèse du panneau Launcher » et « Actions du panneau Launcher ». Focus initial : relancer ; haut/bas voies puis actions sans boucle, gauche/droite sans effet. Sans repère d'avancement, Retour/fermeture SHALL rendre le focus à la ligne des réglages sans changer le drapeau du parcours automatique.
+« Configurer SygixOs comme launcher principal » SHALL ouvrir « Launcher principal » (9.14/9.15/8.21) au-dessus des réglages, avec les lignes Automatique, Tsuyu et Par autorisations (état et détail), puis Relancer, Remplacer et Rétablir selon les conditions. Focus initial : relancer ; haut/bas voies puis actions sans boucle, gauche/droite sans effet. Retour/fermeture SHALL rendre le focus à la ligne des réglages sans changer le drapeau du parcours automatique.
 
 #### Scenario: ouverture depuis les réglages
 - **WHEN** l'accueil d'origine a été désactivé par la configuration automatique sans Tsuyu, que Tsuyu n'est pas disponible et que l'utilisateur presse OK sur la ligne des réglages
@@ -1570,8 +1128,10 @@ La page 8.13 SHALL suivre « Lignes de la page Par autorisations », « Navigati
 - **WHEN** l'utilisateur presse Retour sur le panneau
 - **THEN** il se ferme et la ligne des réglages a le focus avec son état recalculé
 
+**Détails.** — Synthèse du panneau Launcher : Le panneau SHALL afficher « Configuration automatique », « Tsuyu » seulement si disponible, puis « Par autorisations », états et détails de synthèse. Une voie active SHALL faire décrire SygixOs comme accueil ; sinon comme pas encore accueil. La ligne Tsuyu SHALL refléter « États de Tsuyu » de tsuyu-access, avec les détails ci-dessous. Cas « description et synthèses » : quand le panneau « Launcher principal » s'ouvre, une voie active donne « SygixOs est l'écran d'accueil de la TV. Voici l'état de chaque façon de le configurer. », sinon « SygixOs n'est pas encore l'écran d'accueil. Voici l'état de chaque façon de le configurer. » ; exemples de détails : « Accueil Google TV désactivé · SygixOs est l'écran d'accueil », « Accueil Google TV gardé · touche Home et allumage réglés », « Pas encore configurée », « Pas utilisée sur cette TV », « Aucune autorisation donnée ». Cas « détails de Tsuyu » : quand la ligne Tsuyu est présente, Actif dit « Répare les réglages si la TV les défait », À installer « Pour que SygixOs se répare tout seul », Arrêté « OK : ouvre Tsuyu pour le démarrer », À autoriser « OK : autorise SygixOs dans Tsuyu », À mettre à jour « Version trop ancienne pour SygixOs », Indisponible sur cette TV « Le débogage de cette TV ne permet pas à Tsuyu de démarrer ». — Actions du panneau Launcher : Le panneau SHALL proposer relancer, remplacer si voie active/accueil actif modifiable/garde-fous tenus, rétablir si un composant est désactivé par l'utilisateur. OK sur automatique/relancer SHALL suivre le parcours via Tsuyu actif sinon sans ; autorisations ouvre 8.13, remplacer 8.8, rétablir sa confirmation. L'aide SHALL être « Retour : fermer ». Cas « libellés des actions » : quand les actions sont affichées, « Relancer la configuration » dit « Refait les réglages automatiques » avec Tsuyu actif, sinon « Refait les réglages automatiques (débogage nécessaire) » ; « Remplacer complètement l'accueil Google TV » dit « Le désactive : selon la TV, des touches de la télécommande ne marchent plus » ; « Rétablir l'accueil Google TV » dit « Le réactive et lui rend l'écran d'accueil ». Cas « action de la ligne Tsuyu » : quand OK est pressé sur Tsuyu, À installer/À mettre à jour ouvre débogage si besoin puis 9.4, Arrêté 9.7, À autoriser 9.8, Actif Tsuyu, Indisponible sur cette TV reste sans effet.
+
 ### Requirement: État de l'écran d'accueil
-SygixOs SHALL rester candidat HOME et relire sans débogage les états système au retour au premier plan, à l'ouverture du parcours/panneau et après chaque opération selon « Lectures de l'état du launcher ». Les valeurs relues SHALL remplacer les anciennes ; une erreur distincte d'une absence ne SHALL jamais produire « Active ». Le démarrage constructeur illisible sans débogage garde la dernière relecture de séquence.
+SygixOs SHALL rester candidat HOME et relire sans débogage les états système au retour au premier plan, à l'ouverture du parcours/panneau et après chaque opération : écran d'accueil effectif, rôle HOME, composants de l'accueil d'origine, fin de configuration, service et superposition. Les valeurs relues SHALL remplacer les anciennes ; une erreur ne SHALL jamais produire « Active ». L'autorisation constructeur illisible garde la dernière relecture.
 
 #### Scenario: configuration défaite hors de SygixOs
 - **WHEN** l'utilisateur ou le système réactive l'accueil d'origine ou change l'écran d'accueil pendant que SygixOs est en arrière-plan
@@ -1585,8 +1145,10 @@ SygixOs SHALL rester candidat HOME et relire sans débogage les états système 
 - **WHEN** la lecture de l'état d'un composant ou de l'écran d'accueil échoue
 - **THEN** aucune voie n'est déclarée « Active » sur cette lecture, aucun crash n'a lieu et la lecture est refaite au prochain retour au premier plan
 
+**Détails.** — Lectures de l'état du launcher : Les lectures SHALL couvrir écran d'accueil effectif, rôle HOME, composants d'origine (actif, désactivé par l'utilisateur, hors de portée), configuration initiale terminée, accessibilité (activée, connectée) et superposition. SygixOs SHALL être effectif seulement si HOME se résout vers lui et qu'aucune autre activité HOME activée n'a de priorité supérieure. Cas « résolution et état relus » : quand une lecture est déclenchée selon « État de l'écran d'accueil », ces champs sont relus ; « configuration défaite hors de SygixOs », « accueil désactivé par la procédure ADB » et « erreur de lecture » restent applicables.
+
 ### Requirement: Désactivation de l'accueil d'origine
-La désactivation SHALL venir seulement de 9.11 ou du panneau Launcher, après « Confirmation de désactivation » et « Garde-fous de désactivation ». Elle SHALL suivre « Séquence de désactivation » et « Annulation d'une désactivation échouée », sans jamais laisser la TV sans accueil activé. Depuis le panneau, l'accès SHALL être prêt via Tsuyu actif, sinon par le parcours du débogage sans Tsuyu.
+La désactivation SHALL venir seulement de 9.11 ou du panneau Launcher, après confirmation et garde-fous relus (accès prêt, configuration terminée, activité HOME activée, un composant actif et modifiable). Elle SHALL désactiver les composants un par un puis vérifier l'écran d'accueil effectif ; un échec ou une vérification négative SHALL les remettre à leur état par défaut dans l'ordre inverse, sans laisser la TV sans accueil actif.
 
 #### Scenario: confirmation
 - **WHEN** l'utilisateur presse OK sur « Désactiver l'accueil Google TV » en 9.11
@@ -1612,8 +1174,10 @@ La désactivation SHALL venir seulement de 9.11 ou du panneau Launcher, après �
 - **WHEN** la configuration initiale de l'appareil n'est pas terminée
 - **THEN** 9.11 n'est pas affiché, « Remplacer complètement l'accueil Google TV » n'est pas proposé et aucune désactivation n'est exécutée
 
+**Détails.** — Confirmation de désactivation : Seules la ligne « Désactiver l'accueil Google TV » en 9.11 et l'action « Remplacer complètement l'accueil Google TV » SHALL ouvrir 8.8. « Annuler » SHALL être focusé, puis « Désactiver », aide « Retour : annuler » ; gauche/droite sans boucle, haut/bas sans effet. Retour/Annuler SHALL rendre l'écran et le focus ouvrants sans modification. Cas « avertissement explicite » : quand « Désactiver l'accueil Google TV ? » s'affiche, le texte est « SygixOs deviendra l'écran d'accueil. Selon la TV, des fonctions de l'accueil Google TV peuvent disparaître : réglages rapides, guide des programmes, appui long sur Home, choix du profil. Rétablissez-le dans Réglages › Écran d'accueil, et avant de désinstaller SygixOs. ». — Garde-fous de désactivation : Juste avant l'opération, SygixOs SHALL relire : accès prêt, configuration initiale de la TV terminée, activité HOME SygixOs déclarée et activée, au moins un composant d'origine actif/modifiable. Toute condition non tenue SHALL empêcher toute désactivation. Cas « appareil pas encore prêt » : quand une condition manque, « appareil pas encore configuré » de « Désactivation de l'accueil d'origine » et les garde-fous de p7-default-launcher D6 empêchent l'opération. — Séquence de désactivation : Selon p7-default-launcher D6, les composants actifs SHALL être désactivés un par un dans l'ordre de l'ensemble, chacun relu, puis HOME effectif vérifié. La progression SHALL être « Configuration en cours » avec ligne « Accueil Google TV ». Succès depuis 9.11 : résultat effectif ; depuis panneau : états recalculés, focus « Rétablir l'accueil Google TV ». Cas « opération réussie » : quand tous les composants et l'accueil effectif sont confirmés, « désactivation réussie » et « remplacement depuis le panneau » de « Désactivation de l'accueil d'origine » s'appliquent. — Annulation d'une désactivation échouée : Échec, délai ou HOME non confirmé SHALL remettre par défaut les composants touchés par cette opération, dans l'ordre inverse, puis relire. Depuis 9.11, les secours SHALL suivre ; depuis panneau, 8.12 SHALL afficher l'échec, sans laisser la TV sans accueil activé. Cas « retour arrière de l'opération » : quand la désactivation échoue depuis le panneau, l'encadré dit « L'accueil Google TV n'a pas pu être désactivé », détail « Il est resté actif et rien d'autre n'a changé. Vérifiez l'accès, puis réessayez. » ; le scénario « désactivation partielle annulée » de « Désactivation de l'accueil d'origine » reste applicable.
+
 ### Requirement: Rétablissement de l'accueil d'origine
-OK sur « Rétablir l'accueil Google TV », accès prêt par Tsuyu actif sinon parcours du débogage, SHALL ouvrir « Confirmation du rétablissement ». Confirmé, le rétablissement SHALL suivre « Opération de rétablissement », sans modifier autorisations, service d'accessibilité ni Tsuyu. Succès : panneau relu sans action de rétablissement, focus « Relancer la configuration » ; échec 8.12 « L'accueil Google TV n'a pas pu être rétabli », sans succès supposé.
+OK sur « Rétablir l'accueil Google TV », accès prêt, SHALL ouvrir le dialogue de confirmation ; confirmé, le rétablissement SHALL remettre les composants désactivés à leur état par défaut dans l'ordre inverse, puis redéfinir l'écran d'accueil précédent s'il a été relevé, présent et activé, le tout relu. Autorisations, service d'accessibilité et Tsuyu SHALL rester inchangés. Succès : panneau relu, focus « Relancer la configuration » ; échec : « L'accueil Google TV n'a pas pu être rétabli ».
 
 #### Scenario: rétablissement réussi
 - **WHEN** l'utilisateur presse « Rétablir » et que les composants sont remis à leur état par défaut et l'écran d'accueil précédent redéfini
@@ -1635,6 +1199,8 @@ OK sur « Rétablir l'accueil Google TV », accès prêt par Tsuyu actif sinon p
 - **WHEN** la remise à l'état par défaut d'un composant échoue ou dépasse son délai
 - **THEN** l'encadré « L'accueil Google TV n'a pas pu être rétabli » s'affiche avec « Réessayer » focalisé et l'état relu, sans succès supposé
 
+**Détails.** — Confirmation du rétablissement : Le dialogue 8.17 SHALL demander « Rétablir l'accueil Google TV ? », proposer « Annuler » et « Rétablir » focalisé, aide « Retour : annuler », avec navigation de 8.8. Son texte SHALL expliquer la portée exacte du rétablissement. Cas « texte du dialogue » : quand le dialogue de rétablissement est affiché, il dit « L'accueil Google TV sera réactivé et redeviendra l'écran d'accueil. Les autres réglages faits par SygixOs restent en place : si son service reste activé, la touche Home ouvrira encore SygixOs. » ; « rétablissement annulé » de « Rétablissement de l'accueil d'origine » préserve la TV. — Opération de rétablissement : Confirmé, le rétablissement SHALL remettre par défaut les composants désactivés par l'utilisateur dans l'ordre inverse de l'ensemble ; si l'accueil précédent relevé est présent et activé, le redéfinir. Tout SHALL être relu avant le résultat, sans toucher les autres réglages. Cas « avec ou sans accueil précédent » : quand l'utilisateur confirme le rétablissement, « rétablissement réussi », « rétablissement par Tsuyu », « sans écran d'accueil précédent relevé » et « échec du rétablissement » de « Rétablissement de l'accueil d'origine » s'appliquent.
+
 ### Requirement: Démarrage automatique du constructeur
 La configuration automatique SHALL accorder au seul paquet SygixOs `AUTO_START`, ou `APP_AUTO_START` si seul disponible, enregistrer les opérations pour persistance puis relire. Déjà accordée : aucune écriture ; absente : étape sans objet et ligne masquée. Refus, délai ou relecture négative ne SHALL produire ni succès ni réessai sans action. Cette autorisation ne SHALL garantir aucun démarrage.
 
@@ -1651,7 +1217,7 @@ La configuration automatique SHALL accorder au seul paquet SygixOs `AUTO_START`,
 - **THEN** l'étape est en échec et la séquence continue avec l'écran d'accueil
 
 ### Requirement: Opérations privilégiées limitées
-ADB intégré et Tsuyu SHALL n'exécuter que les opérations/arguments fixes de p7-default-launcher D2 vers SygixOs, son service ou l'ensemble fermé de l'accueil d'origine ; toute autre cible est refusée avant envoi. Aucune commande externe ni révocation d'autorisation ne SHALL être exécutée. Les services et connexions SHALL suivre « Conservation des services et accès privilégiés ».
+ADB intégré et Tsuyu SHALL n'exécuter que les opérations/arguments fixes de p7-default-launcher D2 vers SygixOs, son service ou l'ensemble fermé de l'accueil d'origine ; toute autre cible est refusée avant envoi. Aucune commande externe ni révocation d'autorisation ne SHALL être exécutée. Les autres services d'accessibilité SHALL être conservés ; le retrait de celui de SygixOs n'est permis que pour la réparation Tsuyu. Aucune connexion privilégiée ne SHALL rester ouverte hors séquence demandée.
 
 #### Scenario: cible refusée
 - **WHEN** une opération est demandée avec un paquet ou un composant hors du paquet SygixOs et de l'ensemble fermé
@@ -1669,8 +1235,10 @@ ADB intégré et Tsuyu SHALL n'exécuter que les opérations/arguments fixes de 
 - **WHEN** une séquence ou une réparation se termine, réussie, en échec ou par délai
 - **THEN** la connexion au débogage est fermée, ou le service de SygixOs lancé par Tsuyu est arrêté
 
+**Détails.** — Clé et connexion ADB locale : L'ADB SHALL se connecter au bouclage sur le port réseau de l'appareil seulement, après action explicite dans le parcours, puis fermer à la fin de la séquence. La paire de clés propre à SygixOs SHALL être générée à la première connexion, conservée en stockage privé, autorisée dans « Autoriser le débogage USB ? » et ne jamais sortir de l'appareil. Cas « autorisation et fermeture » : quand le parcours utilise l'ADB intégré, « clé déjà autorisée » de « Accès par le débogage » et « fin de séquence » de « Opérations privilégiées limitées » s'appliquent sans connexion à un autre appareil. — Conservation des services et accès privilégiés : Les autres services d'accessibilité activés SHALL être conservés. Retirer puis remettre celui de SygixOs ne SHALL être permis que pour la réparation automatique de tsuyu-access. Aucune connexion privilégiée ni service SygixOs lancé par Tsuyu ne SHALL rester ouvert hors séquence utilisateur ou réparation automatique. Cas « service et fin de séquence » : quand une opération privilégiée touche le service ou se termine, « service d'accessibilité ajouté », « service relié par la réparation » et « fin de séquence » de « Opérations privilégiées limitées » s'appliquent.
+
 ### Requirement: Détails des modifications
-« Détails » des écrans de succès/secours SHALL ouvrir « Ce que SygixOs a modifié » (8.14/9.16), sans mascotte. Il SHALL suivre « Lignes des modifications » avec états relus, lignes non focusables, aide « Retour : fermer » et bouton « Fermer » focusé rendant le focus à « Détails ».
+« Détails » des écrans de succès/secours SHALL ouvrir « Ce que SygixOs a modifié » (8.14/9.16), sans mascotte. Le panneau SHALL suivre les scénarios ci-dessous : lignes non focusables des réglages réellement modifiés avec états relus, accueil Google TV toujours, Tsuyu et réparations selon les cas, aide « Retour : fermer » et bouton « Fermer » focalisé rendant le focus à « Détails ».
 
 #### Scenario: détails après les réglages de secours
 - **WHEN** l'utilisateur presse OK sur « Détails » sur « SygixOs garde la main » sans Tsuyu
@@ -1683,6 +1251,8 @@ ADB intégré et Tsuyu SHALL n'exécuter que les opérations/arguments fixes de 
 #### Scenario: détails après désactivation
 - **WHEN** l'utilisateur presse OK sur « Détails » sur « SygixOs est votre écran d'accueil » après une désactivation sans Tsuyu
 - **THEN** 8.14 liste « Démarrage automatique », « Écran d'accueil » et « Accueil Google TV » « Désactivé à votre demande », sans les réglages de secours
+
+**Détails.** — Lignes des modifications : Le panneau SHALL montrer les réglages réellement modifiés, l'accueil Google TV toujours, Tsuyu seulement installé par SygixOs et les réparations si configuration via Tsuyu. Les lignes SHALL être non focusables avec états relus, selon les détails ci-dessous, sans prétendre que d'autres réglages ont changé. Cas « contenu du panneau de détails » : quand « Ce que SygixOs a modifié » est affiché, la description est « Rien d'autre n'a été touché. « Rétablir l'accueil Google TV » ne concerne que l'accueil ; les autorisations se retirent dans les paramètres Android. » ; les lignes sont « Démarrage automatique » / « La TV laisse SygixOs démarrer avec elle », « Écran d'accueil » / « SygixOs défini comme écran d'accueil d'Android », « Superposer aux autres applications » / « Permet à SygixOs de s'ouvrir au démarrage de la TV », « Touche Home » / « Le service de SygixOs ne lit que la touche Home ». Cas « accueil et réparations dans les détails » : quand les lignes d'accueil ou Tsuyu sont présentes, « Accueil Google TV » dit « Toujours actif : désactivé seulement si vous le choisissez » avec « Inchangé », sinon « Désactivé à votre demande » avec « Fait » ; « Tsuyu » dit « Installé par SygixOs : il garde l'accès au débogage » avec « Fait » ; « Réparations automatiques » dit « Dernière : <date> · <réglage> » ou « Aucune pour l'instant », « Active » si Tsuyu « Actif », sinon « Arrêtée ».
 
 ### Requirement: Débogage après la configuration
 Après succès sans Tsuyu, « Conseil : désactivez le débogage » SHALL rester tant qu'il est activé, relu au retour ; reconfiguration/rétablissement exigent sa réactivation (écrans du débogage et 8.4). Avec Tsuyu, aucun conseil de désactivation : « Réparation automatique » SHALL demander de le garder activé car Tsuyu en dépend. SygixOs ne SHALL jamais activer ni désactiver le débogage lui-même.
