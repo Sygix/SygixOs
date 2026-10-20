@@ -214,7 +214,7 @@ class MainActivityLauncherTest {
         assertFalse(launcher.state.value.guideShown)
         val request = shadowOf(controller.get()).lastRequestedPermission
         assertNotNull(request)
-        controller.get().onRequestPermissionsResult(request.requestCode, request.requestedPermissions, intArrayOf(PackageManager.PERMISSION_DENIED))
+        controller.get().activityResultRegistry.dispatchResult(request.requestCode, false)
         awaitMain { launcher.state.value.guideShown }
         assertTrue(launcher.state.value.guideShown)
     }

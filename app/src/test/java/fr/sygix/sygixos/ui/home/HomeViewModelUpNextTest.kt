@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import fr.sygix.sygixos.installLeanbackActivity
+
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
@@ -125,8 +127,7 @@ class HomeViewModelUpNextTest {
             }
         }
         val entry = UpNextSourceEntry("com.source", "Source", intentUri = "https://example.org/play")
-        shadowOf(context.packageManager).addResolveInfoForIntent(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setPackage(entry.packageName),
+        context.packageManager.installLeanbackActivity(
             ResolveInfo().apply {
                 activityInfo = ActivityInfo().apply {
                     packageName = entry.packageName

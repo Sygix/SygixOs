@@ -20,7 +20,7 @@ class InstalledAppsSource(private val context: Context) {
                 if (pkg == context.packageName) return@mapNotNull null
                 TvApp(
                     packageName = pkg,
-                    label = info.loadLabel(pm)?.toString().orEmpty().ifEmpty { pkg },
+                    label = info.loadLabel(pm).toString().ifEmpty { pkg },
                     activityName = info.activityInfo.name,
                 )
             }

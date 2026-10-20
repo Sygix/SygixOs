@@ -481,8 +481,8 @@ class UpdateRepositoryTest {
         val limited = CheckResult.Error(UpdateError.RateLimited(h.now + HOUR))
         assertEquals(limited, h.repository.status.value.lastResult)
         assertEquals(h.now + HOUR, (h.store as MemoryUpdateStore).state.value.retryAt)
-        h.now = (h.store as MemoryUpdateStore).state.value.retryAt!! - 1
-        (h.store as MemoryUpdateStore).state.value = h.store.state.value.copy(lastCheckAt = h.now - 25 * HOUR)
+        h.now = h.store.state.value.retryAt!! - 1
+        h.store.state.value = h.store.state.value.copy(lastCheckAt = h.now - 25 * HOUR)
         h.repository.onHomeShown()
         advanceUntilIdle()
         assertEquals(1, h.listCalls())
@@ -602,7 +602,7 @@ class UpdateRepositoryTest {
         h.repository.onForeground()
         advanceUntilIdle()
         assertEquals(listOf("confirm"), h.screens.launched.map { it.action })
-        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+        assertEquals(299L, h.store.relaunch)
         assertTrue(relaunchAfterReplace(h, installed = 299L))
     }
 
@@ -615,7 +615,7 @@ class UpdateRepositoryTest {
         assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
         h.repository.onInstallStatus(InstallStatus.Failed(1, InstallFailure.CONFLICT))
         advanceUntilIdle()
-        assertNull((h.store as MemoryUpdateStore).relaunch)
+        assertNull(h.store.relaunch)
         assertFalse(relaunchAfterReplace(h, installed = 299L))
     }
 
@@ -756,6 +756,6 @@ class UpdateRepositoryTest {
         h.repository.onForeground()
         advanceUntilIdle()
         assertEquals(listOf("confirm"), h.screens.launched.map { it.action })
-        assertEquals(299L, (h.store as MemoryUpdateStore).relaunch)
+        assertEquals(299L, h.store.relaunch)
     }
 }

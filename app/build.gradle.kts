@@ -90,12 +90,10 @@ abstract class DexMetadataTask : DefaultTask() {
     @TaskAction
     fun run() {
         val folder = apkFolder.get().asFile
-        @Suppress("UNCHECKED_CAST")
-        val metadata = groovy.json.JsonSlurper().parse(File(folder, "output-metadata.json")) as Map<String, Any?>
-        val apk = ((metadata["elements"] as List<Map<String, Any?>>).single()["outputFile"] as String)
+        val metadata = groovy.json.JsonSlurper().parse(File(folder, "output-metadata.json")) as Map<*, *>
+        val apk = (((metadata["elements"] as List<*>).single() as Map<*, *>)["outputFile"] as String)
         val api = minSdk.get()
-        @Suppress("UNCHECKED_CAST")
-        val profiles = metadata["baselineProfiles"] as? List<Map<String, Any?>> ?: emptyList()
+        val profiles = (metadata["baselineProfiles"] as? List<*>)?.map { it as Map<*, *> } ?: emptyList()
         val match = profiles.firstOrNull { (it["minApi"] as Number).toInt() <= api && api <= (it["maxApi"] as Number).toInt() }
         val dm = (match?.get("baselineProfiles") as? List<*>)?.singleOrNull() as? String
             ?: error("Aucun fichier .dm produit par AGP pour l'API $api dans ${folder.name}")
@@ -160,6 +158,12 @@ android.sourceSets.getByName("debug").assets.directories.add("schemas")
 
 tasks.configureEach {
     if (name == "mergeDebugAssets") dependsOn("kspDebugKotlin")
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    if (name.endsWith("UnitTestKotlin")) {
+        compilerOptions.optIn.addAll("kotlinx.coroutines.ExperimentalCoroutinesApi", "coil.annotation.ExperimentalCoilApi")
+    }
 }
 
 tasks.withType<Test>().configureEach {

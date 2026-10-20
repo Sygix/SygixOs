@@ -29,7 +29,14 @@ jobs:
 
       - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd
         with:
-          packages: 'platforms;android-37.0 build-tools;37.0.0'
+          accept-android-sdk-licenses: false
+          packages: ''
+
+      - name: Install Android SDK packages
+        run: |
+          set +o pipefail
+          yes | android sdk --licenses
+          android sdk 'platforms;android-37.0' 'build-tools;37.0.0'
 
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6
         with:
@@ -90,10 +97,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-        with:
-          name: app-release
+      - name: Download release artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download "$GITHUB_RUN_ID" --name app-release
 
       - name: Create GitHub release
         env:

@@ -73,7 +73,6 @@ class HomeScreenStateReaderTest {
     }
 
     @Test fun higherPriorityStockPreventsEffectiveHomeEvenWithOwnResolution() = runTest {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
         fun home(packageName: String, priority: Int) = ResolveInfo().apply {
             this.priority = priority
             isDefault = true
@@ -84,7 +83,18 @@ class HomeScreenStateReaderTest {
                 applicationInfo = ApplicationInfo().apply { this.packageName = packageName; enabled = true }
             }
         }
-        shadowOf(context.packageManager).setResolveInfosForIntent(intent, listOf(home(context.packageName, 0), home(StockHomePackages.last(), 2)))
+        val pm = shadowOf(context.packageManager)
+        for (resolved in listOf(home(context.packageName, 0), home(StockHomePackages.last(), 2))) {
+            val activity = resolved.activityInfo
+            activity.exported = true
+            activity.applicationInfo.flags = activity.applicationInfo.flags or ApplicationInfo.FLAG_INSTALLED
+            pm.addOrUpdateActivity(activity)
+            pm.addIntentFilterForActivity(ComponentName(activity.packageName, activity.name), android.content.IntentFilter(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_HOME)
+                addCategory(Intent.CATEGORY_DEFAULT)
+                priority = resolved.priority
+            })
+        }
         assertFalse(HomeScreenStateReader(context).read().getOrThrow().effective)
     }
 

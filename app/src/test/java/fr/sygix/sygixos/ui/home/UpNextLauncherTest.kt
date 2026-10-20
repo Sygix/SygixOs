@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import fr.sygix.sygixos.installLeanbackActivity
+
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.ContextWrapper
@@ -41,8 +43,7 @@ class UpNextLauncherTest {
             applicationInfo = ApplicationInfo().apply { packageName = source.packageName; enabled = true }
             enabled = true
         } }
-        shadowOf(base.packageManager).addResolveInfoForIntent(Intent(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER).setPackage(source.packageName), info)
+        base.packageManager.installLeanbackActivity(info)
     }
     @Test fun `published intent opens first constrained to selected package`() {
         assertTrue(AppLauncher.open(context(), item))

@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import fr.sygix.sygixos.installLeanbackActivity
+
 import androidx.datastore.preferences.core.edit
 import fr.sygix.sygixos.data.dataStore
 import android.content.Context
@@ -83,11 +85,9 @@ internal class SettingsHarness(
     fun packageOf(label: String) = "com.${label.lowercase()}"
 
     fun install(vararg labels: String) = runBlocking {
-        val pm = Shadows.shadowOf(context.packageManager)
         labels.forEach { label ->
             val pkg = packageOf(label)
-            pm.addResolveInfoForIntent(
-                leanback,
+            context.packageManager.installLeanbackActivity(
                 ResolveInfo().apply {
                     nonLocalizedLabel = label
                     activityInfo = ActivityInfo().apply {
@@ -103,7 +103,7 @@ internal class SettingsHarness(
 
     fun uninstall(vararg labels: String) = runBlocking {
         val pm = Shadows.shadowOf(context.packageManager)
-        labels.forEach { pm.removeResolveInfosForIntent(leanback, packageOf(it)) }
+        labels.forEach { pm.removeActivity(android.content.ComponentName(packageOf(it), "${packageOf(it)}.Main")) }
         repo.refreshApps()
     }
 

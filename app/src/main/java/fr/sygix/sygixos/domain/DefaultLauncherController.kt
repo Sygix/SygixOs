@@ -526,7 +526,6 @@ class DefaultLauncherController(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                Unit
             } finally {
                 access.close()
                 refreshSnapshot()

@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import fr.sygix.sygixos.installLeanbackActivity
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -341,8 +343,7 @@ class HomeRefreshTest {
         home.refreshHero()
         assertEquals(2, loads)
         assertEquals(1, published.size)
-        shadowOf(context.packageManager).addResolveInfoForIntent(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER),
+        context.packageManager.installLeanbackActivity(
             ResolveInfo().apply {
                 nonLocalizedLabel = "New"
                 activityInfo = ActivityInfo().apply { packageName = "com.new"; name = "com.new.Main"; applicationInfo = ApplicationInfo().apply { packageName = "com.new" } }

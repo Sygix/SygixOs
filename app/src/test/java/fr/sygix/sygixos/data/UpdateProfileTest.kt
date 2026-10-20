@@ -214,7 +214,7 @@ class UpdateProfileTest {
         advanceUntilIdle()
         assertEquals(1, h.gateway.sessions.size)
         assertEquals(UpdateError.AssetNotFound, (h.repository.status.value.step as? UpdateStep.Failed)?.error)
-        assertNull((h.store as MemoryUpdateStore).relaunch)
+        assertNull(h.store.relaunch)
         assertTrue(h.residualFiles().isEmpty())
     }
 

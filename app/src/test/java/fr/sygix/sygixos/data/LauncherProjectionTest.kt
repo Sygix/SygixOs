@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.data
 
+import fr.sygix.sygixos.installLeanbackActivity
+
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -75,8 +77,7 @@ class LauncherProjectionTest {
         val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
         val grids = mutableListOf<List<String>>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { repo.catalog.collect { c -> grids += c.grid.map { it.packageName } } }
-        fun install(pkg: String) = shadowOf(context.packageManager).addResolveInfoForIntent(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER),
+        fun install(pkg: String) = context.packageManager.installLeanbackActivity(
             ResolveInfo().apply {
                 nonLocalizedLabel = pkg
                 activityInfo = ActivityInfo().apply { packageName = pkg; name = "$pkg.Main"; applicationInfo = ApplicationInfo().apply { packageName = pkg } }

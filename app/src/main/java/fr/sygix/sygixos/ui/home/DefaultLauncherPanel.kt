@@ -42,7 +42,7 @@ internal fun DefaultLauncherPanel(state: LauncherSystemState, actions: LauncherS
     LaunchedEffect(view.tag, p7.focusVersion) {
         withFrameNanos { }
         val target = returnFocus?.takeIf { it in currentTargets } ?: currentView.initialFocus ?: "setup-progress-focus"
-        target?.let { requester(it).tryRequestFocus() }
+        requester(target).tryRequestFocus()
     }
     val manualReturn = state.focusReturn?.takeIf { !state.systemPending }
     LaunchedEffect(manualReturn) {
