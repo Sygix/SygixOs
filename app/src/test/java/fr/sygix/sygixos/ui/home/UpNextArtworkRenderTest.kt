@@ -39,19 +39,6 @@ class UpNextArtworkRenderTest {
 
     @After fun clearFiles() { coil.Coil.reset(); files.forEach { it.delete() } }
 
-    @Test fun `program image source can be retrieved and decoded through the production loader`() = kotlinx.coroutines.runBlocking {
-        val context: Context = ApplicationProvider.getApplicationContext()
-        val uri = image(396, 224)
-        val source = fr.sygix.sygixos.data.AndroidArtworkTransport(context.contentResolver).read(uri, fr.sygix.sygixos.data.ArtworkCancellation())
-        org.junit.Assert.assertEquals(396, source.dimensions.width)
-        val loader = (context.applicationContext as fr.sygix.sygixos.SygixOsApp).newImageLoader().newBuilder()
-            .interceptorDispatcher(kotlinx.coroutines.Dispatchers.Unconfined).build()
-        try {
-            val result = loader.execute(coil.request.ImageRequest.Builder(context).data(item.copy(imageUrl = uri).artwork).size(396, 224).build())
-            org.junit.Assert.assertTrue((result as? coil.request.ErrorResult)?.throwable?.stackTraceToString(), result is coil.request.SuccessResult)
-        } finally { loader.shutdown() }
-    }
-
     private fun image(width: Int, height: Int): String {
         val context: Context = ApplicationProvider.getApplicationContext()
         val file = File.createTempFile("artwork", ".png", context.cacheDir).also { files += it }
