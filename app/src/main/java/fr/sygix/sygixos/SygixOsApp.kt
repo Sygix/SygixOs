@@ -61,7 +61,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
     val installedAppsSource: InstalledAppsSource by lazy { InstalledAppsSource(this) }
     val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
     val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
-    val tvProviderHeroSource: TvProviderHeroSource by lazy { TvProviderHeroSource(this) }
+    val tvProviderHeroSource: TvProviderHeroSource by lazy { TvProviderHeroSource(this, onConfirmed = { programArtwork.onProgramsConfirmed() }) }
     val appArtwork: AppArtworkSource by lazy {
         val tile = Dimens.gridTileWidthPx(resources.configuration.screenWidthDp, resources.displayMetrics.density)
         AppArtworkSource(packageManager, bounds = ImageBounds.tile(tile))

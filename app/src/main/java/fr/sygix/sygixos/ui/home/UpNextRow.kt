@@ -235,14 +235,18 @@ internal fun UpNextArtwork(item: UpNextItem, modifier: Modifier = Modifier) {
         val height = with(density) { maxHeight.roundToPx() }
         val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, maxHeight.value).dp
         val revision = artworkRevision()
-        val request = remember(context, item.artwork, width, height, revision) {
+        val retry = artworkRetryRevision()
+        var attempt by remember(item.artwork) { androidx.compose.runtime.mutableLongStateOf(0L) }
+        val request = remember(context, item.artwork, width, height, revision, attempt) {
             ImageRequest.Builder(context).data(item.artwork)
                 .setParameter("artwork-revision", revision)
+                .setParameter("artwork-retry", attempt)
                 .artworkPolicy(fr.sygix.sygixos.domain.ArtworkPolicy.Card(width))
                 .size(width.coerceAtLeast(1), height.coerceAtLeast(1))
                 .precision(Precision.INEXACT).build()
         }
         val painter = androidx.compose.runtime.key(item.artwork, revision) { rememberAsyncImagePainter(request, contentScale = ContentScale.Crop) }
+        LaunchedEffect(retry) { if (painter.state is AsyncImagePainter.State.Error) attempt = retry }
         val decoded = (painter.state as? AsyncImagePainter.State.Success)?.result?.drawable
         val usable = decoded != null
         if (usable) Image(painter, contentDescription = null,

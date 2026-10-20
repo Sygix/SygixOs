@@ -34,11 +34,19 @@ internal class ArtworkCancellation {
 
 internal fun interface ArtworkTransport {
     fun read(uri: String, cancellation: ArtworkCancellation): ArtworkBytes
+    fun remember(version: String, dimensions: ArtworkDimensions) {}
 }
 
 internal val ArtworkDecodeDispatcher = kotlinx.coroutines.Dispatchers.IO.limitedParallelism(2)
 
 internal class AndroidArtworkTransport(private val resolver: ContentResolver) : ArtworkTransport {
+    private val dimensionsByVersion = LinkedHashMap<String, ArtworkDimensions>()
+
+    @Synchronized override fun remember(version: String, dimensions: ArtworkDimensions) {
+        dimensionsByVersion[version] = dimensions
+        while (dimensionsByVersion.size > 256) dimensionsByVersion.remove(dimensionsByVersion.keys.first())
+    }
+
     override fun read(uri: String, cancellation: ArtworkCancellation): ArtworkBytes {
         cancellation.check()
         val parsed = Uri.parse(uri)
@@ -78,6 +86,12 @@ internal class AndroidArtworkTransport(private val resolver: ContentResolver) : 
             else -> throw FileNotFoundException("Unsupported artwork scheme")
         }
         cancellation.check()
+        return ArtworkBytes(bytes, dimensions(bytes))
+    }
+
+    @Synchronized private fun dimensions(bytes: ByteArray): ArtworkDimensions {
+        val version = artworkHash(bytes)
+        dimensionsByVersion[version]?.let { return it }
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         val dimensions = ArtworkDimensions(bounds.outWidth, bounds.outHeight)
@@ -89,7 +103,8 @@ internal class AndroidArtworkTransport(private val resolver: ContentResolver) : 
             val decoded = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sample) ?: error("Undecodable artwork")
             decoded.recycle()
         }
-        return ArtworkBytes(bytes, dimensions)
+        remember(version, dimensions)
+        return dimensions
     }
 
     private fun copy(stream: InputStream, cancellation: ArtworkCancellation): ByteArray {

@@ -123,3 +123,26 @@ La base documentaire est la correction des specs existantes de la PR #81, au-des
 ### Ordre d'archivage
 
 Les changements de fraîcheur et de validation cités dans la proposition et Tsuyu sont archivés dans la base de la pile. La PR #80 puis la PR #81 précèdent cette spec ; après son implémentation et sa validation TV, l'archivage images applique ses deltas sur cette référence compacte. Les réserves TV de l'archive Tsuyu restent indépendantes.
+
+## Vérification de l'implémentation
+
+Le relevé préalable 1.1 a été dispensé explicitement par Sygix. Aucun résultat sur les données réelles de Jellyfin, Disney+ ou Crunchyroll n'est revendiqué ; les hypothèses de la section Sources restent telles quelles.
+
+### Précisions techniques retenues
+
+- Les octets et leurs dimensions sont indexés par package et URI exacte. Les associations de publication sont des empreintes distinctes : une ligne réutilisée ou une identité incompatible impose une revalidation, sans créer un cache d'octets par ligne.
+- Deux publications d'un même film peuvent partager la source grâce à leur identifiant ou cible publiés concordants. Pour les épisodes, `series_id` est facultatif et utilisé seulement s'il est présent ; son absence ne déclenche aucun rapprochement de séries par titre. Une récupération commencée pour une ancienne identité ne valide pas implicitement sa remplaçante.
+- Les associations persistées sont bornées et hachées. Une version précédente peut être restaurée après échec du décodage, seulement si elle reste compatible avec le contenu et dans son délai d'origine ; sa restauration ne renouvelle pas sa date.
+- Un unique minuteur suit la prochaine échéance utile. Les demandes suivantes ne peuvent pas faire oublier l'échéance d'une image déjà affichée. Les confirmations réussies du provider autorisent une reprise des images en erreur sans recréer les images déjà prêtes.
+
+### Preuves automatisées
+
+- `./gradlew test --no-daemon` : **1 061 tests, aucun échec, aucune erreur, aucun test ignoré**.
+- `./gradlew assembleRelease --no-daemon` : **réussi** ; APK de **5 574 538 octets**.
+- `ArtworkPolicyTest`, `ProgramArtworkServiceTest` : politiques indépendantes, cache après recréation, dates exactes, associations inter-tables, réutilisation d'une ligne, anciennes réponses, partage entre abonnés et restauration de la version précédente.
+- `ArtworkSchedulerTest`, `AndroidArtworkTransportTest`, `ContentArtworkTransportTest` : quatre apps sous limite globale, séquentialité, équité, annulation bloquée, saturation, corps HTTP lent, statuts HTTP, ouverture et lecture `content://` bloquées, fermeture des ressources tardives.
+- `ProgramConfirmationTest`, `UpNextControllerTest`, `HomeRefreshTest` : confirmations par table, vide distinct de l'erreur, retrait et plafond de 24 h, programme remplacé ou identifiant réutilisé, réponse tardive après retrait ou expiration.
+- `HeroVisualSyncTest`, `HeroVideoTest`, `UpNextArtworkRenderTest` et les régressions de grille : médias/textes cohérents, maintien de l'affiche précédente après retour au premier plan, repli nature puis neutre avec bonne cible, seuil exact de carte, portrait, reprise après confirmation inchangée et expiration d'une image restaurée déjà affichée.
+- `HeroSessionOrderTest` : graines injectées, stabilité, insertions après le courant, retraits et liste vide.
+
+Les tests Robolectric ne démontrent pas le comportement Binder des applications réelles ni la fluidité sur la TV. Les tâches 7.2 et 7.3 restent ouvertes pour cette validation ; le change ne doit pas être archivé avant celle-ci et son merge.

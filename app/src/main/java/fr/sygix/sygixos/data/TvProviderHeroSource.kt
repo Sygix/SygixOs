@@ -25,6 +25,7 @@ class TvProviderHeroSource(
     private val context: Context,
     private val clock: () -> Long = System::currentTimeMillis,
     private val installed: (String) -> Boolean = { pkg -> runCatching { context.packageManager.getApplicationInfo(pkg, 0) }.isSuccess },
+    private val onConfirmed: () -> Unit = {},
     private val query: (Uri, Array<String>, android.os.CancellationSignal) -> Cursor? = { uri, projection, signal ->
         context.contentResolver.query(uri, projection, null, null, null, signal)
     },
@@ -44,14 +45,18 @@ class TvProviderHeroSource(
             Triple(W.CONTENT_URI, WATCH_NEXT_PROJECTION, ::mapWatchNextRow),
         )) {
             val result = rowsResult(uri, projection, mapper)
-            result.onSuccess { items -> snapshots[uri] = items.map { it.copy(expiresAt = clock() + ArtworkAge.FRESH_MS) } }
+            result.onSuccess { items ->
+                snapshots[uri] = items.map { it.copy(expiresAt = clock() + ArtworkAge.FRESH_MS) }
+                onConfirmed()
+            }
                 .onFailure { error ->
                     errors += error
                     if (error is SecurityException) snapshots.clear()
                 }
         }
         val now = clock()
-        snapshots.replaceAll { _, items -> items.filter { it.expiresAt > now && it.sourcePackage?.let(installed) != false } }
+        val available = snapshots.values.flatten().mapNotNull { it.sourcePackage }.distinct().associateWith(installed)
+        snapshots.replaceAll { _, items -> items.filter { it.expiresAt > now && it.sourcePackage?.let { pkg -> available[pkg] } != false } }
         val items = snapshots.values.flatten()
             .map { it.copy(sourceLabel = labelOf(it.sourcePackage)) }
         HeroRead(HeroOrdering.sort(items), errors)
@@ -107,6 +112,7 @@ class TvProviderHeroSource(
             posterAspectRatio = c.optInt(P.COLUMN_POSTER_ART_ASPECT_RATIO, -1),
             internalProviderId = c.optString(P.COLUMN_INTERNAL_PROVIDER_ID),
             contentId = c.optString(P.COLUMN_CONTENT_ID),
+            seriesId = c.optString(P.COLUMN_SERIES_ID),
             releaseDate = c.optString(P.COLUMN_RELEASE_DATE),
             episodeArtwork = c.optInt(P.COLUMN_TYPE, -1) == P.TYPE_TV_EPISODE || c.optString(P.COLUMN_SEASON_DISPLAY_NUMBER) != null || c.optString(P.COLUMN_EPISODE_DISPLAY_NUMBER) != null,
         )
@@ -147,6 +153,7 @@ class TvProviderHeroSource(
             P.COLUMN_TYPE,
             P.COLUMN_INTERNAL_PROVIDER_ID,
             P.COLUMN_CONTENT_ID,
+            P.COLUMN_SERIES_ID,
             P.COLUMN_RELEASE_DATE,
         )
         val WATCH_NEXT_PROJECTION = PREVIEW_PROJECTION + arrayOf(W.COLUMN_LAST_ENGAGEMENT_TIME_UTC_MILLIS, W.COLUMN_WATCH_NEXT_TYPE)

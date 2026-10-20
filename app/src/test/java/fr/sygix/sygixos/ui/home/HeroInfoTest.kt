@@ -32,7 +32,7 @@ class HeroInfoTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val icons = AppIconCache { pkg -> if (pkg == WITH_ICON) Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888) else null }
+    private val icons = AppIconCache { pkg -> if (pkg == WITH_ICON) Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888) else null }.apply { get(WITH_ICON) }
 
     private var shown by mutableStateOf<HeroItem?>(null)
 

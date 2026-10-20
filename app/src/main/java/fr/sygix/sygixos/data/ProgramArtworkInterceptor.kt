@@ -64,7 +64,7 @@ internal class ProgramArtworkInterceptor(private val context: Context, private v
 
     private fun decodedRequest(request: ImageRequest, source: ProgramArtwork, image: CachedArtwork, size: coil.size.Size) = request.newBuilder()
         .data(image.bytes)
-        .memoryCacheKey(artworkHash(source.packageName + source.identity + image.uri) + ":" + image.version + ":" + size + ":" + request.transformations.joinToString { it.cacheKey })
+        .memoryCacheKey(artworkHash(source.packageName + "\u0000" + image.uri) + ":" + image.version + ":" + size + ":" + request.transformations.joinToString { it.cacheKey })
         .diskCachePolicy(CachePolicy.DISABLED).build()
 
     companion object {

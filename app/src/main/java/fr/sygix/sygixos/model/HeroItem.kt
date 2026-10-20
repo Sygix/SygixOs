@@ -27,10 +27,13 @@ data class HeroItem(
     val contentId: String? = null,
     val releaseDate: String? = null,
     val episodeArtwork: Boolean = season != null || episode != null,
+    val seriesId: String? = null,
 ) {
     val artwork: ProgramArtwork get() = ProgramArtwork(
         sourcePackage.orEmpty(), listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
-        if (episodeArtwork) "episode-artwork" else listOf(id, title, launchUri, internalProviderId, contentId, releaseDate).joinToString("\u0000"),
+        listOf(id, title, launchUri, internalProviderId, contentId, releaseDate, season, episode, seriesId, episodeArtwork).joinToString("\u0000"),
+        publicationId = id,
+        sharedIdentity = sharedArtworkIdentity(episodeArtwork, seriesId, contentId, internalProviderId, launchUri, title, releaseDate),
     )
     val progress: Float?
         get() = playbackRatio(positionMillis, durationMillis)

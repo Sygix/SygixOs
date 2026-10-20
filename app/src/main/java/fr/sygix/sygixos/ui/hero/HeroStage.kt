@@ -137,6 +137,7 @@ fun HeroStage(
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
     val revision = fr.sygix.sygixos.ui.home.artworkRevision()
+    val retry = fr.sygix.sygixos.ui.home.artworkRetryRevision()
     var natureIndex by remember { mutableStateOf(0) }
     var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
     val lastIndex = remember { IntArray(1) }
@@ -145,7 +146,7 @@ fun HeroStage(
     lastIndex[0] = index
     val current = items.getOrNull(index)
     val generation = current?.id?.let { generations[it] } ?: 0L
-    var failedImages by remember(current?.artwork, revision) { mutableStateOf(emptySet<String>()) }
+    var failedImages by remember(current?.artwork, revision, retry) { mutableStateOf(emptySet<String>()) }
     val programVideo = current?.videoUrl != null && current.id !in failedVideos
     val imageCandidate = current?.artwork?.candidates?.firstOrNull()
     val fallback = current != null && !programVideo && (imageCandidate == null || imageCandidate in failedImages)
@@ -397,13 +398,17 @@ private fun HeroPosterLayers(
     val currentOnLoaded by rememberUpdatedState(onLoaded)
     val loadScope = rememberCoroutineScope()
     val loads = remember { LinkedHashMap<String, Deferred<HeroPosterImages?>>() }
+    var appliedRevision by remember { mutableStateOf(revision) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val spec = remember(constraints.maxWidth, constraints.maxHeight, density) {
             with(density) { PosterSpec.of(constraints.maxWidth, constraints.maxHeight, CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) }
         }
         LaunchedEffect(url, spec, artwork, revision, generation) {
             lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.STARTED) }
-            if (revision != 0L) backdrop.clear()
+            if (revision != appliedRevision) {
+                backdrop.clear()
+                appliedRevision = revision
+            }
             if (url == null) {
                 coroutineScope {
                     backdrop.layers.toList().forEach { layer ->

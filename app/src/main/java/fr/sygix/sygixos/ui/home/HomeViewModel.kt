@@ -99,6 +99,7 @@ class HomeViewModel(
     private val upNextOpener: UpNextOpener = UpNextOpener { _, _ -> false },
     private val onArtworkForeground: () -> Unit = {},
     private val order: fr.sygix.sygixos.domain.HeroOrder = HeroSessionOrder(),
+    private val programClock: () -> Long = System::currentTimeMillis,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -121,6 +122,7 @@ class HomeViewModel(
     private val generations = mutableMapOf<String, Long>()
     private var lastHeroItems: List<HeroItem> = emptyList()
     private val retryable = mutableSetOf<String>()
+    private val shelfRetryable = mutableSetOf<String>()
     private val heroChecks = mutableMapOf<String, fr.sygix.sygixos.model.ProgramArtwork>()
     private val shelfChecks = mutableMapOf<String, fr.sygix.sygixos.model.ProgramArtwork>()
     private var heroValidationJob: Job? = null
@@ -254,6 +256,7 @@ class HomeViewModel(
             heroChecks.keys.retainAll(ids)
             shelfChecks.keys.retainAll(ids)
             retryable.retainAll(ids)
+            shelfRetryable.retainAll(ids)
             feed.items.forEach { item ->
                 if (previous[item.id]?.copy(expiresAt = Long.MAX_VALUE) != item.copy(expiresAt = Long.MAX_VALUE)) {
                     generations[item.id] = ++generationSequence
@@ -274,13 +277,14 @@ class HomeViewModel(
     }
 
     private fun expirePrograms() {
-        val now = System.currentTimeMillis()
+        val now = programClock()
         rawFeed.update { it.copy(items = order.arrange(it.items.filter { item -> item.expiresAt > now })) }
         val live = rawFeed.value.items.map { it.id }.toSet()
         generations.keys.retainAll(live)
         heroChecks.keys.retainAll(live)
         shelfChecks.keys.retainAll(live)
         retryable.retainAll(live)
+        shelfRetryable.retainAll(live)
         validated.update { it.filterKeys { id -> id in live } }
         shelfResults.update { it.filterKeys { id -> id in live } }
     }
@@ -290,7 +294,7 @@ class HomeViewModel(
         val deadline = rawFeed.value.items.minOfOrNull { it.expiresAt } ?: return
         if (deadline == Long.MAX_VALUE) return
         programExpiry = viewModelScope.launch {
-            delay((deadline - System.currentTimeMillis()).coerceAtLeast(1))
+            delay((deadline - programClock()).coerceAtLeast(1))
             expirePrograms()
             scheduleProgramExpiry()
         }
@@ -314,7 +318,8 @@ class HomeViewModel(
         if (!foreground) return null
         val results = if (shelf) shelfResults else validated
         val checks = if (shelf) shelfChecks else heroChecks
-        val pending = items.filter { checks[it.id] != it.artwork || it.id in retryable }
+        val retries = if (shelf) shelfRetryable else retryable
+        val pending = items.filter { checks[it.id] != it.artwork || it.id in retries }
         if (pending.isEmpty()) return null
         return viewModelScope.launch {
             pending.groupBy { it.sourcePackage }.values.forEach { group -> launch {
@@ -328,7 +333,7 @@ class HomeViewModel(
                     checked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
                     if (shelf) shelfChecked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
                     check.visual?.let { visual -> results.update { it + (item.id to visual) } }
-                    if (check.retryable) retryable += item.id else retryable -= item.id
+                    if (check.retryable) retries += item.id else retries -= item.id
                     if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
                 }
             } }
@@ -368,7 +373,7 @@ class HomeViewModel(
                 session = app.startupSession,
                 motion = SettingsMotionSource(app.contentResolver),
                 mascot = app.mascotAnimation,
-                upNextSource = TvProviderUpNextSource(app),
+                upNextSource = TvProviderUpNextSource(app, onConfirmed = app.programArtwork::onProgramsConfirmed),
                 upNextMemory = app.launcherPrefs,
                 onArtworkForeground = app.programArtwork::onForeground,
                 order = app.heroOrder,

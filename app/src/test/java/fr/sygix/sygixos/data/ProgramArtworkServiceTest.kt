@@ -27,6 +27,77 @@ import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
 class ProgramArtworkServiceTest {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test fun `many later artwork requests cannot discard the earliest displayed image deadline`() = runBlocking {
+        val scheduler = kotlinx.coroutines.test.TestCoroutineScheduler()
+        val deadlines = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.test.UnconfinedTestDispatcher(scheduler))
+        ProgramArtworkService(store, ArtworkTransport { _, _ -> image }, clock = { scheduler.currentTime + 1_000 }, expiryScope = deadlines).use { service ->
+            assertTrue(service.load(source) is ArtworkResult.Ready)
+            val hour = 60 * 60_000L
+            scheduler.advanceTimeBy(hour)
+            for (index in 1..300) assertTrue(service.load(source.copy(candidates = listOf("content://artwork/$index"))) is ArtworkResult.Ready)
+            scheduler.advanceTimeBy(ArtworkAge.FRESH_MS - hour - 1)
+            scheduler.runCurrent()
+            assertEquals(0L, service.changes.value)
+            scheduler.advanceTimeBy(1)
+            scheduler.runCurrent()
+            assertEquals(1L, service.changes.value)
+        }
+    }
+
+    @Test fun `an incompatible publication cannot inherit a source request already opened for the old identity`() = runBlocking {
+        val reads = AtomicInteger()
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        ProgramArtworkService(store, ArtworkTransport { _, _ ->
+            val version = reads.incrementAndGet()
+            if (version == 1) { entered.countDown(); release.await() }
+            image.copy(bytes = byteArrayOf(version.toByte()))
+        }, clock = { now }, diskDispatcher = kotlinx.coroutines.Dispatchers.Unconfined).use { service ->
+            val old = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { service.load(source) }
+            val replacement = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { service.load(source.copy(identity = "replacement")) }
+            try {
+                assertTrue(entered.await(2, TimeUnit.SECONDS))
+                release.countDown()
+                assertArrayEquals(byteArrayOf(1), (withTimeout(3_000) { old.await() } as ArtworkResult.Ready).artwork.bytes)
+                assertArrayEquals(byteArrayOf(2), (withTimeout(3_000) { replacement.await() } as ArtworkResult.Ready).artwork.bytes)
+                assertEquals(2, reads.get())
+            } finally { release.countDown() }
+        }
+    }
+
+    @Test fun `preview and watch next share the published movie source without sharing row identities`() = runBlocking {
+        val reads = AtomicInteger()
+        val hero = fr.sygix.sygixos.model.HeroItem("preview-10", "Fiction", imageUrl = source.candidates.first(), sourcePackage = "app", contentId = "published-movie")
+        val card = fr.sygix.sygixos.model.UpNextItem(20, fr.sygix.sygixos.model.UpNextSourceEntry("app"), fr.sygix.sygixos.model.UpNextContentType.MOVIE,
+            "Fiction", imageUrl = source.candidates.first(), contentId = "published-movie")
+        ProgramArtworkService(store, ArtworkTransport { _, _ -> reads.incrementAndGet(); image }, clock = { now }).use { service ->
+            assertNotEquals(hero.artwork.identity, card.artwork.identity)
+            assertTrue(service.load(hero.artwork, ArtworkPolicy.Hero) is ArtworkResult.Ready)
+            assertTrue(service.load(card.artwork, ArtworkPolicy.Card(396)) is ArtworkResult.Ready)
+            assertEquals(1, reads.get())
+        }
+        ProgramArtworkService(store, ArtworkTransport { _, _ -> error("fresh shared source must stay local") }, clock = { now }).use { service ->
+            assertTrue(service.load(hero.artwork) is ArtworkResult.Ready)
+            assertTrue(service.load(card.artwork) is ArtworkResult.Ready)
+        }
+    }
+
+    @Test fun `reusing an episode row and URI for incompatible content forces revalidation and cannot roll back to another series`() = runBlocking {
+        val reads = AtomicInteger()
+        val first = fr.sygix.sygixos.model.HeroItem("watchnext-1", "First fiction", imageUrl = source.candidates.first(), sourcePackage = "app",
+            launchUri = "intent://first", contentId = "first-episode", episodeArtwork = true, seriesId = "first-series")
+        val replacement = first.copy(title = "Other fiction", launchUri = "intent://other", contentId = "other-episode", seriesId = "other-series")
+        ProgramArtworkService(store, ArtworkTransport { _, _ -> image.copy(bytes = byteArrayOf(reads.incrementAndGet().toByte())) }, clock = { now }).use { service ->
+            val original = (service.load(first.artwork) as ArtworkResult.Ready).artwork
+            val changed = (service.load(replacement.artwork) as ArtworkResult.Ready).artwork
+            assertEquals(2, reads.get())
+            assertNotEquals(original.version, changed.version)
+            assertNull(service.decodeFailed(replacement.artwork, changed))
+            assertArrayEquals(original.bytes, (service.load(first.artwork) as ArtworkResult.Ready).artwork.bytes)
+        }
+    }
+
     @Test fun `leaving one destination does not cancel a source still requested by another`() = runBlocking {
         val reads = AtomicInteger()
         val entered = CountDownLatch(1)
@@ -72,7 +143,7 @@ class ProgramArtworkServiceTest {
             assertTrue(service.load(first.artwork) is ArtworkResult.Ready)
             assertTrue(service.load(other.artwork) is ArtworkResult.Ready)
             assertEquals(2, reads.get())
-            val episode = first.copy(id = "watchnext-3", season = "1", episode = "1", episodeArtwork = true)
+            val episode = first.copy(id = "watchnext-3", season = "1", episode = "1", episodeArtwork = true, seriesId = "published-series")
             assertTrue(service.load(episode.artwork) is ArtworkResult.Ready)
             assertTrue(service.load(episode.copy(id = "watchnext-4", episode = "2").artwork) is ArtworkResult.Ready)
             assertEquals(3, reads.get())

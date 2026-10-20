@@ -39,10 +39,13 @@ data class UpNextItem(
     val thumbnailUrl: String? = null,
     val posterAspectRatio: Int = -1,
     val releaseDate: String? = null,
+    val seriesId: String? = null,
 ) {
     val artwork: ProgramArtwork get() = ProgramArtwork(
         source.packageName, listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
-        if (type == UpNextContentType.EPISODE) "episode-artwork" else listOf("watchnext-$id", title, source.intentUri, internalProviderId, contentId, releaseDate).joinToString("\u0000"),
+        listOf("watchnext-$id", title, source.intentUri, internalProviderId, contentId, releaseDate, season, episode, seriesId, type == UpNextContentType.EPISODE).joinToString("\u0000"),
+        publicationId = "watchnext-$id",
+        sharedIdentity = sharedArtworkIdentity(type == UpNextContentType.EPISODE, seriesId, contentId, internalProviderId, source.intentUri, title, releaseDate),
     )
     val key: String get() = "${source.packageName}:$id"
     val displayTitle: String get() = if (type == UpNextContentType.EPISODE) seriesTitle ?: title else title

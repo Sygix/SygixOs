@@ -4,12 +4,12 @@
 
 Branche de spec : `docs/spec-hero-image-loading`, empilée sur `docs/spec-compact-requirements` (PR #81), elle-même sur l'archivage Tsuyu (PR #80). L'implémentation doit partir de cette spec validée ou de `main` après intégration de la pile, pas de l'ancienne proposition limitée au shuffle.
 
-Change à appliquer : `hero-shuffle-image-provider`. Les planning artifacts sont complets ; les tâches d'implémentation sont volontairement toutes décochées. La création de ces PR n'a modifié aucun code applicatif.
+Change implémenté : `hero-shuffle-image-provider`, sur `feat/shared-artwork-loading`, empilé sur la branche de spec. `tasks.md` distingue les vérifications automatisées et les validations finales sur la TV encore en attente. Le relevé préalable a été explicitement dispensé par Sygix ; il n'est pas présenté comme réalisé.
 
 Commande de reprise :
 
 ```text
-/opsx-apply hero-shuffle-image-provider
+/opsx-verify hero-shuffle-image-provider
 ```
 
 ## Décisions confirmées
@@ -25,9 +25,9 @@ Commande de reprise :
 - Héro : vidéo nature puis fond neutre sans perdre le bon titre/bouton, navigation et défilement continuant. Top Shelf : seulement images prêtes de la bonne app, fermé sinon. À suivre : placeholder en dernier recours.
 - Shuffle du héro une fois par processus, stable pendant la session, nouveaux programmes insérés au hasard après le courant, retraits sans réordonner les autres.
 
-## Première tâche obligatoire
+## Relevé préalable dispensé
 
-Vérifier sur la TV les données réellement publiées par Jellyfin, Disney+ et Crunchyroll avant le code : schémas d'URI, colonnes/compteurs, dimensions, erreurs et durées, éventuels identifiants ou dates de validité. Ne conserver que les structures ; aucune URI brute, adresse de serveur, titre ou historique personnel dans le dépôt ou les PR. Le schéma content:// de Disney+ et Crunchyroll est une hypothèse à vérifier, pas un fait déclaré.
+Sygix a demandé d'ignorer cette étape et de poursuivre le code. Les schémas d'URI, dimensions, erreurs et identifiants réellement publiés par Jellyfin, Disney+ et Crunchyroll restent non vérifiés sur la TV. Les validations 7.2 et 7.3 restent ouvertes ; n'en conserver ensuite que les structures, sans URI brute, serveur, titre ni historique personnel. Le schéma content:// de Disney+ et Crunchyroll reste une hypothèse.
 
 ## Contrats repliés dans leurs exigences parentes
 

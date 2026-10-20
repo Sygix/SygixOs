@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.hero
 
+import androidx.compose.ui.test.onNodeWithTag
+
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -120,6 +122,8 @@ class HeroVideoTest {
     val compose = createComposeRule()
 
     private val video = FakeVideo()
+    private var failVideo: (String) -> Unit = {}
+    private val opened = mutableListOf<String>()
     private var motion by mutableStateOf(true)
     private var visible by mutableStateOf(true)
     private val owner = object : LifecycleOwner {
@@ -135,7 +139,7 @@ class HeroVideoTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             CompositionLocalProvider(
-                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, _ -> video },
+                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, error -> failVideo = error; video },
                 LocalLifecycleOwner provides owner,
             ) {
                 HeroStage(
@@ -144,7 +148,7 @@ class HeroVideoTest {
                     active = true,
                     visible = visible,
                     focusRequester = FocusRequester(),
-                    onOpen = {},
+                    onOpen = { opened += it.id },
                     motion = motion,
                 )
             }
@@ -177,6 +181,32 @@ class HeroVideoTest {
 
     private fun picture(id: String, title: String) =
         HeroItem(id = id, title = title, imageUrl = "https://example.invalid/$id.jpg", sourcePackage = "com.example.player")
+
+    @Test
+    fun `nature then neutral fallback preserve program texts opening target and navigation`() {
+        val program = HeroItem("unavailable", "Unavailable fiction", sourcePackage = "com.example.player", launchUri = "intent://fiction")
+        val healthy = picture("healthy", "Healthy fiction")
+        show(listOf(program, healthy))
+        compose.onNodeWithTag("hero-fallback-neutral").assertExists()
+        compose.onNodeWithText(program.title, useUnmergedTree = true).assertExists()
+        press(Key.Enter)
+        compose.runOnIdle { video.render(requireNotNull(video.loadedItem)) }
+        advance(500)
+        compose.onNodeWithTag("hero-fallback-nature").assertExists()
+        compose.onNodeWithText(program.title, useUnmergedTree = true).assertExists()
+        press(Key.Enter)
+        repeat(fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.size) {
+            compose.runOnIdle { failVideo(requireNotNull(video.loadedItem)) }
+            advance(100)
+        }
+        compose.onNodeWithTag("hero-fallback-neutral").assertExists()
+        compose.onNodeWithText(program.title, useUnmergedTree = true).assertExists()
+        press(Key.DirectionRight)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(healthy.title, useUnmergedTree = true).assertExists()
+        press(Key.Enter)
+        assertEquals(listOf(program.id, program.id, healthy.id), opened)
+    }
 
     @Test
     fun `preview video is prepared but not played under the startup screen`() {

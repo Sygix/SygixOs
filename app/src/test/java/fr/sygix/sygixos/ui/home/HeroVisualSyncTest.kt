@@ -93,6 +93,31 @@ class HeroVisualSyncTest {
     }
 
     @Test
+    fun `a foreground revision does not clear a valid poster while the next image loads`() {
+        val first = program("h1", "First fiction")
+        val slow = program("h2", "Waiting fiction")
+        val loader = GatedImageLoader(slow.imageUrl!!)
+        Coil.setImageLoader(loader)
+        val app = androidx.test.core.app.ApplicationProvider.getApplicationContext<fr.sygix.sygixos.SygixOsApp>()
+        app.programArtwork.onForeground()
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(catalog = catalogOf(dock = emptyList(), grid = emptyList()),
+                hero = heroStateOf(listOf(first, slow), validated = setOfNotNull(first.imageUrl, slow.imageUrl)))
+        }
+        advance(2_000)
+        compose.onNodeWithTag("hero-poster").assertExists()
+        press(Key.DirectionRight)
+        advance(500)
+        compose.onNodeWithTag("hero-poster").assertExists()
+        compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText(slow.title, useUnmergedTree = true).assertCountEquals(0)
+        loader.gate.complete(Unit)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
     fun `title and button wait for artwork then keep the requested program on timeout fallback`() {
         val first = program("h1", "Premier titre fictif")
         val slow = program("h2", "Titre fictif lent")
