@@ -13,7 +13,7 @@ class ArtworkPolicyTest {
         for (width in listOf(395, 396, 397, 639, 640, 641, 1599, 1600, 1601)) {
             val dimensions = ArtworkDimensions(width, 200)
             assertEquals(width >= 640, ArtworkPolicy.Hero.accepts(dimensions))
-            assertEquals(width >= 1600, ArtworkPolicy.Shelf(1600).accepts(dimensions))
+            assertEquals(width >= 640, ArtworkPolicy.Shelf(1600).accepts(dimensions))
             assertEquals(width >= 396, ArtworkPolicy.Card(396).accepts(dimensions))
         }
         val portrait = ArtworkDimensions(800, 1200)

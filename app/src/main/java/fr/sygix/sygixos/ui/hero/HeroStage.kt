@@ -136,8 +136,6 @@ fun HeroStage(
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
-    val revision = fr.sygix.sygixos.ui.home.artworkRevision()
-    val retry = fr.sygix.sygixos.ui.home.artworkRetryRevision()
     var natureIndex by remember { mutableStateOf(0) }
     var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
     val lastIndex = remember { IntArray(1) }
@@ -146,12 +144,14 @@ fun HeroStage(
     lastIndex[0] = index
     val current = items.getOrNull(index)
     val generation = current?.id?.let { generations[it] } ?: 0L
-    var failedImages by remember(current?.artwork, revision, retry) { mutableStateOf(emptySet<String>()) }
+    val imageEvent = fr.sygix.sygixos.ui.home.artworkEvent(current?.artwork)
+    val imageVersion = (imageEvent as? fr.sygix.sygixos.data.ArtworkEvent.ImageReady)?.version.orEmpty()
+    var failedImages by remember(current?.artwork?.identity, imageVersion) { mutableStateOf(emptySet<String>()) }
     val programVideo = current?.videoUrl != null && current.id !in failedVideos
     val imageCandidate = current?.artwork?.candidates?.firstOrNull()
     val fallback = current != null && !programVideo && (imageCandidate == null || imageCandidate in failedImages)
     val natureUrl = fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.getOrNull(natureIndex)
-    val mediaId = if (fallback) "fallback-${current?.id}-$natureIndex" else current?.id
+    val mediaId = if (fallback) "nature-$natureIndex" else current?.id
     val mediaUrl = if (fallback) natureUrl else current?.videoUrl
     val showVideo = programVideo || fallback && natureUrl != null
 
@@ -170,9 +170,14 @@ fun HeroStage(
     }
     val stepState = rememberUpdatedState(step)
     val onVideoError: (String) -> Unit = { id ->
-        if (id.startsWith("fallback-")) natureIndex += 1 else failedVideos = failedVideos + id
+        val uri = (if (fallback) natureUrl else current?.videoUrl)?.let(android.net.Uri::parse)
+        Log.w(TAG, "app=${current?.sourcePackage ?: "nature"} scheme=${uri?.scheme} authority=${uri?.let { fr.sygix.sygixos.data.diagnosticAuthority(it) }} cause=video-unavailable")
+        if (fallback && id.startsWith("nature-")) natureIndex += 1 else failedVideos = failedVideos + id
     }
     val onVideoErrorState = rememberUpdatedState(onVideoError)
+    val onVideoEndedState = rememberUpdatedState<() -> Unit>({
+        if (fallback) natureIndex = (natureIndex + 1) % fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.size else stepState.value(1)
+    })
     val onImageError: (String) -> Unit = { url ->
         failedImages = failedImages + url
     }
@@ -190,7 +195,7 @@ fun HeroStage(
     val player = remember(videoFactory) {
         videoFactory.create(
             context.applicationContext,
-            { stepState.value(1) },
+            { onVideoEndedState.value() },
             { onVideoErrorState.value(it) },
         )
     }
@@ -212,9 +217,8 @@ fun HeroStage(
     }
 
     LifecycleStartEffect(mediaId, showVideo, visible, motion, items.size, keepVideo) {
-        val item = current
         when {
-            visible && mediaId != null && mediaUrl != null && showVideo -> player.show(mediaId, mediaUrl, play = motion, loop = fallback || items.size == 1)
+            visible && mediaId != null && mediaUrl != null && showVideo -> player.show(mediaId, mediaUrl, play = motion, loop = !fallback && items.size == 1)
             visible && player.loadedItem in slowVisuals -> player.park()
             keepVideo && showVideo && player.loadedItem == mediaId -> player.park()
             else -> player.clear()
@@ -222,7 +226,7 @@ fun HeroStage(
         onStopOrDispose { }
     }
     LaunchedEffect(mediaId, showVideo, visible) {
-        val item = current ?: return@LaunchedEffect
+        if (current == null) return@LaunchedEffect
         if (!showVideo || !visible) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             delay(Motion.HERO_VIDEO_START_TIMEOUT_MS)
@@ -239,7 +243,7 @@ fun HeroStage(
 
     val posterUrl = imageCandidate?.takeIf { !showVideo && it !in failedImages }
     var shownId by remember { mutableStateOf<String?>(null) }
-    val targetId = current?.id
+    val targetId = current?.artwork?.identity
     val currentPoster by rememberUpdatedState(targetId to posterUrl)
     LaunchedEffect(targetId, mediaId, showVideo, posterUrl, fallback) {
         when {
@@ -254,18 +258,18 @@ fun HeroStage(
     }
     LaunchedEffect(targetId, posterUrl, showVideo, visible) {
         if (!visible) return@LaunchedEffect
-        val id = targetId ?: return@LaunchedEffect
-        if (shownId == id) return@LaunchedEffect
+        val id = current?.id ?: return@LaunchedEffect
+        if (shownId == targetId) return@LaunchedEffect
         if (!programVideo || !(showVideo && shownId != null)) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             delay(Motion.HERO_VISUAL_TIMEOUT_MS)
-            if (shownId != id) {
+            if (shownId != targetId) {
                 slowVisuals = slowVisuals + id
                 stepState.value(1)
             }
         }
     }
-    val shown = items.firstOrNull { it.id == shownId }
+    val shown = items.firstOrNull { it.artwork.identity == shownId }
     LaunchedEffect(shown?.id) { onDisplayed(shown?.id) }
     var buttonFocused by remember { mutableStateOf(false) }
     val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null)
@@ -313,7 +317,7 @@ fun HeroStage(
             backdrop = backdrop,
             url = posterUrl,
             artwork = current?.artwork,
-            revision = revision,
+            version = imageVersion,
             generation = generation,
             running = visible && motion,
             animated = motion,
@@ -386,7 +390,7 @@ private fun HeroPosterLayers(
     animated: Boolean = true,
     onLoaded: (String) -> Unit = {},
     artwork: fr.sygix.sygixos.model.ProgramArtwork? = null,
-    revision: Long = 0,
+    version: String = "",
     generation: Long = 0,
 ) {
     val context = LocalContext.current
@@ -398,17 +402,12 @@ private fun HeroPosterLayers(
     val currentOnLoaded by rememberUpdatedState(onLoaded)
     val loadScope = rememberCoroutineScope()
     val loads = remember { LinkedHashMap<String, Deferred<HeroPosterImages?>>() }
-    var appliedRevision by remember { mutableStateOf(revision) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val spec = remember(constraints.maxWidth, constraints.maxHeight, density) {
             with(density) { PosterSpec.of(constraints.maxWidth, constraints.maxHeight, CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) }
         }
-        LaunchedEffect(url, spec, artwork, revision, generation) {
+        LaunchedEffect(url, spec, artwork?.identity, version) {
             lifecycle.currentStateFlow.first { it.isAtLeast(Lifecycle.State.STARTED) }
-            if (revision != appliedRevision) {
-                backdrop.clear()
-                appliedRevision = revision
-            }
             if (url == null) {
                 coroutineScope {
                     backdrop.layers.toList().forEach { layer ->
@@ -418,7 +417,7 @@ private fun HeroPosterLayers(
                 backdrop.clear()
                 return@LaunchedEffect
             }
-            val loadKey = url + ":" + (artwork?.let { fr.sygix.sygixos.data.artworkHash(it.packageName + it.identity + generation) } ?: "") + ":" + revision
+            val loadKey = url + ":" + (artwork?.let { fr.sygix.sygixos.data.artworkHash(it.packageName + it.identity) } ?: "") + ":" + version
             val first = backdrop.layers.none { it.image != null && it.fade.value > 0f && it.key != loadKey }
             val layer = backdrop.layer(loadKey)
             if (layer.image == null) {
@@ -508,7 +507,7 @@ private fun HeroOverlay(
                 .widthIn(max = Dimens.HeroTextWidth),
             verticalArrangement = Arrangement.spacedBy(Dimens.HeroTextSpacing),
         ) {
-            SequentialFade(target = current, durationMillis = Motion.HERO_CROSSFADE_MS) { item ->
+            SequentialFade(target = current, durationMillis = Motion.HERO_CROSSFADE_MS, identity = { it.artwork.identity }) { item ->
                 HeroMetadata(item, icons)
             }
             if (launchable && current != null) {

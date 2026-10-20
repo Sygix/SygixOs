@@ -26,6 +26,7 @@ class TvProviderHeroSource(
     private val clock: () -> Long = System::currentTimeMillis,
     private val installed: (String) -> Boolean = { pkg -> runCatching { context.packageManager.getApplicationInfo(pkg, 0) }.isSuccess },
     private val onConfirmed: () -> Unit = {},
+    private val onSnapshot: suspend (String, List<HeroItem>) -> Unit = { _, _ -> },
     private val query: (Uri, Array<String>, android.os.CancellationSignal) -> Cursor? = { uri, projection, signal ->
         context.contentResolver.query(uri, projection, null, null, null, signal)
     },
@@ -47,6 +48,7 @@ class TvProviderHeroSource(
             val result = rowsResult(uri, projection, mapper)
             result.onSuccess { items ->
                 snapshots[uri] = items.map { it.copy(expiresAt = clock() + ArtworkAge.FRESH_MS) }
+                onSnapshot(if (uri == P.CONTENT_URI) "preview" else "watchnext", items)
                 onConfirmed()
             }
                 .onFailure { error ->

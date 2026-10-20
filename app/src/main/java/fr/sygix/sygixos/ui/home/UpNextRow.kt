@@ -115,7 +115,7 @@ internal fun UpNextRow(
         horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
     ) {
         when (content) {
-            is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item -> item.key }) { index, item ->
+            is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item -> item.artwork.identity }) { index, item ->
                 UpNextCard(
                     item = item,
                     modifier = Modifier.width(width)
@@ -234,23 +234,22 @@ internal fun UpNextArtwork(item: UpNextItem, modifier: Modifier = Modifier) {
         val width = with(density) { maxWidth.roundToPx() }
         val height = with(density) { maxHeight.roundToPx() }
         val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, maxHeight.value).dp
-        val revision = artworkRevision()
-        val retry = artworkRetryRevision()
-        var attempt by remember(item.artwork) { androidx.compose.runtime.mutableLongStateOf(0L) }
-        val request = remember(context, item.artwork, width, height, revision, attempt) {
+        val event = artworkEvent(item.artwork)
+        val request = remember(context, item.artwork.identity, width, height, event) {
             ImageRequest.Builder(context).data(item.artwork)
-                .setParameter("artwork-revision", revision)
-                .setParameter("artwork-retry", attempt)
                 .artworkPolicy(fr.sygix.sygixos.domain.ArtworkPolicy.Card(width))
                 .size(width.coerceAtLeast(1), height.coerceAtLeast(1))
                 .precision(Precision.INEXACT).build()
         }
-        val painter = androidx.compose.runtime.key(item.artwork, revision) { rememberAsyncImagePainter(request, contentScale = ContentScale.Crop) }
-        LaunchedEffect(retry) { if (painter.state is AsyncImagePainter.State.Error) attempt = retry }
-        val decoded = (painter.state as? AsyncImagePainter.State.Success)?.result?.drawable
+        val painter = rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+        var previous by remember { mutableStateOf<AsyncImagePainter.State.Success?>(null) }
+        LaunchedEffect(painter.state) { (painter.state as? AsyncImagePainter.State.Success)?.let { previous = it } }
+        LaunchedEffect(event) { if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired || event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) previous = null }
+        val displayed = painter.state as? AsyncImagePainter.State.Success ?: previous
+        val decoded = displayed?.result?.drawable
         val usable = decoded != null
-        if (usable) Image(painter, contentDescription = null,
-            contentScale = if (UpNextArtworkQuality.portrait(decoded!!.intrinsicWidth, decoded.intrinsicHeight)) ContentScale.Fit else ContentScale.Crop,
+        if (usable) Image(displayed.painter, contentDescription = null,
+            contentScale = if (UpNextArtworkQuality.portrait(decoded.intrinsicWidth, decoded.intrinsicHeight)) ContentScale.Fit else ContentScale.Crop,
             modifier = Modifier.fillMaxSize())
         if (!usable) Box(Modifier.fillMaxWidth().fillMaxHeight(0.5f).align(Alignment.TopCenter).testTag("upnext-card-placeholder-${item.key}"), contentAlignment = Alignment.Center) {
             UpNextGlyph(false, SygixColors.PlaceholderGlyph, Modifier.size(icon).testTag("upnext-card-placeholder-icon-${item.key}"))

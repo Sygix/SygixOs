@@ -70,8 +70,8 @@ class HomeViewModelSourceToggleTest {
     }
 
     private val feedItems = listOf(
-        heroItem("1", "From A", sourcePackage = "com.a"),
-        heroItem("2", "From B", sourcePackage = "com.b"),
+        heroItem("1", "From A", sourcePackage = "com.a").copy(videoUrl = "https://example.invalid/a.mp4"),
+        heroItem("2", "From B", sourcePackage = "com.b").copy(videoUrl = "https://example.invalid/b.mp4"),
     )
 
     private val natureClip = HeroItem(id = "nature-0", title = "", videoUrl = "https://x/clip.mp4")
@@ -133,8 +133,8 @@ class HomeViewModelSourceToggleTest {
 
     @Test
     fun `re-enabling a source re-prepares the shelf of the focused app on the recomputed hero`() = runBlocking {
-        val items = (1..25).map { heroItem("b$it", "B$it", imageUrl = "https://x/b$it.jpg", sourcePackage = "com.b") } +
-            heroItem("a", "A", imageUrl = "https://x/a.jpg", sourcePackage = "com.a")
+        val items = (1..25).map { heroItem("b$it", "B$it", imageUrl = "https://x/b$it.jpg", sourcePackage = "com.b").copy(videoUrl = "https://example.invalid/b$it.mp4") } +
+            heroItem("a", "A", imageUrl = "https://x/a.jpg", sourcePackage = "com.a").copy(videoUrl = "https://example.invalid/a.mp4")
         LauncherPrefs(context).updateDisabledSources { setOf("com.a") }
         val (vm, repo) = buildViewModel(items)
         repo.refreshApps()

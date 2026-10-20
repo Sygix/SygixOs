@@ -35,9 +35,10 @@ import org.robolectric.shadows.ShadowContentResolver
 
 @RunWith(RobolectricTestRunner::class)
 class ContentArtworkTransportTest {
+    @get:Rule val main = fr.sygix.sygixos.MainDispatcherRule()
     @get:Rule val folder = TemporaryFolder()
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val transport = AndroidArtworkTransport(context.contentResolver)
+    private val transport = ProgramImageReader(context.contentResolver, okhttp3.OkHttpClient())
     private val uri = Uri.parse("content://fixture.artwork/image")
     private val entered = CountDownLatch(1)
     private val release = CountDownLatch(1)
@@ -49,6 +50,7 @@ class ContentArtworkTransportTest {
     private lateinit var file: File
     private var blockOpen = false
     private var blockRead = false
+    private var pipe = false
 
     @Before fun register() {
         file = folder.newFile("image.png")
@@ -58,13 +60,18 @@ class ContentArtworkTransportTest {
         val provider = object : ContentProvider() {
             override fun onCreate() = true
             override fun query(uri: Uri, projection: Array<out String>?, selection: String?, selectionArgs: Array<out String>?, sortOrder: String?): Cursor? = null
-            override fun getType(uri: Uri) = "image/png"
+            override fun getType(uri: Uri): String? = null
             override fun insert(uri: Uri, values: ContentValues?): Uri? = null
             override fun delete(uri: Uri, selection: String?, selectionArgs: Array<out String>?) = 0
             override fun update(uri: Uri, values: ContentValues?, selection: String?, selectionArgs: Array<out String>?) = 0
-            override fun openTypedAssetFile(uri: Uri, mimeTypeFilter: String, opts: Bundle?, signal: CancellationSignal?): AssetFileDescriptor {
+            override fun openAssetFile(uri: Uri, mode: String, signal: CancellationSignal?): AssetFileDescriptor {
                 opens.incrementAndGet()
-                val descriptor = object : AssetFileDescriptor(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY), 0, file.length()) {
+                if (pipe) {
+                    val ends = ParcelFileDescriptor.createPipe()
+                    ParcelFileDescriptor.AutoCloseOutputStream(ends[1]).use { it.write(file.readBytes()) }
+                    return AssetFileDescriptor(ends[0], 0, AssetFileDescriptor.UNKNOWN_LENGTH)
+                }
+                val descriptor = object : AssetFileDescriptor(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY), 0, AssetFileDescriptor.UNKNOWN_LENGTH) {
                     override fun close() { closes.incrementAndGet(); super.close(); closed.countDown() }
                     override fun createInputStream(): java.io.FileInputStream = object : AutoCloseInputStream(this) {
                         private var closing = false
@@ -91,12 +98,52 @@ class ContentArtworkTransportTest {
     @After fun release() { release.countDown() }
 
     @Test fun `content client reads complete bytes and closes its owned stream once`() {
-        val image = transport.read(uri.toString(), ArtworkCancellation())
-        assertArrayEquals(file.readBytes(), image.bytes)
-        assertEquals(800, image.dimensions.width)
+        val image = transport.read(uri, ImageCancellation())
+        assertArrayEquals(file.readBytes(), image)
+        assertEquals(800, verifiedDimensions(image).width)
         assertEquals(1, opens.get())
-        assertEquals(0, closes.get())
+        assertEquals(1, closes.get())
         assertEquals(1, streamCloses.get())
+    }
+
+    @Test fun `provider without a MIME type is cached by Coil and shared with another zone`() = runBlocking {
+        pipe = true
+        ArtworkFixture(folder.newFolder(), transport).use { fixture ->
+            val source = fr.sygix.sygixos.model.ProgramArtwork("fixture.app", listOf(uri.toString()), "fiction")
+            assertNotNull(fixture.repository.resolve(source, fr.sygix.sygixos.domain.ArtworkPolicy.Hero).first)
+            assertNotNull(fixture.repository.resolve(source, fr.sygix.sygixos.domain.ArtworkPolicy.Card(396)).first)
+            assertEquals(1, opens.get())
+            assertEquals(uri.toString(), fixture.db.artwork().images().single().diskKey)
+        }
+    }
+
+    @Test fun `timeout closes the owned stream and unblocks a read without external release`() = runBlocking {
+        val exit = CountDownLatch(1)
+        val unblock = CountDownLatch(1)
+        val closeCount = AtomicInteger()
+        val cancellation = ImageCancellation()
+        val stream = cancellation.own(object : java.io.InputStream() {
+            override fun read(): Int { entered.countDown(); unblock.await(); exit.countDown(); return -1 }
+            override fun close() { closeCount.incrementAndGet(); unblock.countDown() }
+        })
+        ArtworkScheduler().use { scheduler ->
+            val result = scheduler.run("fixture", 100, cancellation::cancel) { stream.read() }
+            assertTrue(result.exceptionOrNull() is TimeoutException)
+            assertTrue(exit.await(2, TimeUnit.SECONDS))
+            cancellation.release()
+            assertEquals(1, closeCount.get())
+        }
+    }
+
+    @Test fun `diagnostics never include a server URL or URI query`() {
+        org.robolectric.shadows.ShadowLog.clear()
+        imageFailure("fixture.app", Uri.parse("content://fixture.artwork?src=https%3A%2F%2Fexample.invalid%2Fprivate%3Ftoken%3Dfixture"), "TIMEOUT")
+        val message = org.robolectric.shadows.ShadowLog.getLogsForTag("ProgramArtwork").single().msg
+        assertTrue(message.contains("app=fixture.app"))
+        assertTrue(message.contains("authority=fixture.artwork"))
+        assertFalse(message.contains("src"))
+        assertFalse(message.contains("private"))
+        assertFalse(message.contains("token"))
     }
 
     @Test fun `late content descriptor after timeout is closed once without reading it`() {
@@ -111,16 +158,15 @@ class ContentArtworkTransportTest {
 
     private fun checkBlocked() = runBlocking {
         ArtworkScheduler().use { scheduler ->
-            val cancellation = ArtworkCancellation()
+            val cancellation = ImageCancellation()
             try {
-                val result = withTimeout(8_000) { scheduler.run("fixture", 2_000, cancellation::cancel) { transport.read(uri.toString(), cancellation) } }
+                val result = withTimeout(8_000) { scheduler.run("fixture", 2_000, cancellation::cancel) { transport.read(uri, cancellation) } }
                 assertTrue(entered.await(1, TimeUnit.SECONDS))
                 assertTrue(result.exceptionOrNull() is TimeoutException)
-                assertEquals(0, closes.get())
             } finally { release.countDown() }
             assertTrue(closed.await(2, TimeUnit.SECONDS))
             assertEquals(1, opens.get())
-            assertEquals(if (blockOpen) 1 else 0, closes.get())
+            assertEquals(1, closes.get())
             assertEquals(if (blockOpen) 0 else 1, streamCloses.get())
         }
     }

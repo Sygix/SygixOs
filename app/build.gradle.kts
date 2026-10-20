@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.aboutlibraries)
+    alias(libs.plugins.ksp)
 }
 
 fun versionCodeOf(version: String): Int {
@@ -124,6 +125,9 @@ aboutLibraries {
 }
 
 dependencies {
+    implementation(libs.room.runtime)
+    ksp(libs.room.compiler)
+    testImplementation(libs.room.testing)
     implementation(libs.dadb)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)
@@ -148,6 +152,14 @@ dependencies {
     testImplementation(libs.robolectric)
     debugImplementation(libs.compose.ui.test.manifest)
     testImplementation(libs.compose.ui.test.junit4)
+}
+
+ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
+android.sourceSets.getByName("debug").assets.directories.add("schemas")
+
+tasks.configureEach {
+    if (name == "mergeDebugAssets") dependsOn("kspDebugKotlin")
 }
 
 tasks.withType<Test>().configureEach {

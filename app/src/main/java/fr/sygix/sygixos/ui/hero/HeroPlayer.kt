@@ -17,6 +17,13 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import fr.sygix.sygixos.domain.VisualQuality
+import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 internal interface HeroVideo {
     val firstFrameRendered: Boolean
@@ -41,6 +48,9 @@ internal class HeroPlayer(
     private val context: Context,
     private val onEnded: () -> Unit,
     private val onError: (itemId: String) -> Unit,
+    private val dataSource: suspend () -> DataSource.Factory = {
+        (context.applicationContext as? fr.sygix.sygixos.SygixOsApp)?.videoCache?.dataSource() ?: DefaultDataSource.Factory(context)
+    },
 ) : HeroVideo {
     override var firstFrameRendered by mutableStateOf(false)
         private set
@@ -56,6 +66,10 @@ internal class HeroPlayer(
 
     private var exo: ExoPlayer? = null
     private var view: TextureView? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private var preparing: kotlinx.coroutines.Job? = null
+    private data class Request(val id: String, val url: String, val play: Boolean, val loop: Boolean)
+    private var requested: Request? = null
 
     private val listener = object : Player.Listener {
         override fun onRenderedFirstFrame() {
@@ -78,12 +92,23 @@ internal class HeroPlayer(
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            val uri = requested?.url?.let(android.net.Uri::parse)
+            android.util.Log.w("HeroVideo", "scheme=${uri?.scheme} authority=${uri?.let { fr.sygix.sygixos.data.diagnosticAuthority(it) }} cause=${error.errorCodeName}")
             loadedItem?.let(onError)
         }
     }
 
     override fun show(id: String, url: String, play: Boolean, loop: Boolean) {
-        val player = exo ?: create().also { exo = it }
+        requested = Request(id, url, play, loop)
+        if (exo == null) {
+            if (preparing?.isActive != true) preparing = scope.launch {
+                val factory = dataSource()
+                exo = create(factory)
+                requested?.let { show(it.id, it.url, it.play, it.loop) }
+            }
+            return
+        }
+        val player = checkNotNull(exo)
         player.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         if (id != loadedItem) {
             loadedItem = id
@@ -99,10 +124,12 @@ internal class HeroPlayer(
     }
 
     override fun park() {
+        requested = requested?.copy(play = false)
         exo?.playWhenReady = false
     }
 
     override fun clear() {
+        requested = null
         loadedItem = null
         firstFrameRendered = false
         renderedItem = null
@@ -116,12 +143,15 @@ internal class HeroPlayer(
     }
 
     override fun release() {
+        preparing?.cancel()
+        requested = null
         loadedItem = null
         exo?.release()
         exo = null
     }
 
-    private fun create(): ExoPlayer = ExoPlayer.Builder(context).build().apply {
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private fun create(factory: DataSource.Factory): ExoPlayer = ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(factory)).build().apply {
         volume = 0f
         addListener(listener)
         view?.let(::setVideoTextureView)

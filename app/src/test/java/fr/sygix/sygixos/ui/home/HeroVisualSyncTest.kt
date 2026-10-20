@@ -43,6 +43,7 @@ import org.robolectric.annotation.Config
 
 private class GatedImageLoader(private val gated: String) : ImageLoader {
     val gate = CompletableDeferred<Unit>()
+    var failure: Throwable? = null
     private val counts = mutableMapOf<Any?, Int>()
     fun requests(data: Any?): Int = counts[data] ?: 0
     override val defaults = DefaultRequestOptions()
@@ -54,6 +55,7 @@ private class GatedImageLoader(private val gated: String) : ImageLoader {
         val uri = (request.data as? fr.sygix.sygixos.model.ProgramArtwork)?.candidates?.firstOrNull() ?: request.data
         counts[uri] = (counts[uri] ?: 0) + 1
         if (uri == gated) gate.await()
+        if (uri == gated && failure != null) return coil.request.ErrorResult(null, request, requireNotNull(failure))
         return SuccessResult(ColorDrawable(Color.DKGRAY), request, DataSource.MEMORY)
     }
     override fun shutdown() = Unit
@@ -90,6 +92,25 @@ class HeroVisualSyncTest {
             keyUp(key)
         }
         advance(100)
+    }
+
+    @Test
+    fun `republishing a displayed program keeps its caption poster and painter`() {
+        val first = program("preview-1", "Fiction")
+        val loader = GatedImageLoader("none")
+        Coil.setImageLoader(loader)
+        var item by mutableStateOf(first)
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(catalog = catalogOf(dock = emptyList(), grid = emptyList()), hero = heroStateOf(listOf(item), validated = setOfNotNull(first.imageUrl)))
+        }
+        advance(2_000)
+        val reads = loader.requests(first.imageUrl)
+        item = first.copy(id = "preview-99", positionMillis = 200, durationMillis = 1_000)
+        advance(500)
+        compose.onNodeWithTag("hero-poster").assertExists()
+        compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
+        assertEquals(reads, loader.requests(first.imageUrl))
     }
 
     @Test
@@ -145,6 +166,10 @@ class HeroVisualSyncTest {
         assertEquals(listOf("h1"), opened)
 
         advance(8_000 + Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
+        loader.failure = java.io.IOException("Request deadline fixture")
+        loader.gate.complete(Unit)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
         compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
         compose.onNodeWithTag("hero-fallback-neutral").assertExists()
         compose.onAllNodesWithText(first.title, useUnmergedTree = true).assertCountEquals(0)

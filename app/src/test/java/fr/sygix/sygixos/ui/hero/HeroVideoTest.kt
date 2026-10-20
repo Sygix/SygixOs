@@ -123,6 +123,7 @@ class HeroVideoTest {
 
     private val video = FakeVideo()
     private var failVideo: (String) -> Unit = {}
+    private var endVideo: () -> Unit = {}
     private val opened = mutableListOf<String>()
     private var motion by mutableStateOf(true)
     private var visible by mutableStateOf(true)
@@ -139,7 +140,7 @@ class HeroVideoTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             CompositionLocalProvider(
-                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, error -> failVideo = error; video },
+                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, ended, error -> endVideo = ended; failVideo = error; video },
                 LocalLifecycleOwner provides owner,
             ) {
                 HeroStage(
@@ -181,6 +182,27 @@ class HeroVideoTest {
 
     private fun picture(id: String, title: String) =
         HeroItem(id = id, title = title, imageUrl = "https://example.invalid/$id.jpg", sourcePackage = "com.example.player")
+
+    @Test
+    fun `three fallback programs keep one nature preparation then ending advances the clip and image resets it`() {
+        val fallback = (1..3).map { HeroItem("failed$it", "Fiction $it", sourcePackage = "fixture.app", launchUri = "fixture://film/$it") }
+        show(fallback + picture("healthy", "Healthy fiction"))
+        compose.runOnIdle { video.render("nature-0") }
+        advance(500)
+        advance(Motion.HERO_DWELL_MS + 200)
+        advance(Motion.HERO_DWELL_MS + 200)
+        assertEquals(listOf("nature-0"), video.prepared)
+        compose.onNodeWithText("Fiction 3", useUnmergedTree = true).assertExists()
+        compose.runOnIdle { endVideo() }
+        advance(100)
+        assertEquals(listOf("nature-0", "nature-1"), video.prepared)
+        compose.onNodeWithText("Fiction 3", useUnmergedTree = true).assertExists()
+        press(Key.DirectionRight)
+        advance(Motion.HERO_CROSSFADE_MS + 200L)
+        assertEquals(null, video.loadedItem)
+        press(Key.DirectionRight)
+        assertEquals(listOf("nature-0", "nature-1", "nature-1"), video.prepared)
+    }
 
     @Test
     fun `nature then neutral fallback preserve program texts opening target and navigation`() {

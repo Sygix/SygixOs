@@ -212,14 +212,14 @@ internal class HeroPosterImages(val poster: ImageBitmap, val backdrop: ImageBitm
 
 internal object HeroPosterLoader {
 
-    suspend fun load(context: Context, url: String, spec: PosterSpec, artwork: ProgramArtwork? = null): HeroPosterImages? = kotlinx.coroutines.withTimeoutOrNull(8_000) {
+    suspend fun load(context: Context, url: String, spec: PosterSpec, artwork: ProgramArtwork? = null): HeroPosterImages? {
         val loader = context.imageLoader
         val poster = loader.execute(request(context, artwork ?: url, PixelSize(spec.width, spec.height), VeiledPosterTransformation(spec)))
-            .bitmap(spec.width, spec.height) ?: return@withTimeoutOrNull null
+            .bitmap(spec.width, spec.height) ?: return null
         val backdropSize = spec.backdrop
         val backdrop = loader.execute(request(context, artwork ?: url, backdropSize, GlassBackdropTransformation(spec)))
             .bitmap(backdropSize.width, backdropSize.height)
-        HeroPosterImages(poster.asImageBitmap(), backdrop?.asImageBitmap())
+        return HeroPosterImages(poster.asImageBitmap(), backdrop?.asImageBitmap())
     }
 
     private fun request(context: Context, url: Any, size: PixelSize, transformation: Transformation): ImageRequest =

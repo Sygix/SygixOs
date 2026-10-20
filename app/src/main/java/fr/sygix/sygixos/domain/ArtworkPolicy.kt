@@ -21,7 +21,7 @@ sealed interface ArtworkPolicy {
     }
 
     data class Shelf(val width: Int) : ArtworkPolicy {
-        override fun accepts(dimensions: ArtworkDimensions) = width > 0 && dimensions.valid && dimensions.width >= width && dimensions.width >= dimensions.height
+        override fun accepts(dimensions: ArtworkDimensions) = dimensions.valid && dimensions.width >= 640 && dimensions.width >= dimensions.height
     }
 
     data class Card(val width: Int) : ArtworkPolicy {

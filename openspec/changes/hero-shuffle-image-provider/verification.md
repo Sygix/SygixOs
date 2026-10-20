@@ -1,5 +1,30 @@
 # Vérification : hero-shuffle-image-provider
 
+## Révision v0.3.2 — vérification avant essai sur émulateur
+
+La source de vérité est la spec révisée de la PR #84. Les résultats historiques plus bas ne sont pas utilisés comme preuve de cette révision.
+
+| Dimension | Résultat |
+| --- | --- |
+| Complétude | Tâches 8.1 à 8.10 implémentées et vérifiées ; 8.11 attend encore l'émulateur ; 8.12 reste réservée à la TV réelle. Les anciennes tâches 7.2 et 7.3 renvoient à 8.12. |
+| Conformité | Les contrats modifiés sont reliés aux preuves ci-dessous ; le fonctionnement des fournisseurs tiers et la fluidité sur la TV ne sont pas vérifiés ici. |
+| Cohérence | D1 à D7 : Coil et index Room, délai de requête sans attente en file, événements ciblés, qualité par destination, clips continus et cache vidéo adaptatif. |
+
+| Contrat | Code | Preuves automatisées |
+| --- | --- | --- |
+| Index durable, associations non bornées, migrations et reconstruction | `ArtworkDatabase`, `ArtworkRepository` | `ArtworkDatabaseTest` : 100 associations, purge, conservation des dimensions et dates, migration absente et migration en échec ; `ArtworkRepositoryTest` : réouverture hors ligne et éviction Coil. |
+| Fournisseur sans type, flux de longueur inconnue, fermeture et redirections | `ProgramImageReader`, `ProgramImageFetcher`, `ImageCancellation` | `ContentArtworkTransportTest` : fournisseur sans type, pipe, cache commun, appel tardif, fermeture qui débloque la lecture ; `AndroidArtworkTransportTest` : serveur HTTP redirigeant vers HTTPS avec certificat de test éphémère. |
+| Vérification avant engagement et clés communes | `ProgramArtworkInterceptor`, `ProgramImageFetcher`, `ArtworkRepository` | `ArtworkRepositoryTest` : trois destinations, abonné annulé, contenu différent sur URI connue, page d'erreur et PNG tronqué non engagés, copie valide préservée devant une icône d'erreur. |
+| Délai unique et priorité | `ArtworkScheduler` | `ArtworkSchedulerTest` : trente images sans expiration en file, quatre apps, requête abandonnée, priorité aux zones visibles, quarantaine, saturation et annulation bloquée. |
+| Événements ciblés, fraîcheur et identité indépendante de la ligne | `ArtworkRepository`, `ArtworkEvents`, `HomeViewModel`, `HeroSessionOrder` | `ArtworkFingerprintTest`, `HomeRefreshTest`, `ArtworkRepositoryTest`, `HeroVisualSyncTest`, `UpNextArtworkRenderTest` : nouvelle URI isolée, voisin frais inchangé, absence de revalidation après republication/progression, maintien du visuel pendant son remplacement et contrôle de TTL. |
+| Génériques et qualité | `ArtworkRepository`, `ArtworkPolicy` | Trois identités contre une seule série ; ressource étrangère jamais lue ; icône n'écrasant pas la copie valide ; seuils 639/640, cartes à leur largeur et portrait. |
+| Continuité des clips et cache vidéo | `HeroStage`, `HeroPlayer`, `HeroVideoCache`, `StreamingFallbackDataSource` | `HeroVideoTest` : préparation unique pour trois replis, fin de clip indépendante, reprise au début après image ; `HeroVideoCacheTest` : budget, LRU, manque de place, création impossible et erreur d'écriture avec reprise à l'octet non lu. |
+| Vignettes des réglages et diagnostics | `SettingsContent`, intercepteur partagé et journaux image/vidéo | Régressions de vignettes des réglages ; `ContentArtworkTransportTest` vérifie l'absence d'URL serveur et de paramètres dans les diagnostics. Les autorités réseau sont masquées. |
+
+Commandes exécutées : `openspec validate --all --strict` (**9 éléments validés, aucun échec**) et `./gradlew test assembleRelease --no-daemon` (**réussi**). La vérification JVM ne démontre ni les performances sur la TV ni le comportement Binder d'une application tierce réelle. L'essai émulateur et la revue indépendante restent à consigner ; aucun archivage n'est autorisé à ce stade.
+
+## Historique v0.3.1
+
 > Historique : ce rapport concerne la première version de ce change (spec #82, implémentation livrée en v0.3.1), remplacée par la révision v0.3.2. Voir `design.md` et la section 8 de `tasks.md`.
 
 ## Résumé

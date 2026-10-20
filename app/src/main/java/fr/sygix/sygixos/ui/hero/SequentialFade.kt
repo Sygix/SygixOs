@@ -14,6 +14,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -22,7 +25,8 @@ import fr.sygix.sygixos.core.designsystem.AppleEasing
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-private class FadeEntry<T>(val value: T, initial: Float) {
+private class FadeEntry<T>(value: T, initial: Float) {
+    var value by mutableStateOf(value)
     val alpha = Animatable(initial)
 }
 
@@ -30,12 +34,16 @@ private class FadeEntry<T>(val value: T, initial: Float) {
 internal fun <T : Any> SequentialFade(
     target: T?,
     durationMillis: Int,
+    identity: (T) -> Any = { it },
     content: @Composable (T) -> Unit,
 ) {
     val entries = remember { mutableStateListOf<FadeEntry<T>>().apply { target?.let { add(FadeEntry(it, 1f)) } } }
     LaunchedEffect(target) {
         val half = durationMillis / 2
-        val incoming = target?.let { value -> entries.firstOrNull { it.value == value } ?: FadeEntry(value, 0f).also { entries.add(it) } }
+        val incoming = target?.let { value ->
+            entries.firstOrNull { identity(it.value) == identity(value) }?.also { it.value = value }
+                ?: FadeEntry(value, 0f).also { entries.add(it) }
+        }
         val outgoing = entries.filter { it !== incoming }
         coroutineScope {
             outgoing.forEach { entry ->
@@ -47,7 +55,7 @@ internal fun <T : Any> SequentialFade(
     }
     Box(contentAlignment = Alignment.BottomStart) {
         entries.forEach { entry ->
-            key(entry.value) {
+            key(entry) {
                 Box(
                     Modifier.graphicsLayer {
                         alpha = entry.alpha.value

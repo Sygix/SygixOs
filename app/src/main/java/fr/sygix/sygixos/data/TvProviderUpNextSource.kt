@@ -26,6 +26,7 @@ class TvProviderUpNextSource(
     },
     private val installed: (String) -> Boolean = { pkg -> runCatching { context.packageManager.getApplicationInfo(pkg, 0) }.isSuccess },
     private val onConfirmed: () -> Unit = {},
+    private val onSnapshot: suspend (List<UpNextItem>) -> Unit = {},
 ) : UpNextSource {
     private val apps = ConcurrentHashMap<String, SourceApp>()
 
@@ -34,7 +35,7 @@ class TvProviderUpNextSource(
     override suspend fun load(): Result<List<UpNextItem>> = providerQuery(timeoutMillis) { signal ->
         val cursor = query(signal) ?: error("Watch Next provider unavailable")
         cursor.use { c -> buildList { while (c.moveToNext()) mapRow(c)?.let(::add) } }
-    }.map { accessible(it).also { onConfirmed() } }
+    }.map { accessible(it).also { values -> onSnapshot(values); onConfirmed() } }
 
     override suspend fun accessible(items: List<UpNextItem>): List<UpNextItem> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val available = items.map { it.source.packageName }.distinct().associateWith(installed)

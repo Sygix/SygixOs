@@ -29,22 +29,25 @@ internal class ArtworkScheduler(
     private var closed = false
     private var lastApp: String? = null
 
-    private class Work<T>(val app: String, val cancel: () -> Unit, val read: () -> T) {
+    private class Work<T>(val app: String, val key: String?, val timeoutMillis: Long, var priority: Boolean, val cancel: () -> Unit, val read: () -> T) {
         val result = CompletableDeferred<Result<T>>()
         var started = false
+        var timeout: java.util.concurrent.ScheduledFuture<*>? = null
     }
 
-    suspend fun <T> run(app: String, timeoutMillis: Long, cancel: () -> Unit = {}, read: () -> T): Result<T> {
-        val work = Work(app, cancel, read)
-        val timeout = synchronized(this) {
-            if (closed || pending.size >= capacity || quarantined.size == parallelism) {
+    @Synchronized fun promote(key: String) { pending.filter { it.key == key }.forEach { it.priority = true } }
+
+    suspend fun <T> run(app: String, timeoutMillis: Long, cancel: () -> Unit = {}, priority: Boolean = true, key: String? = null, read: () -> T): Result<T> {
+        val work = Work(app, key, timeoutMillis, priority, cancel, read)
+        synchronized(this) {
+            if (closed || pending.size >= capacity || quarantined.size == parallelism || app in quarantined) {
                 return Result.failure(ArtworkBusyException())
             }
             pending += work
-            deadlines.schedule({ expire(work) }, timeoutMillis.coerceAtLeast(1), TimeUnit.MILLISECONDS).also { pump() }
+            pump()
         }
         return try { work.result.await() } finally {
-            timeout.cancel(false)
+            work.timeout?.cancel(false)
             synchronized(this) {
                 if (!work.result.isCompleted) {
                     work.result.cancel()
@@ -66,7 +69,9 @@ internal class ArtworkScheduler(
 
     private fun pump() {
         while (!closed && active.size < parallelism) {
-            val preferred = pending.indexOfFirst { it.app !in active && it.app != lastApp }
+            val fairVisible = pending.indexOfFirst { it.app !in active && it.priority && it.app != lastApp }
+            val visible = fairVisible.takeIf { it >= 0 } ?: pending.indexOfFirst { it.app !in active && it.priority }
+            val preferred = visible.takeIf { it >= 0 } ?: pending.indexOfFirst { it.app !in active && it.app != lastApp }
             val index = preferred.takeIf { it >= 0 } ?: pending.indexOfFirst { it.app !in active }
             if (index < 0) return
             start(pending.removeAt(index))
@@ -79,8 +84,10 @@ internal class ArtworkScheduler(
         work.started = true
         workers.execute {
             try {
+                work.timeout = deadlines.schedule({ expire(work) }, work.timeoutMillis.coerceAtLeast(1), TimeUnit.MILLISECONDS)
                 if (!work.result.isCompleted) work.result.complete(runCatching(work.read))
             } finally {
+                work.timeout?.cancel(false)
                 synchronized(this) {
                     active -= work.app
                     quarantined -= work.app

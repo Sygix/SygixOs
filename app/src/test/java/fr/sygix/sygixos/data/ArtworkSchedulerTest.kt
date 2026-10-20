@@ -15,6 +15,42 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ArtworkSchedulerTest {
+    @Test fun `thirty queued images do not consume their request timeout before starting`() = runBlocking {
+        ArtworkScheduler().use { scheduler ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val first = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                scheduler.run("app", 5_000) { entered.countDown(); release.await(); 0 }
+            }
+            assertTrue(entered.await(2, TimeUnit.SECONDS))
+            val queued = (1..30).map { n -> async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("app", 50) { n } } }
+            try {
+                assertNull(kotlinx.coroutines.withTimeoutOrNull(150) { queued.last().await() })
+                release.countDown()
+                assertEquals((1..30).toList(), withTimeout(5_000) { queued.map { it.await().getOrThrow() } })
+            } finally { release.countDown() }
+            assertEquals(0, first.await().getOrThrow())
+        }
+    }
+
+    @Test fun `visible work precedes prevalidation and an abandoned queued request is never read`() = runBlocking {
+        ArtworkScheduler().use { scheduler ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val order = java.util.concurrent.CopyOnWriteArrayList<String>()
+            val first = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("app", 5_000) { entered.countDown(); release.await() } }
+            assertTrue(entered.await(2, TimeUnit.SECONDS))
+            val ahead = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("app", 1_000, priority = false) { order += "prevalidation" } }
+            val cancelled = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("app", 1_000) { error("Abandoned work started") } }
+            val visible = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("app", 1_000) { order += "visible" } }
+            cancelled.cancel()
+            cancelled.join()
+            release.countDown()
+            withTimeout(5_000) { first.await(); ahead.await().getOrThrow(); visible.await().getOrThrow() }
+            assertEquals(listOf("visible", "prevalidation"), order)
+        }
+    }
+
     @Test fun `four apps respect the global bound and a queued app precedes another image from the released app`() = runBlocking {
         ArtworkScheduler(3).use { scheduler ->
             val entered = CountDownLatch(3)
@@ -56,7 +92,7 @@ class ArtworkSchedulerTest {
                 assertTrue(withTimeout(3_000) { blocked.await() }.exceptionOrNull() is TimeoutException)
                 var reopened = false
                 val again = scheduler.run("blocked", 100) { reopened = true; "bad" }
-                assertTrue(again.exceptionOrNull() is TimeoutException)
+                assertTrue(again.exceptionOrNull() is ArtworkBusyException)
                 assertFalse(reopened)
             } finally { release.countDown() }
         }

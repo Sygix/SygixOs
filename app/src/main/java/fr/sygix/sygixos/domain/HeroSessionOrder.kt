@@ -16,14 +16,18 @@ interface HeroOrder {
 class HeroSessionOrder(private val random: Random = Random.Default) : HeroOrder {
     private var order = emptyList<String>()
     override var displayedId: String? = null
+    private var displayedIdentity: String? = null
+    private var previous = emptyMap<String, String>()
 
     override fun arrange(items: List<HeroItem>): List<HeroItem> {
-        val byId = items.associateBy { it.id }
+        displayedIdentity = previous[displayedId] ?: displayedIdentity
+        val byId = items.associateBy { it.artwork.identity }
+        previous = items.associate { it.id to it.artwork.identity }
         val kept = order.filter { it in byId }.toMutableList()
         val added = byId.keys.filter { it !in order }
         if (order.isEmpty()) kept += added.shuffled(random) else {
             for (id in added) {
-                val lower = (kept.indexOf(displayedId) + 1).coerceAtLeast(0)
+                val lower = (kept.indexOf(displayedIdentity) + 1).coerceAtLeast(0)
                 kept.add(random.nextInt(lower, kept.size + 1), id)
             }
         }

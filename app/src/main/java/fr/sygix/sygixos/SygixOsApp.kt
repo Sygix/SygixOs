@@ -49,9 +49,6 @@ import fr.sygix.sygixos.data.UpdateInstaller
 import fr.sygix.sygixos.data.UpdatePrefs
 import fr.sygix.sygixos.data.UpdateRelaunchReceiver
 import fr.sygix.sygixos.data.UpdateRepository
-import fr.sygix.sygixos.data.ArtworkDiskStore
-import fr.sygix.sygixos.data.AndroidArtworkTransport
-import fr.sygix.sygixos.data.ProgramArtworkService
 import fr.sygix.sygixos.data.ProgramArtworkInterceptor
 import fr.sygix.sygixos.domain.LauncherSystemStore
 import fr.sygix.sygixos.domain.StartupSession
@@ -61,7 +58,9 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
     val installedAppsSource: InstalledAppsSource by lazy { InstalledAppsSource(this) }
     val launcherPrefs: LauncherPrefs by lazy { LauncherPrefs(this) }
     val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
-    val tvProviderHeroSource: TvProviderHeroSource by lazy { TvProviderHeroSource(this, onConfirmed = { programArtwork.onProgramsConfirmed() }) }
+    val tvProviderHeroSource: TvProviderHeroSource by lazy {
+        TvProviderHeroSource(this, onSnapshot = { table, items -> programArtwork.confirm(table, items.map { it.artwork to it.fullFingerprint }) })
+    }
     val appArtwork: AppArtworkSource by lazy {
         val tile = Dimens.gridTileWidthPx(resources.configuration.screenWidthDp, resources.displayMetrics.density)
         AppArtworkSource(packageManager, bounds = ImageBounds.tile(tile))
@@ -70,8 +69,14 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
     val heroOrder = fr.sygix.sygixos.domain.HeroSessionOrder()
     val foregroundTracker = ForegroundTracker()
     private val imageDisk by lazy { DiskCache.Builder().directory(cacheDir.resolve("images")).maxSizeBytes(256L * 1024 * 1024).build() }
-    private val programArtworkInstance = lazy { ProgramArtworkService(ArtworkDiskStore(imageDisk), AndroidArtworkTransport(contentResolver)) }
+    private val imageHttp by lazy { okhttp3.OkHttpClient.Builder().followRedirects(true).followSslRedirects(true).build() }
+    private val programArtworkInstance = lazy {
+        fr.sygix.sygixos.data.ArtworkRepository(this, fr.sygix.sygixos.data.ArtworkDatabase.create(this), imageDisk,
+            fr.sygix.sygixos.data.ProgramImageReader(contentResolver, imageHttp),
+            cardWidth = (((resources.configuration.screenWidthDp - 2 * Dimens.ScreenMarginH.value - 3 * Dimens.GridSpacing.value) / 4) * resources.displayMetrics.density).toInt())
+    }
     internal val programArtwork by programArtworkInstance
+    internal val videoCache by lazy { fr.sygix.sygixos.data.HeroVideoCache(this) }
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
@@ -261,9 +266,13 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
             .respectCacheHeaders(false)
             .memoryCache(memory)
             .diskCache(imageDisk)
-            .components { add(ProgramArtworkInterceptor(this@SygixOsApp, programArtwork)) }
+            .okHttpClient(imageHttp)
+            .components {
+                add(ProgramArtworkInterceptor(programArtwork))
+                add(fr.sygix.sygixos.data.ProgramImageFetcher.Factory(imageDisk, programArtwork))
+            }
             .decoderDispatcher(fr.sygix.sygixos.data.ArtworkDecodeDispatcher)
             .fetcherDispatcher(Dispatchers.IO.limitedParallelism(4))
-            .build()
+            .build().also { loader -> programArtwork.imageLoader = { loader } }
     }
 }

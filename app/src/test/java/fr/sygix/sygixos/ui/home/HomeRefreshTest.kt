@@ -68,6 +68,41 @@ import org.robolectric.Shadows.shadowOf
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeRefreshTest {
+    @Test fun aChangedImageKeepsItsPreviousPosterUntilTheReplacementIsReady() = runBlocking(Dispatchers.Default) {
+        val initial = heroItem("preview-1", "Fiction", imageUrl = "https://example.invalid/old.jpg", sourcePackage = "fixture.app")
+        var feed = listOf(initial)
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val replacement = "https://example.invalid/new.jpg"
+        val home = home(provider { feed }) { uri, _ ->
+            if (uri == replacement) { entered.complete(Unit); release.await() }
+            null
+        }
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(initial.imageUrl) }
+        feed = listOf(initial.copy(imageUrl = replacement, posterUrl = replacement))
+        home.refreshHero()
+        withTimeout(5_000) { entered.await() }
+        assertEquals(initial.imageUrl, home.hero()?.items?.single()?.imageUrl)
+        release.complete(Unit)
+        home.state.await { (it as? HomeState.Ready)?.hero?.items?.singleOrNull()?.imageUrl == replacement }
+        assertEquals(1, attempts[initial.imageUrl])
+        assertEquals(1, attempts[replacement])
+    }
+
+    @Test fun republishedRowsAndProgressUpdatesDoNotRevalidateImages() = runBlocking(Dispatchers.Default) {
+        val initial = heroItem("preview-1", "Fiction", imageUrl = "https://example.invalid/one.jpg", sourcePackage = "fixture.app")
+        var feed = listOf(initial)
+        val home = home(provider { feed }) { _, _ -> null }
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(initial.imageUrl) }
+        feed = listOf(initial.copy(id = "preview-22", positionMillis = 1_000, durationMillis = 4_000))
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.items?.singleOrNull()?.id == "preview-22" }
+        home.refreshHero()
+        assertEquals(1, attempts[initial.imageUrl])
+    }
+
     @Test fun lateImagesCannotRepopulateWithdrawnExpiredReplacedOrReusedProgramGenerations() = runBlocking(Dispatchers.Default) {
         val testScheduler = programScheduler
         for (event in listOf("withdraw", "expire", "replace", "reuse")) {
@@ -103,7 +138,7 @@ class HomeRefreshTest {
                 testScheduler.runCurrent()
                 assertEquals(event, emptySet<String>(), home.hero()?.validated)
                 if (event == "withdraw" || event == "expire") assertTrue(event, home.hero()?.items.isNullOrEmpty())
-                else assertEquals(event, feed.single().contentId, home.hero()?.items?.single()?.contentId)
+                else assertEquals(event, feed.single().contentId, home.hero()?.shelfItems?.single()?.contentId)
             } finally { release.complete(Unit) }
         }
     }
@@ -131,7 +166,8 @@ class HomeRefreshTest {
             home.state.await { (it as? HomeState.Ready)?.hero?.checked == setOf(uri) }
             release.complete(Unit)
             withTimeout(5_000) { finished.await() }
-            assertEquals("Replacement fiction", home.hero()?.items?.single()?.title)
+            assertEquals("Replacement fiction", home.hero()?.shelfItems?.single()?.title)
+            assertTrue(home.hero()?.items.isNullOrEmpty())
             assertEquals(emptySet<String>(), home.hero()?.validated)
             assertEquals(2, attempts[uri])
         } finally { release.complete(Unit) }
@@ -200,7 +236,7 @@ class HomeRefreshTest {
     }
 
     @Test fun anUnchangedResumePublishesNothingWhilePackageAndProviderChangesArePublished() = runBlocking(Dispatchers.Default) {
-        var feed = listOf(heroItem("a", "A"))
+        var feed = listOf(heroItem("a", "A").copy(videoUrl = "https://example.invalid/a.mp4"))
         var loads = 0
         val home = home(provider { loads++; feed })
         home.refreshHero()
@@ -219,7 +255,7 @@ class HomeRefreshTest {
         )
         home.artwork.invalidate("com.new")
         home.state.await { (it as? HomeState.Ready)?.catalog?.grid?.map(TvApp::packageName) == listOf("com.new") }
-        feed = listOf(heroItem("b", "B"))
+        feed = listOf(heroItem("b", "B").copy(videoUrl = "https://example.invalid/b.mp4"))
         home.refreshHero()
         home.state.await { (it as? HomeState.Ready)?.hero?.items == feed }
         watching.cancel()
@@ -270,7 +306,7 @@ class HomeRefreshTest {
         val started = CompletableDeferred<Unit>()
         val cancelled = CompletableDeferred<Unit>()
         var calls = 0
-        val latest = listOf(heroItem("new", "Latest"))
+        val latest = listOf(heroItem("new", "Latest").copy(videoUrl = "https://example.invalid/new.mp4"))
         val home = home(provider {
             if (++calls == 1) {
                 started.complete(Unit)
@@ -345,7 +381,7 @@ class HomeRefreshTest {
         home.prepareShelf("com.a")
         feed = shelfFeed(heroItem("a2", "A2", imageUrl = fresh, sourcePackage = "com.a"))
         home.refreshHero()
-        home.state.await { it is HomeState.Ready && it.hero.items == feed }
+        home.state.await { it is HomeState.Ready && it.hero.shelfItems == feed }
         assertTrue(fresh in home.hero()?.checked.orEmpty())
     }
 

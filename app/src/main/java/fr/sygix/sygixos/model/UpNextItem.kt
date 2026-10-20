@@ -43,7 +43,7 @@ data class UpNextItem(
 ) {
     val artwork: ProgramArtwork get() = ProgramArtwork(
         source.packageName, listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
-        listOf("watchnext-$id", title, source.intentUri, internalProviderId, contentId, releaseDate, season, episode, seriesId, type == UpNextContentType.EPISODE).joinToString("\u0000"),
+        listOf(source.packageName, "watchnext", title, source.intentUri, internalProviderId, contentId, releaseDate, season, episode, seriesId, type == UpNextContentType.EPISODE, posterUrl ?: imageUrl, thumbnailUrl).joinToString("\u0000"),
         publicationId = "watchnext-$id",
         sharedIdentity = sharedArtworkIdentity(type == UpNextContentType.EPISODE, seriesId, contentId, internalProviderId, source.intentUri, title, releaseDate),
     )

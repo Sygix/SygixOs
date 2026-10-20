@@ -45,9 +45,8 @@ class VisualValidator(
     private val imageLoader: ImageLoader = context.imageLoader,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    suspend fun prepare(source: ProgramArtwork, width: Int): VisualCheck = kotlinx.coroutines.withTimeoutOrNull(8_000) {
-        prepareWithinBudget(source, width)
-    } ?: VisualCheck(null, retryable = true)
+    internal var repository: ArtworkRepository? = null
+    suspend fun prepare(source: ProgramArtwork, width: Int): VisualCheck = prepareWithinBudget(source, width)
 
     private suspend fun prepareWithinBudget(source: ProgramArtwork, width: Int): VisualCheck {
         val policy = ArtworkPolicy.Shelf(width)
@@ -61,16 +60,20 @@ class VisualValidator(
         return if (result is SuccessResult) check else VisualCheck(null, retryable = true)
     }
 
-    suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck = kotlinx.coroutines.withTimeoutOrNull(8_000) {
-        validateWithinBudget(source, policy)
-    } ?: VisualCheck(null, retryable = true)
+    suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck {
+        repository?.let {
+            val (image, failure) = it.resolve(source, policy, visible = false)
+            return VisualCheck(image?.uri, image == null && failure != ArtworkFailure.QUALITY && source.candidates.isNotEmpty())
+        }
+        return validateWithinBudget(source, policy)
+    }
 
     private suspend fun validateWithinBudget(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck = withContext(dispatcher) {
         var retryable = false
         for (candidate in source.candidates.flatMap(::visualCandidates).distinct()) {
             val request = ImageRequest.Builder(context).data(source.withCandidates(listOf(candidate)))
                 .size(1920, 1080).decoderFactory(boundsDecoder)
-                .setParameter(ProgramArtworkInterceptor.BOUNDS, true, null).artworkPolicy(policy).build()
+                .artworkPolicy(policy).build()
             val result = imageLoader.execute(request)
             val drawable = (result as? SuccessResult)?.drawable
             if (drawable != null && policy.accepts(ArtworkDimensions(drawable.intrinsicWidth, drawable.intrinsicHeight))) return@withContext VisualCheck(candidate)

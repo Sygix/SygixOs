@@ -55,8 +55,7 @@ internal fun posterRequest(context: Context, uri: String, size: PixelSize, artwo
 
 @Composable
 internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier, sources: Map<String, ProgramArtwork> = emptyMap()) {
-    val revision = artworkRevision()
-    var failed by remember(uris, revision) { mutableStateOf(emptySet<String>()) }
+    var failed by remember(uris) { mutableStateOf(emptySet<String>()) }
     val loadable = uris.filter { it !in failed }
     var current by remember { mutableStateOf(loadable.firstOrNull()) }
     LaunchedEffect(loadable) {
@@ -91,8 +90,11 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
 
 @Composable
 private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, onError: () -> Unit) {
+    val event = artworkEvent(source)
+    val context = LocalContext.current
+    val request = remember(context, uri, size, source?.identity, event) { posterRequest(context, uri, size, source) }
     val painter = rememberAsyncImagePainter(
-        model = posterRequest(LocalContext.current, uri, size, source),
+        model = request,
         onState = { if (it is AsyncImagePainter.State.Error) onError() },
     )
     val ready = painter.state is AsyncImagePainter.State.Success
