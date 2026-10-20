@@ -2,18 +2,22 @@
 
 ## Why
 
-Les images manquent dans le héro, le Top Shelf et À suivre, y compris après avoir déjà été affichées : le chargement actuel ne conserve pas les octets des images `content://` dans le cache disque de SygixOs, perd l'alternative affiche/miniature et peut attendre un fournisseur bloqué. Le blocage du fournisseur Jellyfin a déjà entraîné l'arrêt de SygixOs par dépendance forte au fournisseur ; les URI réellement publiées par Disney+ et Crunchyroll restent à vérifier sur la TV.
+Les images manquaient dans le héro, le Top Shelf et À suivre, y compris après avoir déjà été affichées : le chargement ne conservait pas les octets des images `content://`, perdait l'alternative affiche/miniature et pouvait attendre un fournisseur bloqué. Le blocage du fournisseur Jellyfin avait déjà entraîné l'arrêt de SygixOs par dépendance forte au fournisseur.
 
-Le change conserve aussi la décision de mélanger le héro à chaque lancement. Il regroupe désormais la fiabilité, la mutualisation et la péremption des images des trois zones, pour qu'une panne d'une app n'empêche pas les autres de fonctionner et qu'un cache ne maintienne pas de vieux programmes indéfiniment.
+La première implémentation de ce change (v0.3.1) a aggravé le symptôme sur la TV de référence : plus aucune image ne s'affiche et la vidéo nature redémarre sans cesse. Elle exigeait un type d'image que le fournisseur de Jellyfin ne déclare pas, comptait l'attente en file dans un délai de 8 s, imposait au Top Shelf la largeur du panneau, invalidait toutes les images à chaque événement et ne mettait pas les vidéos en cache (détail dans `design.md`). Cette révision corrige ces causes en gardant les objectifs du change.
+
+Le change conserve aussi la décision de mélanger le héro à chaque lancement.
 
 ## What Changes
 
-- Un parcours commun au héro, au Top Shelf et à À suivre mutualise récupération, analyse des dimensions, résultats en cours, cache, délais et nouvelles tentatives. Les règles de qualité restent propres à l'usage ; les décodages restent adaptés à chaque taille d'affichage.
-- Les récupérations sont séquentielles par app, parallèles entre apps, avec une limite globale constante. L'accès `content://` utilise une référence instable ; l'ouverture et la lecture du flux sont bornées, même si un appel Android ignore l'annulation. Les accès HTTP suivent le même contrat de délai et de cache.
-- Les images obtenues sont conservées sur disque, y compris celles des fournisseurs tiers. Une copie locale utilisable s'affiche immédiatement ; elle est fraîche pendant 24 h et peut servir en secours jusqu'à 7 jours après la dernière récupération réussie si son programme reste valide. Les affiche et miniature publiées sont conservées comme candidates.
-- Les programmes sont confirmés par les lectures réussies du TV Provider : les absents sont retirés, les anciens résultats ne restent utilisables que 24 h sans confirmation. Ces échéances s'appliquent aussi aux contenus et images déjà à l'écran ou en mémoire ; une réponse tardive ne les réintroduit pas.
-- Dans le héro, si aucun visuel du programme n'est utilisable à l'échéance, une vidéo nature puis, si elle est illisible, le fond neutre assurent le repli en conservant le titre et l'ouverture du bon programme. Le défilement se poursuit. Le Top Shelf ne montre que les images prêtes de l'app focusée ; À suivre conserve son placeholder en dernier recours.
-- À suivre accepte une image à partir de la largeur affichée de la carte, au lieu du double ; le Top Shelf accepte une image paysage à partir de la largeur affichée du panneau. Ces largeurs sont mesurées en pixels hors zoom ; les seuils du héro restent inchangés.
+- Coil reste le moteur d'images. Un intercepteur choisit la candidate et les clés ; un fetcher unique lit les octets HTTP(S) (redirections suivies) et `content://` (sans exiger de type d'image) et les écrit dans le cache disque de Coil après vérification.
+- Les récupérations de toutes les sources sont séquentielles par app, parallèles entre apps (3 au total). Seule la requête a un délai de 8 s, depuis son début effectif ; l'attente en file n'en consomme aucun. L'annulation ferme le flux ouvert.
+- Un index local (Room) conserve programmes, candidates, images et associations, sans limite de nombre, avec migrations entre versions et repli par recréation. Les octets restent dans le cache de Coil.
+- Les mises à jour sont pilotées par les événements du TV Provider et par l'échéance de chaque image : seule l'image concernée est récupérée ou remplacée, sans invalidation globale ni effacement au retour au premier plan. Un programme est reconnu par une empreinte indépendante de son identifiant de ligne et de sa progression.
+- Fraîcheur des images inchangée : 24 h, secours jusqu'à 7 jours ; programmes confirmés par les lectures réussies et expirés à 24 h sans confirmation.
+- Qualité : Top Shelf à partir de 640 px de large, paysage ; héro inchangé et limité aux programmes dont un visuel paysage acceptable ou une vidéo est prêt ; À suivre à la largeur de la carte. Les images génériques (tuile ou icône d'erreur d'une app, mêmes octets pour au moins 3 contenus distincts, ressource d'une autre app) sont traitées comme absentes.
+- Héro : un programme dont l'image n'est pas prête est passé sans délai propre ; une requête en échec donne le repli nature puis neutre. Un même clip nature continue pendant les programmes en repli consécutifs et passe au suivant à sa fin.
+- Les vidéos du héro sont mises en cache disque, jusqu'à 300 Mo selon l'espace libre, avec lecture en flux si le cache est impossible.
 - L'ordre du héro est tiré au hasard une fois par lancement de SygixOs, stable pendant la session ; un programme apparu pendant la session est inséré au hasard après le programme affiché.
 
 ## Capabilities
@@ -24,21 +28,23 @@ Le change conserve aussi la décision de mélanger le héro à chaque lancement.
 
 ### Modified Capabilities
 
-- `launcher-shell` : source et confirmation des programmes, repli du diaporama, contenu du Top Shelf, qualité, préchargement et cache ; exigences communes de chargement résilient, validité et ordre aléatoire.
-- `up-next` : conservation des candidates d'image, seuil des cartes, états après expiration et rafraîchissement ; référence au parcours partagé de `launcher-shell`.
-- `ui-testing` : vérification des trois zones, du partage des récupérations et des dimensions, du parallélisme, des délais, des reprises et de l'expiration.
+- `launcher-shell` : source et confirmation des programmes, admission et repli du diaporama, vidéo de secours et son cache, contenu et seuil du Top Shelf, qualité, préchargement ; exigences communes de chargement, cache, images génériques, validité et ordre aléatoire.
+- `up-next` : conservation des candidates d'image, seuil des cartes, mises à jour ciblées, états après expiration et rafraîchissement ; référence au parcours partagé de `launcher-shell`.
+- `ui-testing` : vérification des trois zones, du partage, du parallélisme, des délais, des mises à jour ciblées, des images génériques, de la conservation entre versions et des vidéos.
 
-La capability `settings` est examinée mais ses exigences ne changent pas : aucune préférence de cache, de délai ou de parallélisme n'est ajoutée ; les listes de contenus retirés restent des archives utilisateur, pas des programmes remis en circulation par le cache.
+La capability `settings` est examinée mais ses exigences ne changent pas : aucune préférence de cache, de délai ou de parallélisme n'est ajoutée ; ses vignettes de contenus retirés utilisent le même chargeur sans devenir un catalogue de programmes.
 
 ## Impact
 
-Sources TV Provider, modèles de programmes et candidates, service d'images partagé et intégration Coil, état de validité exposé par les ViewModels, chargement du héro et du Top Shelf, cartes À suivre, tri du héro, tests JUnit et Compose, README. Aucune dépendance externe nouvelle prévue ; aucune nouvelle intégration d'API métier ni compte ajouté. Les images HTTP(S) continuent d'être obtenues depuis les URI publiées.
+Sources TV Provider, modèles de programmes et candidates, intercepteur et fetcher Coil, ordonnanceur, index Room, état exposé par les ViewModels, héro (admission, repli, lecteur vidéo), Top Shelf, cartes À suivre, vignettes des réglages, tri du héro, tests JUnit et Compose, README.
 
-Le change s'appuie sur les archives `hero-shelf-freshness`, `hero-visual-retry` et `visual-header-validation`, dont il remplace les règles de cache et de reprise concernées. Sa base est la correction des specs existantes de la PR #81, au-dessus de l'archivage `tsuyu-home-setup` (PR #80). Ordre d'intégration : #80, #81, cette spec, puis implémentation images ; les réserves de validation TV de Tsuyu restent indépendantes.
+Nouvelles dépendances : Room et KSP (index local). Le cache vidéo utilise les modules media3 déjà présents. Les images HTTP(S) continuent d'être obtenues depuis les URI publiées.
+
+Le change s'appuie sur les archives `hero-shelf-freshness`, `hero-visual-retry` et `visual-header-validation`, dont il remplace les règles de cache et de reprise concernées. Sa première implémentation a été livrée en v0.3.1 ; cette révision la remplace.
 
 ## Non-goals
 
-- Corriger le blocage du fournisseur d'images de l'application source (hors SygixOs).
-- Garantir la première récupération d'une image dont le fournisseur ne répond jamais, ou une conservation hors ligne illimitée malgré les expirations et l'éviction du cache borné.
+- Corriger le fournisseur d'images de l'application source (hors SygixOs).
+- Garantir la première récupération d'une image dont le fournisseur ne répond jamais, ou une conservation hors ligne illimitée.
 - Inventer des URL, des dates d'expiration ou des identifiants de série non publiés ; les URI signées ne sont pas réécrites. L'enrichissement externe et BetaSeries restent hors périmètre, en P9 pour ce dernier.
 - Choisir l'ordre du héro dans les réglages, mélanger À suivre ou le Top Shelf.

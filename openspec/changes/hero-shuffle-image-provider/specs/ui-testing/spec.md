@@ -14,8 +14,8 @@ Les infos du programme dans le héro (« Diaporama héro » de `launcher-shell`)
 - **THEN** seuls les éléments disponibles existent (« hero-source-icon », « hero-header-label », « hero-details », « hero-progress-bar », « hero-remaining »), « hero-header » n'existe pas sans icône ni libellé, et sans ligne d'infos le bas du titre est le bas de « hero-metadata »
 
 #### Scenario: textes avec le visuel
-- **WHEN** l'image du programme suivant est retenue par un chargeur de test, puis réussit avant son échéance dans un premier cas et dépasse son échéance dans un second
-- **THEN** pendant l'attente, les textes et la cible de « hero-open » restent ceux du visuel précédent ; au succès, ils changent avec le nouveau visuel ; à l'échéance, ils deviennent ceux du programme demandé avec son repli nature puis neutre si nécessaire ; aucune récupération en cours n'est dupliquée et une réponse tardive ne désynchronise pas les textes
+- **WHEN** l'image du programme suivant est retenue par un chargeur de test, puis réussit dans un premier cas et échoue par délai de requête dans un second
+- **THEN** pendant l'attente, les textes et la cible de « hero-open » restent ceux du visuel précédent et le défilement passe ce programme ; au succès, il entre dans le diaporama avec son visuel ; à l'échec, il s'affiche avec son repli nature puis neutre si nécessaire ; aucune récupération en cours n'est dupliquée et une réponse tardive ne désynchronise pas les textes
 
 #### Scenario: vidéo d'aperçu lente
 - **WHEN** une vidéo d'aperçu d'un lecteur de test ne rend pas sa première image dans la seconde qui suit son changement
@@ -40,11 +40,15 @@ Le contrat d'images partagé de launcher-shell SHALL être couvert par des tests
 
 #### Scenario: séquentiel par app et parallèle entre apps
 - **WHEN** plusieurs images de quatre apps sont demandées avec des récupérations contrôlées
-- **THEN** au plus la constante globale d'apps est active, aucune app n'a deux récupérations physiques à la fois, une app lente n'empêche pas les autres de terminer, et une place disponible fait progresser une autre app sans attendre la fin du lot
+- **THEN** au plus la constante globale d'apps est active, aucune app n'a deux récupérations physiques à la fois, une app lente n'empêche pas les autres de terminer, et une place disponible fait progresser une autre app sans attendre la fin du lot ; trente images d'une même app sont toutes lues sans qu'aucune n'expire pendant son attente, celles d'une zone affichée en premier
 
 #### Scenario: ouverture et lecture bloquées
-- **WHEN** un double bloque successivement dans l'ouverture du fournisseur, dans un appel MIME puis dans la lecture du flux, en ignorant l'annulation
-- **THEN** le résultat échoue à l'échéance depuis l'échéancier indépendant ; le worker est quarantiné, aucune seconde requête de cette app n'est démarrée, les autres apps progressent sur les places restantes et les ressources tardives sont fermées exactement une fois sans publication ni engagement du cache
+- **WHEN** un double bloque successivement dans l'ouverture du fournisseur puis dans la lecture du flux, en ignorant l'annulation
+- **THEN** la requête échoue à son délai depuis l'échéancier indépendant ; le descripteur et le flux ouverts sont fermés à l'annulation ; le worker est quarantiné jusqu'à sa sortie, aucune seconde requête de cette app n'est démarrée, les autres apps progressent sur les places restantes et les ressources tardives sont fermées exactement une fois sans publication ni engagement du cache
+
+#### Scenario: fournisseurs et transports réels
+- **WHEN** un fournisseur de test ne déclare aucun type et sert un flux de longueur inconnue, qu'une URI HTTP redirige de http vers https, ou qu'une candidate est une ressource d'une autre app
+- **THEN** les deux premiers cas donnent une image conservée et affichable ; la ressource d'une autre app compte comme absente sans être lue
 
 #### Scenario: saturation bornée
 - **WHEN** tous les workers physiques sont bloqués puis de nouvelles demandes arrivent
@@ -52,7 +56,7 @@ Le contrat d'images partagé de launcher-shell SHALL être couvert par des tests
 
 #### Scenario: alternatives et erreurs
 - **WHEN** la première candidate manque, échoue ou est trop petite, puis qu'une alternative publiée réussit, ou que toutes échouent par refus de permission, fournisseur absent ou panne de transport
-- **THEN** la candidate exploitable est retenue pour l'usage, ou son repli est exposé avec la cause ; une candidate non publiée n'est jamais inventée et le budget ne redémarre pas entre candidates
+- **THEN** la candidate exploitable est retenue pour l'usage, ou son repli est exposé avec la cause ; une candidate non publiée n'est jamais inventée et chaque requête garde son propre délai
 
 #### Scenario: récupération après panne et nouvelle version
 - **WHEN** une image échoue temporairement, puis réussit après un événement de reprise autorisé, ou que le fournisseur publie de nouveaux octets sous la même URI
@@ -103,3 +107,30 @@ Les replis du héro, du Top Shelf et d'À suivre SHALL être testés en Compose 
 #### Scenario: carte et focus après expiration
 - **WHEN** l'image d'une carte expire puis que son programme expire, d'abord au milieu de la rangée puis en dernière position
 - **THEN** l'image devient le placeholder sans changer le focus ni la géométrie ; le retrait du programme applique « carte focusée disparue » ou « rangée devenue vide », sans effacer les contenus retirés ni la mémoire d'ouverture
+
+### Requirement: Couverture des mises à jour ciblées et des vidéos
+Les mises à jour d'images pilotées par le TV Provider et les échéances, les images génériques, la conservation entre versions et les vidéos du héro SHALL être couvertes par des tests déterministes qui comptent récupérations, analyses et rechargements par image, avec provider, horloge, stockage et lecteur vidéo de test.
+
+#### Scenario: un seul programme change
+- **WHEN** le provider de test signale un changement où un seul programme publie une nouvelle URI, puis un autre où les programmes sont supprimés et republiés identiques sous de nouveaux identifiants avec une autre progression
+- **THEN** une seule récupération a lieu dans le premier cas et aucune dans le second ; aucune autre image n'est effacée, revalidée ni recomposée dans les trois zones, et l'ordre du héro est conservé
+
+#### Scenario: échéance et retour au premier plan
+- **WHEN** une image affichée atteint 24 h, puis que le launcher revient au premier plan
+- **THEN** seule cette image est rafraîchie et reste affichée jusqu'à l'arrivée de la nouvelle version ; le retour au premier plan n'efface ni ne recharge aucune image valide
+
+#### Scenario: images génériques
+- **WHEN** une app publie les mêmes octets pour trois identités distinctes, puis pour des épisodes d'une même série
+- **THEN** le premier cas est traité comme absence d'image avec nouvelle tentative après une heure ; le second reste une image valide partagée
+
+#### Scenario: conservation entre versions
+- **WHEN** l'index des programmes et des images est ouvert depuis le schéma de la version précédente, puis depuis un schéma sans migration connue
+- **THEN** la migration conserve associations, dimensions et dates sans les prolonger ; sans migration, l'index est recréé vide sans crash et les images sont récupérées de nouveau
+
+#### Scenario: clip nature continu
+- **WHEN** trois programmes en repli se suivent, puis le clip se termine, puis un programme avec image s'affiche avant un nouveau repli
+- **THEN** le lecteur de test ne prépare le clip qu'une fois pendant les trois programmes, passe au clip suivant à sa fin sans changer de programme, et repart du début du clip au repli suivant
+
+#### Scenario: cache vidéo indisponible
+- **WHEN** le cache vidéo de test est plein, en erreur d'écriture ou impossible à créer faute d'espace
+- **THEN** les vidéos plus anciennes sont évincées dans le premier cas ; dans les autres, la lecture se fait en flux sans erreur visible et le héro reste fonctionnel

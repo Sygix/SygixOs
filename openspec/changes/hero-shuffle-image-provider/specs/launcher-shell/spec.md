@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Contenu héro TV Provider
-Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission système de lecture. Toute colonne absente ou vide SHALL retirer seulement l'élément concerné. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, relus au changement signalé et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; une relecture sans changement ne republie rien ; un programme n'est jamais exclu pour sa seule absence d'image.
+Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission système de lecture. Toute colonne absente ou vide SHALL retirer seulement l'élément concerné. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, relus au changement signalé et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; une relecture sans changement ne republie rien. Un programme SHALL être reconnu par son empreinte de contenu, indépendante de l'identifiant de ligne du provider et de sa progression ; le héro n'enchaîne que les programmes admis par « Diaporama héro ».
 
 #### Scenario: permission
 - **WHEN** le launcher démarre sans `android.permission.READ_TV_LISTINGS`
@@ -31,7 +31,11 @@ Le héro SHALL afficher les programmes watch next et preview des apps installée
 
 #### Scenario: programme modifié
 - **WHEN** une app modifie le titre ou le visuel d'un programme publié
-- **THEN** le héro et le Top Shelf montrent le nouveau titre et le nouveau visuel à la relecture suivante ; un nouveau visuel est vérifié comme un visuel inconnu (« Qualité des visuels »)
+- **THEN** le héro et le Top Shelf montrent le nouveau titre et le nouveau visuel à la relecture suivante ; un nouveau visuel est vérifié comme un visuel inconnu (« Qualité des visuels ») et seule l'image de ce programme est récupérée
+
+#### Scenario: programme republié ou progression mise à jour
+- **WHEN** une app supprime puis republie un programme identique sous un nouvel identifiant de ligne, ou ne change que sa position de lecture, son activité ou sa durée
+- **THEN** le programme garde son image, sa place dans l'ordre du héro et son état ; aucune image n'est récupérée, revalidée ni redessinée, seuls les textes de progression changent
 
 #### Scenario: source en erreur ou absente
 - **WHEN** une table du provider est absente, échoue ou ne répond pas dans son délai
@@ -128,7 +132,7 @@ Le panneau SHALL n'afficher que des visuels validés, chargés et non expirés d
 - **THEN** sa récupération est réessayée par le parcours partagé, sans blacklist locale ni doublon avec une demande du héro ou d'À suivre
 
 ### Requirement: Diaporama héro
-Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable. En-tête, ligne d'infos, progression et bouton SHALL toujours correspondre au programme affiché et changer avec son média ; un programme n'est jamais exclu pour sa seule absence d'image. L'attente et le repli SHALL suivre les règles ci-dessous, qui précisent les textes, médias et échecs.
+Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable. En-tête, ligne d'infos, progression et bouton SHALL toujours correspondre au programme affiché et changer avec son média. Un programme SHALL entrer dans le diaporama quand sa vidéo d'aperçu ou un visuel accepté par la politique du héro est prêt, ou quand la récupération de ses images a échoué (média de secours) ; un programme sans vidéo dont toutes les candidates sont refusées par la qualité ou reconnues comme images génériques SHALL en être écarté.
 
 
 
@@ -197,33 +201,41 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 - **THEN** ni barre de progression ni temps restant ne sont affichés, sans espace vide (scénario « sans progression »)
 
 #### Scenario: textes avec le visuel
-- **WHEN** l'image du programme suivant met 3 s à charger et réussit avant son échéance
+- **WHEN** l'image du programme suivant met 3 s à charger puis réussit
 - **THEN** pendant ces 3 s, le titre, les infos et le bouton restent ceux du programme affiché et OK ouvre ce programme ; ils ne changent qu'avec le fondu vers le nouveau visuel
 
 #### Scenario: visuel lent
-- **WHEN** l'image du programme demandé n'est pas prête mais que son budget de récupération n'est pas encore écoulé
-- **THEN** une seule récupération commune continue, le média précédent et ses textes restent cohérents, et une navigation vers un autre programme prêt ne l'attend pas ; à l'échec ou à l'échéance, le programme demandé utilise son repli s'il est toujours sélectionné et valide
+- **WHEN** l'image d'un programme n'est pas encore prête, en attente de son tour ou en cours de récupération
+- **THEN** le défilement et la navigation passent ce programme sans l'attendre ; une seule récupération commune continue et le programme entre dans le diaporama dès que son image est prête, ou avec son repli si la requête échoue
+
+#### Scenario: programme sans visuel acceptable
+- **WHEN** un programme sans vidéo ne publie que des candidates refusées par la politique du héro (portrait seul, trop petites) ou reconnues comme images génériques
+- **THEN** il n'apparaît pas dans le héro, sans repli nature ; il reste dans le Top Shelf et À suivre si leurs politiques l'acceptent ; sans autre programme, le fallback global s'affiche
 
 #### Scenario: textes immobiles pendant le Ken Burns
 - **WHEN** le visuel du programme zoome (Ken Burns)
 - **THEN** l'en-tête, le titre, la ligne d'infos et la progression ne sont pas recomposés
 
 #### Scenario: image indisponible et repli nature
-- **WHEN** toutes les candidates du programme échouent ou dépassent le délai et qu'aucune copie locale n'est utilisable
+- **WHEN** la récupération de toutes les candidates du programme échoue (erreur ou délai de requête dépassé) et qu'aucune copie locale n'est utilisable
 - **THEN** le programme est affiché sur la vidéo nature de secours avec ses propres textes et sa propre cible d'ouverture ; le défilement continue vers les programmes des autres apps et les flèches restent actives
+
+#### Scenario: programmes en repli consécutifs
+- **WHEN** plusieurs programmes affichés à la suite utilisent la vidéo nature
+- **THEN** le même clip continue sans redémarrer ni se recharger pendant que leurs textes changent toutes les 12 s environ ; à la fin du clip, le clip suivant de la playlist prend le relais sans changer de programme ; quand un programme avec image ou vidéo s'affiche, le clip est arrêté et repart du début au repli suivant
 
 #### Scenario: repli sans réseau
 - **WHEN** l'image du programme et les clips nature sont indisponibles
 - **THEN** le fond neutre local porte les textes et le bouton du programme, sans écran noir ni attente indéfinie ; le chargement de la vidéo de secours ne retarde pas la navigation
 
-**Détails.** — En-tête du héro : L'en-tête SHALL précéder le titre selon la maquette 960 × 540 dp : icône carrée sans masque de 18 dp, coins 4,5 dp, puis libellé par type publié. Pour l'app X : CONTINUE (`WATCH_NEXT_TYPE_CONTINUE`) « Continuer dans X », NEXT « Épisode suivant dans X », NEW « Nouveau dans X », WATCHLIST « À regarder dans X », preview ou type absent/inconnu « X ». Il SHALL ne montrer que les éléments disponibles. Cas « données manquantes de l'en-tête » : quand le nom ou l'icône manque, le type seul ou le libellé sans icône est montré, et sans les deux l'en-tête disparaît ; les scénarios de types et de nom/icône manquants de « Diaporama héro » s'appliquent. — Infos et progression du héro : La ligne sous le titre SHALL réunir seulement saison, épisode et durée publiés, séparés par « · ». La durée SHALL être arrondie à la minute (minimum 1 min), en heures au-delà d'une heure (« 1 h 35 min », « 2 h »). Barre et « Reste X min » SHALL exister seulement avec position et durée connues ; le restant est arrondi à la minute supérieure avec la même écriture des heures. Cas « infos partielles » : quand les données du programme sont partielles, « infos partielles », « progression sans position ou sans durée » et « programme en cours » de « Diaporama héro » s'appliquent sans réserver d'espace aux lignes absentes. — Synchronisation du héro : Titre, en-tête, infos et bouton SHALL correspondre au programme affiché, même sur son média de secours ; « Ouvrir »/« Reprendre » SHALL ouvrir ce programme et changer avec son média, jamais avant. Les textes SHALL rester fixes sans recomposition ni dessin pendant le Ken Burns, sans espace pour les lignes absentes et lisibles sur visuel clair grâce aux voiles. Cas « changement et animation » : quand le média change ou zoome, « changement de programme », « textes avec le visuel », « textes immobiles pendant le Ken Burns » et « lisibilité sur un poster clair » de « Diaporama héro » s'appliquent aussi au média de secours, sans image ou cible d'un autre programme. — Visuel du héro en attente : L'attente d'image SHALL suivre le délai partagé, sans bloquer navigation ni médias prêts ; à l'échec/échéance, « Repli du programme du héro » SHALL s'appliquer. Une vidéo suivante sans première image après 1 s SHALL rester préparée en pause sans doublon tant qu'une autre n'est pas demandée, et laisser passer le prochain média utilisable ; prête, elle redevient éligible. La première vidéo sans média à remplacer reste exemptée. Cas « préparation lente » : quand le visuel suivant n'est pas prêt, une image continue dans son budget commun et utilise le repli à l'échéance si son programme est toujours demandé et valide ; une vidéo suit son délai de 1 s ; une image préparée n'est pas retenue en bitmap par le héro et est relue depuis le cache à son retour.
+**Détails.** — En-tête du héro : L'en-tête SHALL précéder le titre selon la maquette 960 × 540 dp : icône carrée sans masque de 18 dp, coins 4,5 dp, puis libellé par type publié. Pour l'app X : CONTINUE (`WATCH_NEXT_TYPE_CONTINUE`) « Continuer dans X », NEXT « Épisode suivant dans X », NEW « Nouveau dans X », WATCHLIST « À regarder dans X », preview ou type absent/inconnu « X ». Il SHALL ne montrer que les éléments disponibles. Cas « données manquantes de l'en-tête » : quand le nom ou l'icône manque, le type seul ou le libellé sans icône est montré, et sans les deux l'en-tête disparaît ; les scénarios de types et de nom/icône manquants de « Diaporama héro » s'appliquent. — Infos et progression du héro : La ligne sous le titre SHALL réunir seulement saison, épisode et durée publiés, séparés par « · ». La durée SHALL être arrondie à la minute (minimum 1 min), en heures au-delà d'une heure (« 1 h 35 min », « 2 h »). Barre et « Reste X min » SHALL exister seulement avec position et durée connues ; le restant est arrondi à la minute supérieure avec la même écriture des heures. Cas « infos partielles » : quand les données du programme sont partielles, « infos partielles », « progression sans position ou sans durée » et « programme en cours » de « Diaporama héro » s'appliquent sans réserver d'espace aux lignes absentes. — Synchronisation du héro : Titre, en-tête, infos et bouton SHALL correspondre au programme affiché, même sur son média de secours ; « Ouvrir »/« Reprendre » SHALL ouvrir ce programme et changer avec son média, jamais avant. Les textes SHALL rester fixes sans recomposition ni dessin pendant le Ken Burns, sans espace pour les lignes absentes et lisibles sur visuel clair grâce aux voiles. Cas « changement et animation » : quand le média change ou zoome, « changement de programme », « textes avec le visuel », « textes immobiles pendant le Ken Burns » et « lisibilité sur un poster clair » de « Diaporama héro » s'appliquent aussi au média de secours, sans image ou cible d'un autre programme. — Visuel du héro en attente : Un programme dont l'image n'est pas prête SHALL être passé sans attente ni délai propre au héro, sans bloquer navigation ni médias prêts ; à l'échec de la requête, « Repli du programme du héro » SHALL s'appliquer. Une vidéo suivante sans première image après 1 s SHALL rester préparée en pause sans doublon tant qu'une autre n'est pas demandée, et laisser passer le prochain média utilisable ; prête, elle redevient éligible. La première vidéo sans média à remplacer reste exemptée. Cas « préparation lente » : quand le visuel suivant n'est pas prêt, sa récupération commune continue et le programme est passé jusqu'à ce que l'image soit prête ou que la requête échoue ; une vidéo suit son délai de 1 s ; une image préparée n'est pas retenue en bitmap par le héro et est relue depuis le cache à son retour.
 
 ### Requirement: Fond vidéo de secours
-Le fallback du héro SHALL être une liste de clips nature libres de droits (Pexels, 2K sinon 1080p, mp4 H.264 en https) lus en boucle par un unique lecteur, muet. Il SHALL pouvoir servir de média de secours d'un programme sans image utilisable sans remplacer l'identité de ce programme.
+Le fallback du héro SHALL être une liste de clips nature libres de droits (Pexels, 2K sinon 1080p, mp4 H.264 en https) lus par un unique lecteur, muet : chaque clip jusqu'à sa fin, puis le suivant, la playlist bouclant. Il SHALL pouvoir servir de média de secours d'un programme sans image utilisable sans remplacer l'identité de ce programme ; le clip ne dépend pas du programme affiché.
 
 #### Scenario: lecture
 - **WHEN** le fallback est actif
-- **THEN** un seul lecteur lit la playlist en boucle et muet, un clip en erreur est ignoré au profit du suivant, le lecteur est mis en pause quand la grille est active et libéré quand le héro est démonté
+- **THEN** un seul lecteur lit chaque clip jusqu'à sa fin puis le suivant, la playlist bouclant, muet ; un clip en erreur est ignoré au profit du suivant ; un clip déjà lu est relu depuis « Cache disque des vidéos du héro » ; le lecteur est mis en pause quand la grille est active et libéré quand le héro est démonté
 
 #### Scenario: aucun clip lisible
 - **WHEN** aucun clip ne peut être lu (réseau absent, URL morte)
@@ -248,16 +260,16 @@ Le héro SHALL privilégier la vidéo d'aperçu, large d'au moins 1080 px ; ses 
 - **WHEN** la vidéo d'aperçu d'un programme fait moins de 1080 px de large
 - **THEN** le héro replie sur les candidates image du programme, puis sur son média de secours si aucune ne convient
 
-#### Scenario: image à la largeur du panneau
-- **WHEN** une image paysage a une largeur réelle égale à la largeur affichée du Top Shelf en pixels, hors zoom
-- **THEN** elle est acceptée pour le panneau ; une image plus étroite ne l'est pas même si elle satisfait la politique du héro ou d'une carte À suivre
+#### Scenario: seuil du panneau
+- **WHEN** une image paysage a une largeur réelle de 640 px
+- **THEN** elle est acceptée pour le panneau et décodée à sa taille ; une image de 639 px ne l'est pas, même si elle satisfait la politique d'une carte À suivre
 
 ### Requirement: Préchargement et mémoire
 Le launcher SHALL borner la validation : premiers visuels du héro au chargement, affiches d'une app au focus posé. Il SHALL décoder à la destination, jamais à la dalle, et garder « Fluidité de release »/« Fenêtre de composition de la grille ». Récupérations, dimensions et échéances SHALL être partagées entre les trois zones selon « Chargement partagé des images » et « Cache borné et fraîcheur des images ».
 
 #### Scenario: validation au chargement
 - **WHEN** les programmes sont chargés
-- **THEN** seuls les premiers visuels du héro sont vérifiés en arrière-plan, par files d'apps selon le contrat partagé, d'après les dimensions de l'en-tête sans décoder les pixels ; les octets vérifiés restent en cache disque, aucun visuel n'est préchargé en mémoire ; le provider pouvant publier des centaines de programmes, aucun autre lot n'est validé à ce moment
+- **THEN** seuls les premiers visuels du héro sont vérifiés en arrière-plan, par files d'apps selon le contrat partagé, d'après les dimensions conservées avec les octets vérifiés, sans décoder à la taille d'affichage ; les octets vérifiés restent en cache disque, aucun visuel n'est préchargé en mémoire ; le provider pouvant publier des centaines de programmes, aucun autre lot n'est validé à ce moment
 
 #### Scenario: validation à la demande
 - **WHEN** le focus reste au moins 0,5 s sur une tuile de la grille
@@ -285,7 +297,7 @@ Le launcher SHALL borner la validation : premiers visuels du héro au chargement
 
 #### Scenario: retour au premier plan après libération
 - **WHEN** le launcher revient au premier plan après avoir libéré le lecteur vidéo
-- **THEN** la vidéo d'aperçu du programme affiché encore valide est rechargée et reprend, sans compter comme un échec ni faire passer le héro au programme suivant ; les images et programmes sont contrôlés selon leurs échéances avant réaffichage, le défilement automatique et les délais de présentation repartent de zéro ; une vidéo lente dont la préparation a été interrompue redevient éligible au diaporama
+- **THEN** la vidéo d'aperçu du programme affiché encore valide est rechargée et reprend, sans compter comme un échec ni faire passer le héro au programme suivant ; les images et programmes sont contrôlés selon leurs échéances avant réaffichage, sans effacer ni recharger les images encore valides, le défilement automatique et les délais de présentation repartent de zéro ; une vidéo lente dont la préparation a été interrompue redevient éligible au diaporama
 
 #### Scenario: écran au repos
 - **WHEN** aucune touche n'est pressée et aucune transition n'est en cours
@@ -328,14 +340,14 @@ Le launcher SHALL borner la validation : premiers visuels du héro au chargement
 ## ADDED Requirements
 
 ### Requirement: Qualité des affiches Top Shelf
-Le Top Shelf SHALL accepter une image paysage dont la largeur réelle atteint celle du panneau affiché en pixels, hors zoom, à partir des dimensions de « Chargement partagé des images ». Le refus pour le panneau ne SHALL pas interdire l'usage de la même image dans le héro ou une carte selon leurs propres politiques.
+Le Top Shelf SHALL accepter une image paysage d'au moins 640 px de large réels, à partir des dimensions de « Chargement partagé des images », quelle que soit la largeur du panneau affiché. Le refus pour le panneau ne SHALL pas interdire l'usage de la même image dans le héro ou une carte selon leurs propres politiques.
 
 #### Scenario: seuil exact du panneau
-- **WHEN** la largeur réelle de l'image atteint exactement la largeur du panneau
-- **THEN** elle est acceptée ; juste sous cette largeur elle est refusée pour le panneau, même si une autre destination l'accepte
+- **WHEN** une image paysage fait exactement 640 px de large réels sur un panneau plus large
+- **THEN** elle est acceptée et décodée pour couvrir le panneau ; à 639 px ou en portrait elle est refusée pour le panneau, même si une autre destination l'accepte
 
 ### Requirement: Repli du programme du héro
-Sans candidate ni copie locale utilisable à l'échec/échéance, le héro SHALL afficher le programme demandé avec la vidéo nature de « Fond vidéo de secours », puis le fond neutre si aucun clip n'est lisible dans le délai borné. Le fond neutre SHALL couvrir la préparation du clip sans noir ; titre et ouverture restent ceux du programme, et navigation/défilement continuent.
+Quand la récupération de ses candidates échoue (erreur ou délai de requête dépassé) sans copie locale utilisable, le héro SHALL afficher le programme demandé avec la vidéo nature de « Fond vidéo de secours », puis le fond neutre si aucun clip n'est lisible dans le délai borné. Le fond neutre SHALL couvrir la préparation du clip sans noir ; titre et ouverture restent ceux du programme, et navigation/défilement continuent.
 
 #### Scenario: fournisseur et réseau indisponibles
 - **WHEN** image et vidéos nature sont indisponibles pour un programme toujours valide
@@ -360,8 +372,20 @@ L'ordre des programmes du héro SHALL être tiré au hasard au démarrage du pro
 - **WHEN** un programme est retiré ou expire, puis que la liste devient vide
 - **THEN** l'ordre relatif des programmes restants est conservé, puis le fallback global s'affiche sans ancien titre ; aucun ordre n'est reconstruit à partir du cache d'images
 
+#### Scenario: programme republié
+- **WHEN** une app republie un programme identique sous un nouvel identifiant de ligne
+- **THEN** il garde sa place dans l'ordre ; il n'est pas traité comme un nouveau programme
+
 ### Requirement: Images d'autres applications sans dépendance forte
-SygixOs SHALL accéder aux images `content://` tierces sans dépendance forte au fournisseur. L'ouverture et la lecture complète SHALL avoir un délai de résultat borné, même si le fournisseur ignore l'annulation. Une panne ne SHALL ni arrêter SygixOs ni bloquer le rendu ; les copies locales utilisables, candidates alternatives et replis SHALL suivre le contrat partagé.
+SygixOs SHALL accéder aux images `content://` tierces sans dépendance forte au fournisseur et sans exiger qu'il déclare un type d'image. L'ouverture et la lecture complète SHALL avoir un délai de requête borné, même si le fournisseur ignore l'annulation ; l'annulation SHALL fermer le descripteur et le flux déjà ouverts. Une panne ne SHALL ni arrêter SygixOs ni bloquer le rendu ; les copies locales utilisables, candidates alternatives et replis SHALL suivre le contrat partagé.
+
+#### Scenario: échec journalisé
+- **WHEN** une récupération d'image échoue
+- **THEN** l'échec est journalisé avec l'app, le schéma, l'autorité et la cause, jamais l'URI complète ni ses paramètres
+
+#### Scenario: fournisseur sans type déclaré
+- **WHEN** le fournisseur d'une app ne déclare aucun type pour ses images et les sert par un flux de longueur inconnue
+- **THEN** l'image est lue jusqu'à la fin du flux, vérifiée puis conservée et affichée comme une autre ; l'absence de type n'est pas une absence d'image
 
 #### Scenario: fournisseur bloqué puis arrêté par le système
 - **WHEN** le fournisseur d'images d'une application ne répond pas (serveur de l'application injoignable) et que le système arrête cette application pour ANR pendant qu'une de ses images est en cours d'ouverture
@@ -372,7 +396,7 @@ SygixOs SHALL accéder aux images `content://` tierces sans dépendance forte au
 - **THEN** le résultat d'image échoue au plus tard à l'échéance et l'annulation est déclenchée indépendamment de l'appel bloqué ; la zone passe à sa solution de repli sans bloquer le rendu
 
 #### Scenario: appel Binder bloqué et résultat tardif
-- **WHEN** `openTypedAssetFile` reste bloqué après l'échéance malgré la demande d'annulation, puis retourne un descripteur
+- **WHEN** l'ouverture du fournisseur reste bloquée après l'échéance malgré la demande d'annulation, puis retourne un descripteur
 - **THEN** le résultat du chargement a déjà échoué ; le repli reste actif, les ressources tardives sont fermées exactement une fois, aucune entrée de cache n'est engagée et ce résultat n'est jamais publié à un consommateur
 
 #### Scenario: pool de lecture saturé
@@ -388,14 +412,14 @@ SygixOs SHALL accéder aux images `content://` tierces sans dépendance forte au
 - **THEN** l'échec est distingué d'une image vide ; les alternatives et replis sont utilisés sans crash ni demande d'autorisation non prévue
 
 ### Requirement: Chargement partagé des images
-Le héro, le Top Shelf et À suivre SHALL partager récupération, cache, dimensions et reprises d'images. Une même version demandée simultanément SHALL être récupérée et analysée une seule fois. Chaque zone SHALL appliquer sa politique de qualité aux dimensions communes et décoder à sa taille. Les récupérations SHALL être séquentielles par app, parallèles entre apps sous une constante globale, et bornées en délai et en file.
+Le héro, le Top Shelf et À suivre SHALL partager récupération, cache, dimensions et reprises d'images ; une même version SHALL être récupérée et analysée une seule fois, chaque zone appliquant sa politique et décodant à sa taille. Les récupérations de toutes les sources SHALL être séquentielles par app, parallèles entre apps sous une constante globale ; seule la requête a un délai, depuis son début effectif. Une image qui change, expire ou échoue SHALL être mise à jour seule.
 
 #### Scenario: validation, préchargement et affichage communs
 - **WHEN** plusieurs zones demandent une même image, y compris pendant la validation et le préchargement du Top Shelf
 - **THEN** elles partagent la récupération et les dimensions de cette version sans rouvrir le fournisseur ; chaque destination conserve ses propres taille et transformations de décodage
 
 #### Scenario: résultat de qualité propre à l'usage
-- **WHEN** une image ne convient pas au héro mais convient à une carte, ou qu'elle convient au héro sans atteindre la largeur du panneau
+- **WHEN** une image ne convient pas au héro mais convient à une carte, ou qu'elle convient à une carte mais pas au panneau
 - **THEN** son refus dans une destination n'empêche pas son acceptation dans une autre ; aucune validation d'usage n'est utilisée comme rejet global
 
 #### Scenario: apps parallèles et app lente
@@ -403,8 +427,20 @@ Le héro, le Top Shelf et À suivre SHALL partager récupération, cache, dimens
 - **THEN** les apps saines progressent sans attendre son lot ; une seule récupération physique existe par app, la concurrence totale respecte la constante commune et aucun composable ne crée une limite indépendante
 
 #### Scenario: délai et alternatives
-- **WHEN** une demande attend en file, tente une première candidate puis une alternative
-- **THEN** son résultat reste borné par un budget unique, jamais remis à zéro entre candidates ou abonnés ; une récupération expirée n'empêche pas la navigation ni les images déjà prêtes
+- **WHEN** une demande attend son tour, tente une première candidate puis une alternative
+- **THEN** l'attente ne consomme aucun délai ; chaque requête dispose de son délai depuis son début effectif ; une requête expirée n'empêche pas la navigation ni les images déjà prêtes
+
+#### Scenario: app qui publie beaucoup d'images
+- **WHEN** une app publie plusieurs dizaines de programmes dont les images sont demandées ensemble
+- **THEN** elles sont lues une à une sans expirer pendant leur attente, celles des zones affichées d'abord ; une demande dont aucune zone n'attend plus le résultat est retirée de la file avant son début
+
+#### Scenario: redirection HTTP
+- **WHEN** l'URI HTTP publiée redirige, y compris de http vers https
+- **THEN** la redirection est suivie dans le délai de la requête et l'image est conservée sous l'URI publiée
+
+#### Scenario: mise à jour ciblée
+- **WHEN** une image change de version, expire, échoue, ou que le launcher revient au premier plan
+- **THEN** seules les zones qui affichent cette image la remplacent, quand la nouvelle version est prête ou par leur repli ; les autres images restent affichées sans être effacées, revalidées ni redessinées
 
 #### Scenario: travail encore demandé ailleurs
 - **WHEN** l'utilisateur quitte une zone pendant qu'une autre attend la même récupération
@@ -412,7 +448,7 @@ Le héro, le Top Shelf et À suivre SHALL partager récupération, cache, dimens
 
 #### Scenario: affiche et miniature publiées
 - **WHEN** l'app fournit affiche et miniature et que la candidate préférée manque, échoue ou est refusée pour la destination
-- **THEN** l'autre candidate est essayée dans le budget restant avant le repli ; le ratio déclaré ne fait pas perdre l'alternative et les dimensions réelles font autorité
+- **THEN** l'autre candidate est essayée avant le repli ; le ratio déclaré ne fait pas perdre l'alternative et les dimensions réelles font autorité
 
 #### Scenario: reprise après panne temporaire
 - **WHEN** une demande échoue temporairement et qu'un événement de rafraîchissement ou de focus prolongé autorise une reprise après temporisation
@@ -440,6 +476,18 @@ Les images HTTP(S) et `content://` obtenues SHALL être conservées dans un cach
 #### Scenario: association au contenu
 - **WHEN** deux films distincts ont des titres proches ou identiques, ou que plusieurs épisodes publient la même image de série
 - **THEN** le cache n'échange pas les images des films ; les épisodes peuvent partager les octets d'une image de série explicitement associée par la source, sans inventer d'identifiant ni réécrire une URI signée
+
+#### Scenario: image changée par l'app
+- **WHEN** le TV Provider signale qu'une app a publié une autre URI d'image pour un de ses programmes
+- **THEN** seule cette image est récupérée ; l'ancienne reste affichée jusqu'à ce que la nouvelle soit prête puis est remplacée sans écran vide ; les images des autres programmes ne sont ni relues ni redessinées
+
+#### Scenario: même URI réutilisée pour un autre contenu
+- **WHEN** une URI déjà en cache est publiée pour un programme d'une autre identité de film ou de série
+- **THEN** l'image est relue avant de lui être associée ; si les octets sont identiques, l'association est ajoutée sans nouvelle analyse, sinon la nouvelle version est conservée pour ce programme sans changer l'image affichée des autres
+
+#### Scenario: mise à jour de SygixOs
+- **WHEN** une nouvelle version de SygixOs change le format de conservation des programmes et des images
+- **THEN** les associations, dimensions et dates existantes sont migrées sans prolonger aucune échéance ; si la migration est impossible, l'index est recréé vide et les images sont récupérées de nouveau, sans crash ni image d'un autre contenu
 
 #### Scenario: métadonnées manquantes ou dates incohérentes
 - **WHEN** une entrée héritée n'a pas de date de récupération fiable ou porte une date future incohérente
@@ -479,3 +527,37 @@ Le héro, le Top Shelf et À suivre SHALL suivre la dernière confirmation réus
 #### Scenario: reprise au premier plan sans nouveau signal
 - **WHEN** le launcher revient au premier plan après l'expiration d'un ancien résultat, sans notification du provider
 - **THEN** l'échéance est contrôlée avant réaffichage puis une relecture bornée est lancée ; aucun ancien résultat n'est rendu frais par son simple retour à l'écran
+
+### Requirement: Images génériques des applications
+Une image qui n'est pas une vraie affiche du programme SHALL être traitée comme absente dans les trois zones : image refusée par toutes les politiques de dimensions (icône d'erreur, petite tuile), mêmes octets publiés par une app pour au moins 3 identités de film ou de série distinctes, ou ressource `android.resource://` d'une autre app. Elle ne SHALL pas être conservée comme image valide et SHALL être réessayée au bout d'une heure.
+
+#### Scenario: tuile générique d'une app
+- **WHEN** une app publie les mêmes octets d'image pour trois films ou séries distincts
+- **THEN** cette image n'est affichée nulle part pour ces programmes ; le héro les écarte faute d'autre candidate, le Top Shelf ne les montre pas et À suivre affiche son placeholder
+
+#### Scenario: image partagée légitime
+- **WHEN** plusieurs épisodes d'une même série, ou un même film publié en aperçu et en À suivre, partagent la même image
+- **THEN** l'image reste valide et partagée ; ces publications ne comptent que pour une identité
+
+#### Scenario: icône d'erreur du fournisseur
+- **WHEN** le fournisseur d'une app renvoie une petite icône à la place de l'affiche parce que son serveur est injoignable
+- **THEN** elle est refusée sans remplacer une copie valide encore autorisée par son âge ; une nouvelle tentative a lieu au plus tôt une heure après
+
+#### Scenario: ressource d'une autre application
+- **WHEN** une candidate est une URI `android.resource://` d'une autre app
+- **THEN** elle n'est pas lue et compte comme absente ; les autres candidates et replis s'appliquent
+
+### Requirement: Cache disque des vidéos du héro
+Les vidéos du héro (clips nature et vidéos d'aperçu) SHALL être conservées dans un cache disque privé, jusqu'à 300 Mo, adapté à l'espace libre de l'appareil, les vidéos les moins récemment lues étant évincées d'abord. Sans place suffisante ou en cas d'erreur du cache, la lecture SHALL se faire en flux sans cache, sans erreur visible ni crash.
+
+#### Scenario: clip déjà lu
+- **WHEN** un clip ou une vidéo d'aperçu déjà lu entièrement est relu, y compris après redémarrage de SygixOs
+- **THEN** il démarre depuis le cache disque sans nouveau téléchargement
+
+#### Scenario: espace disque insuffisant
+- **WHEN** l'espace libre de l'appareil ne permet pas un cache utile, ou que le cache ne peut pas être créé, lu ou écrit
+- **THEN** la taille du cache est réduite, ou la vidéo est lue en flux sans cache ; le héro reste fonctionnel, sans message d'erreur ni crash
+
+#### Scenario: cache plein
+- **WHEN** l'ajout d'une vidéo dépasse la taille du cache
+- **THEN** les vidéos les moins récemment lues sont évincées ; la lecture en cours n'est pas interrompue

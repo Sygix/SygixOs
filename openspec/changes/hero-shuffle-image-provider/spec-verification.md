@@ -1,5 +1,7 @@
 # Vérification documentaire de la spec images
 
+> Historique : ce rapport concerne la première version de ce change (spec #82, implémentation livrée en v0.3.1), remplacée par la révision v0.3.2. Voir `design.md` et la section 8 de `tasks.md`.
+
 Ce rapport conserve les constats de la revue de spec de la PR #82. L'implémentation empilée et ses preuves sont désormais décrites dans `verification.md` ; `tasks.md` suit son avancement actuel.
 
 ## Résultat

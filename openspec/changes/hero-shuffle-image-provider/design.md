@@ -2,147 +2,159 @@
 
 ## Context
 
-Voir `proposal.md` pour les symptômes et le périmètre convenu. L'audit de v0.2.3 et v0.3.0-rc.1 retrouve le même parcours d'images : `TvProgramFields.landscapeImage` choisit une seule URI ; `HomeViewModel` valide les candidates du héro et du Top Shelf séquentiellement ; `HeroPosterLoader`, le préchargement de `HomeGrid`, `ShelfPanel` et `UpNextArtwork` chargent ensuite via Coil. `ShelfPanel.failed` et `HeroStage.failedImages` ne distinguent pas une panne temporaire d'un rejet durable.
+Voir `proposal.md` pour les symptômes et le périmètre convenu. L'audit de v0.2.3 et v0.3.0-rc.1 retrouvait un parcours d'images dispersé : une seule URI choisie par programme, des validations séquentielles du héro et du Top Shelf, puis des chargements Coil séparés dans `HeroPosterLoader`, le préchargement de `HomeGrid`, `ShelfPanel` et `UpNextArtwork`, avec des listes d'échec locales qui ne distinguaient pas une panne temporaire d'un rejet durable. Coil 2.7.0 conserve les réponses HTTP dans son cache disque, mais son `ContentUriFetcher` lit les flux des fournisseurs sans copier leurs octets.
 
-Coil 2.7.0 conserve les réponses HTTP dans son cache disque mais son `ContentUriFetcher` lit les flux des fournisseurs sans y copier les octets. La validation des en-têtes utilise un drawable sans pixels : elle ne constitue donc pas un cache mémoire de l'image et une ouverture ultérieure du fournisseur peut être nécessaire. `VisualFreshness` ne traite actuellement que les URI HTTP et attend le réseau avant de servir une ancienne entrée.
+### Régression de la première implémentation (v0.3.1)
+
+La première implémentation a remplacé le transport de Coil par un transport maison et une invalidation globale. Sur la TV de référence, plus aucune image ne s'affichait et le repli nature redémarrait sans cesse :
+
+| Cause | Effet observé |
+| --- | --- |
+| Ouverture des `content://` avec un filtre de type `image/*` : l'implémentation par défaut de `ContentProvider.openTypedAssetFile` exige alors que le fournisseur déclare un type compatible. Le fournisseur d'images de Jellyfin (`ImageProvider`) n'en déclare aucun ; vérifié dans ses sources et sur la TV. | Toutes les images Jellyfin échouent dans les trois zones. |
+| Transport HTTP maison qui ne suit pas les redirections de http vers https ; `android.resource://` non géré. | Images HTTP redirigées perdues. |
+| Budget de 8 s compté depuis la demande, attente en file comprise, et empilé dans le validateur, l'intercepteur, le service et l'ordonnanceur. | Avec une lecture à la fois par app, les images d'une app au-delà des premières expirent avant d'être lues, puis sont relancées. |
+| Annulation qui ne ferme pas le descripteur ni le flux ouverts. | Un `read` bloqué sur le tube d'un fournisseur garde son worker ; après trois blocages, plus aucune lecture. |
+| Seuil du Top Shelf égal à la largeur du panneau (environ 1 728 px en 1080p). | Presque toutes les images publiées sont refusées. |
+| Programmes sans visuel paysage conservés dans le héro. | Les programmes à affiche portrait passent tous sur la vidéo nature. |
+| Clip nature identifié par le programme, joué en boucle sur lui-même, fin de clip reliée à l'avance du programme, minuteur de 12 s actif en repli. | Le clip est rechargé et repart du début toutes les 12 s. |
+| Aucun cache disque pour les vidéos. | Chaque clip 2K est retéléchargé à chaque lecture. |
+| Compteur global de changements incrémenté au retour au premier plan, à chaque échec de décodage, à chaque rafraîchissement et à chaque échéance ; chaque incrément vide toutes les validations, le fond du héro et les cartes. | Clignotement au retour sur l'accueil ; un échec répété relance tout en boucle et les chargements sont annulés avant d'aboutir. |
+| Empreinte de programme incluant l'identifiant de ligne et la progression. | Chaque mise à jour de progression ou republication fait revalider l'image. |
+| Associations programme/image limitées à 64 et stockées dans les métadonnées du cache, avec une entrée « version précédente ». | Logique fragile, difficile à faire évoluer entre versions. |
+
+Cette révision conserve les objectifs du change et corrige ces causes. Les décisions D1 à D7 ci-dessous remplacent celles de la première implémentation.
 
 ### Sources et données réellement connues
 
 | Source | Données utilisables | Limites et vérification |
 | --- | --- | --- |
-| `PreviewPrograms` et `WatchNextPrograms` | `_ID`, `package_name`, titre, affiche et ratio déclaré, miniature, aperçu vidéo, intent, saison/épisode, durée/position ; engagement et type watch next pour ce dernier | Aucune échéance de programme ou d'URI n'est actuellement lue. Les colonnes facultatives et les schémas d'URI varient selon l'app. La tâche 1.1 vérifie leur remplissage, sans présumer une colonne d'expiration. |
-| Fournisseur d'images tiers | URI `content://`, octets et éventuellement type MIME ; Jellyfin utilise un `ImageProvider` qui peut contacter son serveur | Les URI de Disney+ et Crunchyroll sont une hypothèse à vérifier, pas une condition de fonctionnement. Le fournisseur peut bloquer à l'ouverture, à la lecture du flux ou à une demande de type MIME. |
-| Image HTTP(S) | URI exacte publiée, réponse et octets | Une URI peut être signée ou expirer ; ne pas la reconstruire et ne pas déduire la validité du programme de son erreur HTTP. |
-| Cache privé de SygixOs | Octets, dimensions, empreinte de version, instant de récupération réussie et associations aux programmes | La lecture ou l'affichage ne renouvelle aucune échéance. Aucune date manquante n'est remplacée par l'heure courante. |
-| Vidéos nature existantes | Playlist HTTPS de `NatureFallbackProvider`, sans titre propre | Elles peuvent être injoignables ; le dégradé existant est le dernier recours local. |
+| `PreviewPrograms` et `WatchNextPrograms` | `_ID`, `package_name`, titre, affiche et ratio déclaré, miniature, aperçu vidéo, intent, saison/épisode, durée/position, identifiants de contenu et de série quand l'app les publie ; engagement et type watch next pour ce dernier | Aucune échéance de programme ou d'URI n'est lue. Certaines apps suppriment puis réinsèrent leurs programmes avec de nouveaux `_ID`. Le shell adb ne peut pas lire ces tables : la vérification passe par SygixOs. |
+| Fournisseur d'images tiers | URI `content://`, flux d'octets, type éventuel | Jellyfin publie `content://<app>.integration.provider.ImageProvider?src=<URL de l'image sur le serveur>&v=<version>`, unique par élément et par image ; il ne déclare aucun type, sert un tube de longueur inconnue et renvoie une icône à la place de l'image quand son serveur échoue. Les éléments sans image partagent une tuile générique. |
+| Image HTTP(S) | URI exacte publiée, réponse et octets | Une URI peut être signée, rediriger ou expirer ; ne pas la reconstruire. |
+| Vidéos nature | Playlist HTTPS de `NatureFallbackProvider`, clips 2K | Elles peuvent être injoignables ; le dégradé existant est le dernier recours local. |
 
 ## Goals / Non-Goals
 
 **Goals:**
-- Une seule autorité de récupération, de métadonnées, de validité et de reprise, consommée par les trois zones.
-- Aucun appel vers une app ne bloque le rendu, les images des autres apps ou la navigation ; les flux et leurs résultats tardifs restent bornés et maîtrisés.
+- Coil reste le moteur d'images ; un seul chargeur, un seul cache disque et des clés communes aux trois zones.
+- Aucun appel vers une app ne bloque le rendu, les images des autres apps ou la navigation.
+- Chaque image est un objet suivi individuellement : elle n'est récupérée, remplacée ou expirée que pour elle-même, sur événement ou échéance.
 - Les images locales aident pendant une panne sans prolonger la publication d'un programme ni la vie d'une image au-delà des délais acceptés.
 
 **Non-Goals:**
-- Aucun nouveau réglage ni nouvelle source distante ; le cache ne devient pas un catalogue de programmes.
-- Pas de moteur générique de travaux, de score de priorité ou de partage de films basé sur leur seul titre. Les décodages de bannières d'apps via `PackageManager` restent hors des files des programmes.
+- Aucun nouveau réglage ni nouvelle source distante.
+- Pas de moteur générique de travaux ni de partage de films basé sur leur seul titre. Les bannières d'apps via `PackageManager` restent hors des files des programmes.
 
 ## Decisions
 
-### D1. Parcours d'images partagé, politiques par usage
+### D1. Coil comme moteur, un intercepteur et un fetcher
 
-Un service d'images à portée application reçoit la source, les candidates publiées, l'identité/version du programme et l'usage demandé. Il expose des états typés de chargement, succès, absence, rejet de qualité, refus d'accès, délai et panne temporaire. Les ViewModels les projettent vers l'UI ; les composables ne pilotent ni files, ni expiration, ni blacklist locale.
+Les trois zones passent un `ProgramArtwork` (candidates et identité du programme) au chargeur Coil de l'application, avec la politique de leur usage.
 
-La récupération des octets, l'analyse des dimensions réelles et leur version sont mutualisées, y compris entre validation, préchargement et affichage. Un travail en cours par clé est partagé entre abonnés ; quitter une zone n'annule pas celui encore utilisé ailleurs. Une erreur réseau n'est pas transformée en état vide. Les images de contenus des menus et des réglages qui utilisent le même chargeur ne doivent pas ouvrir un chemin `content://` tiers non protégé ; leurs listes historiques ne deviennent pas un catalogue actif.
+- **Intercepteur** : résout la candidate à partir de l'index (D3) et de la politique, puis réécrit la requête vers l'URI choisie avec une clé mémoire explicite (URI + version des octets + taille + transformations) et la clé disque. Il ne lit aucun octet.
+- **Fetcher unique des images de programmes** : lit les octets et les écrit dans le cache disque de Coil, comme le fetcher HTTP de Coil (instantané existant, sinon éditeur, écriture, `commitAndGet`).
+  - `http(s)` : OkHttp (déjà fourni par Coil), redirections suivies y compris de http vers https, délai d'appel total.
+  - `content://` : `ContentProviderClient` instable, `openAssetFile(uri, "r", signal)`, sans filtre de type ; lecture jusqu'à la fin du flux sans se fier à sa longueur, plafond de 16 Mo.
+  - `android.resource://` d'une autre app : jamais lue, image générique (D5). `file://` et ressources propres passent par les fetchers de Coil.
+- Avant `commit`, le fetcher vérifie l'en-tête et un décodage réduit ; un flux tronqué, une page d'erreur ou des octets indécodables ne sont jamais engagés. L'ancienne copie reste donc intacte sans entrée « version précédente ».
+- La clé disque est l'URI exacte publiée, comme pour Coil HTTP : une même URL publiée par deux apps n'est conservée qu'une fois.
+- `respectCacheHeaders(false)` reste : l'index porte le TTL. Un rafraîchissement d'échéance passe `diskCachePolicy(WRITE_ONLY)` sur sa requête.
+- Les travaux en cours sont partagés par clé : une seconde zone rejoint la lecture déjà en cours au lieu d'échouer sur un éditeur occupé.
+- Les dimensions viennent de l'en-tête du fichier engagé et sont écrites dans l'index. `VisualValidator` lit l'index et applique les politiques pures, sans requête Coil dédiée ni décodeur de bornes.
+- `SettingsContent` (vignettes des contenus retirés) utilise le même chargeur et les mêmes clés.
 
-Le résultat commun contient les dimensions, pas un verdict universel. Les politiques sont des fonctions pures :
-- héro : règle courante de « Qualité des visuels » ;
-- Top Shelf : paysage, largeur réelle au moins égale à celle du panneau affiché en pixels, hors zoom ;
-- À suivre : largeur réelle au moins égale à celle de la carte affichée en pixels, hors zoom, portrait accepté.
+Alternative écartée : un transport maison complet (v0.3.1), qui a perdu les comportements éprouvés de Coil.
 
-La mesure commune vient de l'en-tête sans décodage de pixels ; le calcul de qualité du héro peut ramener ces dimensions dans sa borne courante. Le seuil du Top Shelf peut être plus exigeant que les 640 px historiques sur un panneau pleine largeur. Un refus pour un usage ne bloque pas les autres. Les bitmaps et transformations restent en cache mémoire par version, taille et transformation ; ils sont décodés à la taille de destination, avec la limite de décodeurs de « Préchargement et mémoire ».
+### D2. Files par app et délai de requête
 
-Alternative écartée : trois chargeurs ou un booléen global « image valide », qui dupliqueraient les ouvertures ou feraient rejeter une bonne vignette après son rejet dans le héro.
+Toutes les images de programmes, quel que soit le schéma, passent par l'ordonnanceur : une lecture physique à la fois par app, `MAX_PARALLEL_APPS = 3` au total, file bornée. Un hit du cache disque ne prend aucune place.
 
-### D2. Files par app et concurrence bornée
+- Le délai `IMAGE_REQUEST_TIMEOUT_MS = 8_000` court depuis le début effectif de la requête (connexion ou ouverture du fournisseur), jamais pendant l'attente en file. Il n'est pas empilé ailleurs : ni validateur, ni intercepteur, ni zone n'ajoute son propre délai.
+- Dans une file d'app, les demandes d'une zone affichée passent avant les validations anticipées ; une demande sans consommateur est retirée avant son début.
+- À l'échéance, l'échéancier fait échouer la requête et une voie d'annulation distincte du worker et du fil d'échéances annule le signal, déconnecte l'appel HTTP et **ferme le descripteur et le flux déjà ouverts** (référence atomique), ce qui débloque un `read` sur un tube. Si l'appel Binder ne revient pas, le worker reste en quarantaine jusqu'à sa sortie réelle et aucune autre lecture de cette app ne démarre ; les autres apps utilisent les places restantes, la saturation totale échoue rapidement.
+- Un résultat tardif est fermé exactement une fois, sans publication ni engagement.
+- Le délai, `DeadObjectException`, `RemoteException`, `SecurityException` et `FileNotFoundException` restent distingués.
+- Le héro ne porte aucun délai d'image propre : un programme dont l'image n'est pas prête est passé ; il entre dans le diaporama quand elle l'est, ou avec son repli si la requête échoue.
 
-Une file séquentielle par package source couvre toutes les demandes de programmes de cette app, quel que soit le schéma d'URI ou la zone. Un ordonnanceur équitable entre apps applique `MAX_PARALLEL_APPS = 3` au total, pas par composable ni par chargeur ; une app n'a jamais deux récupérations physiques simultanées. Les hits de cache utilisables ne prennent pas de place de récupération.
+### D3. Index Room des programmes et des images
 
-Les candidates sont bornées par les limites actuelles du héro, du Top Shelf et d'À suivre, avec une file d'attente globale bornée. Une demande qui n'a plus d'abonné est retirée avant son démarrage. Le budget de résultat d'une demande, attente en file comprise, est `IMAGE_LOAD_TIMEOUT_MS = 8_000` ; partager un travail en cours ou passer à une autre candidate ne remet pas ce budget à zéro. Ces constantes techniques initiales sont injectables dans les tests et vérifiées sur la TV.
+Une base Room privée est l'index des programmes et des images ; les octets restent dans le cache disque de Coil. Room (et KSP) est la seule nouvelle dépendance, acceptée pour sa robustesse entre versions.
 
-Le démarrage garde sa priorité existante : dès qu'un premier visuel est utilisable, aucune nouvelle validation de prélecture n'est démarrée avant la fin de l'écran de démarrage ; les quelques travaux déjà en cours restent bornés par la limite globale. Un démarrage lent d'une app n'empêche pas un premier visuel d'une autre app d'être prêt.
+| Table | Contenu |
+| --- | --- |
+| `programs` | clé `(table, _id)` du dernier instantané, package, type, empreinte d'image, empreinte complète, identité partagée (série ou film), date de dernière confirmation, expiration |
+| `candidates` | programme, URI, rang (affiche, miniature, variante YouTube) |
+| `images` | id, package, URI, clé disque, largeur, hauteur, hash des octets, date de récupération, état (`valid`, `generic`, `failed`), date de nouvelle tentative |
+| `associations` | image, empreinte d'identité, identité partagée, date de confirmation |
 
-Alternative écartée : un `awaitAll` sur toutes les images ou un sémaphore distinct dans chaque zone, qui maintiendrait une attente collective ou multiplierait la concurrence.
+- **Empreinte d'image** : package, table, intent, titre, saison, épisode, identifiants de contenu, interne et de série, candidates. Elle exclut `_ID`, position, engagement et durée. Seule sa variation déclenche une récupération ; l'empreinte complète ne fait que rafraîchir les textes.
+- **Garde-fou** : une identité nouvelle sur une image connue impose une relecture, sauf si son identité partagée est déjà associée. Des octets identiques ajoutent l'association sans nouvelle analyse. Aucune limite de nombre d'associations.
+- **Room est un index, pas la vérité** : un instantané disque absent (éviction LRU de Coil) remet l'image à récupérer ; une purge de l'index supprime l'entrée disque.
+- **Purge** au démarrage sur IO et après chaque comparaison : programmes non confirmés depuis 24 h, images sans association vivante ou de 7 jours et plus.
+- **Migrations** écrites et testées à chaque changement de schéma, avec schémas exportés ; si une migration manque ou échoue, repli destructif : l'index est recréé vide et se reconstruit depuis le TV Provider.
+- **Threading** : DAO `suspend`, écritures en transaction, aucune requête sur le fil principal ; l'ouverture de la base ne retarde pas l'écran de démarrage.
+- **Outillage** : vérifier la version KSP correspondant à Kotlin 2.4.x et la compatibilité de Room avec l'AGP du projet avant l'implémentation ; tests Room en base mémoire sous Robolectric.
 
-### D3. Fournisseurs isolés et délai sur le flux complet
+### D4. Mises à jour par événements
 
-Le récupérateur tiers acquiert un `ContentProviderClient` instable et appelle `openTypedAssetFile(uri, "image/*", null, signal)` sur un pool de workers borné. Il copie ensuite le flux vers une entrée temporaire du cache. L'ouverture, la lecture et les éventuels appels MIME sont couverts par la même échéance indépendante. Le transport HTTP(S) respecte aussi un délai total, au-delà des délais de connexion et de lecture.
+Le compteur global de changements et les paramètres de révision des requêtes sont supprimés.
 
-L'échéancier complète le résultat en échec à l'échéance et délègue l'annulation à une voie bornée distincte, hors du worker bloqué et du fil d'échéances : une annulation Binder bloquante ne doit pas empêcher les délais suivants. `withTimeout` autour d'un appel Binder ou d'un `read` synchrone ne suffit pas : le worker et ses ressources restent en quarantaine jusqu'à la sortie réelle. Aucune nouvelle récupération vers la même app n'est démarrée pendant ce blocage, même après un rafraîchissement. Les autres apps utilisent les places physiques restantes ; la saturation totale échoue rapidement sans créer de threads supplémentaires.
+- Le `ContentObserver` existant sur les deux tables (debounce 500 ms à 1 s) relit les programmes. La comparaison avec l'index se fait sur l'empreinte d'image, jamais sur `_ID` :
+  - programme absent : retiré des zones et marqué non confirmé ;
+  - nouveau programme : candidates résolues dans l'index, image prête immédiatement ou récupérée ;
+  - empreinte d'image changée : seule son image est récupérée ;
+  - inchangé : rien, pas même un nouveau painter.
+- Un seul minuteur suit la prochaine échéance d'image et émet un événement pour cette image seule.
+- Les composants s'abonnent par clé à un flux d'événements typés (`ImageReady`, `ImageFailed`, `ProgramsChanged`) ; les clés Compose sont l'empreinte d'image et la version des octets. Une nouvelle version remplace l'ancienne à l'écran seulement quand elle est prête.
+- Retour au premier plan : relecture et comparaison en arrière-plan, contrôle des échéances, sans rien effacer. La relecture périodique de 15 minutes reste pour un launcher toujours au premier plan.
 
-Après un résultat tardif, le worker ferme le flux, le descripteur et le client exactement une fois, abandonne l'entrée temporaire et ne publie rien. Le délai, `DeadObjectException`, `RemoteException`, `SecurityException` et `FileNotFoundException` sont distingués dans les résultats. Une permission refusée ou un fournisseur absent aboutit au repli sans crash ni contournement des autorisations. Les lectures du TV Provider système restent des opérations distinctes, avec résultat explicite et délai borné.
+### D5. Qualité et images génériques
 
-Alternative écartée : `ContentResolver.openInputStream` pour un fournisseur tiers, qui conserve une référence forte, ou libérer fictivement un worker dont l'appel n'est pas revenu.
+Les politiques restent des fonctions pures appliquées aux dimensions de l'index :
+- héro : règle courante de « Qualité des visuels » (paysage, au moins 640 px après réduction dans 1920 × 1080) ;
+- Top Shelf : paysage, au moins 640 px de large réels ;
+- À suivre : largeur au moins égale à celle de la carte affichée en pixels hors zoom, portrait accepté.
 
-### D4. Cache de sources versionné et candidates conservées
+Le héro n'admet un programme que si une vidéo ou un visuel accepté est prêt, ou si sa récupération a échoué (repli). Un programme dont toutes les candidates sont refusées par la qualité ou génériques en est écarté.
 
-Un cache privé borné, partagé avec le chargeur, conserve les octets sources HTTP(S) et `content://` ainsi que les dimensions et `fetchedAt`. Le budget disque global reste celui de l'application, sans ajouter un second cache de même taille. Une récupération réussie n'est publiée qu'après copie complète, vérification d'un en-tête d'image et engagement atomique de l'entrée ; un échec ne remplace pas la dernière copie valide. Une nouvelle version validée seulement par son en-tête ne détruit pas la dernière copie connue comme décodable avant son premier décodage réussi ; si ce décodage échoue, elle est invalidée et l'ancienne copie encore dans son TTL reste disponible.
+Une image est **générique** et traitée comme absente si elle est refusée par toutes les politiques, si ses octets (hash) sont publiés par une même app pour au moins 3 identités partagées distinctes, ou si c'est une ressource `android.resource://` d'une autre app. Elle n'est jamais conservée comme valide et sa nouvelle tentative a lieu au plus tôt une heure après. Les épisodes d'une même série et un même film publié dans les deux tables comptent pour une identité.
 
-La clé d'octets contient le package source et l'URI publiée exacte, sous forme d'empreinte pour le stockage. Les associations aux programmes incluent une empreinte des champs d'identité réellement disponibles, pas seulement le titre ni le numéro de ligne réutilisable du provider. Une association incompatible avec l'identité confirmée impose une revalidation de l'URI, même inchangée, plutôt qu'un hit aveugle sur les octets d'un ancien film. Un film ne reçoit pas l'image d'un autre film. Les épisodes peuvent partager les octets de la même image de série explicitement publiée ; aucun rapprochement de série à partir d'un champ non vérifié n'est requis. Les URL signées ne sont ni normalisées ni tronquées pour forcer un hit.
-
-Les modèles conservent affiche, miniature et ratio déclaré. Les candidates sont essayées dans l'ordre pertinent pour l'usage, sans doublon : paysage d'abord, portrait autorisé seulement pour la carte ; une préférence de ratio déclaré ne supprime pas l'alternative. Les dimensions réelles font autorité. La variante YouTube existante reste une candidate prioritaire pour les usages qui la demandent, sans imposer une récupération haute définition inutile à une carte déjà satisfaite.
-
-Alternative écartée : ne conserver que l'URI choisie par `landscapeImage`, ou utiliser la clé de série/film d'À suivre comme clé universelle d'image.
-
-### D5. Fraîcheur de l'image distincte de la validité du programme
+### D6. Fraîcheur de l'image distincte de la validité du programme
 
 | Objet | Horodatage de référence | Politique |
 | --- | --- | --- |
-| Image | Dernière récupération complète réussie | Fraîche moins de 24 h ; de 24 h à moins de 7 jours, affichage immédiat de la copie utilisable puis rafraîchissement borné ; conservée si celui-ci échoue ; à 7 jours, ne plus l'afficher sans récupération réussie. |
-| Programme | Dernière lecture réussie de sa table du TV Provider le confirmant | Retiré dès qu'une lecture réussie confirme son absence ou son caractère non affichable ; conservable moins de 24 h si la lecture échoue ; à 24 h sans confirmation, retiré des surfaces actives. |
+| Image | Dernière récupération complète réussie | Fraîche moins de 24 h ; de 24 h à moins de 7 jours, affichage immédiat puis rafraîchissement de cette image seule ; conservée si celui-ci échoue ; à 7 jours, plus affichée sans récupération réussie. |
+| Programme | Dernière lecture réussie de sa table le confirmant | Retiré dès qu'une lecture réussie confirme son absence ; conservable moins de 24 h si la lecture échoue ; à 24 h sans confirmation, retiré des surfaces actives. |
 
-Lire une entrée disque, la montrer, la vérifier depuis le cache ou lancer un rechargement ne renouvelle aucun de ces horodatages. Les dimensions sont attachées à la version des octets ; les nouveaux octets invalident les verdicts et bitmaps de cette version. Une entrée héritée sans horodatage fiable est inconnue, pas fraîche par défaut. Le contrôle d'âge n'est pas court-circuité par un hit mémoire ou un bitmap déjà dessiné ; un échéancier unique agit à la prochaine échéance utile, sans boucle par frame, et le retour au premier plan recontrôle immédiatement les dates. Une date future incohérente ne prolonge pas la validité.
+Lire, afficher ou valider depuis le cache ne renouvelle aucune date. Une date absente ou future n'est pas fraîche par défaut. Une erreur de table n'est pas une liste vide. Une publication tardive porte la génération de son programme et ne réintroduit rien.
 
-La copie périmée à 7 jours n'est plus un repli autorisé ; une nouvelle récupération du même URI peut produire une nouvelle version. Les métadonnées et fichiers de cache restent évictables avant ces plafonds : il ne s'agit pas d'une garantie de rétention minimale.
+### D7. Héro, vidéos et ordre
 
-Les programmes restent des instantanés en mémoire de leurs tables, non un nouveau catalogue persisté. Chaque table confirme uniquement son propre résultat : une erreur sur `PreviewPrograms` n'efface pas un snapshot watch next valide et n'est pas convertie en liste vide. Le succès d'une lecture watch next peut être partagé entre les consommateurs du même instantané. La panne du serveur Jellyfin ne signifie pas que le TV Provider système est illisible ; s'il confirme encore le programme, seules les règles de l'image entrent en jeu.
-
-La relecture suit les signaux, le retour au premier plan et la périodicité courante du héro, étendue à À suivre. Une lecture vide réussie retire les programmes concernés immédiatement. La perte de permission et la désinstallation ne sont pas un délai de grâce : les contenus deviennent inaccessibles selon les règles existantes ; les préférences et l'historique utilisateur ne sont pas effacés. Toute publication tardive porte une génération de programme : un résultat d'une génération retirée ou remplacée ne réintroduit ni programme ni image à l'écran.
-
-Alternative écartée : prolonger le TTL à chaque affichage, confondre une erreur avec un résultat vide, ou retirer un programme à partir de sa dernière activité de visionnage alors que la source continue de le confirmer.
-
-### D6. Reprise et rendu des trois zones
-
-Les pannes d'ouverture, de transport, de lecture et les délais ne créent plus de blacklist à vie dans le héro ou le Top Shelf. Les nouvelles tentatives sont mutualisées, déclenchées par une relecture pertinente, un retour au premier plan ou un focus prolongé, avec une temporisation technique commune ; aucune boucle de réessai par frame ou par consommateur. Une erreur 4xx d'URI expirée peut conduire à relire les candidates publiées ; aucune ancienne URI n'est reconstruite. Une image trop petite reste refusée pour cet usage et cette version, pas pour tous les usages ni toutes les versions.
-
-Le héro distingue l'identité du programme de celle du média affiché. Pendant l'attente, il conserve le visuel précédent avec ses textes ; la navigation reste disponible. À l'échec ou à l'échéance image, il passe au programme demandé avec son média de secours : vidéo nature, puis dégradé neutre si aucun clip ne peut être lu dans le délai borné. Le dégradé local couvre aussi l'attente de préparation de la vidéo, sans écran noir. Le titre, les métadonnées, le bouton et la cible restent ceux du programme, même sur une vidéo de secours sans titre propre. Le minuteur de diaporama continue ; les programmes des autres apps restent accessibles. Le comportement existant de saut d'une vidéo d'aperçu lente reste distinct du timeout d'image.
-
-Le Top Shelf utilise le service commun dès la validation et le préchargement de la première affiche, pas seulement dans `LoadedPoster`. Il ne s'ouvre qu'avec une image prête, ne montre jamais l'ancienne app comme repli de la nouvelle, passe à une autre affiche prête lors d'une panne/expiration et se ferme s'il n'en reste aucune. Les retraits et expirations s'appliquent immédiatement même pendant une validation inachevée ; les autres ajouts respectent la stabilité de rotation existante. Le focus reste sur la tuile.
-
-À suivre rend sa carte et son placeholder pendant le chargement sans attendre les autres images. Une copie locale utilisable remplace immédiatement le placeholder ; sinon les candidates sont essayées et l'échec final le conserve. Le changement d'image ne change ni la clé, ni la géométrie, ni le focus de la carte. Un programme retiré/expiré suit les règles existantes de focus d'une carte disparue. Les listes utilisateur de contenus retirés ne sont pas purgées par le TTL des programmes.
-
-Les chaînes nouvelles éventuelles restent en ressources françaises. Réutiliser les testTags existants ; ajouter `hero-fallback-nature` et `hero-fallback-neutral` pour les états rendus réels, sans en faire de nouveaux éléments focusables.
-
-### D7. Ordre aléatoire du héro
-Le tri du héro (domaine) reçoit une graine tirée au démarrage du processus (`Random` injectable pour les tests). L'ordre de session est mémorisé dans le domaine par identifiant de programme : les programmes déjà présents gardent leur rang ; un nouveau programme est inséré à une position aléatoire après le programme affiché ; un programme disparu est retiré. Rien n'est persisté : un nouveau processus tire un nouvel ordre.
+- **Clip nature** : identifiant indépendant du programme (`nature-<index>`), lecture sans boucle sur lui-même. La fin d'un clip passe au clip suivant ; la fin d'une vidéo d'aperçu garde son comportement d'avance du programme. Plusieurs programmes en repli consécutifs gardent le même clip ; un programme avec image ou vidéo arrête le lecteur et le clip repart du début au repli suivant.
+- **Cache vidéo** : un singleton applicatif `SimpleCache(dir, LeastRecentlyUsedCacheEvictor(max), StandaloneDatabaseProvider)`, créé sur IO, jamais dans `HeroPlayer` (une seule instance par dossier, alors que le lecteur est recréé à chaque retour au premier plan). `max = min(300 Mo, espace utilisable / 4)` ; sous 64 Mo, pas de cache. Lecture par `CacheDataSource` avec `FLAG_IGNORE_CACHE_ON_ERROR` : toute erreur de cache retombe en flux. Les tests injectent une source sans cache.
+- **Ordre aléatoire** : graine par processus, ordre stable par empreinte de programme ; un nouveau programme est inséré au hasard après le programme affiché, un programme republié garde sa place.
+- **Journalisation** : chaque échec d'image ou de vidéo est journalisé avec l'app, le schéma, l'autorité et la cause, jamais l'URI complète ni ses paramètres (l'URI Jellyfin contient l'adresse du serveur).
 
 ## Risks / Trade-offs
 
-- [Fournisseur qui ignore l'annulation] → Une place physique peut rester occupée jusqu'à son retour ; quarantaine par app, nombre de workers borné et échec rapide à saturation, jamais promesse d'interrompre de force Binder.
-- [Délai trop court ou concurrence trop forte sur la TV] → Valeurs techniques initiales de D2 vérifiées avec un fournisseur lent et des apps saines, sans modifier les plafonds de conservation décidés.
-- [Cache disque dupliqué ou validation répétée] → Budget unique, clé de source/version commune et tests comptant ouvertures, téléchargements et analyses d'en-tête entre les trois consommateurs.
-- [Image ancienne sur un programme valide] → Revalidation en arrière-plan après 24 h, arrêt impératif à 7 jours ; changement d'URI ou de version invalidant les associations concernées.
-- [Vidéos nature indisponibles en même temps que le fournisseur] → Dernier recours local déjà existant ; le programme reste ouvrable et le défilement continue.
+- [Fournisseur qui ignore l'annulation et la fermeture] → Quarantaine par app jusqu'à la sortie réelle, échec rapide à saturation, jamais de thread supplémentaire.
+- [Files longues] → Sans délai d'attente, une app qui publie beaucoup d'images est servie progressivement ; priorité aux zones affichées et retrait des demandes sans consommateur.
+- [Heuristique d'image générique] → Faux positif possible pour une app publiant la même image pour des contenus distincts ; seuil de 3 identités, nouvelle tentative après une heure, vérification sur la TV.
+- [Index et cache désynchronisés] → L'index ne fait jamais foi pour les octets : instantané absent, image à récupérer.
+- [Espace disque] → Cache vidéo dimensionné sur l'espace libre et désactivable sans erreur.
 
 ## Migration Plan
 
-Déployer le service partagé et raccorder tous les chemins avant de retirer les états d'échec locaux. Les caches d'images hérités dépourvus de métadonnées fiables sont revalidés ; les préférences, épinglages, contenus retirés et mémoire d'ouverture ne changent pas. La tâche de documentation corrige le README pour les seuils, le cache borné et les replis. Un retour à la version précédente ne nécessite aucune migration des préférences.
-
-La base documentaire est la correction des specs existantes de la PR #81, au-dessus de l'archivage Tsuyu (PR #80). La PR #81 a replié les exigences extraites (relecture et colonnes facultatives, synchronisation et attente, reprise, qualité des cartes) dans leurs exigences parentes ; ce change modifie ces parents et rétablit leurs paragraphes **Détails.** avec les règles mises à jour, sans réintroduire les longs blocs ni laisser les anciennes règles 1 s et 2× actives.
+La révision remplace le transport, le service et le stockage d'associations de v0.3.1. Les entrées du cache disque créées par v0.3.1 (format `artwork-v2` et entrées « previous ») ne sont pas lues par l'index : elles sont supprimées au premier démarrage, puis les images sont récupérées de nouveau. Les préférences, épinglages, contenus retirés et la mémoire d'ouverture ne changent pas. Le README est mis à jour pour le seuil de 640 px du Top Shelf, le cache vidéo et les images génériques.
 
 ### Ordre d'archivage
 
-Les changements de fraîcheur et de validation cités dans la proposition et Tsuyu sont archivés dans la base de la pile. La PR #80 puis la PR #81 précèdent cette spec ; après son implémentation et sa validation TV, l'archivage images applique ses deltas sur cette référence compacte. Les réserves TV de l'archive Tsuyu restent indépendantes.
+Après merge de l'implémentation et validation sur la TV : `openspec archive hero-shuffle-image-provider`. Les réserves TV de l'archive Tsuyu restent indépendantes.
 
-## Vérification de l'implémentation
+## Vérification de la première implémentation (v0.3.1, historique)
 
-Le relevé préalable 1.1 a été dispensé explicitement par Sygix. Aucun résultat sur les données réelles de Jellyfin, Disney+ ou Crunchyroll n'est revendiqué ; les hypothèses de la section Sources restent telles quelles.
+Ces résultats concernent l'implémentation remplacée par cette révision ; ils ne valent pas preuve pour elle.
 
-### Précisions techniques retenues
-
-- Les octets et leurs dimensions sont indexés par package et URI exacte. Les associations de publication sont des empreintes distinctes : une ligne réutilisée ou une identité incompatible impose une revalidation, sans créer un cache d'octets par ligne.
-- Deux publications d'un même film peuvent partager la source grâce à leur identifiant ou cible publiés concordants. Pour les épisodes, `series_id` est facultatif et utilisé seulement s'il est présent ; son absence ne déclenche aucun rapprochement de séries par titre. Une récupération commencée pour une ancienne identité ne valide pas implicitement sa remplaçante.
-- Les associations persistées sont bornées et hachées. Une version précédente peut être restaurée après échec du décodage, seulement si elle reste compatible avec le contenu et dans son délai d'origine ; sa restauration ne renouvelle pas sa date.
-- Un unique minuteur suit la prochaine échéance utile. Les demandes suivantes ne peuvent pas faire oublier l'échéance d'une image déjà affichée. Les confirmations réussies du provider autorisent une reprise des images en erreur sans recréer les images déjà prêtes.
-
-### Preuves automatisées
-
-- `./gradlew test --no-daemon` : **1 061 tests, aucun échec, aucune erreur, aucun test ignoré**.
-- `./gradlew assembleRelease --no-daemon` : **réussi** ; APK de **5 574 538 octets**.
-- `ArtworkPolicyTest`, `ProgramArtworkServiceTest` : politiques indépendantes, cache après recréation, dates exactes, associations inter-tables, réutilisation d'une ligne, anciennes réponses, partage entre abonnés et restauration de la version précédente.
-- `ArtworkSchedulerTest`, `AndroidArtworkTransportTest`, `ContentArtworkTransportTest` : quatre apps sous limite globale, séquentialité, équité, annulation bloquée, saturation, corps HTTP lent, statuts HTTP, ouverture et lecture `content://` bloquées, fermeture des ressources tardives.
-- `ProgramConfirmationTest`, `UpNextControllerTest`, `HomeRefreshTest` : confirmations par table, vide distinct de l'erreur, retrait et plafond de 24 h, programme remplacé ou identifiant réutilisé, réponse tardive après retrait ou expiration.
-- `HeroVisualSyncTest`, `HeroVideoTest`, `UpNextArtworkRenderTest` et les régressions de grille : médias/textes cohérents, maintien de l'affiche précédente après retour au premier plan, repli nature puis neutre avec bonne cible, seuil exact de carte, portrait, reprise après confirmation inchangée et expiration d'une image restaurée déjà affichée.
-- `HeroSessionOrderTest` : graines injectées, stabilité, insertions après le courant, retraits et liste vide.
-
-Les tests Robolectric ne démontrent pas le comportement Binder des applications réelles ni la fluidité sur la TV. Les tâches 7.2 et 7.3 restent ouvertes pour cette validation ; le change ne doit pas être archivé avant celle-ci et son merge.
+- `./gradlew test` : 1 061 tests réussis ; `assembleRelease` réussi.
+- Émulateur Android 14 TV : lancement, navigation, épisode synthétique dans À suivre avec placeholder.
+- Sur la TV de référence : aucune image affichée dans les trois zones, repli nature redémarrant, causes listées dans « Régression de la première implémentation ».

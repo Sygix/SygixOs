@@ -53,7 +53,7 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **THEN** la carte montre ce poster centré horizontalement à pleine hauteur sur le fond des tuiles (variante « Poster portrait » du composant « Carte Up Next »), avec le dégradé, les textes, la barre de progression éventuelle et le badge des autres cartes
 
 #### Scenario: placeholder
-- **WHEN** toutes les candidates et copies locales utilisables manquent, échouent, expirent ou sont trop petites
+- **WHEN** toutes les candidates et copies locales utilisables manquent, échouent, expirent, sont trop petites ou sont des images génériques (« Images génériques des applications » de launcher-shell)
 - **THEN** la carte garde sa taille et ses coins, montre le fond des tuiles avec le pictogramme « image » centré horizontalement dans sa moitié haute, et conserve le dégradé, ses textes, sa barre de progression éventuelle et son badge
 
 #### Scenario: image trop petite
@@ -143,4 +143,12 @@ La rangée SHALL se recharger quand le launcher revient au premier plan, que `RE
 
 #### Scenario: candidates alternatives
 - **WHEN** l'image préférée échoue ou ne satisfait pas la carte, mais l'autre candidate publiée est exploitable
-- **THEN** la carte utilise cette candidate selon le budget partagé, avant de rester sur le placeholder ; aucune image d'un autre film n'est substituée
+- **THEN** la carte utilise cette candidate selon le contrat partagé, avant de rester sur le placeholder ; aucune image d'un autre film n'est substituée
+
+#### Scenario: progression mise à jour
+- **WHEN** l'app met à jour la position de lecture d'un item, ou le republie identique sous un nouvel identifiant de ligne
+- **THEN** la carte garde son image affichée sans la recharger ni repasser par le placeholder ; seule sa barre de progression change
+
+#### Scenario: image d'une seule carte mise à jour
+- **WHEN** l'image d'une carte change de version ou expire
+- **THEN** seule cette carte change d'image, quand la nouvelle est prête ou vers son placeholder ; les autres cartes ne sont ni rechargées ni redessinées

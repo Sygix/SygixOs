@@ -1,5 +1,7 @@
 # Vérification : hero-shuffle-image-provider
 
+> Historique : ce rapport concerne la première version de ce change (spec #82, implémentation livrée en v0.3.1), remplacée par la révision v0.3.2. Voir `design.md` et la section 8 de `tasks.md`.
+
 ## Résumé
 
 | Dimension | Résultat |
