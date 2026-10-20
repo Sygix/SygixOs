@@ -57,8 +57,11 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.cancelAndJoin
+import androidx.lifecycle.viewModelScope
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,6 +71,51 @@ import org.robolectric.Shadows.shadowOf
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 class HomeRefreshTest {
+    @get:Rule val folder = org.junit.rules.TemporaryFolder()
+
+    @Test fun imagesBecomingGenericWithdrawPreviouslyAcceptedHeroAndShelfResults() = runBlocking(Dispatchers.Default) {
+        val bytes = fr.sygix.sygixos.data.artworkBytes()
+        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes }).use { fixture ->
+            val items = (1..3).map { n -> heroItem("preview-$n", "Fiction $n", "content://fixture/image$n", "fixture.app").copy(contentId = "film$n") }
+            var feed = items.take(2)
+            fixture.repository.confirm("preview", feed.map { it.artwork to it.fullFingerprint })
+            val home = home(provider { feed }, artworkRepository = fixture.repository) { _, _ -> null }
+            try {
+            home.refreshHero()
+            home.state.await { (it as? HomeState.Ready)?.hero?.validated?.size == 2 }
+            home.prepareShelf("fixture.app")
+            home.state.await { (it as? HomeState.Ready)?.hero?.shelfValidated?.size == 2 }
+            feed = items
+            fixture.repository.confirm("preview", feed.map { it.artwork to it.fullFingerprint })
+            home.refreshHero()
+            home.state.await { (it as? HomeState.Ready)?.hero?.let { hero -> hero.validated.isEmpty() && hero.shelfValidated.isNullOrEmpty() && hero.items.none { item -> item.sourcePackage == "fixture.app" } } == true }
+            assertEquals(3, fixture.db.artwork().images().count { it.state == "generic" })
+            } finally { home.viewModelScope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin() }
+        }
+    }
+
+    @Test fun aRefreshedPortraitRemainsCardCompatibleButLeavesHeroAndShelf() = runBlocking(Dispatchers.Default) {
+        val bytes = java.util.concurrent.atomic.AtomicReference(fr.sygix.sygixos.data.artworkBytes())
+        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes.get() }).use { fixture ->
+            val item = heroItem("preview-1", "Fiction", "content://fixture/image", "fixture.app").copy(contentId = "film")
+            fixture.repository.confirm("preview", listOf(item.artwork to item.fullFingerprint))
+            val home = home(provider { listOf(item) }, artworkRepository = fixture.repository) { _, _ -> null }
+            try {
+            home.refreshHero()
+            home.state.await { (it as? HomeState.Ready)?.hero?.validated?.isNotEmpty() == true }
+            home.prepareShelf("fixture.app")
+            home.state.await { (it as? HomeState.Ready)?.hero?.shelfValidated?.isNotEmpty() == true }
+            fixture.repository.watch(item.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Hero).use {
+                bytes.set(fr.sygix.sygixos.data.artworkBytes(800, 1200))
+                fixture.now.addAndGet(fr.sygix.sygixos.domain.ArtworkAge.FRESH_MS)
+                fixture.repository.confirm("preview", listOf(item.artwork to item.fullFingerprint))
+                fixture.repository.checkExpiry()
+                home.state.await { (it as? HomeState.Ready)?.hero?.let { hero -> hero.validated.isEmpty() && hero.shelfValidated.isNullOrEmpty() && hero.items.isEmpty() } == true }
+                assertNotNull(fixture.repository.resolve(item.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Card(396)).first)
+            }
+            } finally { home.viewModelScope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin() }
+        }
+    }
     @Test fun aChangedImageKeepsItsPreviousPosterUntilTheReplacementIsReady() = runBlocking(Dispatchers.Default) {
         val initial = heroItem("preview-1", "Fiction", imageUrl = "https://example.invalid/old.jpg", sourcePackage = "fixture.app")
         var feed = listOf(initial)
@@ -202,9 +250,9 @@ class HomeRefreshTest {
         override fun newBuilder(): ImageLoader.Builder = error("unused")
     }
 
-    private fun viewModel(programs: HeroContentProvider, apps: AppCatalogRepository, programClock: () -> Long = System::currentTimeMillis, respond: suspend (String, Int) -> Throwable?) = main.track(HomeViewModel(
+    private fun viewModel(programs: HeroContentProvider, apps: AppCatalogRepository, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable?) = main.track(HomeViewModel(
         apps, HeroRepository(programs, provider { emptyList() }), AppArtworkSource(context.packageManager),
-        VisualValidator(context, Loader(respond), Dispatchers.Unconfined), object : ClockSource {
+        VisualValidator(context, Loader(respond), Dispatchers.Unconfined).also { it.repository = artworkRepository }, object : ClockSource {
             override fun current() = ""
             override fun time() = emptyFlow<String>()
         }, FakeUpdateController(), StartupSession().apply { claimColdStart() }, FakeMotionSource(), FakeMascotSource(),
@@ -215,10 +263,11 @@ class HomeRefreshTest {
         programClock = programClock,
     ))
 
-    private suspend fun home(programs: HeroContentProvider, programClock: () -> Long = System::currentTimeMillis, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {
+    private suspend fun home(programs: HeroContentProvider, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {
         context.dataStore.edit { it.clear() }
         val apps = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
-        val home = viewModel(programs, apps, programClock, respond)
+        val home = viewModel(programs, apps, programClock, artworkRepository, respond)
+        artworkRepository?.let { home.observeArtwork(it.events) }
         apps.refreshApps()
         home.state.await { it is HomeState.Ready }
         return home

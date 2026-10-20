@@ -48,6 +48,8 @@ data class UpNextItem(
         sharedIdentity = sharedArtworkIdentity(type == UpNextContentType.EPISODE, seriesId, contentId, internalProviderId, source.intentUri, title, releaseDate),
     )
     val key: String get() = "${source.packageName}:$id"
+    val cardIdentity: String get() = listOf(source.packageName, type, title, source.intentUri, internalProviderId, contentId,
+        releaseDate, season, episode, seriesId).joinToString("\u0000")
     val displayTitle: String get() = if (type == UpNextContentType.EPISODE) seriesTitle ?: title else title
     val progress: Float? get() = playbackRatio(positionMillis, durationMillis)
 }

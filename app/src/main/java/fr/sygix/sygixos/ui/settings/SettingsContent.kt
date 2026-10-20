@@ -361,7 +361,15 @@ private fun ContentThumbnail(imageUrl: String?, tag: String, sourcePackage: Stri
         ImageRequest.Builder(context).data(source ?: imageUrl)
             .size(Dimens.SettingsThumbWidth.roundToPx(), Dimens.SettingsThumbHeight.roundToPx()).build()
     } }
-    val painter = rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+    var previous by remember(imageUrl, sourcePackage) { mutableStateOf<AsyncImagePainter.State.Success?>(null) }
+    val painter = androidx.compose.runtime.key(source?.identity, (event as? fr.sygix.sygixos.data.ArtworkEvent.ImageReady)?.version) {
+        rememberAsyncImagePainter(request, contentScale = ContentScale.Crop, onState = { if (it is AsyncImagePainter.State.Success) previous = it })
+    }
+    LaunchedEffect(event) {
+        if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired ||
+            event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) previous = null
+    }
+    val displayed = painter.state as? AsyncImagePainter.State.Success ?: previous
     Box(
         Modifier
             .testTag(tag)
@@ -369,8 +377,8 @@ private fun ContentThumbnail(imageUrl: String?, tag: String, sourcePackage: Stri
             .clip(RoundedCornerShape(Dimens.SettingsThumbCorner))
             .background(SygixColors.TileBackground),
     ) {
-        if (painter.state is AsyncImagePainter.State.Success) {
-            Image(painter, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (displayed != null) {
+            Image(displayed.painter, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
             val icon = UpNextArtworkQuality.placeholderIcon(Dimens.UpNextPlaceholderIcon.value, Dimens.SettingsThumbHeight.value).dp
             Box(Modifier.fillMaxWidth().fillMaxHeight(PlaceholderArea).align(Alignment.TopCenter).testTag("$tag-placeholder"), contentAlignment = Alignment.Center) {

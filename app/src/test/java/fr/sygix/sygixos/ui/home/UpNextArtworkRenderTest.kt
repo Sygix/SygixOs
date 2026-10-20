@@ -41,8 +41,8 @@ class UpNextArtworkRenderTest {
 
     @After fun close() { coil.Coil.reset(); cleanup.reversed().forEach { it() } }
 
-    private fun render(read: ImageBytesReader, items: List<UpNextItem> = listOf(item)): ArtworkFixture {
-        val fixture = ArtworkFixture(folder.newFolder(), read)
+    private fun render(read: ImageBytesReader, items: List<UpNextItem> = listOf(item), onRendered: (coil.request.SuccessResult) -> Unit = {}): ArtworkFixture {
+        val fixture = ArtworkFixture(folder.newFolder(), read, onRendered = onRendered)
         cleanup += fixture::close
         coil.Coil.setImageLoader(fixture.loader)
         compose.setContent { CompositionLocalProvider(LocalProgramArtwork provides fixture.repository) {
@@ -77,13 +77,15 @@ class UpNextArtworkRenderTest {
         val reads = AtomicInteger()
         val bytes = artworkBytes()
         val served = java.util.concurrent.atomic.AtomicReference(bytes)
-        val fixture = render(ImageBytesReader { _, _ -> reads.incrementAndGet(); served.get() })
+        val rendered = java.util.concurrent.atomic.AtomicReference<String?>()
+        val fixture = render(ImageBytesReader { _, _ -> reads.incrementAndGet(); served.get() }, onRendered = { rendered.set(it.memoryCacheKey?.key) })
         compose.waitUntil(5_000) { compose.onAllNodesWithTag(placeholder()).fetchSemanticsNodes().isEmpty() }
+        val firstVersion = requireNotNull(rendered.get())
         fixture.now.addAndGet(ArtworkAge.FRESH_MS)
-        served.set(artworkBytes(color = android.graphics.Color.RED))
+        served.set(artworkBytes(1280, 720))
         compose.onNodeWithTag(placeholder()).assertDoesNotExist()
         runBlocking { fixture.repository.checkExpiry() }
-        compose.waitUntil(5_000) { compose.waitForIdle(); reads.get() >= 2 }
+        compose.waitUntil(5_000) { compose.waitForIdle(); reads.get() >= 2 && rendered.get() != firstVersion }
         compose.onNodeWithTag(placeholder()).assertDoesNotExist()
         fixture.repository.onForeground()
         compose.waitForIdle()

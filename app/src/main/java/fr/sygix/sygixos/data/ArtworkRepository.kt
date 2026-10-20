@@ -48,6 +48,8 @@ internal class ArtworkRepository(
     private val clock: () -> Long = System::currentTimeMillis,
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     private val cardWidth: Int = 396,
+    private val requestTimeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS,
+    private val localReader: ImageBytesReader = LocalProgramImageReader(context.contentResolver),
 ) : Closeable {
     private val dao get() = database.artwork()
     private class Flight(val job: Deferred<ArtworkImage?>, var subscribers: Int = 0)
@@ -122,10 +124,12 @@ internal class ArtworkRepository(
     }
 
     private suspend fun local(source: ProgramArtwork, uri: String, policy: ArtworkPolicy): Pair<ArtworkImage?, ArtworkFailure?> {
-        val result = scheduler.run(source.packageName, IMAGE_REQUEST_TIMEOUT_MS) {
-            context.contentResolver.openInputStream(Uri.parse(uri))?.use { verifiedDimensions(it.readBytes()) } ?: throw java.io.FileNotFoundException()
-        }
-        val dimensions = result.getOrNull() ?: return null to ArtworkFailure.TRANSPORT
+        val cancellation = ImageCancellation()
+        val result = scheduler.run(source.packageName, requestTimeoutMillis, cancellation::cancel) { localReader.read(Uri.parse(uri), cancellation) }
+        val bytes = result.getOrElse { return null to if (it is java.util.concurrent.TimeoutException) ArtworkFailure.TIMEOUT else ArtworkFailure.TRANSPORT }
+        val dimensions = try { withContext(ArtworkDecodeDispatcher) { verifiedDimensions(bytes) } }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { return null to ArtworkFailure.QUALITY }
         if (!policy.accepts(dimensions)) return null to ArtworkFailure.QUALITY
         return ArtworkImage(imageId(source, uri), source.packageName, uri, uri, dimensions.width, dimensions.height, "local", clock(), "valid") to null
     }
@@ -177,7 +181,7 @@ internal class ArtworkRepository(
 
     internal suspend fun retrieve(source: ProgramArtwork, uri: String, visible: Boolean): ArtworkImage? {
         val cancellation = ImageCancellation()
-        val result = scheduler.run(source.packageName, IMAGE_REQUEST_TIMEOUT_MS, cancellation::cancel, visible, uri) { reader.read(Uri.parse(uri), cancellation) }
+        val result = scheduler.run(source.packageName, requestTimeoutMillis, cancellation::cancel, visible, uri) { reader.read(Uri.parse(uri), cancellation) }
         val bytes = result.getOrElse { error ->
             val cause = when (error) {
                 is SecurityException -> ArtworkFailure.DENIED
@@ -191,32 +195,38 @@ internal class ArtworkRepository(
         }
         return try {
             val hash = artworkHash(bytes)
-            val old = dao.image(source.packageName, uri)
-            val measured = dao.matching(source.packageName, hash).firstOrNull { it.width > 0 && it.height > 0 }
-            val dimensions = measured?.let { ArtworkDimensions(it.width, it.height) } ?: withContext(ArtworkDecodeDispatcher) { verifiedDimensions(bytes) }
-            val image = ArtworkImage(imageId(source, uri), source.packageName, uri, uri, dimensions.width, dimensions.height, hash, clock(), "valid")
-            val identities = dao.matching(source.packageName, hash).flatMap { dao.associations(it.id) }
-                .map { it.sharedIdentity ?: it.identity }.toSet() + (source.sharedIdentity?.let(::artworkHash) ?: fingerprint(source))
-            val generic = !listOf(ArtworkPolicy.Hero, ArtworkPolicy.Shelf(640), ArtworkPolicy.Card(cardWidth)).any { it.accepts(dimensions) } || identities.size >= 3
-            if (generic) {
-                if (identities.size >= 3) dao.matching(source.packageName, hash).forEach {
-                    dao.image(it.copy(state = "generic", retryAt = clock() + GENERIC_RETRY_MS))
-                    publish(ArtworkEvent.ImageFailed(it.uri, ArtworkFailure.QUALITY))
-                }
-                if (identities.size >= 3 || old == null || !usable(old)) {
-                    dao.image(image.copy(state = "generic", retryAt = clock() + GENERIC_RETRY_MS))
+            val (image, generic, events) = database.withTransaction {
+                val events = mutableListOf<ArtworkEvent>()
+                val old = dao.image(source.packageName, uri)
+                val matching = dao.matching(source.packageName, hash)
+                val measured = matching.firstOrNull { it.width > 0 && it.height > 0 }
+                val dimensions = measured?.let { ArtworkDimensions(it.width, it.height) } ?: withContext(ArtworkDecodeDispatcher) { verifiedDimensions(bytes) }
+                val image = ArtworkImage(imageId(source, uri), source.packageName, uri, uri, dimensions.width, dimensions.height, hash, clock(), "valid")
+                val identities = matching.flatMap { dao.associations(it.id) }.map { it.sharedIdentity ?: it.identity }.toSet() +
+                    (source.sharedIdentity?.let(::artworkHash) ?: fingerprint(source))
+                val generic = !listOf(ArtworkPolicy.Hero, ArtworkPolicy.Shelf(640), ArtworkPolicy.Card(cardWidth)).any { it.accepts(dimensions) } || identities.size >= 3
+                if (generic) {
+                    if (identities.size >= 3) matching.forEach {
+                        dao.image(it.copy(state = "generic", retryAt = clock() + GENERIC_RETRY_MS))
+                        if (it.state != "generic") events += ArtworkEvent.ImageFailed(it.uri, ArtworkFailure.QUALITY)
+                    }
+                    if (identities.size >= 3 || old == null || !usable(old)) {
+                        dao.image(image.copy(state = "generic", retryAt = clock() + GENERIC_RETRY_MS))
+                        associate(image, source)
+                    }
+                    val failed = failureRow(source, uri, ArtworkFailure.QUALITY, generic = true)
+                    if (failed.state != "valid") events += ArtworkEvent.ImageFailed(uri, ArtworkFailure.QUALITY)
+                    Triple(old?.takeIf { identities.size < 3 && usable(it) && compatible(it, source) }, true, events)
+                } else {
+                    disk.writeVerified(uri, bytes)
+                    if (old != null && old.hash != hash) dao.clearAssociations(old.id)
+                    dao.image(image)
                     associate(image, source)
+                    Triple(image, false, listOf(ArtworkEvent.ImageReady(uri, hash)))
                 }
-                recordFailure(source, uri, ArtworkFailure.QUALITY, generic = true)
-                return old?.takeIf { identities.size < 3 && usable(it) && compatible(it, source) }
             }
-            disk.writeVerified(uri, bytes)
-            database.withTransaction {
-                if (old != null && old.hash != hash) dao.clearAssociations(old.id)
-                dao.image(image)
-                associate(image, source)
-            }
-            publish(ArtworkEvent.ImageReady(uri, hash))
+            events.distinct().forEach(::publish)
+            if (generic) imageFailure(source.packageName, Uri.parse(uri), ArtworkFailure.QUALITY.name)
             schedule()
             image
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -224,14 +234,19 @@ internal class ArtworkRepository(
     }
 
     private suspend fun recordFailure(source: ProgramArtwork, uri: String, cause: ArtworkFailure, generic: Boolean = false) {
+        val value = database.withTransaction { failureRow(source, uri, cause, generic) }
+        imageFailure(source.packageName, Uri.parse(uri), cause.name)
+        if (value.state != "valid") publish(ArtworkEvent.ImageFailed(uri, cause))
+        schedule()
+    }
+
+    private suspend fun failureRow(source: ProgramArtwork, uri: String, cause: ArtworkFailure, generic: Boolean): ArtworkImage {
         val previous = dao.image(source.packageName, uri)
         val retry = clock() + if (generic) GENERIC_RETRY_MS else 30_000
         val value = previous?.copy(state = if (usable(previous)) "valid" else if (generic) "generic" else "failed", retryAt = retry, failureCause = cause.name)
             ?: ArtworkImage(imageId(source, uri), source.packageName, uri, uri, 0, 0, "", 0, if (generic) "generic" else "failed", retry, cause.name)
         dao.image(value)
-        imageFailure(source.packageName, Uri.parse(uri), cause.name)
-        if (value.state != "valid") publish(ArtworkEvent.ImageFailed(uri, cause))
-        schedule()
+        return value
     }
 
     private fun publish(event: ArtworkEvent) {

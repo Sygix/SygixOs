@@ -93,11 +93,23 @@ private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, 
     val event = artworkEvent(source)
     val context = LocalContext.current
     val request = remember(context, uri, size, source?.identity, event) { posterRequest(context, uri, size, source) }
-    val painter = rememberAsyncImagePainter(
+    var previous by remember(uri) { mutableStateOf<AsyncImagePainter.State.Success?>(null) }
+    val painter = androidx.compose.runtime.key(source?.identity, (event as? fr.sygix.sygixos.data.ArtworkEvent.ImageReady)?.version) { rememberAsyncImagePainter(
         model = request,
-        onState = { if (it is AsyncImagePainter.State.Error) onError() },
-    )
-    val ready = painter.state is AsyncImagePainter.State.Success
+        onState = { state ->
+            if (state is AsyncImagePainter.State.Success) previous = state
+            if (state is AsyncImagePainter.State.Error && previous == null) onError()
+        },
+    ) }
+    LaunchedEffect(event) {
+        if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired ||
+            event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) {
+            previous = null
+            onError()
+        }
+    }
+    val displayed = painter.state as? AsyncImagePainter.State.Success ?: previous
+    val ready = displayed != null
     val pan = remember(uri) { Animatable(PanStart) }
     LaunchedEffect(ready) {
         if (ready) pan.animateTo(PanEnd, tween(Motion.SHELF_KEN_BURNS_MS, easing = AppleEasing))
@@ -105,10 +117,11 @@ private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, 
     val alpha by animateFloatAsState(if (ready) 1f else 0f, tween(Motion.SHELF_FADE_MS, easing = AppleEasing), label = "posterAlpha")
     if (ready) {
         Image(
-            painter = painter,
+            painter = checkNotNull(displayed).painter,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
+                .testTag("shelf-poster")
                 .fillMaxSize()
                 .graphicsLayer {
                     this.alpha = alpha

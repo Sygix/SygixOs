@@ -23,6 +23,18 @@ La source de vérité est la spec révisée de la PR #84. Les résultats histori
 
 Commandes exécutées : `openspec validate --all --strict` (**9 éléments validés, aucun échec**) et `./gradlew test assembleRelease --no-daemon` (**réussi**). La vérification JVM ne démontre ni les performances sur la TV ni le comportement Binder d'une application tierce réelle. L'essai émulateur et la revue indépendante restent à consigner ; aucun archivage n'est autorisé à ce stade.
 
+### Corrections de la revue indépendante
+
+| Constat | Statut et correction | Preuve de régression |
+| --- | --- | --- |
+| Clip redémarré entre programmes ayant des candidates en échec | Traité : l'état de présentation porte l'échec connu ; aucun détour par un poster en attente entre deux replis. | `HeroVideoTest` utilise trois URI distinctes non vides en échec, exige une seule préparation et aucun `clear()` avant la fin du clip. |
+| Ancien résultat validé conservé après rejet définitif | Traité : la revalidation retire son ancien résultat si aucune image n'est acceptée ; les événements de qualité retirent immédiatement les associations de présentation concernées. | `HomeRefreshTest.imagesBecomingGenericWithdrawPreviouslyAcceptedHeroAndShelfResults` et `aRefreshedPortraitRemainsCardCompatibleButLeavesHeroAndShelf`. |
+| Top Shelf vide pendant le décodage de remplacement | Traité : le dernier painter réussi reste affiché jusqu'au prochain succès ; les painters sont explicitement identifiés par empreinte et version, y compris À suivre et les réglages. | `ShelfArtworkRefreshTest.previousShelfImageStaysVisibleWhileTheNewVersionIsBeingDecoded` bloque le second décodage ; `UpNextArtworkRenderTest` exige un nouveau succès de rendu avec une nouvelle clé versionnée. |
+| Comptage des identités génériques non atomique | Traité : comptage, associations et états sont publiés dans une seule transaction Room ; les événements suivent son engagement. | `ArtworkRepositoryTest.concurrentPublicationsOfTheSameHashBecomeGenericRegardlessOfTheirCompletionOrder` résout trois URI distinctes en concurrence dans six ordres déterministes. |
+| Lecture locale non bornée et non fermée à l'annulation | Traité : propriétaire d'annulation et copie bornée communs aux lecteurs locaux et distants ; le décodage final local reste délégué à Coil. | `ArtworkRepositoryTest.localReadIsClosedOnTimeoutAndTheOtherAppStillProgresses` et `oversizedLocalSourcesAreBoundedAndClosed`. |
+
+Après ces corrections, `./gradlew test assembleRelease --no-daemon` réussit. Le premier essai émulateur a vérifié lancement, métadonnées synthétiques, navigation, replis, lecture/pause vidéo et retour au premier plan sans nouveau chargement ; aucun visuel réussi ni continuité exacte de clip n'y a été déclaré vérifié. Un second passage sur le correctif revu reste à consigner.
+
 ## Historique v0.3.1
 
 > Historique : ce rapport concerne la première version de ce change (spec #82, implémentation livrée en v0.3.1), remplacée par la révision v0.3.2. Voir `design.md` et la section 8 de `tasks.md`.

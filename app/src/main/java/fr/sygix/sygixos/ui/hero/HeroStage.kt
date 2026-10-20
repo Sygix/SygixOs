@@ -149,7 +149,7 @@ fun HeroStage(
     var failedImages by remember(current?.artwork?.identity, imageVersion) { mutableStateOf(emptySet<String>()) }
     val programVideo = current?.videoUrl != null && current.id !in failedVideos
     val imageCandidate = current?.artwork?.candidates?.firstOrNull()
-    val fallback = current != null && !programVideo && (imageCandidate == null || imageCandidate in failedImages)
+    val fallback = current != null && !programVideo && (current.artworkFailed || imageCandidate == null || imageCandidate in failedImages)
     val natureUrl = fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.getOrNull(natureIndex)
     val mediaId = if (fallback) "nature-$natureIndex" else current?.id
     val mediaUrl = if (fallback) natureUrl else current?.videoUrl

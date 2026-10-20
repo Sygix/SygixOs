@@ -36,12 +36,18 @@ internal fun artworkBytes(width: Int = 800, height: Int = 450, color: Int = andr
     return ByteArrayOutputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output); bitmap.recycle(); output.toByteArray() }
 }
 
-internal class ArtworkFixture(directory: java.io.File, val read: ImageBytesReader, val now: AtomicLong = AtomicLong(1_000)) : Closeable {
+internal class ArtworkFixture(directory: java.io.File, val read: ImageBytesReader, val now: AtomicLong = AtomicLong(1_000), localReader: ImageBytesReader? = null,
+    timeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS, onRendered: (coil.request.SuccessResult) -> Unit = {}) : Closeable {
     val context: Context = ApplicationProvider.getApplicationContext()
     val disk = DiskCache.Builder().directory(directory).build()
     val db = Room.inMemoryDatabaseBuilder(context, ArtworkDatabase::class.java).build()
-    val repository = ArtworkRepository(context, db, disk, read, clock = now::get)
-    val loader = coil.ImageLoader.Builder(context).diskCache(disk).allowHardware(false).components {
+    val repository = ArtworkRepository(context, db, disk, read, clock = now::get, requestTimeoutMillis = timeoutMillis,
+        localReader = localReader ?: LocalProgramImageReader(context.contentResolver))
+    val loader = coil.ImageLoader.Builder(context).diskCache(disk).allowHardware(false).eventListener(object : coil.EventListener {
+        override fun onSuccess(request: coil.request.ImageRequest, result: coil.request.SuccessResult) {
+            if (result.drawable is android.graphics.drawable.BitmapDrawable) onRendered(result)
+        }
+    }).components {
         add(ProgramArtworkInterceptor(repository))
         add(ProgramImageFetcher.Factory(disk, repository))
     }.build().also { loader -> repository.imageLoader = { loader } }
@@ -56,6 +62,56 @@ class ArtworkRepositoryTest {
     @get:Rule val folder = TemporaryFolder()
     private val source = ProgramArtwork("app", listOf("content://fixture/poster"), "film", "preview-1", "film")
     private val pixels by lazy { artworkBytes() }
+
+    @Test fun concurrentPublicationsOfTheSameHashBecomeGenericRegardlessOfTheirCompletionOrder() = runBlocking {
+        repeat(6) { order ->
+            ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> pixels }).use { fixture ->
+                val sources = (1..3).shuffled(kotlin.random.Random(order)).map { n ->
+                    source.copy(candidates = listOf("content://fixture/image$n"), identity = "film$n", sharedIdentity = "film$n")
+                }
+                val jobs = sources.map { item -> async { fixture.repository.resolve(item, ArtworkPolicy.Hero) } }
+                withTimeout(5_000) { jobs.forEach { it.await() } }
+                assertEquals(3, fixture.db.artwork().images().count { it.state == "generic" })
+                sources.forEach { assertNull(fixture.repository.resolve(it, ArtworkPolicy.Hero).first) }
+            }
+        }
+    }
+
+    @Test fun localReadIsClosedOnTimeoutAndTheOtherAppStillProgresses() = runBlocking {
+        val entered = CountDownLatch(1)
+        val closed = CountDownLatch(1)
+        val exited = CountDownLatch(1)
+        val closes = AtomicInteger()
+        val local = ImageBytesReader { uri, cancellation ->
+            val input = if (uri.path == "/blocked") object : java.io.InputStream() {
+                override fun read(): Int { entered.countDown(); closed.await(); exited.countDown(); return -1 }
+                override fun close() { closes.incrementAndGet(); closed.countDown() }
+            } else java.io.ByteArrayInputStream(pixels)
+            try { readImageBytes(cancellation.own(input), cancellation) } finally { cancellation.release() }
+        }
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> error("Local fetch only") }, localReader = local, timeoutMillis = 100).use { f ->
+            val blocked = source.copy(candidates = listOf("file:///blocked"))
+            assertEquals(ArtworkFailure.TIMEOUT, f.repository.resolve(blocked, ArtworkPolicy.Hero).second)
+            assertTrue(entered.await(1, TimeUnit.SECONDS))
+            assertTrue(exited.await(1, TimeUnit.SECONDS))
+            assertEquals(1, closes.get())
+            assertNotNull(f.repository.resolve(blocked.copy(packageName = "other", candidates = listOf("file:///ready")), ArtworkPolicy.Hero).first)
+        }
+    }
+
+    @Test fun oversizedLocalSourcesAreBoundedAndClosed() = runBlocking {
+        val closes = AtomicInteger()
+        val local = ImageBytesReader { _, cancellation ->
+            val input = object : java.io.ByteArrayInputStream(ByteArray(16 * 1024 * 1024 + 1)) {
+                override fun close() { closes.incrementAndGet(); super.close() }
+            }
+            try { readImageBytes(cancellation.own(input), cancellation) } finally { cancellation.release() }
+        }
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> error("Local fetch only") }, localReader = local).use { f ->
+            assertNull(f.repository.resolve(source.copy(candidates = listOf("file:///oversized")), ArtworkPolicy.Hero).first)
+            assertEquals(1, closes.get())
+        }
+    }
 
     @Test fun threeDestinationsShareOnePhysicalRead() = runBlocking {
         val reads = AtomicInteger()

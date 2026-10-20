@@ -162,7 +162,7 @@ class HomeViewModel(
         disabledHeroSources = disabled
         val shown = feed.withSources(disabled, fallbackItems)
         val items = shown.items.filter { it.videoUrl != null || it.id in v || it.id in retryable || it.id in retained }.map { item ->
-            (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item).copy(expiresAt = Long.MAX_VALUE)
+            (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in retryable)).copy(expiresAt = Long.MAX_VALUE)
         }
         val hero = HeroState(items.ifEmpty { fallbackItems }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
             shelfItems = shown.items, generations = generations.filterKeys { id -> items.any { it.id == id } })
@@ -369,7 +369,7 @@ class HomeViewModel(
                     if (check.retryable) retries += current.id else retries -= current.id
                     checked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
                     if (shelf) shelfChecked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
-                    check.visual?.let { visual -> results.update { it + (current.id to visual) } }
+                    results.update { values -> check.visual?.let { values + (current.id to it) } ?: (values - current.id) }
                     if (shelf) retainedShelf.update { it - current.id } else retainedHero.update { it - current.id }
                     validating.remove(shelf to item.artwork.identity)
                     if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
@@ -401,6 +401,26 @@ class HomeViewModel(
         viewModelScope.launch { apps.hideApp(app.packageName) }
     }
 
+    internal fun observeArtwork(events: Flow<fr.sygix.sygixos.data.ArtworkEvent>) = viewModelScope.launch {
+        events.collect { event ->
+            if (event is fr.sygix.sygixos.data.ArtworkEvent.ProgramsChanged) return@collect
+            val affected = rawFeed.value.items.filter { item -> event.uri in item.artwork.candidates.flatMap { fr.sygix.sygixos.data.visualCandidates(it) } }
+            affected.forEach { item ->
+                heroChecks.remove(item.id)
+                shelfChecks.remove(item.id)
+                if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired ||
+                    event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) {
+                    retryable -= item.id
+                    shelfRetryable -= item.id
+                    validated.update { it - item.id }
+                    shelfResults.update { it - item.id }
+                }
+            }
+            launchValidation(affected)
+            lastShelfPackage?.let { pkg -> launchValidation(affected.filter { it.sourcePackage == pkg }, shelf = true) }
+        }
+    }
+
     class Factory(private val context: Context) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -425,20 +445,7 @@ class HomeViewModel(
                 },
             ).also { vm ->
                 vm.setShelfWidth(((app.resources.configuration.screenWidthDp - 2 * fr.sygix.sygixos.core.designsystem.Dimens.ScreenMarginH.value) * app.resources.displayMetrics.density).toInt())
-                vm.viewModelScope.launch { app.programArtwork.events.collect { event ->
-                    if (event is fr.sygix.sygixos.data.ArtworkEvent.ProgramsChanged) return@collect
-                    val affected = vm.rawFeed.value.items.filter { event.uri in it.artwork.candidates }
-                    affected.forEach { item ->
-                        vm.heroChecks.remove(item.id)
-                        vm.shelfChecks.remove(item.id)
-                        if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired) {
-                            vm.validated.update { it - item.id }
-                            vm.shelfResults.update { it - item.id }
-                        }
-                    }
-                    vm.launchValidation(affected)
-                    vm.lastShelfPackage?.let { pkg -> vm.launchValidation(affected.filter { it.sourcePackage == pkg }, shelf = true) }
-                } }
+                vm.observeArtwork(app.programArtwork.events)
             } as T
         }
     }

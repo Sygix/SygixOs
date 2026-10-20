@@ -28,6 +28,7 @@ data class HeroItem(
     val releaseDate: String? = null,
     val episodeArtwork: Boolean = season != null || episode != null,
     val seriesId: String? = null,
+    val artworkFailed: Boolean = false,
 ) {
     val artwork: ProgramArtwork get() = ProgramArtwork(
         sourcePackage.orEmpty(), listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),

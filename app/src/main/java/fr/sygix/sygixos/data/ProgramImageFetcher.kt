@@ -80,6 +80,13 @@ internal class ProgramImageFetcher(
 
 internal fun interface ImageBytesReader { fun read(uri: Uri, cancellation: ImageCancellation): ByteArray }
 
+internal class LocalProgramImageReader(private val resolver: ContentResolver) : ImageBytesReader {
+    override fun read(uri: Uri, cancellation: ImageCancellation): ByteArray = try {
+        val stream = cancellation.own(resolver.openInputStream(uri) ?: throw FileNotFoundException("Local artwork unavailable"))
+        readImageBytes(stream, cancellation)
+    } finally { cancellation.release() }
+}
+
 internal class ProgramImageReader(private val resolver: ContentResolver, private val http: OkHttpClient) : ImageBytesReader {
     override fun read(uri: Uri, cancellation: ImageCancellation): ByteArray {
         cancellation.check()
@@ -99,23 +106,23 @@ internal class ProgramImageReader(private val resolver: ContentResolver, private
                 }
                 else -> throw FileNotFoundException("Unsupported program image")
             }
-            copy(stream, cancellation)
+            readImageBytes(stream, cancellation)
         } finally { cancellation.release() }
     }
+}
 
-    private fun copy(stream: InputStream, cancellation: ImageCancellation): ByteArray {
-        val output = java.io.ByteArrayOutputStream()
-        val buffer = ByteArray(16 * 1024)
-        while (true) {
-            cancellation.check()
-            val size = stream.read(buffer)
-            if (size < 0) break
-            if (output.size() + size > 16 * 1024 * 1024) throw java.io.IOException("Artwork exceeds source limit")
-            output.write(buffer, 0, size)
-        }
+internal fun readImageBytes(stream: InputStream, cancellation: ImageCancellation): ByteArray {
+    val output = java.io.ByteArrayOutputStream()
+    val buffer = ByteArray(16 * 1024)
+    while (true) {
         cancellation.check()
-        return output.toByteArray()
+        val size = stream.read(buffer)
+        if (size < 0) break
+        if (output.size() + size > 16 * 1024 * 1024) throw java.io.IOException("Artwork exceeds source limit")
+        output.write(buffer, 0, size)
     }
+    cancellation.check()
+    return output.toByteArray()
 }
 
 internal fun verifiedDimensions(bytes: ByteArray): ArtworkDimensions {

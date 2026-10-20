@@ -61,6 +61,7 @@ internal class FakeVideo : HeroVideo {
     val prepared = mutableListOf<String>()
     var parks = 0
     var releases = 0
+    var clears = 0
 
     override fun show(id: String, url: String, play: Boolean, loop: Boolean) {
         if (id != loadedItem) {
@@ -79,6 +80,7 @@ internal class FakeVideo : HeroVideo {
     }
 
     override fun clear() {
+        clears++
         loadedItem = null
         playing = false
         firstFrameRendered = false
@@ -185,13 +187,14 @@ class HeroVideoTest {
 
     @Test
     fun `three fallback programs keep one nature preparation then ending advances the clip and image resets it`() {
-        val fallback = (1..3).map { HeroItem("failed$it", "Fiction $it", sourcePackage = "fixture.app", launchUri = "fixture://film/$it") }
+        val fallback = (1..3).map { HeroItem("failed$it", "Fiction $it", imageUrl = "content://fixture/failed$it", sourcePackage = "fixture.app", launchUri = "fixture://film/$it", artworkFailed = true) }
         show(fallback + picture("healthy", "Healthy fiction"))
         compose.runOnIdle { video.render("nature-0") }
         advance(500)
         advance(Motion.HERO_DWELL_MS + 200)
         advance(Motion.HERO_DWELL_MS + 200)
         assertEquals(listOf("nature-0"), video.prepared)
+        assertEquals(0, video.clears)
         compose.onNodeWithText("Fiction 3", useUnmergedTree = true).assertExists()
         compose.runOnIdle { endVideo() }
         advance(100)

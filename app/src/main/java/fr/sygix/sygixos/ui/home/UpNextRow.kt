@@ -115,7 +115,7 @@ internal fun UpNextRow(
         horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
     ) {
         when (content) {
-            is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item -> item.artwork.identity }) { index, item ->
+            is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item -> item.cardIdentity }) { index, item ->
                 UpNextCard(
                     item = item,
                     modifier = Modifier.width(width)
@@ -241,7 +241,9 @@ internal fun UpNextArtwork(item: UpNextItem, modifier: Modifier = Modifier) {
                 .size(width.coerceAtLeast(1), height.coerceAtLeast(1))
                 .precision(Precision.INEXACT).build()
         }
-        val painter = rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+        val painter = androidx.compose.runtime.key(item.artwork.identity, (event as? fr.sygix.sygixos.data.ArtworkEvent.ImageReady)?.version) {
+            rememberAsyncImagePainter(request, contentScale = ContentScale.Crop)
+        }
         var previous by remember { mutableStateOf<AsyncImagePainter.State.Success?>(null) }
         LaunchedEffect(painter.state) { (painter.state as? AsyncImagePainter.State.Success)?.let { previous = it } }
         LaunchedEffect(event) { if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired || event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) previous = null }
