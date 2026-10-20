@@ -2,10 +2,10 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "36368a34c57035c1821467cf52ef2dcf",
+    "identityHash": "934590b53622e07661fd30bdd19925bd",
     "entities": [
       {
-        "tableName": "programs",
+        "tableName": "tv_programs",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tableName` TEXT NOT NULL, `providerId` TEXT NOT NULL, `packageName` TEXT NOT NULL, `imageFingerprint` TEXT NOT NULL, `fullFingerprint` TEXT NOT NULL, `sharedIdentity` TEXT, `confirmedAt` INTEGER NOT NULL, `expiresAt` INTEGER NOT NULL, PRIMARY KEY(`tableName`, `providerId`))",
         "fields": [
           {
@@ -65,8 +65,8 @@
         }
       },
       {
-        "tableName": "candidates",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tableName` TEXT NOT NULL, `providerId` TEXT NOT NULL, `rank` INTEGER NOT NULL, `uri` TEXT NOT NULL, PRIMARY KEY(`tableName`, `providerId`, `rank`), FOREIGN KEY(`tableName`, `providerId`) REFERENCES `programs`(`tableName`, `providerId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "program_image_candidates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`tableName` TEXT NOT NULL, `providerId` TEXT NOT NULL, `rank` INTEGER NOT NULL, `uri` TEXT NOT NULL, PRIMARY KEY(`tableName`, `providerId`, `rank`), FOREIGN KEY(`tableName`, `providerId`) REFERENCES `tv_programs`(`tableName`, `providerId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "tableName",
@@ -103,7 +103,7 @@
         },
         "foreignKeys": [
           {
-            "table": "programs",
+            "table": "tv_programs",
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
             "columns": [
@@ -118,8 +118,8 @@
         ]
       },
       {
-        "tableName": "images",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `packageName` TEXT NOT NULL, `uri` TEXT NOT NULL, `diskKey` TEXT NOT NULL, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `hash` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, `state` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "tableName": "program_images",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `packageName` TEXT NOT NULL, `uri` TEXT NOT NULL, `diskKey` TEXT NOT NULL, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `hash` TEXT NOT NULL, `fetchedAt` INTEGER NOT NULL, `state` TEXT NOT NULL, `retryAt` INTEGER NOT NULL DEFAULT 0, `failureCause` TEXT, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -174,6 +174,18 @@
             "columnName": "state",
             "affinity": "TEXT",
             "notNull": true
+          },
+          {
+            "fieldPath": "retryAt",
+            "columnName": "retryAt",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "failureCause",
+            "columnName": "failureCause",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -184,20 +196,20 @@
         },
         "indices": [
           {
-            "name": "index_images_packageName_uri",
+            "name": "index_program_images_packageName_uri",
             "unique": true,
             "columnNames": [
               "packageName",
               "uri"
             ],
             "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_images_packageName_uri` ON `${TABLE_NAME}` (`packageName`, `uri`)"
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_program_images_packageName_uri` ON `${TABLE_NAME}` (`packageName`, `uri`)"
           }
         ]
       },
       {
-        "tableName": "associations",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`imageId` TEXT NOT NULL, `identity` TEXT NOT NULL, `sharedIdentity` TEXT, `confirmedAt` INTEGER NOT NULL, PRIMARY KEY(`imageId`, `identity`), FOREIGN KEY(`imageId`) REFERENCES `images`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "tableName": "program_image_links",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`imageId` TEXT NOT NULL, `identity` TEXT NOT NULL, `sharedIdentity` TEXT, `confirmedAt` INTEGER NOT NULL, PRIMARY KEY(`imageId`, `identity`), FOREIGN KEY(`imageId`) REFERENCES `program_images`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "imageId",
@@ -232,7 +244,7 @@
         },
         "foreignKeys": [
           {
-            "table": "images",
+            "table": "program_images",
             "onDelete": "CASCADE",
             "onUpdate": "NO ACTION",
             "columns": [
@@ -247,7 +259,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '36368a34c57035c1821467cf52ef2dcf')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '934590b53622e07661fd30bdd19925bd')"
     ]
   }
 }

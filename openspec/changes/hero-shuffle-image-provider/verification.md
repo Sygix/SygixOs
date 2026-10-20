@@ -1,18 +1,18 @@
 # Vérification : hero-shuffle-image-provider
 
-## Révision v0.3.2 — vérification avant essai sur émulateur
+## Révision v0.3.2 — vérification de l'implémentation
 
 La source de vérité est la spec révisée de la PR #84. Les résultats historiques plus bas ne sont pas utilisés comme preuve de cette révision.
 
 | Dimension | Résultat |
 | --- | --- |
-| Complétude | Tâches 8.1 à 8.10 implémentées et vérifiées ; 8.11 attend encore l'émulateur ; 8.12 reste réservée à la TV réelle. Les anciennes tâches 7.2 et 7.3 renvoient à 8.12. |
+| Complétude | Tâches 8.1 à 8.11 implémentées et vérifiées ; 8.12 reste réservée à la TV réelle. Les anciennes tâches 7.2 et 7.3 renvoient à 8.12. |
 | Conformité | Les contrats modifiés sont reliés aux preuves ci-dessous ; le fonctionnement des fournisseurs tiers et la fluidité sur la TV ne sont pas vérifiés ici. |
 | Cohérence | D1 à D7 : Coil et index Room, délai de requête sans attente en file, événements ciblés, qualité par destination, clips continus et cache vidéo adaptatif. |
 
 | Contrat | Code | Preuves automatisées |
 | --- | --- | --- |
-| Index durable, associations non bornées, migrations et reconstruction | `ArtworkDatabase`, `ArtworkRepository` | `ArtworkDatabaseTest` : 100 associations, purge, conservation des dimensions et dates, migration absente et migration en échec ; `ArtworkRepositoryTest` : réouverture hors ligne et éviction Coil. |
+| Index durable, associations non bornées, schéma initial et reconstruction | `ArtworkDatabase`, `ArtworkRepository` | `ArtworkDatabaseTest` : 100 associations, purge, réouverture du schéma initial conservant liens/dimensions/dates, version non prise en charge et index illisible ; `ArtworkRepositoryTest` : réouverture hors ligne et éviction Coil. |
 | Fournisseur sans type, flux de longueur inconnue, fermeture et redirections | `ProgramImageReader`, `ProgramImageFetcher`, `ImageCancellation` | `ContentArtworkTransportTest` : fournisseur sans type, pipe, cache commun, appel tardif, fermeture qui débloque la lecture ; `AndroidArtworkTransportTest` : serveur HTTP redirigeant vers HTTPS avec certificat de test éphémère. |
 | Vérification avant engagement et clés communes | `ProgramArtworkInterceptor`, `ProgramImageFetcher`, `ArtworkRepository` | `ArtworkRepositoryTest` : trois destinations, abonné annulé, contenu différent sur URI connue, page d'erreur et PNG tronqué non engagés, copie valide préservée devant une icône d'erreur. |
 | Délai unique et priorité | `ArtworkScheduler` | `ArtworkSchedulerTest` : trente images sans expiration en file, quatre apps, requête abandonnée, priorité aux zones visibles, quarantaine, saturation et annulation bloquée. |
@@ -21,7 +21,7 @@ La source de vérité est la spec révisée de la PR #84. Les résultats histori
 | Continuité des clips et cache vidéo | `HeroStage`, `HeroPlayer`, `HeroVideoCache`, `StreamingFallbackDataSource` | `HeroVideoTest` : préparation unique pour trois replis, fin de clip indépendante, reprise au début après image ; `HeroVideoCacheTest` : budget, LRU, manque de place, création impossible et erreur d'écriture avec reprise à l'octet non lu. |
 | Vignettes des réglages et diagnostics | `SettingsContent`, intercepteur partagé et journaux image/vidéo | Régressions de vignettes des réglages ; `ContentArtworkTransportTest` vérifie l'absence d'URL serveur et de paramètres dans les diagnostics. Les autorités réseau sont masquées. |
 
-Commandes exécutées : `openspec validate --all --strict` (**9 éléments validés, aucun échec**) et `./gradlew test assembleRelease --no-daemon` (**réussi**). La vérification JVM ne démontre ni les performances sur la TV ni le comportement Binder d'une application tierce réelle. L'essai émulateur et la revue indépendante restent à consigner ; aucun archivage n'est autorisé à ce stade.
+Commandes exécutées : `openspec validate --all --strict` (**9 éléments validés, aucun échec**) et `./gradlew test assembleRelease --no-daemon` (**réussi**), puis suite et build exécutés séparément après les derniers correctifs. La vérification JVM ne démontre ni les performances sur la TV ni le comportement Binder d'une application tierce réelle. L'essai émulateur et la revue indépendante sont consignés ci-dessous ; aucun archivage n'est autorisé à ce stade.
 
 ### Corrections de la revue indépendante
 
@@ -33,17 +33,27 @@ Commandes exécutées : `openspec validate --all --strict` (**9 éléments valid
 | Comptage des identités génériques non atomique | Traité : comptage, associations et états sont publiés dans une seule transaction Room ; les événements suivent son engagement. | `ArtworkRepositoryTest.concurrentPublicationsOfTheSameHashBecomeGenericRegardlessOfTheirCompletionOrder` résout trois URI distinctes en concurrence dans six ordres déterministes. |
 | Lecture locale non bornée et non fermée à l'annulation | Traité : propriétaire d'annulation et copie bornée communs aux lecteurs locaux et distants ; le décodage final local reste délégué à Coil. | `ArtworkRepositoryTest.localReadIsClosedOnTimeoutAndTheOtherAppStillProgresses` et `oversizedLocalSourcesAreBoundedAndClosed`. |
 
-Après ces corrections, `./gradlew test assembleRelease --no-daemon` réussit. Le premier essai émulateur a vérifié lancement, métadonnées synthétiques, navigation, replis, lecture/pause vidéo et retour au premier plan sans nouveau chargement ; aucun visuel réussi ni continuité exacte de clip n'y a été déclaré vérifié. Un second passage sur le correctif revu reste à consigner.
+Après ces corrections, `./gradlew test assembleRelease --no-daemon` réussit. Le premier essai émulateur a vérifié lancement, métadonnées synthétiques, navigation, replis, lecture/pause vidéo et retour au premier plan sans nouveau chargement ; aucun visuel réussi ni continuité exacte de clip n'y a été déclaré vérifié. Les passages suivants et leurs limites figurent dans la validation finale ci-dessous.
 
 ### Derniers cas limites et noms de tables
 
 - **Collision de clés des cartes traitée** : les identités de présentation identiques sont désambiguïsées par la ligne, sans changer le dédoublonnage métier. `UpNextCardsTest` compose et navigue entre deux films de même titre sans identifiant publié et avec deux affiches distinctes.
 - **Alternative inutilisée traitée** : le painter du panneau n'écoute que l'URI affichée ; le ViewModel ne retire que les résultats utilisant l'image rejetée. `ShelfArtworkRefreshTest.rejectionOfAnUnusedCandidateDoesNotBlacklistTheDisplayedPoster` conserve A quand B est rejetée ; `HomeRefreshTest.rejectedDisplayedCandidateCanSwitchToItsAlreadyValidAlternative` prouve le passage de A à B après rejet de A.
-- **Héro vide au retour traité dans le code et les tests** : le second essai émulateur a révélé un retour sans titre après fermeture du guide initial. Les résultats de requêtes en échec sont désormais observables par programme ; un résultat jamais valide n'émet plus d'expiration d'image. `HomeRefreshTest.cachedFailureRestoresFallbackAfterRevalidationWithoutAnotherCheckedImageEmission` et `ArtworkRepositoryTest.aNeverValidImageDoesNotEmitAnExpirationOnForegroundChecks` couvrent cette cause. La confirmation sur émulateur du correctif reste à faire.
-- **Noms de tables précisés à la demande de Sygix** : `tv_programs`, `program_image_candidates`, `program_images`, `program_image_links`. Le schéma 3 migre depuis le schéma 2 en conservant programmes, candidates, liens, dates et contraintes ; `ArtworkDatabaseTest.tableRenamePreservesProgramsCandidatesAndImageLinks` vérifie aussi `foreign_key_check`.
+- **Héro vide au retour traité dans le code et les tests** : le second essai émulateur a révélé un retour sans titre après fermeture du guide initial. Les résultats de requêtes en échec sont désormais observables par programme ; un résultat jamais valide n'émet plus d'expiration d'image. `HomeRefreshTest.cachedFailureRestoresFallbackAfterRevalidationWithoutAnotherCheckedImageEmission` et `ArtworkRepositoryTest.aNeverValidImageDoesNotEmitAnExpirationOnForegroundChecks` couvrent cette cause. La confirmation finale sur émulateur figure ci-dessous.
+- **Noms de tables précisés à la demande de Sygix** : `tv_programs`, `program_image_candidates`, `program_images`, `program_image_links`. Avant cette première livraison de Room, les versions de développement ont été consolidées en un unique schéma initial 1, sans migration intermédiaire. `ArtworkDatabaseTest.initialSchemaKeepsProgramsCandidatesImageLinksAndDatesAfterReopening` vérifie les données, les liens, les dates et `foreign_key_check` ; le repli pour version non prise en charge reste testé.
 - **Isolation des tests d'activité** : le dispatcher applicatif et le lecteur vidéo sont injectables sans changer les valeurs de production. Le double d'application évite les lectures vidéo distantes et les transactions de préférences liées à un ancien looper Robolectric ; le test d'activité réinitialise son dispatcher au nettoyage.
 
-Dernière suite complète : **1 091 tests, aucun échec** ; `assembleRelease` réussi. Le journal de début des tests a été activé pour diagnostiquer leur cycle de vie, sans filtrage ni exclusion de scénario.
+Dernière suite complète après consolidation du schéma initial : **1 090 tests, aucun échec** ; `./gradlew test --no-daemon` et `./gradlew assembleRelease --no-daemon` réussis séparément. Les tests des migrations intermédiaires non livrées sont remplacés par les tests du schéma initial et de ses replis ; aucun scénario métier n'est exclu.
+
+### Validation finale sur émulateur et revue
+
+- Code revu au commit `0ab4bf6` : verdict indépendant **MERGEABLE**, aucun constat bloquant ou moyen restant dans le delta final. Les deux derniers constats (collision de clés et rejet d'une alternative inutilisée) sont déclarés traités avec les tests correspondants.
+- APK release de ce code réinstallée sur l'émulateur Android 14 TV, puis données de test de SygixOs réinitialisées. Deux cycles de lancement neuf → guide initial → Retour → Home → relance ont conservé titre, métadonnées et bouton du héro après au moins dix secondes, sans arrêt forcé pour récupérer l'accueil. Un retour supplémentaire après navigation dans la grille a conservé le même fonctionnement. Le buffer de crash filtré sur le processus SygixOs est vide.
+- Après consolidation en un seul schéma initial, l'APK release a de nouveau été installée et ce parcours neuf a été répété avec succès : titre, métadonnées et bouton conservés après dix secondes, sans crash de SygixOs.
+- L'émulateur était arrêté et le verrou lourd libre avant le démarrage de cette session ; il a été arrêté à la fin, puis le verrou a été vérifié libre. Les captures ne montrent que des programmes synthétiques et ont été transmises pour inspection.
+- **Limites** : aucune image valide n'a pu être semée par les outils disponibles sur cet émulateur ; le succès visuel réel des trois zones, les fournisseurs tiers, les seuils observés sur appareil et la continuité exacte à la fin d'un clip restent à vérifier sur la TV. Les tests JVM/Compose couvrent ces contrats mais ne sont pas présentés comme une validation TV.
+
+L'implémentation est proposée à la revue de Sygix. La tâche 8.12 et les anciennes tâches 7.2/7.3 qui y renvoient restent ouvertes ; aucun merge ni archivage n'a été effectué.
 
 ## Historique v0.3.1
 

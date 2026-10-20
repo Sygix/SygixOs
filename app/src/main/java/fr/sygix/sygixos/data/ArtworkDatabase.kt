@@ -18,7 +18,6 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
-import androidx.room.migration.Migration
 
 @Entity(tableName = "tv_programs", primaryKeys = ["tableName", "providerId"])
 internal data class ArtworkProgram(
@@ -88,36 +87,12 @@ internal abstract class ArtworkDao {
     }
 }
 
-@Database(entities = [ArtworkProgram::class, ArtworkCandidate::class, ArtworkImage::class, ArtworkAssociation::class], version = 3, exportSchema = true)
+@Database(entities = [ArtworkProgram::class, ArtworkCandidate::class, ArtworkImage::class, ArtworkAssociation::class], version = 1, exportSchema = true)
 internal abstract class ArtworkDatabase : RoomDatabase() {
     abstract fun artwork(): ArtworkDao
 
     companion object {
-        val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE images ADD COLUMN retryAt INTEGER NOT NULL DEFAULT 0")
-                db.execSQL("ALTER TABLE images ADD COLUMN failureCause TEXT")
-            }
-        }
-        val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL("CREATE TABLE tv_programs (tableName TEXT NOT NULL, providerId TEXT NOT NULL, packageName TEXT NOT NULL, imageFingerprint TEXT NOT NULL, fullFingerprint TEXT NOT NULL, sharedIdentity TEXT, confirmedAt INTEGER NOT NULL, expiresAt INTEGER NOT NULL, PRIMARY KEY(tableName, providerId))")
-                db.execSQL("INSERT INTO tv_programs SELECT * FROM programs")
-                db.execSQL("CREATE TABLE program_images (id TEXT NOT NULL PRIMARY KEY, packageName TEXT NOT NULL, uri TEXT NOT NULL, diskKey TEXT NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, hash TEXT NOT NULL, fetchedAt INTEGER NOT NULL, state TEXT NOT NULL, retryAt INTEGER NOT NULL DEFAULT 0, failureCause TEXT)")
-                db.execSQL("INSERT INTO program_images SELECT * FROM images")
-                db.execSQL("CREATE TABLE program_image_candidates (tableName TEXT NOT NULL, providerId TEXT NOT NULL, rank INTEGER NOT NULL, uri TEXT NOT NULL, PRIMARY KEY(tableName, providerId, rank), FOREIGN KEY(tableName, providerId) REFERENCES tv_programs(tableName, providerId) ON DELETE CASCADE)")
-                db.execSQL("INSERT INTO program_image_candidates SELECT * FROM candidates")
-                db.execSQL("CREATE TABLE program_image_links (imageId TEXT NOT NULL, identity TEXT NOT NULL, sharedIdentity TEXT, confirmedAt INTEGER NOT NULL, PRIMARY KEY(imageId, identity), FOREIGN KEY(imageId) REFERENCES program_images(id) ON DELETE CASCADE)")
-                db.execSQL("INSERT INTO program_image_links SELECT * FROM associations")
-                db.execSQL("CREATE UNIQUE INDEX index_program_images_packageName_uri ON program_images(packageName, uri)")
-                db.execSQL("DROP TABLE associations")
-                db.execSQL("DROP TABLE candidates")
-                db.execSQL("DROP TABLE images")
-                db.execSQL("DROP TABLE programs")
-            }
-        }
         fun create(context: Context, name: String = "artwork.db"): ArtworkDatabase = Room.databaseBuilder(context, ArtworkDatabase::class.java, name)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 }

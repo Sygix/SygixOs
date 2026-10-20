@@ -91,7 +91,7 @@ Une base Room privée est l'index des programmes et des images ; les octets rest
 - **Garde-fou** : une identité nouvelle sur une image connue impose une relecture, sauf si son identité partagée est déjà associée. Des octets identiques ajoutent l'association sans nouvelle analyse. Aucune limite de nombre d'associations.
 - **Room est un index, pas la vérité** : un instantané disque absent (éviction LRU de Coil) remet l'image à récupérer ; une purge de l'index supprime l'entrée disque.
 - **Purge** au démarrage sur IO et après chaque comparaison : programmes non confirmés depuis 24 h, images sans association vivante ou de 7 jours et plus.
-- **Migrations** écrites et testées à chaque changement de schéma, avec schémas exportés ; si une migration manque ou échoue, repli destructif : l'index est recréé vide et se reconstruit depuis le TV Provider.
+- **Schéma initial** : un seul schéma 1 exporté, avec les noms définitifs ; Room n'a pas encore été livré et les versions intermédiaires de développement ne sont pas conservées. Les évolutions ultérieures auront des migrations écrites et testées avec schémas exportés ; si une migration manque ou échoue, repli destructif : l'index est recréé vide et se reconstruit depuis le TV Provider.
 - **Threading** : DAO `suspend`, écritures en transaction, aucune requête sur le fil principal ; l'ouverture de la base ne retarde pas l'écran de démarrage.
 - **Outillage** : vérifier la version KSP correspondant à Kotlin 2.4.x et la compatibilité de Room avec l'AGP du projet avant l'implémentation ; tests Room en base mémoire sous Robolectric.
 
