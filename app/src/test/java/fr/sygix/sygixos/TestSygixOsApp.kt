@@ -14,7 +14,9 @@ class TestSygixOsApp : SygixOsApp() {
     var launcherSystemStore: LauncherSystemStore? = null
     override val prefetchesMascot: Boolean get() = false
     override val checksAccessibility: Boolean get() = false
+    override val applicationDispatcher get() = kotlinx.coroutines.Dispatchers.Unconfined
     override fun bootCount() = boot
     override fun createHomeStateReader(): HomeStateReader = HomeStateReader { Result.success(HomeScreenSnapshot()) }
     override fun createLauncherSystemStore() = launcherSystemStore ?: super.createLauncherSystemStore()
+    override fun createHeroVideo(onEnded: () -> Unit, onError: (String) -> Unit) = fr.sygix.sygixos.ui.hero.FakeVideo()
 }

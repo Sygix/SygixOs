@@ -82,10 +82,10 @@ Une base Room privée est l'index des programmes et des images ; les octets rest
 
 | Table | Contenu |
 | --- | --- |
-| `programs` | clé `(table, _id)` du dernier instantané, package, type, empreinte d'image, empreinte complète, identité partagée (série ou film), date de dernière confirmation, expiration |
-| `candidates` | programme, URI, rang (affiche, miniature, variante YouTube) |
-| `images` | id, package, URI, clé disque, largeur, hauteur, hash des octets, date de récupération, état (`valid`, `generic`, `failed`), date de nouvelle tentative |
-| `associations` | image, empreinte d'identité, identité partagée, date de confirmation |
+| `tv_programs` | clé `(table, _id)` du dernier instantané, package, type, empreinte d'image, empreinte complète, identité partagée (série ou film), date de dernière confirmation, expiration |
+| `program_image_candidates` | programme, URI, rang (affiche, miniature, variante YouTube) |
+| `program_images` | id, package, URI, clé disque, largeur, hauteur, hash des octets, date de récupération, état (`valid`, `generic`, `failed`), date de nouvelle tentative |
+| `program_image_links` | jointure logique entre image et identité stable de programme : image, empreinte d'identité, identité partagée, date de confirmation ; pas de lien à l'identifiant de ligne volatile du TV Provider |
 
 - **Empreinte d'image** : package, table, intent, titre, saison, épisode, identifiants de contenu, interne et de série, candidates. Elle exclut `_ID`, position, engagement et durée. Seule sa variation déclenche une récupération ; l'empreinte complète ne fait que rafraîchir les textes.
 - **Garde-fou** : une identité nouvelle sur une image connue impose une relecture, sauf si son identité partagée est déjà associée. Des octets identiques ajoutent l'association sans nouvelle analyse. Aucune limite de nombre d'associations.

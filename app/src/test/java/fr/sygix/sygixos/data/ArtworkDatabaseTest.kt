@@ -44,12 +44,12 @@ class ArtworkDatabaseTest {
             db.execSQL("INSERT INTO images VALUES ('image','app','content://test','content://test',1280,720,'hash',100,'valid')")
             db.execSQL("INSERT INTO associations VALUES ('image','identity','series',120)")
         }
-        migrations.runMigrationsAndValidate("migration", 2, true, ArtworkDatabase.MIGRATION_1_2).use { db ->
-            db.query("SELECT width,height,fetchedAt,retryAt FROM images").use {
+        migrations.runMigrationsAndValidate("migration", 3, true, ArtworkDatabase.MIGRATION_1_2, ArtworkDatabase.MIGRATION_2_3).use { db ->
+            db.query("SELECT width,height,fetchedAt,retryAt FROM program_images").use {
                 assertTrue(it.moveToFirst())
                 assertEquals(listOf(1280L, 720L, 100L, 0L), (0..3).map(it::getLong))
             }
-            db.query("SELECT confirmedAt FROM associations").use { assertTrue(it.moveToFirst()); assertEquals(120, it.getLong(0)) }
+            db.query("SELECT confirmedAt FROM program_image_links").use { assertTrue(it.moveToFirst()); assertEquals(120, it.getLong(0)) }
         }
     }
 
@@ -65,11 +65,30 @@ class ArtworkDatabaseTest {
         val broken = Room.databaseBuilder(context, ArtworkDatabase::class.java, "failed-migration")
             .addMigrations(object : androidx.room.migration.Migration(1, 2) {
                 override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) { error("Broken migration fixture") }
-            }).build()
+            }, ArtworkDatabase.MIGRATION_2_3).build()
         val disk = coil.disk.DiskCache.Builder().directory(folder.newFolder()).build()
         ArtworkRepository(context, broken, disk, ImageBytesReader { _, _ -> artworkBytes() }).use { repository ->
             repository.confirm("preview", emptyList())
             assertNotNull(repository.resolve(fr.sygix.sygixos.model.ProgramArtwork("app", listOf("content://fixture/image"), "fiction"), fr.sygix.sygixos.domain.ArtworkPolicy.Hero).first)
+        }
+    }
+
+    @Test fun tableRenamePreservesProgramsCandidatesAndImageLinks() {
+        migrations.createDatabase("rename", 2).use { db ->
+            db.execSQL("INSERT INTO programs VALUES ('preview','1','app','identity','full','series',100,200)")
+            db.execSQL("INSERT INTO candidates VALUES ('preview','1',0,'content://fixture')")
+            db.execSQL("INSERT INTO images VALUES ('image','app','content://fixture','content://fixture',1280,720,'hash',100,'valid',170,NULL)")
+            db.execSQL("INSERT INTO associations VALUES ('image','identity','series',120)")
+        }
+        migrations.runMigrationsAndValidate("rename", 3, true, ArtworkDatabase.MIGRATION_2_3).use { db ->
+            for (table in listOf("tv_programs", "program_image_candidates", "program_images", "program_image_links")) {
+                db.query("SELECT COUNT(*) FROM $table").use { assertTrue(it.moveToFirst()); assertEquals(1L, it.getLong(0)) }
+            }
+            db.query("SELECT i.fetchedAt,i.retryAt,l.confirmedAt FROM program_images i JOIN program_image_links l ON l.imageId=i.id").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(listOf(100L, 170L, 120L), (0..2).map(it::getLong))
+            }
+            db.query("PRAGMA foreign_key_check").use { assertFalse(it.moveToFirst()) }
         }
     }
 }

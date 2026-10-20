@@ -63,6 +63,19 @@ class ArtworkRepositoryTest {
     private val source = ProgramArtwork("app", listOf("content://fixture/poster"), "film", "preview-1", "film")
     private val pixels by lazy { artworkBytes() }
 
+    @Test fun aNeverValidImageDoesNotEmitAnExpirationOnForegroundChecks() = runBlocking {
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> throw java.io.FileNotFoundException("Unavailable fixture") }).use { fixture ->
+            fixture.repository.watch(source, ArtworkPolicy.Hero).use {
+                fixture.repository.resolve(source, ArtworkPolicy.Hero)
+                val failure = fixture.repository.signal(source.identity).value
+                assertTrue(failure is ArtworkEvent.ImageFailed)
+                fixture.now.addAndGet(100)
+                fixture.repository.checkExpiry()
+                assertEquals(failure, fixture.repository.signal(source.identity).value)
+            }
+        }
+    }
+
     @Test fun concurrentPublicationsOfTheSameHashBecomeGenericRegardlessOfTheirCompletionOrder() = runBlocking {
         repeat(6) { order ->
             ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> pixels }).use { fixture ->

@@ -35,6 +35,16 @@ Commandes exécutées : `openspec validate --all --strict` (**9 éléments valid
 
 Après ces corrections, `./gradlew test assembleRelease --no-daemon` réussit. Le premier essai émulateur a vérifié lancement, métadonnées synthétiques, navigation, replis, lecture/pause vidéo et retour au premier plan sans nouveau chargement ; aucun visuel réussi ni continuité exacte de clip n'y a été déclaré vérifié. Un second passage sur le correctif revu reste à consigner.
 
+### Derniers cas limites et noms de tables
+
+- **Collision de clés des cartes traitée** : les identités de présentation identiques sont désambiguïsées par la ligne, sans changer le dédoublonnage métier. `UpNextCardsTest` compose et navigue entre deux films de même titre sans identifiant publié et avec deux affiches distinctes.
+- **Alternative inutilisée traitée** : le painter du panneau n'écoute que l'URI affichée ; le ViewModel ne retire que les résultats utilisant l'image rejetée. `ShelfArtworkRefreshTest.rejectionOfAnUnusedCandidateDoesNotBlacklistTheDisplayedPoster` conserve A quand B est rejetée ; `HomeRefreshTest.rejectedDisplayedCandidateCanSwitchToItsAlreadyValidAlternative` prouve le passage de A à B après rejet de A.
+- **Héro vide au retour traité dans le code et les tests** : le second essai émulateur a révélé un retour sans titre après fermeture du guide initial. Les résultats de requêtes en échec sont désormais observables par programme ; un résultat jamais valide n'émet plus d'expiration d'image. `HomeRefreshTest.cachedFailureRestoresFallbackAfterRevalidationWithoutAnotherCheckedImageEmission` et `ArtworkRepositoryTest.aNeverValidImageDoesNotEmitAnExpirationOnForegroundChecks` couvrent cette cause. La confirmation sur émulateur du correctif reste à faire.
+- **Noms de tables précisés à la demande de Sygix** : `tv_programs`, `program_image_candidates`, `program_images`, `program_image_links`. Le schéma 3 migre depuis le schéma 2 en conservant programmes, candidates, liens, dates et contraintes ; `ArtworkDatabaseTest.tableRenamePreservesProgramsCandidatesAndImageLinks` vérifie aussi `foreign_key_check`.
+- **Isolation des tests d'activité** : le dispatcher applicatif et le lecteur vidéo sont injectables sans changer les valeurs de production. Le double d'application évite les lectures vidéo distantes et les transactions de préférences liées à un ancien looper Robolectric ; le test d'activité réinitialise son dispatcher au nettoyage.
+
+Dernière suite complète : **1 091 tests, aucun échec** ; `assembleRelease` réussi. Le journal de début des tests a été activé pour diagnostiquer leur cycle de vie, sans filtrage ni exclusion de scénario.
+
 ## Historique v0.3.1
 
 > Historique : ce rapport concerne la première version de ce change (spec #82, implémentation livrée en v0.3.1), remplacée par la révision v0.3.2. Voir `design.md` et la section 8 de `tasks.md`.

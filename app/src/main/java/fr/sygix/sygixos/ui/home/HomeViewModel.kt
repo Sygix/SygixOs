@@ -115,7 +115,9 @@ class HomeViewModel(
     private var fallbackItems: List<HeroItem> = emptyList()
     private val validated = MutableStateFlow<Map<String, String>>(emptyMap())
     private val retainedHero = MutableStateFlow<Map<String, HeroItem>>(emptyMap())
-    private val heroVisuals = combine(validated, retainedHero) { ready, retained -> ready to retained }
+    private val retryable = MutableStateFlow<Set<String>>(emptySet())
+    private val shelfRetryable = MutableStateFlow<Set<String>>(emptySet())
+    private val heroVisuals = combine(validated, retainedHero, retryable) { ready, retained, failed -> Triple(ready, retained, failed) }
     private val checked = MutableStateFlow<Set<String>>(emptySet())
     private val shelfResults = MutableStateFlow<Map<String, String>>(emptyMap())
     private val retainedShelf = MutableStateFlow<Map<String, HeroItem>>(emptyMap())
@@ -126,8 +128,6 @@ class HomeViewModel(
     private var foreground = true
     private val generations = mutableMapOf<String, Long>()
     private var lastHeroItems: List<HeroItem> = emptyList()
-    private val retryable = mutableSetOf<String>()
-    private val shelfRetryable = mutableSetOf<String>()
     private val heroChecks = mutableMapOf<String, fr.sygix.sygixos.model.ProgramArtwork>()
     private val shelfChecks = mutableMapOf<String, fr.sygix.sygixos.model.ProgramArtwork>()
     private var heroValidationJob: Job? = null
@@ -158,11 +158,11 @@ class HomeViewModel(
         heroVisuals,
         checked,
     ) { catalog, feed, disabled, visualState, c ->
-        val (v, retained) = visualState
+        val (v, retained, failed) = visualState
         disabledHeroSources = disabled
         val shown = feed.withSources(disabled, fallbackItems)
-        val items = shown.items.filter { it.videoUrl != null || it.id in v || it.id in retryable || it.id in retained }.map { item ->
-            (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in retryable)).copy(expiresAt = Long.MAX_VALUE)
+        val items = shown.items.filter { it.videoUrl != null || it.id in v || it.id in failed || it.id in retained }.map { item ->
+            (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in failed)).copy(expiresAt = Long.MAX_VALUE)
         }
         val hero = HeroState(items.ifEmpty { fallbackItems }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
             shelfItems = shown.items, generations = generations.filterKeys { id -> items.any { it.id == id } })
@@ -267,8 +267,8 @@ class HomeViewModel(
             val previous = rawFeed.value.items.associateBy { it.artwork.identity }
             val checkedHero = heroChecks.values.map { it.identity }.toSet()
             val checkedShelf = shelfChecks.values.map { it.identity }.toSet()
-            val retryHero = rawFeed.value.items.filter { it.id in retryable }.map { it.artwork.identity }.toSet()
-            val retryShelf = rawFeed.value.items.filter { it.id in shelfRetryable }.map { it.artwork.identity }.toSet()
+            val retryHero = rawFeed.value.items.filter { it.id in retryable.value }.map { it.artwork.identity }.toSet()
+            val retryShelf = rawFeed.value.items.filter { it.id in shelfRetryable.value }.map { it.artwork.identity }.toSet()
             val previousByContent = rawFeed.value.items.associateBy(::contentIdentity)
             fun retained(previousImages: Map<String, String>, alreadyRetained: Map<String, HeroItem>): Map<String, HeroItem> = feed.items.mapNotNull { item ->
                 val old = previousByContent[contentIdentity(item)]
@@ -284,13 +284,13 @@ class HomeViewModel(
             generations.keys.retainAll(ids)
             heroChecks.keys.retainAll(ids)
             shelfChecks.keys.retainAll(ids)
-            retryable.retainAll(ids)
-            shelfRetryable.retainAll(ids)
+            retryable.update { it intersect ids }
+            shelfRetryable.update { it intersect ids }
             feed.items.forEach { item ->
                 if (item.artwork.identity in checkedHero) heroChecks[item.id] = item.artwork
                 if (item.artwork.identity in checkedShelf) shelfChecks[item.id] = item.artwork
-                if (item.artwork.identity in retryHero) retryable += item.id
-                if (item.artwork.identity in retryShelf) shelfRetryable += item.id
+                if (item.artwork.identity in retryHero) retryable.update { it + item.id }
+                if (item.artwork.identity in retryShelf) shelfRetryable.update { it + item.id }
                 if (previous[item.artwork.identity] == null) {
                     generations[item.id] = ++generationSequence
                     heroChecks.remove(item.id)
@@ -315,8 +315,8 @@ class HomeViewModel(
         generations.keys.retainAll(live)
         heroChecks.keys.retainAll(live)
         shelfChecks.keys.retainAll(live)
-        retryable.retainAll(live)
-        shelfRetryable.retainAll(live)
+        retryable.update { it intersect live }
+        shelfRetryable.update { it intersect live }
         validated.update { it.filterKeys { id -> id in live } }
         shelfResults.update { it.filterKeys { id -> id in live } }
         retainedHero.update { it.filterKeys { id -> id in live } }
@@ -355,7 +355,7 @@ class HomeViewModel(
         val checks = if (shelf) shelfChecks else heroChecks
         val retries = if (shelf) shelfRetryable else retryable
         val pending = items.filter { item ->
-            (checks.values.none { it.identity == item.artwork.identity } || item.id in retries) && validating.add(shelf to item.artwork.identity)
+            (checks.values.none { it.identity == item.artwork.identity } || item.id in retries.value) && validating.add(shelf to item.artwork.identity)
         }
         if (pending.isEmpty()) return null
         val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
@@ -366,7 +366,7 @@ class HomeViewModel(
                     val check = if (shelf) validator.prepare(item.artwork, shelfWidth) else validator.validate(item.artwork, policy)
                     val current = rawFeed.value.items.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
                     checks[current.id] = current.artwork
-                    if (check.retryable) retries += current.id else retries -= current.id
+                    retries.update { if (check.retryable) it + current.id else it - current.id }
                     checked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
                     if (shelf) shelfChecked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
                     results.update { values -> check.visual?.let { values + (current.id to it) } ?: (values - current.id) }
@@ -405,19 +405,26 @@ class HomeViewModel(
         events.collect { event ->
             if (event is fr.sygix.sygixos.data.ArtworkEvent.ProgramsChanged) return@collect
             val affected = rawFeed.value.items.filter { item -> event.uri in item.artwork.candidates.flatMap { fr.sygix.sygixos.data.visualCandidates(it) } }
-            affected.forEach { item ->
+            val heroAffected = affected.filter { validated.value[it.id].let { chosen -> chosen == null || chosen == event.uri } }
+            val shelfAffected = affected.filter { shelfResults.value[it.id].let { chosen -> chosen == null || chosen == event.uri } }
+            heroAffected.forEach { item ->
                 heroChecks.remove(item.id)
+                if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired ||
+                    event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) {
+                    retryable.update { it - item.id }
+                    validated.update { it - item.id }
+                }
+            }
+            shelfAffected.forEach { item ->
                 shelfChecks.remove(item.id)
                 if (event is fr.sygix.sygixos.data.ArtworkEvent.ImageExpired ||
                     event is fr.sygix.sygixos.data.ArtworkEvent.ImageFailed && event.cause == fr.sygix.sygixos.data.ArtworkFailure.QUALITY) {
-                    retryable -= item.id
-                    shelfRetryable -= item.id
-                    validated.update { it - item.id }
+                    shelfRetryable.update { it - item.id }
                     shelfResults.update { it - item.id }
                 }
             }
-            launchValidation(affected)
-            lastShelfPackage?.let { pkg -> launchValidation(affected.filter { it.sourcePackage == pkg }, shelf = true) }
+            launchValidation(heroAffected)
+            lastShelfPackage?.let { pkg -> launchValidation(shelfAffected.filter { it.sourcePackage == pkg }, shelf = true) }
         }
     }
 

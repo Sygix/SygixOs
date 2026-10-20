@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Looper
+import android.os.Handler
 import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -32,6 +33,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.android.asCoroutineDispatcher
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,6 +51,7 @@ import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainActivityLauncherTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val prefs get() = (context as SygixOsApp).launcherPrefs
@@ -57,6 +62,7 @@ class MainActivityLauncherTest {
 
     @Before
     fun reset() {
+        Dispatchers.setMain(Handler(Looper.getMainLooper()).asCoroutineDispatcher("activity-main"))
         onIo {
             context.dataStore.edit { it.clear() }
             (context as SygixOsApp).updatePrefs.setLastCheckAt(System.currentTimeMillis())
@@ -65,13 +71,15 @@ class MainActivityLauncherTest {
 
     @After
     fun drain() {
+        try {
         launched.forEach { controller ->
             runCatching { controller.pause() }
             runCatching { controller.stop() }
             runCatching { controller.destroy() }
         }
-        awaitMain { viewModelJobs.all { it.isCompleted } }
+        awaitMain("view model cleanup") { viewModelJobs.all { it.isCompleted } }
         onIo { context.dataStore.edit { } }
+        } finally { Dispatchers.resetMain() }
     }
 
     private fun launch(grant: Boolean = true, intent: Intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)): ActivityController<MainActivity> {
@@ -86,7 +94,7 @@ class MainActivityLauncherTest {
         val scope = CoroutineScope(Dispatchers.IO)
         val work = scope.async { block() }
         try {
-            awaitMain { work.isCompleted }
+            awaitMain("preference I/O") { work.isCompleted }
             runBlocking { work.await() }
         } finally {
             runBlocking { work.cancelAndJoin() }
@@ -97,14 +105,14 @@ class MainActivityLauncherTest {
     private fun launcherOf(controller: ActivityController<MainActivity>) =
         ViewModelProvider(controller.get())[LauncherSystemViewModel::class.java]
 
-    private fun awaitMain(condition: () -> Boolean) = runBlocking {
-        withTimeout(5_000) {
+    private fun awaitMain(label: String = "activity condition", condition: () -> Boolean) = runBlocking {
+        try { withTimeout(5_000) {
             while (true) {
                 shadowOf(Looper.getMainLooper()).idle()
                 if (condition()) break
                 delay(10)
             }
-        }
+        } } catch (error: kotlinx.coroutines.TimeoutCancellationException) { throw AssertionError(label, error) }
     }
 
     private fun ActivityController<MainActivity>.deliverInFront(intent: Intent) {

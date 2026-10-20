@@ -280,7 +280,7 @@ internal class ArtworkRepository(
         val watched = synchronized(this) { watched.values.toList() }
         watched.forEach { (source, policy) ->
             source.candidates.forEach { uri -> dao.image(source.packageName, uri)?.let { image ->
-                if (!ArtworkAge.usable(image.fetchedAt, clock())) publish(ArtworkEvent.ImageExpired(uri))
+                if (image.state == "valid" && !ArtworkAge.usable(image.fetchedAt, clock())) publish(ArtworkEvent.ImageExpired(uri))
             } }
             if (foreground) resolve(source, policy)
         }

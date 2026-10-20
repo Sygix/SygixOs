@@ -90,7 +90,7 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
 
 @Composable
 private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, onError: () -> Unit) {
-    val event = artworkEvent(source)
+    val event = artworkEvent(source, uri)
     val context = LocalContext.current
     val request = remember(context, uri, size, source?.identity, event) { posterRequest(context, uri, size, source) }
     var previous by remember(uri) { mutableStateOf<AsyncImagePainter.State.Success?>(null) }

@@ -80,7 +80,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
     val updatePrefs: UpdatePrefs by lazy { UpdatePrefs(this) }
     val updateRepository: UpdateRepository by lazy { createUpdateRepository() }
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val appScope = CoroutineScope(SupervisorJob() + applicationDispatcher)
     private val userAgentValue by lazy {
         "SygixOs/${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()}"
     }
@@ -211,11 +211,16 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
 
     protected open val checksAccessibility: Boolean get() = true
 
+    protected open val applicationDispatcher: kotlinx.coroutines.CoroutineDispatcher get() = Dispatchers.Main.immediate
+
     internal open fun bootCount(): Int? = Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1).takeIf { it >= 0 }
 
     protected open fun createHomeStateReader(): HomeStateReader = HomeScreenStateReader(this)
 
     internal open fun createLauncherSystemStore(): LauncherSystemStore = launcherPrefs
+
+    internal open fun createHeroVideo(onEnded: () -> Unit, onError: (String) -> Unit): fr.sygix.sygixos.ui.hero.HeroVideo =
+        fr.sygix.sygixos.ui.hero.HeroPlayer(this, onEnded, onError)
 
     override fun onTerminate() {
         appScope.cancel()

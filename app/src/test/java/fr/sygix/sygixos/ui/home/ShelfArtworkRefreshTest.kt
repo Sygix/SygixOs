@@ -26,6 +26,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -43,6 +45,30 @@ class ShelfArtworkRefreshTest {
     private val gate = CompletableDeferred<Unit>()
 
     @After fun close() { gate.complete(Unit); coil.Coil.reset(); cleanup.reversed().forEach { it() } }
+
+    @Test fun rejectionOfAnUnusedCandidateDoesNotBlacklistTheDisplayedPoster() {
+        val reads = AtomicInteger()
+        val fixture = ArtworkFixture(folder.newFolder(), ImageBytesReader { uri, _ ->
+            if (uri.path == "/unused") artworkBytes(48, 48) else { reads.incrementAndGet(); artworkBytes() }
+        })
+        cleanup += fixture::close
+        coil.Coil.setImageLoader(fixture.loader)
+        val uri = "content://fixture/displayed"
+        val unused = "content://fixture/unused"
+        val source = ProgramArtwork("fixture.app", listOf(uri, unused), "fiction")
+        compose.setContent { CompositionLocalProvider(LocalProgramArtwork provides fixture.repository) {
+            ShelfPanel(listOf(uri), PixelSize(800, 450), Modifier.size(400.dp, 225.dp), mapOf(uri to source))
+        } }
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag("shelf-poster").fetchSemanticsNodes().isNotEmpty() }
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+        cleanup += { scope.cancel() }
+        val rejected = scope.async { fixture.repository.resolve(source.withCandidates(listOf(unused)), fr.sygix.sygixos.domain.ArtworkPolicy.Hero) }
+        compose.waitUntil(5_000) { compose.waitForIdle(); rejected.isCompleted }
+        org.junit.Assert.assertNull(runBlocking { rejected.await() }.first)
+        compose.waitForIdle()
+        compose.onNodeWithTag("shelf-poster").assertExists()
+        org.junit.Assert.assertEquals(1, reads.get())
+    }
 
     @Test fun previousShelfImageStaysVisibleWhileTheNewVersionIsBeingDecoded() {
         val bytes = AtomicReference(artworkBytes())

@@ -85,6 +85,7 @@ internal fun UpNextRow(
 ) {
     val scope = rememberCoroutineScope()
     val cards = (content as? UpNextContent.Items)?.items.orEmpty()
+    val identityCounts = cards.groupingBy { it.cardIdentity }.eachCount()
     val enabled by rememberUpdatedState(focusEnabled)
     val targetIndex = cards.indexOfFirst { it.key == entry }
     suspend fun show(index: Int) {
@@ -115,7 +116,9 @@ internal fun UpNextRow(
         horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
     ) {
         when (content) {
-            is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item -> item.cardIdentity }) { index, item ->
+            is UpNextContent.Items -> itemsIndexed(content.items, key = { _, item ->
+                if (identityCounts[item.cardIdentity] == 1) item.cardIdentity else "${item.cardIdentity}\u0000row:${item.id}"
+            }) { index, item ->
                 UpNextCard(
                     item = item,
                     modifier = Modifier.width(width)

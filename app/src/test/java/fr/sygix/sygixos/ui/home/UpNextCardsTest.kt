@@ -64,6 +64,15 @@ import org.robolectric.annotation.Config
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
 class UpNextCardsTest {
+    @Test fun `same title movies without published identities keep distinct card slots`() {
+        val first = movie(1).copy(title = "Same fiction", imageUrl = "https://example.invalid/first.jpg", posterUrl = "https://example.invalid/first.jpg")
+        val second = movie(2).copy(title = "Same fiction", imageUrl = "https://example.invalid/second.jpg", posterUrl = "https://example.invalid/second.jpg")
+        home(UpNextContent.Items(listOf(first, second)))
+        compose.onNodeWithTag("upnext-card-${first.key}").assertExists()
+        compose.onNodeWithTag("upnext-card-${second.key}").assertExists()
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("upnext-card-${second.key}").assertIsFocused()
+    }
     @get:Rule val compose = createComposeRule()
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val icon = BitmapDrawable(context.resources, Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888))

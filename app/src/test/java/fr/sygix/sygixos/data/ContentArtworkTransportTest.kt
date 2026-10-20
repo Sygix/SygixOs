@@ -43,6 +43,7 @@ class ContentArtworkTransportTest {
     private val entered = CountDownLatch(1)
     private val release = CountDownLatch(1)
     private val closed = CountDownLatch(1)
+    private val streamClosed = CountDownLatch(1)
     private val closes = AtomicInteger()
     private val streamCloses = AtomicInteger()
     private val opens = AtomicInteger()
@@ -83,7 +84,7 @@ class ContentArtworkTransportTest {
                             if (closing) { super.close(); return }
                             closing = true
                             try { streamCloses.incrementAndGet(); super.close() }
-                            finally { closing = false; closed.countDown() }
+                            finally { closing = false; streamClosed.countDown() }
                         }
                     }.also { streams += it }
                 }
@@ -165,6 +166,7 @@ class ContentArtworkTransportTest {
                 assertTrue(result.exceptionOrNull() is TimeoutException)
             } finally { release.countDown() }
             assertTrue(closed.await(2, TimeUnit.SECONDS))
+            if (!blockOpen) assertTrue(streamClosed.await(2, TimeUnit.SECONDS))
             assertEquals(1, opens.get())
             assertEquals(1, closes.get())
             assertEquals(if (blockOpen) 0 else 1, streamCloses.get())

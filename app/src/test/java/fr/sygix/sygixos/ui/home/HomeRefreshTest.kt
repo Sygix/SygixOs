@@ -73,6 +73,52 @@ import org.robolectric.Shadows.shadowOf
 class HomeRefreshTest {
     @get:Rule val folder = org.junit.rules.TemporaryFolder()
 
+    @Test fun cachedFailureRestoresFallbackAfterRevalidationWithoutAnotherCheckedImageEmission() = runBlocking(Dispatchers.Default) {
+        val item = heroItem("preview-1", "Fiction", "content://fixture/failed", "fixture.app")
+        var feed = listOf(item)
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val home = home(provider { feed }) { _, attempt ->
+            if (attempt == 2) { entered.complete(Unit); release.await() }
+            IOException("Unavailable fixture")
+        }
+        val events = MutableSharedFlow<fr.sygix.sygixos.data.ArtworkEvent>(extraBufferCapacity = 1)
+        home.observeArtwork(events)
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.items?.singleOrNull()?.artworkFailed == true }
+        events.emit(fr.sygix.sygixos.data.ArtworkEvent.ImageExpired(requireNotNull(item.imageUrl)))
+        withTimeout(5_000) { entered.await() }
+        feed = listOf(item.copy(positionMillis = 1_000, durationMillis = 4_000))
+        home.refreshHero()
+        home.state.await { (it as? HomeState.Ready)?.hero?.items.isNullOrEmpty() }
+        release.complete(Unit)
+        home.state.await { (it as? HomeState.Ready)?.hero?.items?.singleOrNull()?.let { shown -> shown.artworkFailed && shown.positionMillis == 1_000L } == true }
+        assertEquals(2, attempts[item.imageUrl])
+    }
+
+    @Test fun rejectedDisplayedCandidateCanSwitchToItsAlreadyValidAlternative() = runBlocking(Dispatchers.Default) {
+        val bytes = fr.sygix.sygixos.data.artworkBytes()
+        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { uri, _ ->
+            if (uri.path == "/alternative") fr.sygix.sygixos.data.artworkBytes(1000, 600) else bytes
+        }).use { fixture ->
+            val item = heroItem("preview-1", "Fiction", "content://fixture/main", "fixture.app").copy(thumbnailUrl = "content://fixture/alternative", contentId = "first")
+            fixture.repository.confirm("preview", listOf(item.artwork to item.fullFingerprint))
+            val home = home(provider { listOf(item) }, artworkRepository = fixture.repository) { _, _ -> null }
+            try {
+                home.refreshHero()
+                home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(item.imageUrl) }
+                home.prepareShelf("fixture.app")
+                home.state.await { (it as? HomeState.Ready)?.hero?.shelfValidated == setOf(item.imageUrl) }
+                fixture.repository.resolve(item.artwork.withCandidates(listOf(requireNotNull(item.thumbnailUrl))), fr.sygix.sygixos.domain.ArtworkPolicy.Hero)
+                val others = (2..3).map { n -> item.copy(id = "preview-$n", title = "Fiction $n", imageUrl = "content://fixture/image$n", posterUrl = "content://fixture/image$n", thumbnailUrl = null, contentId = "film$n") }
+                fixture.repository.confirm("preview", (listOf(item) + others).map { it.artwork to it.fullFingerprint })
+                for (other in others) fixture.repository.resolve(other.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Hero)
+                home.state.await { (it as? HomeState.Ready)?.hero?.let { hero -> hero.validated == setOf(item.thumbnailUrl) && hero.shelfValidated == setOf(item.thumbnailUrl) } == true }
+                assertEquals(item.thumbnailUrl, home.hero()?.items?.single()?.imageUrl)
+            } finally { home.viewModelScope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin() }
+        }
+    }
+
     @Test fun imagesBecomingGenericWithdrawPreviouslyAcceptedHeroAndShelfResults() = runBlocking(Dispatchers.Default) {
         val bytes = fr.sygix.sygixos.data.artworkBytes()
         fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes }).use { fixture ->
