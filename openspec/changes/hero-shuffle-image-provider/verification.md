@@ -5,7 +5,7 @@
 | Dimension | Résultat |
 | --- | --- |
 | Complétude | Implémentation et vérifications automatisées réalisées ; relevé préalable dispensé ; deux validations finales sur la TV restent ouvertes. |
-| Conformité | Les 28 exigences ajoutées ou modifiées sont reliées au code et aux tests ci-dessous ; les scénarios matériels ne sont pas déclarés vérifiés. |
+| Conformité | Les 23 exigences ajoutées ou modifiées de la base finale de la PR #82 sont reliées au code et aux tests ci-dessous ; les scénarios matériels ne sont pas déclarés vérifiés. |
 | Cohérence | Cache d'octets commun, associations de contenu distinctes, politiques par destination, limites globales et ordre par processus conformes aux décisions D1 à D7. |
 
 ## Correspondance des contrats
@@ -29,6 +29,8 @@
 - Validation OpenSpec stricte : **9 éléments validés, aucun échec**.
 - Le README décrit les nouvelles valeurs et les replis ; aucun réglage supplémentaire n'est introduit.
 - Les listes utilisateur de contenus retirés et la mémoire d'ouverture ne sont pas purgées lors d'une expiration.
+- Revue indépendante : **MERGEABLE** après correction des cinq constats initiaux. Le réalignement sur la base documentaire finale de la PR #82 ne change pas l'arbre applicatif vérifié.
+- Émulateur Android 14 TV, APK release : lancement sans crash, navigation accueil/grille, épisode synthétique `TYPE_TV_EPISODE` dans « À suivre » avec placeholder et métadonnées propres conservées dans le repli du héro. Aucun résultat de fluidité ni de fournisseur réel n'en est déduit.
 
 ## Limites et suite
 
