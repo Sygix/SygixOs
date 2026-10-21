@@ -46,8 +46,9 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 
 ### Coming next
 
-- **Search**
-- **BetaSeries (OAuth)** — richer Up Next data and reliability
+- **P8 — Search**
+- **P9 — BetaSeries (OAuth)** — richer Up Next data and reliability
+- **P10 — Remote button remapping**
 
 Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Follow-ups deferred after v0.0.1, not specified yet, are tracked in [`openspec/backlog.md`](openspec/backlog.md). Specs and the user interface are written in French.
 

@@ -55,6 +55,10 @@ Dernière suite complète après consolidation du schéma initial : **1 090 test
 
 L'implémentation est proposée à la revue de Sygix. La tâche 8.12 et les anciennes tâches 7.2/7.3 qui y renvoient restent ouvertes ; aucun merge ni archivage n'a été effectué.
 
+## Validation TV confirmée
+
+Sygix confirme que la validation sur la TV de référence a été effectuée. Aucun résultat structurel (zones et scénarios vérifiés, anomalie éventuelle, fluidité) n'a été fourni. À la demande de Sygix, les tâches 7.2, 7.3 et 8.12 ont été retirées de la checklist avant archivage ; aucun détail d'essai sur appareil n'est inféré dans ce rapport.
+
 ## Historique v0.3.1
 
 > Historique : ce rapport concerne la première version de ce change (spec #82, implémentation livrée en v0.3.1), remplacée par la révision v0.3.2. Voir `design.md` et la section 8 de `tasks.md`.

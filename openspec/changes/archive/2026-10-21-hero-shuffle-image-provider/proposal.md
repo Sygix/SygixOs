@@ -46,5 +46,5 @@ Le change s'appuie sur les archives `hero-shelf-freshness`, `hero-visual-retry` 
 
 - Corriger le fournisseur d'images de l'application source (hors SygixOs).
 - Garantir la première récupération d'une image dont le fournisseur ne répond jamais, ou une conservation hors ligne illimitée.
-- Inventer des URL, des dates d'expiration ou des identifiants de série non publiés ; les URI signées ne sont pas réécrites. L'enrichissement externe et BetaSeries restent hors périmètre, en P9 pour ce dernier.
+- Inventer des URL, des dates d'expiration ou des identifiants de série non publiés ; les URI signées ne sont pas réécrites. L'enrichissement externe et BetaSeries restent hors périmètre ; BetaSeries sera traitée dans un change ultérieur.
 - Choisir l'ordre du héro dans les réglages, mélanger À suivre ou le Top Shelf.

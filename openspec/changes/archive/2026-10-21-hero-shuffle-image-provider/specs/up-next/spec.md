@@ -13,9 +13,52 @@ La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'a
 - **WHEN** des items sont fusionnés par le dédoublonnage
 - **THEN** l'item retenu conserve la liste des sources qui possèdent le contenu (package, nom, icône et intent publié de chacune), après fusion comme avant ; c'est cette liste qu'affiche le menu « Ouvrir avec… »
 
-#### Scenario: extension par le change P8
-- **WHEN** le change P9 dédié à BetaSeries apporte des identifiants externes (enrichissement) aux items de toutes les sources
+#### Scenario: extension ultérieure
+- **WHEN** un change dédié à BetaSeries apporte des identifiants externes (enrichissement) aux items de toutes les sources
 - **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus ; en P6, `externalIds` reste vide et le niveau 5 ne s'applique jamais
+
+### Requirement: Dédoublonnage en niveaux
+La rangée SHALL dédoublonner par 5 niveaux : exact dans une app, une carte par série/app, même épisode inter-apps, même film inter-apps, identifiant externe BetaSeries (prioritaire sur 3/4 si connu, inactif en P6). Aux niveaux 3/4, le type SHALL être `COLUMN_TYPE`, sinon l'inférence de « Champs facultatifs ».
+
+#### Scenario: doublons dans une app
+- **WHEN** une app publie le même contenu plusieurs fois
+- **THEN** un seul item est retenu, identifié par `package_name` + `internal_provider_id`, sinon `content_id`, sinon `intent_uri`
+
+#### Scenario: série dans une app
+- **WHEN** une app publie à la fois l'épisode en cours d'une série et son épisode suivant
+- **THEN** une seule carte est affichée pour la série et l'épisode en cours prime
+
+#### Scenario: épisode entre apps
+- **WHEN** deux apps publient le même épisode (titre de série normalisé + saison + épisode), que le type soit publié ou inféré
+- **THEN** une seule carte est retenue
+
+#### Scenario: film entre apps
+- **WHEN** deux apps publient un film de même titre normalisé et de même année, que le type soit publié ou inféré
+- **THEN** une seule carte est retenue
+
+#### Scenario: remake
+- **WHEN** deux apps publient un film de même titre normalisé et que les deux années sont connues et différentes
+- **THEN** aucune fusion n'a lieu
+
+#### Scenario: types différents
+- **WHEN** deux apps publient un même titre normalisé, l'un comme film et l'autre comme épisode (type publié ou inféré)
+- **THEN** aucune fusion n'a lieu
+
+#### Scenario: année inconnue
+- **WHEN** l'année est connue d'un seul côté et le titre normalisé n'est pas associé à plusieurs années connues distinctes
+- **THEN** la fusion a lieu sur le titre normalisé seul, limite assumée et documentée
+
+#### Scenario: année inconnue entre plusieurs remakes
+- **WHEN** trois apps publient un film de même titre normalisé, avec les années 1982, inconnue et 2011
+- **THEN** l'item sans année reste séparé des deux remakes ; aucune fusion ne relie les années connues distinctes, quel que soit l'ordre des programmes
+
+#### Scenario: normalisation stricte
+- **WHEN** les titres sont comparés
+- **THEN** la comparaison est une égalité stricte après normalisation (minuscules, diacritiques retirés, ponctuation et « (année) » supprimés, espaces compactés), sans correspondance approximative
+
+#### Scenario: limite assumée
+- **WHEN** deux apps publient le même contenu sous des titres localisés différents
+- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par un change dédié à BetaSeries, et cette limite est documentée
 
 ### Requirement: Carte Up Next
 « À suivre » SHALL nommer la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes Penpot 7.1 à 7.5 et Carte Up Next (1920 × 1080 px = dp × 2), « Géométrie des cartes », « Médias des cartes », « Textes des cartes », « Progression et badge des cartes » et « Qualité des cartes ». Le focus SHALL suivre intégralement « Focus tvOS » ; le chargement partagé ne change ni la géométrie ni le comportement de focus.

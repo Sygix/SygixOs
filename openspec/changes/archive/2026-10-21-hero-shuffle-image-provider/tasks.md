@@ -43,8 +43,6 @@ Les sections 1 à 7 décrivent la première implémentation livrée en v0.3.1 ; 
 ## 7. Vérification intégrée de la première implémentation
 
 - [x] 7.1 `openspec validate --all --strict`, `./gradlew test`.
-- [ ] 7.2 Remplacée par 8.12.
-- [ ] 7.3 Remplacée par 8.12.
 
 ## 8. Révision v0.3.2
 
@@ -59,7 +57,6 @@ Les sections 1 à 7 décrivent la première implémentation livrée en v0.3.1 ; 
 - [x] 8.9 Cache vidéo de D7 : singleton applicatif `SimpleCache` créé sur IO, taille `min(300 Mo, espace utilisable / 4)`, pas de cache sous 64 Mo, `CacheDataSource` avec `FLAG_IGNORE_CACHE_ON_ERROR`, source sans cache injectée en test. Tests : cache plein évincé, erreur d'écriture et espace insuffisant lus en flux.
 - [x] 8.10 Raccorder `SettingsContent` au même chargeur et aux mêmes clés ; rétablir une journalisation concise des échecs d'image et de vidéo (app, schéma, autorité, cause, jamais l'URI complète).
 - [x] 8.11 Mettre à jour le README (seuil Top Shelf, cache vidéo, images génériques) ; `openspec validate --all --strict`, `./gradlew test`, `assembleRelease`, vérification sur l'émulateur.
-- [ ] 8.12 Sur la TV de référence avec l'APK release : relever depuis SygixOs la structure des URI publiées par app (schéma, autorité, type déclaré, dimensions), vérifier les trois zones (premier chargement, cache après relance, serveur Jellyfin indisponible, fournisseur lent, retour au premier plan, programmes républiés), le clip nature continu, le cache vidéo et la fluidité ; consigner des résultats structurels sans donnée personnelle.
 
 ## Workflow follow-up
 
