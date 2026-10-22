@@ -235,6 +235,35 @@ class ArtworkRepositoryTest {
         }
     }
 
+    @Test fun publicationsWithoutASeriesIdDoNotProveDistinctSeries() = runBlocking {
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> pixels }).use { f ->
+            val series = source.copy(identity = "series-preview", sharedIdentity = "series")
+            assertNotNull(f.repository.resolve(series, ArtworkPolicy.Hero).first)
+            repeat(4) { n ->
+                val episode = source.copy(identity = "episode-publication$n", sharedIdentity = null)
+                assertNotNull(f.repository.resolve(episode, ArtworkPolicy.Card(396)).first)
+            }
+            assertEquals("valid", f.db.artwork().image("app", source.candidates.first())?.state)
+            assertNotNull(f.repository.resolve(series, ArtworkPolicy.Shelf(640)).first)
+            assertNotNull(f.repository.resolve(source.copy(identity = "other", sharedIdentity = "other"), ArtworkPolicy.Hero).first)
+            assertNull(f.repository.resolve(source.copy(identity = "third", sharedIdentity = "third"), ArtworkPolicy.Hero).first)
+        }
+    }
+
+    @Test fun previouslyMisclassifiedPublicationsRecoverWithoutWaitingForGenericRetry() = runBlocking {
+        val reads = AtomicInteger()
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); pixels }).use { f ->
+            val episode = source.copy(sharedIdentity = null)
+            val original = requireNotNull(f.repository.resolve(episode, ArtworkPolicy.Card(396)).first)
+            repeat(3) { n -> f.db.artwork().associate(ArtworkAssociation(original.id, "unknown$n", null, f.now.get())) }
+            f.db.artwork().image(original.copy(state = "generic", retryAt = f.now.get() + ArtworkRepository.GENERIC_RETRY_MS))
+            val recovered = f.repository.resolve(episode, ArtworkPolicy.Card(396)).first
+            assertNotNull(recovered)
+            assertEquals("valid", recovered?.state)
+            assertEquals(2, reads.get())
+        }
+    }
+
     @Test fun externalResourceIsNeverReadAndSmallIconNeverReplacesValidCopy() = runBlocking {
         var served = pixels
         val reads = AtomicInteger()

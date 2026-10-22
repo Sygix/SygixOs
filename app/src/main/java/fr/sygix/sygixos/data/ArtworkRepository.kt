@@ -115,7 +115,7 @@ internal class ArtworkRepository(
                 failure = ArtworkFailure.QUALITY
                 continue
             }
-            if (known != null && known.retryAt > clock()) { failure = known.failure(); continue }
+            if (known != null && known.retryAt > clock() && !rejectedWithoutIdentityEvidence(known)) { failure = known.failure(); continue }
             val image = fetch(source, uri, visible)
             if (image != null && compatible(image, source) && policy.accepts(ArtworkDimensions(image.width, image.height))) return@withContext image to null
             failure = if (image != null) ArtworkFailure.QUALITY else dao.image(source.packageName, uri)?.failure() ?: ArtworkFailure.TRANSPORT
@@ -139,6 +139,12 @@ internal class ArtworkRepository(
     }
 
     private fun usable(image: ArtworkImage): Boolean = image.state == "valid" && ArtworkAge.usable(image.fetchedAt, clock()) && disk.openSnapshot(image.diskKey)?.use { true } == true
+
+    private fun acceptsAnyPolicy(dimensions: ArtworkDimensions): Boolean =
+        listOf(ArtworkPolicy.Hero, ArtworkPolicy.Shelf(640), ArtworkPolicy.Card(cardWidth)).any { it.accepts(dimensions) }
+
+    private suspend fun rejectedWithoutIdentityEvidence(image: ArtworkImage): Boolean =
+        image.state == "generic" && acceptsAnyPolicy(ArtworkDimensions(image.width, image.height)) && dao.identities(image.packageName, image.hash) < 3
 
     private suspend fun associate(image: ArtworkImage, source: ProgramArtwork) {
         dao.associate(ArtworkAssociation(image.id, fingerprint(source), source.sharedIdentity?.let(::artworkHash), clock()))
@@ -202,9 +208,9 @@ internal class ArtworkRepository(
                 val measured = matching.firstOrNull { it.width > 0 && it.height > 0 }
                 val dimensions = measured?.let { ArtworkDimensions(it.width, it.height) } ?: withContext(ArtworkDecodeDispatcher) { verifiedDimensions(bytes) }
                 val image = ArtworkImage(imageId(source, uri), source.packageName, uri, uri, dimensions.width, dimensions.height, hash, clock(), "valid")
-                val identities = matching.flatMap { dao.associations(it.id) }.map { it.sharedIdentity ?: it.identity }.toSet() +
-                    (source.sharedIdentity?.let(::artworkHash) ?: fingerprint(source))
-                val generic = !listOf(ArtworkPolicy.Hero, ArtworkPolicy.Shelf(640), ArtworkPolicy.Card(cardWidth)).any { it.accepts(dimensions) } || identities.size >= 3
+                val identities = matching.flatMap { dao.associations(it.id) }.mapNotNull { it.sharedIdentity }.toSet() +
+                    listOfNotNull(source.sharedIdentity?.let(::artworkHash))
+                val generic = !acceptsAnyPolicy(dimensions) || identities.size >= 3
                 if (generic) {
                     if (identities.size >= 3) matching.forEach {
                         dao.image(it.copy(state = "generic", retryAt = clock() + GENERIC_RETRY_MS))

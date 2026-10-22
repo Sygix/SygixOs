@@ -73,7 +73,7 @@ internal abstract class ArtworkDao {
     @Query("SELECT * FROM program_images") abstract fun observeImages(): kotlinx.coroutines.flow.Flow<List<ArtworkImage>>
     @Query("SELECT * FROM program_image_links WHERE imageId=:id") abstract suspend fun associations(id: String): List<ArtworkAssociation>
     @Query("DELETE FROM program_image_links WHERE imageId=:id") abstract suspend fun clearAssociations(id: String)
-    @Query("SELECT COUNT(DISTINCT COALESCE(a.sharedIdentity, a.identity)) FROM program_image_links a JOIN program_images i ON a.imageId=i.id WHERE i.packageName=:app AND i.hash=:hash")
+    @Query("SELECT COUNT(DISTINCT a.sharedIdentity) FROM program_image_links a JOIN program_images i ON a.imageId=i.id WHERE i.packageName=:app AND i.hash=:hash")
     abstract suspend fun identities(app: String, hash: String): Int
     @Query("SELECT * FROM program_images WHERE packageName=:app AND hash=:hash") abstract suspend fun matching(app: String, hash: String): List<ArtworkImage>
     @Query("DELETE FROM tv_programs WHERE tableName=:table AND providerId NOT IN (:ids)") abstract suspend fun removeAbsent(table: String, ids: List<String>)

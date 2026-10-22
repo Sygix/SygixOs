@@ -21,6 +21,8 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Rule
@@ -90,5 +92,32 @@ class UpNextArtworkRenderTest {
         fixture.repository.onForeground()
         compose.waitForIdle()
         assertEquals(2, reads.get())
+    }
+
+    @Test fun jellyfinStyleEpisodeStaysVisibleWhenHeroAndPreviewUseTheSameArtworkWithoutSeriesId() {
+        val episode = item.copy(type = UpNextContentType.EPISODE, season = "1", episode = "2", internalProviderId = "episode-id")
+        val watchNext = fr.sygix.sygixos.model.HeroItem(
+            "watchnext-1", episode.title, sourcePackage = episode.source.packageName,
+            imageUrl = episode.imageUrl, season = "1", episode = "2", internalProviderId = "episode-id",
+        )
+        val preview = watchNext.copy(id = "preview-2", internalProviderId = null, launchUri = "fixture://episode/2")
+        val pixels = artworkBytes()
+        val fixture = render(ImageBytesReader { _, _ -> pixels }, listOf(episode))
+        compose.waitUntil(5_000) { compose.onAllNodesWithTag(placeholder(episode)).fetchSemanticsNodes().isEmpty() }
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+        cleanup += { scope.cancel() }
+        val prepared = scope.async {
+            assertNotNull(fixture.repository.resolve(watchNext.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Hero).first)
+            assertNotNull(fixture.repository.resolve(preview.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Shelf(640)).first)
+            fixture.repository.checkExpiry()
+        }
+        compose.waitUntil(5_000) { compose.waitForIdle(); prepared.isCompleted }
+        runBlocking { prepared.await() }
+        compose.waitForIdle()
+        compose.onNodeWithTag(placeholder(episode)).assertDoesNotExist()
+        runBlocking {
+            assertTrue(fixture.db.artwork().images().all { it.state == "valid" })
+            assertEquals(3, fixture.db.artwork().associations(fixture.db.artwork().images().single().id).size)
+        }
     }
 }
