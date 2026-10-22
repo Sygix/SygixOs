@@ -15,6 +15,8 @@ import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 
 class TvProviderUpNextSource(
@@ -27,17 +29,19 @@ class TvProviderUpNextSource(
     private val installed: (String) -> Boolean = { pkg -> runCatching { context.packageManager.getApplicationInfo(pkg, 0) }.isSuccess },
     private val onConfirmed: () -> Unit = {},
     private val onSnapshot: suspend (List<UpNextItem>) -> Unit = {},
+    private val queries: ProviderQueries = ProviderQueries.Shared,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : UpNextSource {
     private val apps = ConcurrentHashMap<String, SourceApp>()
 
     private data class SourceApp(val label: String, val icon: Drawable?)
 
-    override suspend fun load(): Result<List<UpNextItem>> = providerQuery(timeoutMillis) { signal ->
+    override suspend fun load(): Result<List<UpNextItem>> = queries.run(timeoutMillis) { signal ->
         val cursor = query(signal) ?: error("Watch Next provider unavailable")
         cursor.use { c -> buildList { while (c.moveToNext()) mapRow(c)?.let(::add) } }
     }.map { accessible(it).also { values -> onSnapshot(values); onConfirmed() } }
 
-    override suspend fun accessible(items: List<UpNextItem>): List<UpNextItem> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    override suspend fun accessible(items: List<UpNextItem>): List<UpNextItem> = kotlinx.coroutines.withContext(io) {
         val available = items.map { it.source.packageName }.distinct().associateWith(installed)
         items.filter { available[it.source.packageName] == true }
     }

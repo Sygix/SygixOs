@@ -7,13 +7,13 @@ package fr.sygix.sygixos.data
 
 import android.os.OperationCanceledException
 import java.util.concurrent.CountDownLatch
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -22,24 +22,26 @@ import org.robolectric.RobolectricTestRunner
 class ProviderQueryTest {
 
     @Test
-    fun `caller cancellation cancels the provider query without reporting a failure`() = runBlocking {
-        val entered = CompletableDeferred<Unit>()
+    fun `caller cancellation cancels the provider query without reporting a failure`() = runTest {
+        val entered = CountDownLatch(1)
+        val cancelled = CountDownLatch(1)
         var returned: Result<Unit>? = null
-        val caller = launch(Dispatchers.Default) {
-            returned = providerQuery { signal ->
+        val queries = blockingQueries()
+        val caller = launch(start = CoroutineStart.UNDISPATCHED) {
+            returned = queries.run { signal ->
                 val released = CountDownLatch(1)
                 signal.setOnCancelListener { released.countDown() }
-                entered.complete(Unit)
+                entered.countDown()
                 while (released.count > 0) {
                     try { released.await() } catch (_: InterruptedException) { }
                 }
+                cancelled.countDown()
                 throw OperationCanceledException()
             }
         }
-        withTimeout(5_000) {
-            entered.await()
-            caller.cancelAndJoin()
-        }
+        assertTrue(entered.await(30, TimeUnit.SECONDS))
+        caller.cancelAndJoin()
+        assertTrue(cancelled.await(30, TimeUnit.SECONDS))
         assertNull(returned)
     }
 }

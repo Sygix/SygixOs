@@ -16,9 +16,12 @@ import fr.sygix.sygixos.domain.UpNextFeed
 import fr.sygix.sygixos.model.ProgramKind
 import fr.sygix.sygixos.model.UpNextContentType
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.robolectric.Shadows.shadowOf
 import org.junit.Assert.*
 import org.junit.Test
@@ -104,23 +107,32 @@ class TvProviderUpNextSourceTest {
     }
 
     @Test
-    fun `load distinguishes successful empty from denied absent and timeout`() = runBlocking {
-        assertEquals(emptyList<Any>(), TvProviderUpNextSource(context, query = { MatrixCursor(W.COLUMN_TITLE.let { arrayOf(it) }) }).load().getOrThrow())
-        assertTrue(TvProviderUpNextSource(context, query = { null }).load().isFailure)
-        assertTrue(TvProviderUpNextSource(context, query = { throw SecurityException("denied") }).load().exceptionOrNull() is SecurityException)
+    fun `load distinguishes successful empty from denied absent and timeout`() = runTest {
+        val io = StandardTestDispatcher(testScheduler)
+        assertEquals(emptyList<Any>(), TvProviderUpNextSource(context, query = { MatrixCursor(W.COLUMN_TITLE.let { arrayOf(it) }) }, queries = virtualQueries(), io = io).load().getOrThrow())
+        assertTrue(TvProviderUpNextSource(context, query = { null }, queries = virtualQueries(), io = io).load().isFailure)
+        assertTrue(TvProviderUpNextSource(context, query = { throw SecurityException("denied") }, queries = virtualQueries(), io = io).load().exceptionOrNull() is SecurityException)
+        val entered = CountDownLatch(1)
         val latch = CountDownLatch(1)
         try {
-            assertTrue(TvProviderUpNextSource(context, timeoutMillis = 50, query = { latch.await(); null }).load().exceptionOrNull() is java.util.concurrent.TimeoutException)
+            val slow = TvProviderUpNextSource(context, timeoutMillis = 50, query = { entered.countDown(); latch.await(); null }, queries = blockingQueries(), io = io)
+            val result = async(start = CoroutineStart.UNDISPATCHED) { slow.load() }
+            assertTrue(entered.await(30, java.util.concurrent.TimeUnit.SECONDS))
+            advanceTimeBy(49)
+            assertFalse(result.isCompleted)
+            advanceTimeBy(1)
+            runCurrent()
+            assertTrue(result.await().exceptionOrNull() is java.util.concurrent.TimeoutException)
         } finally { latch.countDown() }
     }
 
     @Test
-    fun `load runs query off main thread closes cursor and only reads Watch Next`() = runBlocking {
+    fun `load runs query off main thread closes cursor and only reads Watch Next`() = runTest {
         val c = cursor()
         c.moveToPosition(-1)
         val caller = Thread.currentThread()
         var queryThread: Thread? = null
-        val actual = TvProviderUpNextSource(context, query = { queryThread = Thread.currentThread(); c }, installed = { true }).load().getOrThrow()
+        val actual = TvProviderUpNextSource(context, query = { queryThread = Thread.currentThread(); c }, installed = { true }, queries = threadedQueries(), io = StandardTestDispatcher(testScheduler)).load().getOrThrow()
         assertEquals(1, actual.size)
         assertNotEquals(caller, queryThread)
         assertTrue(c.isClosed)
@@ -145,29 +157,34 @@ class TvProviderUpNextSourceTest {
     }
 
     @Test
-    fun `timeout cancels the provider query through its cancellation signal`() = runBlocking {
-        val cancelled = CompletableDeferred<Unit>()
+    fun `timeout cancels the provider query through its cancellation signal`() = runTest {
+        val entered = CountDownLatch(1)
+        val cancelled = CountDownLatch(1)
         val slow = TvProviderUpNextSource(context, timeoutMillis = 50, query = { signal ->
             val released = CountDownLatch(1)
             signal.setOnCancelListener { released.countDown() }
+            entered.countDown()
             while (released.count > 0) {
                 try { released.await() } catch (_: InterruptedException) { }
             }
-            if (signal.isCanceled) cancelled.complete(Unit)
+            if (signal.isCanceled) cancelled.countDown()
             throw OperationCanceledException()
-        })
-        val result = withTimeout(5_000) { slow.load() }
-        assertTrue(result.isFailure)
-        withTimeout(5_000) { cancelled.await() }
+        }, queries = blockingQueries(), io = StandardTestDispatcher(testScheduler))
+        val result = async(start = CoroutineStart.UNDISPATCHED) { slow.load() }
+        assertTrue(entered.await(30, java.util.concurrent.TimeUnit.SECONDS))
+        advanceTimeBy(50)
+        runCurrent()
+        assertTrue(result.await().isFailure)
+        assertTrue(cancelled.await(30, java.util.concurrent.TimeUnit.SECONDS))
     }
 
     @Test
-    fun `identical loads produce equal items with the same cached icon and label`() = runBlocking {
+    fun `identical loads produce equal items with the same cached icon and label`() = runTest {
         shadowOf(context.packageManager).installPackage(PackageInfo().apply {
             packageName = "app"
             applicationInfo = ApplicationInfo().apply { packageName = "app"; nonLocalizedLabel = "App" }
         })
-        val provider = TvProviderUpNextSource(context, query = { cursor().apply { moveToPosition(-1) } })
+        val provider = TvProviderUpNextSource(context, query = { cursor().apply { moveToPosition(-1) } }, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler))
         val first = provider.load().getOrThrow()
         val second = provider.load().getOrThrow()
         assertNotNull(first.single().source.icon)

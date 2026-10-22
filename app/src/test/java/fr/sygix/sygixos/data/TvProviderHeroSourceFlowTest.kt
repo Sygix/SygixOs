@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -82,7 +82,7 @@ class TvProviderHeroSourceFlowTest {
     fun `changes emits once on collection then after a preview program notification`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val emissions = mutableListOf<Unit>()
-        val job = backgroundScope.launch { TvProviderHeroSource(context).changes().collect { emissions += it } }
+        val job = backgroundScope.launch { TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler)).changes().collect { emissions += it } }
         runCurrent()
         assertEquals(1, emissions.size)
         context.contentResolver.notifyChange(TvContract.PreviewPrograms.CONTENT_URI, null)
@@ -94,37 +94,37 @@ class TvProviderHeroSourceFlowTest {
 
     @Test
     @Config(shadows = [DeniedObserverShadowContentResolver::class])
-    fun `programCountsFlow emits counts once and completes when observer registration is denied`() = runBlocking {
+    fun `programCountsFlow emits counts once and completes when observer registration is denied`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
         provider.previewRows.add(arrayOf("com.a", "1"))
 
         val emissions = withTimeout(10_000) {
-            TvProviderHeroSource(context).programCountsFlow(debounceMillis = 1).toList()
+            TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler)).programCountsFlow(debounceMillis = 1).toList()
         }
         assertEquals(listOf(mapOf("com.a" to 1)), emissions)
     }
 
     @Test
-    fun `programCounts combines channels and Watch Next per package`() = runBlocking {
+    fun `programCounts combines channels and Watch Next per package`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
         provider.previewRows.add(arrayOf("com.a", "1"))
         provider.watchNextRows.add(arrayOf("com.a", "1"))
         provider.watchNextRows.add(arrayOf("com.w", "1"))
-        assertEquals(mapOf("com.a" to 2, "com.w" to 1), TvProviderHeroSource(context).programCounts())
+        assertEquals(mapOf("com.a" to 2, "com.w" to 1), TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler)).programCounts())
     }
 
     @Test
-    fun `Watch Next notification updates combined counts and cancellation unregisters both URIs`() = runBlocking {
+    fun `Watch Next notification updates combined counts and cancellation unregisters both URIs`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
         val resolver = org.robolectric.Shadows.shadowOf(context.contentResolver)
         val emissions = Channel<Map<String, Int>>(Channel.UNLIMITED)
-        val job = launch { TvProviderHeroSource(context).programCountsFlow(debounceMillis = 1).collect { emissions.send(it) } }
+        val job = launch { TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler)).programCountsFlow(debounceMillis = 1).collect { emissions.send(it) } }
         withTimeout(10_000) {
             assertEquals(emptyMap<String, Int>(), emissions.receive())
             val previewObservers = resolver.getContentObservers(TvContract.PreviewPrograms.CONTENT_URI)
@@ -142,12 +142,12 @@ class TvProviderHeroSourceFlowTest {
     }
 
     @Test
-    fun `programCountsFlow emits initial counts then re-queries on content change`() = runBlocking {
+    fun `programCountsFlow emits initial counts then re-queries on content change`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
         provider.previewRows.add(arrayOf("com.a", "1"))
-        val source = TvProviderHeroSource(context)
+        val source = TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler))
 
         val emissions = mutableListOf<Map<String, Int>>()
         withTimeout(10_000) {
@@ -166,11 +166,11 @@ class TvProviderHeroSourceFlowTest {
     }
 
     @Test
-    fun `programCounts counts Preview only apps and an empty provider`() = runBlocking {
+    fun `programCounts counts Preview only apps and an empty provider`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
-        val source = TvProviderHeroSource(context)
+        val source = TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler))
         assertEquals(emptyMap<String, Int>(), source.programCounts())
         provider.previewRows.add(arrayOf("com.preview", "1"))
         provider.previewRows.add(arrayOf("com.preview", "1"))
@@ -179,13 +179,13 @@ class TvProviderHeroSourceFlowTest {
     }
 
     @Test
-    fun `programCounts survives SecurityException on one or both tables`() = runBlocking {
+    fun `programCounts survives SecurityException on one or both tables`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
         provider.previewRows.add(arrayOf("com.a", "1"))
         provider.watchNextRows.add(arrayOf("com.w", "1"))
-        val source = TvProviderHeroSource(context)
+        val source = TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler))
         provider.denied += "preview_program"
         assertEquals(mapOf("com.w" to 1), source.programCounts())
         provider.denied += "watch_next_program"
@@ -193,7 +193,7 @@ class TvProviderHeroSourceFlowTest {
     }
 
     @Test
-    fun `sources are sorted on the combined total with a Watch Next only app among content apps`() = runBlocking {
+    fun `sources are sorted on the combined total with a Watch Next only app among content apps`() = runTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val provider = FakeTvProvider()
         ShadowContentResolver.registerProviderInternal("android.media.tv", provider)
@@ -202,7 +202,7 @@ class TvProviderHeroSourceFlowTest {
         provider.watchNextRows.add(arrayOf("com.mixed", "1"))
         provider.watchNextRows.add(arrayOf("com.zed", "1"))
         val apps = listOf(TvApp("com.alpha", "Alpha"), TvApp("com.zed", "Zed"), TvApp("com.big", "Big"), TvApp("com.mixed", "Mixed"), TvApp("com.beta", "Beta"))
-        val sorted = SettingsOrdering.sources(apps, TvProviderHeroSource(context).programCounts())
+        val sorted = SettingsOrdering.sources(apps, TvProviderHeroSource(context, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler)).programCounts())
         assertEquals(listOf("Big", "Mixed", "Zed", "Alpha", "Beta"), sorted.map { it.label })
     }
 }

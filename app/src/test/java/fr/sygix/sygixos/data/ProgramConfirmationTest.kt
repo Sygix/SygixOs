@@ -11,7 +11,9 @@ import android.media.tv.TvContract.PreviewPrograms as P
 import android.media.tv.TvContract.WatchNextPrograms as W
 import androidx.test.core.app.ApplicationProvider
 import fr.sygix.sygixos.domain.ArtworkAge
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,7 +28,7 @@ class ProgramConfirmationTest {
     private var denied = false
     private var present = true
     private var installed = true
-    private fun source() = TvProviderHeroSource(context, { now }, { installed }) { uri, projection, _ ->
+    private fun TestScope.source() = TvProviderHeroSource(context, { now }, { installed }, query = { uri, projection, _ ->
         if (denied) throw SecurityException()
         if (uri == P.CONTENT_URI && previewFails || uri == W.CONTENT_URI && watchFails) throw java.io.IOException()
         MatrixCursor(projection).apply {
@@ -41,9 +43,9 @@ class ProgramConfirmationTest {
                 else -> null
             } }.toTypedArray<Any?>())
         }
-    }
+    }, queries = virtualQueries(), io = StandardTestDispatcher(testScheduler))
 
-    @Test fun `table confirmations are independent and expire at exactly twenty four hours`() = runBlocking {
+    @Test fun `table confirmations are independent and expire at exactly twenty four hours`() = runTest {
         val source = source()
         assertEquals(2, source.read().items.size)
         previewFails = true
@@ -58,7 +60,7 @@ class ProgramConfirmationTest {
         assertTrue(source.read().items.isEmpty())
     }
 
-    @Test fun `successful empty withdraws immediately while denial and uninstall do not use a grace period`() = runBlocking {
+    @Test fun `successful empty withdraws immediately while denial and uninstall do not use a grace period`() = runTest {
         val source = source()
         assertEquals(2, source.read().items.size)
         present = false
@@ -77,7 +79,7 @@ class ProgramConfirmationTest {
         assertTrue(source.read().items.isEmpty())
     }
 
-    @Test fun `poster and thumbnail survive mapping without relying on published ratios`() = runBlocking {
+    @Test fun `poster and thumbnail survive mapping without relying on published ratios`() = runTest {
         val mapped = source().read().items.first()
         assertEquals("content://artwork/poster", mapped.posterUrl)
         assertEquals("content://artwork/thumbnail", mapped.thumbnailUrl)

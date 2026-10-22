@@ -11,7 +11,6 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -30,7 +29,7 @@ class TvProviderUpNextChangesTest {
 
     @Test
     @Config(shadows = [DeniedObserverShadowContentResolver::class])
-    fun `observer registration refused for a denied or missing provider emits one initial load then completes without crash`() = runBlocking {
+    fun `observer registration refused for a denied or missing provider emits one initial load then completes without crash`() = runTest {
         val emissions = withTimeout(10_000) { TvProviderUpNextSource(context, debounceMillis = 1).changes().toList() }
         assertEquals(listOf(Unit), emissions)
     }

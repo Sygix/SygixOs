@@ -22,13 +22,18 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
 
-private val providerWorkers = ArtworkScheduler(parallelism = 3, capacity = 32)
-private val providerSequence = java.util.concurrent.atomic.AtomicLong()
+class ProviderQueries internal constructor(private val workers: ArtworkScheduler) {
+    private val sequence = java.util.concurrent.atomic.AtomicLong()
 
-internal suspend fun <T> providerQuery(timeoutMillis: Long = 2_000, query: (CancellationSignal) -> T): Result<T> {
-    val signal = CancellationSignal()
-    return providerWorkers.run("query-${providerSequence.incrementAndGet()}", timeoutMillis, signal::cancel) { query(signal) }
-        .also { currentCoroutineContext().ensureActive() }
+    internal suspend fun <T> run(timeoutMillis: Long = 2_000, query: (CancellationSignal) -> T): Result<T> {
+        val signal = CancellationSignal()
+        return workers.run("query-${sequence.incrementAndGet()}", timeoutMillis, signal::cancel) { query(signal) }
+            .also { currentCoroutineContext().ensureActive() }
+    }
+
+    companion object {
+        val Shared = ProviderQueries(ArtworkScheduler(parallelism = 3, capacity = 32))
+    }
 }
 
 internal fun ContentResolver.changes(uris: List<Uri>, debounceMillis: Long = 500): Flow<Unit> = channelFlow {

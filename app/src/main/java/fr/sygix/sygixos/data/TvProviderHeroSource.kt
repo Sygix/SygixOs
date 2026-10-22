@@ -16,6 +16,7 @@ import fr.sygix.sygixos.domain.HeroRead
 import fr.sygix.sygixos.domain.ArtworkAge
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.ProgramKind
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -30,16 +31,18 @@ class TvProviderHeroSource(
     private val query: (Uri, Array<String>, android.os.CancellationSignal) -> Cursor? = { uri, projection, signal ->
         context.contentResolver.query(uri, projection, null, null, null, signal)
     },
+    private val queries: ProviderQueries = ProviderQueries.Shared,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : HeroContentProvider {
 
     private val labels = mutableMapOf<String, String?>()
     private val snapshots = mutableMapOf<Uri, List<HeroItem>>()
 
-    override suspend fun load(): List<HeroItem> = withContext(Dispatchers.IO) {
+    override suspend fun load(): List<HeroItem> = withContext(io) {
         read().items
     }
 
-    override suspend fun read(): HeroRead = withContext(Dispatchers.IO) {
+    override suspend fun read(): HeroRead = withContext(io) {
         val errors = mutableListOf<Throwable>()
         for ((uri, projection, mapper) in listOf(
             Triple(P.CONTENT_URI, PREVIEW_PROJECTION, ::mapPreviewRow),
@@ -82,7 +85,7 @@ class TvProviderHeroSource(
         rowsResult(uri, projection, map).getOrDefault(emptyList())
 
     private suspend fun <T : Any> rowsResult(uri: Uri, projection: Array<String>, map: (Cursor) -> T?): Result<List<T>> =
-        providerQuery(2_000) { signal ->
+        queries.run(2_000) { signal ->
             val cursor = query(uri, projection, signal)
                 ?: error("TV provider unavailable")
             cursor.use { c -> buildList { while (c.moveToNext()) map(c)?.let(::add) } }
