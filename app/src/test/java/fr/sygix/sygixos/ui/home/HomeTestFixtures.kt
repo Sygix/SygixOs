@@ -85,7 +85,7 @@ internal fun TestHome(
 ) {
     val packageManager = LocalContext.current.packageManager
     val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
-    CompositionLocalProvider(LocalAppArtwork provides artwork) {
+    CompositionLocalProvider(LocalAppArtwork provides artwork, fr.sygix.sygixos.ui.LocalBackgroundDispatcher provides Dispatchers.Unconfined) {
         MaterialTheme {
             LauncherHome(
                 catalog = catalog,
@@ -136,5 +136,9 @@ internal fun ComposeContentTestRule.screenHeight(): Float = onRoot().fetchSemant
 @Composable
 internal fun WithTestArtwork(content: @Composable () -> Unit) {
     val packageManager = LocalContext.current.packageManager
-    CompositionLocalProvider(LocalAppArtwork provides remember { AppArtworkSource(packageManager, Dispatchers.Unconfined) }, content = content)
+    CompositionLocalProvider(
+        LocalAppArtwork provides remember { AppArtworkSource(packageManager, Dispatchers.Unconfined) },
+        fr.sygix.sygixos.ui.LocalBackgroundDispatcher provides Dispatchers.Unconfined,
+        content = content,
+    )
 }

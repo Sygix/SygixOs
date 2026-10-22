@@ -20,6 +20,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -37,13 +39,17 @@ internal fun artworkBytes(width: Int = 800, height: Int = 450, color: Int = andr
 }
 
 internal class ArtworkFixture(directory: java.io.File, val read: ImageBytesReader, val now: AtomicLong = AtomicLong(1_000), localReader: ImageBytesReader? = null,
-    timeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS, onRendered: (coil.request.SuccessResult) -> Unit = {}) : Closeable {
+    timeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS, onRendered: (coil.request.SuccessResult) -> Unit = {}, dispatcher: kotlinx.coroutines.CoroutineDispatcher? = null,
+    executors: ArtworkExecutors? = null) : Closeable {
     val context: Context = ApplicationProvider.getApplicationContext()
     val disk = DiskCache.Builder().directory(directory).build()
-    val db = Room.inMemoryDatabaseBuilder(context, ArtworkDatabase::class.java).build()
-    val repository = ArtworkRepository(context, db, disk, read, clock = now::get, requestTimeoutMillis = timeoutMillis,
+    val db = Room.inMemoryDatabaseBuilder(context, ArtworkDatabase::class.java).apply { dispatcher?.let { setQueryCoroutineContext(it); allowMainThreadQueries() } }.build()
+    val repository = if (dispatcher == null) ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(executors = executors ?: ArtworkExecutors.threads(3)), clock = now::get, requestTimeoutMillis = timeoutMillis,
         localReader = localReader ?: LocalProgramImageReader(context.contentResolver))
-    val loader = coil.ImageLoader.Builder(context).diskCache(disk).allowHardware(false).eventListener(object : coil.EventListener {
+    else ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(executors = virtualExecutors(dispatcher)), clock = now::get,
+        io = dispatcher, decode = kotlinx.coroutines.Dispatchers.Unconfined, scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + dispatcher),
+        requestTimeoutMillis = timeoutMillis, localReader = localReader ?: LocalProgramImageReader(context.contentResolver))
+    val loader = coil.ImageLoader.Builder(context).diskCache(disk).allowHardware(false).apply { dispatcher?.let(::dispatcher) }.eventListener(object : coil.EventListener {
         override fun onSuccess(request: coil.request.ImageRequest, result: coil.request.SuccessResult) {
             if (result.drawable is android.graphics.drawable.BitmapDrawable) onRendered(result)
         }
@@ -53,6 +59,16 @@ internal class ArtworkFixture(directory: java.io.File, val read: ImageBytesReade
     }.build().also { loader -> repository.imageLoader = { loader } }
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
     override fun close() { repository.close(); loader.shutdown(); disk.clear() }
+}
+
+internal fun virtualExecutors(dispatcher: kotlinx.coroutines.CoroutineDispatcher): ArtworkExecutors {
+    val timers = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + dispatcher)
+    val executor = java.util.concurrent.Executor { task -> dispatcher.dispatch(kotlin.coroutines.EmptyCoroutineContext, task) }
+    return ArtworkExecutors(executor, executor, schedule = { delay, action ->
+        val timer = timers.launch { kotlinx.coroutines.delay(delay); action.run() }
+        val cancel: () -> Unit = { timer.cancel() }
+        cancel
+    }, shutdown = { timers.cancel() })
 }
 
 @RunWith(RobolectricTestRunner::class)
@@ -83,7 +99,7 @@ class ArtworkRepositoryTest {
                     source.copy(candidates = listOf("content://fixture/image$n"), identity = "film$n", sharedIdentity = "film$n")
                 }
                 val jobs = sources.map { item -> async { fixture.repository.resolve(item, ArtworkPolicy.Hero) } }
-                withTimeout(5_000) { jobs.forEach { it.await() } }
+                withTimeout(30_000) { jobs.forEach { it.await() } }
                 assertEquals(3, fixture.db.artwork().images().count { it.state == "generic" })
                 sources.forEach { assertNull(fixture.repository.resolve(it, ArtworkPolicy.Hero).first) }
             }
@@ -102,11 +118,15 @@ class ArtworkRepositoryTest {
             } else java.io.ByteArrayInputStream(pixels)
             try { readImageBytes(cancellation.own(input), cancellation) } finally { cancellation.release() }
         }
-        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> error("Local fetch only") }, localReader = local, timeoutMillis = 100).use { f ->
+        val timer = ManualArtworkTimer()
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> error("Local fetch only") }, localReader = local, timeoutMillis = 100, executors = timer.executors(3)).use { f ->
             val blocked = source.copy(candidates = listOf("file:///blocked"))
-            assertEquals(ArtworkFailure.TIMEOUT, f.repository.resolve(blocked, ArtworkPolicy.Hero).second)
-            assertTrue(entered.await(1, TimeUnit.SECONDS))
-            assertTrue(exited.await(1, TimeUnit.SECONDS))
+            val pending = async(kotlinx.coroutines.Dispatchers.IO) { f.repository.resolve(blocked, ArtworkPolicy.Hero) }
+            assertTrue(entered.await(30, TimeUnit.SECONDS))
+            timer.awaitScheduled(1)
+            timer.advance(100)
+            assertEquals(ArtworkFailure.TIMEOUT, withTimeout(30_000) { pending.await() }.second)
+            assertTrue(exited.await(30, TimeUnit.SECONDS))
             assertEquals(1, closes.get())
             assertNotNull(f.repository.resolve(blocked.copy(packageName = "other", candidates = listOf("file:///ready")), ArtworkPolicy.Hero).first)
         }
@@ -134,10 +154,10 @@ class ArtworkRepositoryTest {
             val hero = async { f.repository.resolve(source, ArtworkPolicy.Hero) }
             val card = async { f.repository.resolve(source, ArtworkPolicy.Card(396)) }
             val shelf = async { f.repository.resolve(source, ArtworkPolicy.Shelf(1728)) }
-            val unblock = async(kotlinx.coroutines.Dispatchers.IO) { assertTrue(entered.await(3, TimeUnit.SECONDS)); release.countDown() }
+            val unblock = async(kotlinx.coroutines.Dispatchers.IO) { assertTrue(entered.await(30, TimeUnit.SECONDS)); release.countDown() }
             try {
                 unblock.await()
-                assertNotNull(withTimeout(5_000) { hero.await() }.first)
+                assertNotNull(withTimeout(30_000) { hero.await() }.first)
                 assertNotNull(card.await().first)
                 assertNotNull(shelf.await().first)
                 assertEquals(1, reads.get())
@@ -152,8 +172,8 @@ class ArtworkRepositoryTest {
         ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); entered.countDown(); release.await(); pixels }).use { f ->
             val first = async { f.repository.resolve(source, ArtworkPolicy.Hero) }
             val second = async { f.repository.resolve(source, ArtworkPolicy.Card(396)) }
-            val unblock = async(kotlinx.coroutines.Dispatchers.IO) { assertTrue(entered.await(3, TimeUnit.SECONDS)); first.cancel(); release.countDown() }
-            try { unblock.await(); assertNotNull(withTimeout(5_000) { second.await() }.first); assertEquals(1, reads.get()) }
+            val unblock = async(kotlinx.coroutines.Dispatchers.IO) { assertTrue(entered.await(30, TimeUnit.SECONDS)); first.cancel(); release.countDown() }
+            try { unblock.await(); assertNotNull(withTimeout(30_000) { second.await() }.first); assertEquals(1, reads.get()) }
             finally { release.countDown() }
         }
     }
@@ -196,7 +216,7 @@ class ArtworkRepositoryTest {
                 f.repository.watch(second, ArtworkPolicy.Hero).use {
                     f.now.set(first.fetchedAt + ArtworkAge.FRESH_MS)
                     f.repository.checkExpiry()
-                    withTimeout(5_000) { f.db.artwork().observeImages().first { images -> images.any { it.uri == first.uri && it.fetchedAt > first.fetchedAt } } }
+                    withTimeout(30_000) { f.db.artwork().observeImages().first { images -> images.any { it.uri == first.uri && it.fetchedAt > first.fetchedAt } } }
                     assertEquals(neighbor, f.repository.resolve(second, ArtworkPolicy.Hero).first)
                     assertNull(f.repository.signal(second.identity).value)
                     assertEquals(listOf(source.candidates.single(), second.candidates.single(), source.candidates.single()), reads)
@@ -213,7 +233,7 @@ class ArtworkRepositoryTest {
                 f.now.addAndGet(ArtworkAge.FRESH_MS)
                 served = "error page".toByteArray()
                 assertEquals(original.hash, f.repository.resolve(source, ArtworkPolicy.Hero).first?.hash)
-                withTimeout(5_000) { f.db.artwork().observeImages().first { images -> images.any { it.retryAt > f.now.get() } } }
+                withTimeout(30_000) { f.db.artwork().observeImages().first { images -> images.any { it.retryAt > f.now.get() } } }
                 assertEquals(original.fetchedAt, f.db.artwork().image("app", source.candidates.first())?.fetchedAt)
                 assertNotNull(f.disk.openSnapshot(source.candidates.first())?.also { it.close() })
                 f.now.set(original.fetchedAt + ArtworkAge.RETAIN_MS)
@@ -275,7 +295,7 @@ class ArtworkRepositoryTest {
                 served = artworkBytes(48, 48)
                 f.now.addAndGet(ArtworkAge.FRESH_MS)
                 f.repository.resolve(source, ArtworkPolicy.Hero)
-                withTimeout(5_000) { f.db.artwork().observeImages().first { images -> images.any { it.retryAt > f.now.get() } } }
+                withTimeout(30_000) { f.db.artwork().observeImages().first { images -> images.any { it.retryAt > f.now.get() } } }
                 assertEquals(original.hash, f.repository.resolve(source, ArtworkPolicy.Hero).first?.hash)
                 assertEquals(original.fetchedAt, f.db.artwork().image("app", source.candidates.first())?.fetchedAt)
             }

@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -52,7 +52,7 @@ class SettingsViewModelTest {
     private fun SettingsState.sourceLabels() = sources.map { it.app.label }
 
     @Test
-    fun `state exposes sources sorted by label, all enabled by default`() = runBlocking {
+    fun `state exposes sources sorted by label, all enabled by default`() = runTest(mainDispatcher.dispatcher) {
         val h = harness()
         h.install("B", "A")
         val state = h.viewModel.state.await { it.sources.size == 2 }
@@ -62,7 +62,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `toggleSource flips the enabled flag in state and persists`() = runBlocking {
+    fun `toggleSource flips the enabled flag in state and persists`() = runTest(mainDispatcher.dispatcher) {
         val h = harness()
         h.install("A")
         val vm = h.viewModel
@@ -76,7 +76,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `hidden rows are ordered by hiding date, most recent first`() = runBlocking {
+    fun `hidden rows are ordered by hiding date, most recent first`() = runTest(mainDispatcher.dispatcher) {
         val h = harness()
         h.install("Alpha", "Beta", "Gamma")
         h.hideInOrder("Beta", "Alpha", "Gamma")
@@ -85,7 +85,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `toggling a hidden row unhides it in place, hides it again with a new date, and it leaves on refresh`() = runBlocking {
+    fun `toggling a hidden row unhides it in place, hides it again with a new date, and it leaves on refresh`() = runTest(mainDispatcher.dispatcher) {
         val h = harness()
         h.install("A", "B")
         h.hideInOrder("A", "B")
@@ -111,7 +111,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `unhideAll keeps every row listed as visible until the list is recomputed`() = runBlocking {
+    fun `unhideAll keeps every row listed as visible until the list is recomputed`() = runTest(mainDispatcher.dispatcher) {
         val h = harness()
         h.install("A", "B")
         h.hideInOrder("A", "B")
@@ -129,7 +129,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `unhideAll only unhides the listed apps, an uninstalled hidden app stays hidden after reinstall`() = runBlocking {
+    fun `unhideAll only unhides the listed apps, an uninstalled hidden app stays hidden after reinstall`() = runTest(mainDispatcher.dispatcher) {
         val h = harness()
         h.install("Alpha", "Beta", "Keep")
         h.hideInOrder("Alpha", "Beta")
@@ -150,7 +150,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `sources are ordered by the counts known when the category is entered`() = runBlocking {
+    fun `sources are ordered by the counts known when the category is entered`() = runTest(mainDispatcher.dispatcher) {
         val counts = MutableSharedFlow<Map<String, Int>>(replay = 1)
         counts.emit(mapOf("com.b" to 12, "com.d" to 3))
         val h = harness(counts)
@@ -172,7 +172,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `toggling a source does not move its row`() = runBlocking {
+    fun `toggling a source does not move its row`() = runTest(mainDispatcher.dispatcher) {
         val h = harness(flowOf(mapOf("com.b" to 2)))
         h.install("A", "B")
         val vm = h.viewModel
@@ -186,7 +186,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `counts arriving after the entry resort the sources once, later counts do not`() = runBlocking {
+    fun `counts arriving after the entry resort the sources once, later counts do not`() = runTest(mainDispatcher.dispatcher) {
         val counts = MutableSharedFlow<Map<String, Int>>()
         val h = harness(counts)
         h.install("Alpha", "Beta", "Zeta")
@@ -205,7 +205,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `an empty count keeps the sources alphabetical`() = runBlocking {
+    fun `an empty count keeps the sources alphabetical`() = runTest(mainDispatcher.dispatcher) {
         val h = harness(flowOf(emptyMap()))
         h.install("B", "A")
         val vm = h.viewModel
@@ -217,7 +217,7 @@ class SettingsViewModelTest {
     }
 
     @Test
-    fun `counting runs only while collected and counts afresh when collected again`() = runBlocking {
+    fun `counting runs only while collected and counts afresh when collected again`() = runTest(mainDispatcher.dispatcher) {
         var starts = 0
         var stops = 0
         val counts = flow {

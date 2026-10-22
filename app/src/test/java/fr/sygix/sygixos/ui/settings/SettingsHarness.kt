@@ -7,8 +7,7 @@ package fr.sygix.sygixos.ui.settings
 
 import fr.sygix.sygixos.installLeanbackActivity
 
-import androidx.datastore.preferences.core.edit
-import fr.sygix.sygixos.data.dataStore
+import fr.sygix.sygixos.testDataStore
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -38,6 +37,11 @@ import fr.sygix.sygixos.domain.RemovedUpNextContent
 import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.ui.home.WithTestArtwork
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
@@ -48,25 +52,21 @@ internal class SettingsHarness(
     private val counts: Flow<Map<String, Int>> = flowOf(emptyMap()),
     val updates: UpdateController = FakeUpdateController(),
     private val track: (SettingsViewModel) -> SettingsViewModel = { it },
+    dispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
 ) {
+    private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val leanback = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
     private val store = ViewModelStore()
     var now = 1_000L
-    val prefs = LauncherPrefs(context) { now }
-    val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
+    val prefs = LauncherPrefs(testDataStore(scope)) { now }
+    val repo = AppCatalogRepository(InstalledAppsSource(context), prefs, dispatcher)
     val toggled = mutableListOf<String>()
     val restored = mutableListOf<UpNextContentKey>()
     var unhideAllCalls = 0
     var backs = 0
     var open by mutableStateOf(false)
         private set
-
-    init {
-        runBlocking {
-            context.dataStore.edit { it.clear() }
-        }
-    }
 
     val viewModel: SettingsViewModel by lazy {
         val factory = object : ViewModelProvider.Factory {
@@ -134,7 +134,7 @@ internal class SettingsHarness(
         open = false
     }
 
-    fun clear() = store.clear()
+    fun clear() { store.clear(); scope.cancel() }
 
     @Composable
     fun Content() {

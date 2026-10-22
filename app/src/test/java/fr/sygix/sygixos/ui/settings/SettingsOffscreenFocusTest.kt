@@ -81,11 +81,13 @@ class SettingsOffscreenFocusTest {
         lateinit var list: LazyListState
         compose.setContent {
             list = rememberLazyListState()
-            MaterialTheme {
-                AboutContent(
-                    version = "0.0.1", update = update.value, actions = UpdateActions(), listState = list,
-                    focusEnabled = true, contentFocus = remember { FocusRequester() },
-                )
+            WithTestArtwork {
+                MaterialTheme {
+                    AboutContent(
+                        version = "0.0.1", update = update.value, actions = UpdateActions(), listState = list,
+                        focusEnabled = true, contentFocus = remember { FocusRequester() },
+                    )
+                }
             }
         }
         val license = SemanticsMatcher("license row") {

@@ -5,8 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
-import androidx.datastore.preferences.core.edit
-import fr.sygix.sygixos.data.dataStore
+import kotlinx.coroutines.test.runTest
+import fr.sygix.sygixos.inlineDataStore
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import androidx.test.core.app.ApplicationProvider
@@ -38,7 +38,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -77,19 +76,14 @@ class StartupValidationTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private val uris = (1..3).map { "https://example.invalid/p$it.jpg" }
 
-    @Before
-    fun resetPrefs() {
-        runBlocking { context.dataStore.edit { it.clear() } }
-    }
-
     private fun viewModel(session: StartupSession, loader: CountingLoader): HomeViewModel {
-        val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
+        val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(inlineDataStore()), mainDispatcher.dispatcher)
         val items = uris.mapIndexed { i, uri -> heroItem("p$i", "Titre fictif $i", imageUrl = uri, sourcePackage = "com.example.player") }
         return mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(Programs(items), Programs(emptyList())),
-            artwork = AppArtworkSource(context.packageManager),
-            validator = VisualValidator(context, loader),
+            artwork = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
+            validator = VisualValidator(context, loader, mainDispatcher.dispatcher),
             clockSource = object : ClockSource {
                 override fun current() = ""
                 override fun time() = emptyFlow<String>()
@@ -107,7 +101,7 @@ class StartupValidationTest {
     private fun HomeViewModel.checked(): Set<String> = (state.value as? HomeState.Ready)?.hero?.checked.orEmpty()
 
     @Test
-    fun `on a cold start only the first usable hero visual is validated during the startup screen`() = runBlocking {
+    fun `on a cold start only the first usable hero visual is validated during the startup screen`() = runTest(mainDispatcher.dispatcher) {
         val loader = CountingLoader()
         val vm = viewModel(StartupSession(), loader)
         vm.state.await { (it as? HomeState.Ready)?.hero?.checked?.isNotEmpty() == true }
@@ -117,7 +111,7 @@ class StartupValidationTest {
     }
 
     @Test
-    fun `without a startup screen every hero visual is validated at once`() = runBlocking {
+    fun `without a startup screen every hero visual is validated at once`() = runTest(mainDispatcher.dispatcher) {
         val session = StartupSession().apply { claimColdStart() }
         val loader = CountingLoader()
         val vm = viewModel(session, loader)

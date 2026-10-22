@@ -10,7 +10,7 @@ import fr.sygix.sygixos.await
 import fr.sygix.sygixos.domain.HiddenGroup
 import fr.sygix.sygixos.domain.HiddenPaneLayout
 import fr.sygix.sygixos.model.UpNextContentType
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -34,7 +34,7 @@ class HiddenGroupsViewModelTest {
     private fun SettingsState.keys() = hiddenEntries.map { it.key }
 
     @Test
-    fun `groups show three lines then the count of the others and expansion resets on entry`() = runBlocking {
+    fun `groups show three lines then the count of the others and expansion resets on entry`() = runTest(mainDispatcher.dispatcher) {
         val labels = listOf("A", "B", "C", "D", "E")
         harness.install(*labels.toTypedArray())
         harness.hideInOrder(*labels.toTypedArray())
@@ -58,7 +58,7 @@ class HiddenGroupsViewModelTest {
     }
 
     @Test
-    fun `restoring a content updates the groups and the focus goes to the entry now in its place`() = runBlocking {
+    fun `restoring a content updates the groups and the focus goes to the entry now in its place`() = runTest(mainDispatcher.dispatcher) {
         harness.install("A")
         harness.hideInOrder("A")
         val first = harness.removeContent("Premier", UpNextContentType.MOVIE)

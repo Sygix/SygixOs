@@ -17,16 +17,14 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
-import androidx.datastore.preferences.core.edit
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import fr.sygix.sygixos.data.LauncherPrefs
-import fr.sygix.sygixos.data.dataStore
+import fr.sygix.sygixos.inlineDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,14 +36,9 @@ class LauncherOnboardingFlowTest {
     @get:Rule val compose = createComposeRule()
     @get:Rule val viewModels = LauncherViewModelRule()
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val prefs = LauncherPrefs(context)
+    private val prefs = LauncherPrefs(inlineDataStore())
     private val gateway = FakeLauncherGateway()
     private var launcher by mutableStateOf<LauncherSystemViewModel?>(null)
-
-    @Before
-    fun reset() {
-        runBlocking { context.dataStore.edit { it.clear() } }
-    }
 
     private fun press(key: Key) {
         compose.onRoot().performKeyInput { keyDown(key); keyUp(key) }

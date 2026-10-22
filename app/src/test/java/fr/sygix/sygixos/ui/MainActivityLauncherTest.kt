@@ -106,7 +106,7 @@ class MainActivityLauncherTest {
         ViewModelProvider(controller.get())[LauncherSystemViewModel::class.java]
 
     private fun awaitMain(label: String = "activity condition", condition: () -> Boolean) = runBlocking {
-        try { withTimeout(5_000) {
+        try { withTimeout(30_000) {
             while (true) {
                 shadowOf(Looper.getMainLooper()).idle()
                 if (condition()) break

@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import fr.sygix.sygixos.ui.home.WithTestArtwork
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,17 +62,19 @@ class UpdateAboutTest {
     private fun show(initial: AboutUpdateState = AboutUpdateState()) {
         update = initial
         compose.setContent {
-            MaterialTheme {
-                SettingsScreen(
-                    state = SettingsState(version = "0.0.1", update = update),
-                    actions = SettingsActions(
-                        update = UpdateActions(
-                            onCheck = { checks += Unit },
-                            onInstall = { installs += it },
-                            onTogglePrereleases = { toggles++ },
+            WithTestArtwork {
+                MaterialTheme {
+                    SettingsScreen(
+                        state = SettingsState(version = "0.0.1", update = update),
+                        actions = SettingsActions(
+                            update = UpdateActions(
+                                onCheck = { checks += Unit },
+                                onInstall = { installs += it },
+                                onTogglePrereleases = { toggles++ },
+                            ),
                         ),
-                    ),
-                )
+                    )
+                }
             }
         }
         compose.waitForIdle()

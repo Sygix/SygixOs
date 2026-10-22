@@ -124,7 +124,7 @@ class UpdateBadgeTest {
 
     @Test
     fun `prerelease switch updates the switch, the version and both badges without any request`() {
-        val updates = UpdateHarness(scope, Dispatchers.IO, folder.root, installedCode = 199)
+        val updates = UpdateHarness(scope, Dispatchers.Unconfined, folder.root, installedCode = 199)
         updates.publish("v0.0.1", "v0.0.2-rc.1")
         updates.repository.status
         updates.repository.check()

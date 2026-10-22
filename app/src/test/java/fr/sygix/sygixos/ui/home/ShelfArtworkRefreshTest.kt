@@ -28,6 +28,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
@@ -50,7 +51,7 @@ class ShelfArtworkRefreshTest {
         val reads = AtomicInteger()
         val fixture = ArtworkFixture(folder.newFolder(), ImageBytesReader { uri, _ ->
             if (uri.path == "/unused") artworkBytes(48, 48) else { reads.incrementAndGet(); artworkBytes() }
-        })
+        }, dispatcher = kotlinx.coroutines.Dispatchers.Main.immediate)
         cleanup += fixture::close
         coil.Coil.setImageLoader(fixture.loader)
         val uri = "content://fixture/displayed"
@@ -60,7 +61,7 @@ class ShelfArtworkRefreshTest {
             ShelfPanel(listOf(uri), PixelSize(800, 450), Modifier.size(400.dp, 225.dp), mapOf(uri to source))
         } }
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("shelf-poster").fetchSemanticsNodes().isNotEmpty() }
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main)
         cleanup += { scope.cancel() }
         val rejected = scope.async { fixture.repository.resolve(source.withCandidates(listOf(unused)), fr.sygix.sygixos.domain.ArtworkPolicy.Hero) }
         compose.waitUntil(5_000) { compose.waitForIdle(); rejected.isCompleted }
@@ -73,7 +74,7 @@ class ShelfArtworkRefreshTest {
     @Test fun previousShelfImageStaysVisibleWhileTheNewVersionIsBeingDecoded() {
         val bytes = AtomicReference(artworkBytes())
         val reads = AtomicInteger()
-        val fixture = ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); bytes.get() })
+        val fixture = ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); bytes.get() }, dispatcher = kotlinx.coroutines.Dispatchers.Main.immediate)
         val gated = AtomicBoolean()
         val entered = CompletableDeferred<Unit>()
         val decoded = AtomicInteger()
@@ -108,7 +109,8 @@ class ShelfArtworkRefreshTest {
         gated.set(true)
         bytes.set(artworkBytes(1280, 720))
         fixture.now.addAndGet(ArtworkAge.FRESH_MS)
-        runBlocking { fixture.repository.checkExpiry() }
+        val expiry = kotlinx.coroutines.MainScope().launch { fixture.repository.checkExpiry() }
+        cleanup += { expiry.cancel() }
         try { compose.waitUntil(5_000) { compose.waitForIdle(); entered.isCompleted } }
         catch (failure: Throwable) {
             val images = runBlocking { fixture.db.artwork().images().map { listOf(it.state, it.width, it.fetchedAt, it.retryAt) } }

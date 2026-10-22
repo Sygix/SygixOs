@@ -21,6 +21,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -41,6 +42,7 @@ class ContentArtworkTransportTest {
     private val transport = ProgramImageReader(context.contentResolver, okhttp3.OkHttpClient())
     private val uri = Uri.parse("content://fixture.artwork/image")
     private val entered = CountDownLatch(1)
+    private val timer = ManualArtworkTimer()
     private val release = CountDownLatch(1)
     private val closed = CountDownLatch(1)
     private val streamClosed = CountDownLatch(1)
@@ -127,10 +129,14 @@ class ContentArtworkTransportTest {
             override fun read(): Int { entered.countDown(); unblock.await(); exit.countDown(); return -1 }
             override fun close() { closeCount.incrementAndGet(); unblock.countDown() }
         })
-        ArtworkScheduler().use { scheduler ->
-            val result = scheduler.run("fixture", 100, cancellation::cancel) { stream.read() }
+        ArtworkScheduler(executors = timer.executors(3)).use { scheduler ->
+            val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("fixture", 100, cancellation::cancel) { stream.read() } }
+            assertTrue(entered.await(30, TimeUnit.SECONDS))
+            timer.awaitScheduled(1)
+            timer.advance(100)
+            val result = withTimeout(30_000) { pending.await() }
             assertTrue(result.exceptionOrNull() is TimeoutException)
-            assertTrue(exit.await(2, TimeUnit.SECONDS))
+            assertTrue(exit.await(30, TimeUnit.SECONDS))
             cancellation.release()
             assertEquals(1, closeCount.get())
         }
@@ -158,15 +164,18 @@ class ContentArtworkTransportTest {
     }
 
     private fun checkBlocked() = runBlocking {
-        ArtworkScheduler().use { scheduler ->
+        ArtworkScheduler(executors = timer.executors(3)).use { scheduler ->
             val cancellation = ImageCancellation()
             try {
-                val result = withTimeout(8_000) { scheduler.run("fixture", 2_000, cancellation::cancel) { transport.read(uri, cancellation) } }
-                assertTrue(entered.await(1, TimeUnit.SECONDS))
+                val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("fixture", 2_000, cancellation::cancel) { transport.read(uri, cancellation) } }
+                assertTrue(entered.await(30, TimeUnit.SECONDS))
+                timer.awaitScheduled(1)
+                timer.advance(2_000)
+                val result = withTimeout(30_000) { pending.await() }
                 assertTrue(result.exceptionOrNull() is TimeoutException)
             } finally { release.countDown() }
-            assertTrue(closed.await(2, TimeUnit.SECONDS))
-            if (!blockOpen) assertTrue(streamClosed.await(2, TimeUnit.SECONDS))
+            assertTrue(closed.await(30, TimeUnit.SECONDS))
+            if (!blockOpen) assertTrue(streamClosed.await(30, TimeUnit.SECONDS))
             assertEquals(1, opens.get())
             assertEquals(1, closes.get())
             assertEquals(if (blockOpen) 0 else 1, streamCloses.get())

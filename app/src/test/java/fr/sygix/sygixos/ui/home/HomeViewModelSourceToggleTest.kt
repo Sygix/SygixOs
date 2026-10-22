@@ -5,8 +5,6 @@
 
 package fr.sygix.sygixos.ui.home
 
-import androidx.datastore.preferences.core.edit
-import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.data.FakeUpdateController
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
@@ -21,6 +19,7 @@ import coil.request.ImageRequest
 import coil.request.ImageResult
 import fr.sygix.sygixos.MainDispatcherRule
 import fr.sygix.sygixos.await
+import fr.sygix.sygixos.testDataStore
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.HeroRepository
@@ -32,10 +31,10 @@ import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.data.ClockSource
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -64,11 +63,6 @@ class HomeViewModelSourceToggleTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
-    @Before
-    fun resetDataStore() {
-        runBlocking { context.dataStore.edit { it.clear() } }
-    }
-
     private val feedItems = listOf(
         heroItem("1", "From A", sourcePackage = "com.a").copy(videoUrl = "https://example.invalid/a.mp4"),
         heroItem("2", "From B", sourcePackage = "com.b").copy(videoUrl = "https://example.invalid/b.mp4"),
@@ -76,14 +70,13 @@ class HomeViewModelSourceToggleTest {
 
     private val natureClip = HeroItem(id = "nature-0", title = "", videoUrl = "https://x/clip.mp4")
 
-    private fun buildViewModel(items: List<HeroItem> = feedItems): Pair<HomeViewModel, AppCatalogRepository> {
-        val prefs = LauncherPrefs(context)
-        val repo = AppCatalogRepository(InstalledAppsSource(context), prefs)
+    private fun TestScope.buildViewModel(items: List<HeroItem> = feedItems, prefs: LauncherPrefs = LauncherPrefs(testDataStore())): Pair<HomeViewModel, AppCatalogRepository> {
+        val repo = AppCatalogRepository(InstalledAppsSource(context), prefs, mainDispatcher.dispatcher)
         val vm = mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(StaticFeedProvider(items), StaticFeedProvider(listOf(natureClip))),
-            artwork = AppArtworkSource(context.packageManager),
-            validator = VisualValidator(context, OfflineImageLoader()),
+            artwork = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
+            validator = VisualValidator(context, OfflineImageLoader(), mainDispatcher.dispatcher),
             clockSource = object : ClockSource {
                 override fun current() = ""
                 override fun time() = emptyFlow<String>()
@@ -105,7 +98,7 @@ class HomeViewModelSourceToggleTest {
             .let { (it as HomeState.Ready).hero.items.map { item -> item.title } }
 
     @Test
-    fun `disabling a source filters its hero items reactively`() = runBlocking {
+    fun `disabling a source filters its hero items reactively`() = runTest(mainDispatcher.dispatcher) {
         val (vm, repo) = buildViewModel()
         repo.refreshApps()
         vm.refreshHero()
@@ -119,7 +112,7 @@ class HomeViewModelSourceToggleTest {
     }
 
     @Test
-    fun `disabling every source falls back to the repository fallback instead of an empty hero`() = runBlocking {
+    fun `disabling every source falls back to the repository fallback instead of an empty hero`() = runTest(mainDispatcher.dispatcher) {
         val (vm, repo) = buildViewModel()
         repo.refreshApps()
         vm.refreshHero()
@@ -132,11 +125,12 @@ class HomeViewModelSourceToggleTest {
     }
 
     @Test
-    fun `re-enabling a source re-prepares the shelf of the focused app on the recomputed hero`() = runBlocking {
+    fun `re-enabling a source re-prepares the shelf of the focused app on the recomputed hero`() = runTest(mainDispatcher.dispatcher) {
         val items = (1..25).map { heroItem("b$it", "B$it", imageUrl = "https://x/b$it.jpg", sourcePackage = "com.b").copy(videoUrl = "https://example.invalid/b$it.mp4") } +
             heroItem("a", "A", imageUrl = "https://x/a.jpg", sourcePackage = "com.a").copy(videoUrl = "https://example.invalid/a.mp4")
-        LauncherPrefs(context).updateDisabledSources { setOf("com.a") }
-        val (vm, repo) = buildViewModel(items)
+        val prefs = LauncherPrefs(testDataStore())
+        prefs.updateDisabledSources { setOf("com.a") }
+        val (vm, repo) = buildViewModel(items, prefs)
         repo.refreshApps()
         vm.refreshHero()
         vm.state.await { (it as? HomeState.Ready)?.hero?.items?.size == 25 }

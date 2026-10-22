@@ -14,7 +14,6 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.ResolveInfo
-import androidx.datastore.preferences.core.edit
 import androidx.lifecycle.ViewModelStore
 import androidx.test.core.app.ApplicationProvider
 import fr.sygix.sygixos.MainDispatcherRule
@@ -27,7 +26,6 @@ import fr.sygix.sygixos.data.HeroRepository
 import fr.sygix.sygixos.data.InstalledAppsSource
 import fr.sygix.sygixos.data.LauncherPrefs
 import fr.sygix.sygixos.data.VisualValidator
-import fr.sygix.sygixos.data.dataStore
 import fr.sygix.sygixos.domain.HeroContentProvider
 import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.domain.InMemoryUpNextMemory
@@ -47,7 +45,10 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
+import fr.sygix.sygixos.inlineDataStore
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -82,8 +83,7 @@ class HomeViewModelUpNextTest {
 
     @Before
     fun setup() = runBlocking {
-        context.dataStore.edit { it.clear() }
-        repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
+        repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(inlineDataStore()), Dispatchers.Unconfined)
         vm = viewModel(source, "home")
         repo.refreshApps()
         vm.state.await { it is HomeState.Ready }
@@ -101,7 +101,7 @@ class HomeViewModelUpNextTest {
     ): HomeViewModel {
         val empty = object : HeroContentProvider { override suspend fun load() = emptyList<HeroItem>() }
         return mainDispatcher.track(HomeViewModel(
-            repo, HeroRepository(empty, empty), AppArtworkSource(context.packageManager), VisualValidator(context),
+            repo, HeroRepository(empty, empty), AppArtworkSource(context.packageManager, mainDispatcher.dispatcher), VisualValidator(context, dispatcher = mainDispatcher.dispatcher),
             object : ClockSource {
                 override fun current() = ""
                 override fun time() = emptyFlow<String>()
@@ -117,7 +117,7 @@ class HomeViewModelUpNextTest {
     } as HomeState.Ready
 
     @Test
-    fun `an opening is recorded on the published intent or the fallback and never on a double failure`() = runBlocking {
+    fun `an opening is recorded on the published intent or the fallback and never on a double failure`() = runTest(mainDispatcher.dispatcher) {
         val memory = InMemoryUpNextMemory()
         var refuseIntent = false
         var refuseFallback = false
@@ -156,7 +156,7 @@ class HomeViewModelUpNextTest {
     }
 
     @Test
-    fun `refresh and provider signal update home without losing content on transient failure`() = runBlocking {
+    fun `refresh and provider signal update home without losing content on transient failure`() = runTest(mainDispatcher.dispatcher) {
         val watching = launch { vm.upNextUpdates.collect() }
         source.notifications.subscriptionCount.await { it == 1 }
         source.result = Result.success(listOf(item))
@@ -177,7 +177,7 @@ class HomeViewModelUpNextTest {
     }
 
     @Test
-    fun `visibility placement and source preferences reach home immediately`() = runBlocking {
+    fun `visibility placement and source preferences reach home immediately`() = runTest(mainDispatcher.dispatcher) {
         source.result = Result.success(listOf(item))
         vm.refreshUpNext()
         awaitItems(listOf(item))
@@ -194,7 +194,7 @@ class HomeViewModelUpNextTest {
     }
 
     @Test
-    fun `permission denial removes row without preventing home readiness`() = runBlocking {
+    fun `permission denial removes row without preventing home readiness`() = runTest(mainDispatcher.dispatcher) {
         source.result = Result.failure(SecurityException("denied"))
         vm.refreshUpNext()
         source.loads.await { it > 0 }
@@ -206,7 +206,7 @@ class HomeViewModelUpNextTest {
     }
 
     @Test
-    fun `refused provider observation neither crashes nor prevents the row from loading`() = runBlocking {
+    fun `refused provider observation neither crashes nor prevents the row from loading`() = runTest(mainDispatcher.dispatcher) {
         val refused = object : UpNextSource {
             override suspend fun load() = Result.success(listOf(item))
             override fun changes() = flowOf(Unit)

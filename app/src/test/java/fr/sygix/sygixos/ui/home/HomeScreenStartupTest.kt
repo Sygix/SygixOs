@@ -5,8 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
-import androidx.datastore.preferences.core.edit
-import fr.sygix.sygixos.data.dataStore
+import fr.sygix.sygixos.inlineDataStore
 import android.content.Context
 import android.graphics.drawable.ColorDrawable
 import androidx.activity.ComponentActivity
@@ -98,15 +97,14 @@ class HomeScreenStartupTest {
     fun resetImageLoader() = Coil.reset()
 
     private fun readyViewModel(): HomeViewModel = runBlocking {
-        context.dataStore.edit { it.clear() }
         val loader = WidePosterLoader()
         Coil.setImageLoader(loader)
-        val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
+        val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(inlineDataStore()), mainDispatcher.dispatcher)
         val vm = mainDispatcher.track(HomeViewModel(
             apps = repo,
             hero = HeroRepository(PosterFeed(listOf(heroItem("h1", "Programme", imageUrl = poster))), PosterFeed(emptyList())),
-            artwork = AppArtworkSource(context.packageManager),
-            validator = VisualValidator(context, loader),
+            artwork = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
+            validator = VisualValidator(context, loader, mainDispatcher.dispatcher),
             clockSource = object : ClockSource {
                 override fun current() = ""
                 override fun time() = emptyFlow<String>()

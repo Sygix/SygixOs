@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -133,10 +134,14 @@ class AndroidArtworkTransportTest {
     }
 
     @Test fun `total result deadline covers a stalled HTTP response body`() = runBlocking {
-        ArtworkScheduler().use { scheduler ->
+        val timer = ManualArtworkTimer()
+        ArtworkScheduler(executors = timer.executors(3)).use { scheduler ->
             val cancellation = ImageCancellation()
-            val result = withTimeout(3_000) { scheduler.run("app", 500, cancellation::cancel) { transport.read(android.net.Uri.parse(url("/slow")), cancellation) } }
-            assertTrue(entered.await(1, TimeUnit.SECONDS))
+            val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("app", 500, cancellation::cancel) { transport.read(android.net.Uri.parse(url("/slow")), cancellation) } }
+            assertTrue(entered.await(30, TimeUnit.SECONDS))
+            timer.awaitScheduled(1)
+            timer.advance(500)
+            val result = withTimeout(30_000) { pending.await() }
             assertTrue(result.exceptionOrNull() is TimeoutException)
         }
     }

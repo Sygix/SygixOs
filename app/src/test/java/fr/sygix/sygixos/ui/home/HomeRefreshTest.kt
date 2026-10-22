@@ -28,6 +28,7 @@ import coil.request.ImageResult
 import coil.request.SuccessResult
 import fr.sygix.sygixos.MainDispatcherRule
 import fr.sygix.sygixos.await
+import fr.sygix.sygixos.testDataStore
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.AppCatalogRepository
 import fr.sygix.sygixos.data.ClockSource
@@ -57,6 +58,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.cancelAndJoin
@@ -75,7 +77,7 @@ import org.robolectric.Shadows.shadowOf
 class HomeRefreshTest {
     @get:Rule val folder = org.junit.rules.TemporaryFolder()
 
-    @Test fun cachedFailureRestoresFallbackAfterRevalidationWithoutAnotherCheckedImageEmission() = runBlocking(Dispatchers.Default) {
+    @Test fun cachedFailureRestoresFallbackAfterRevalidationWithoutAnotherCheckedImageEmission() = runTest(main.dispatcher) {
         val item = heroItem("preview-1", "Fiction", "content://fixture/failed", "fixture.app")
         var feed = listOf(item)
         val entered = CompletableDeferred<Unit>()
@@ -98,11 +100,11 @@ class HomeRefreshTest {
         assertEquals(2, attempts[item.imageUrl])
     }
 
-    @Test fun rejectedDisplayedCandidateCanSwitchToItsAlreadyValidAlternative() = runBlocking(Dispatchers.Default) {
+    @Test fun rejectedDisplayedCandidateCanSwitchToItsAlreadyValidAlternative() = runTest(main.dispatcher) {
         val bytes = fr.sygix.sygixos.data.artworkBytes()
         fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { uri, _ ->
             if (uri.path == "/alternative") fr.sygix.sygixos.data.artworkBytes(1000, 600) else bytes
-        }).use { fixture ->
+        }, dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)).use { fixture ->
             val item = heroItem("preview-1", "Fiction", "content://fixture/main", "fixture.app").copy(thumbnailUrl = "content://fixture/alternative", contentId = "first")
             fixture.repository.confirm("preview", listOf(item.artwork to item.fullFingerprint))
             val home = home(provider { listOf(item) }, artworkRepository = fixture.repository) { _, _ -> null }
@@ -121,9 +123,9 @@ class HomeRefreshTest {
         }
     }
 
-    @Test fun imagesBecomingGenericWithdrawPreviouslyAcceptedHeroAndShelfResults() = runBlocking(Dispatchers.Default) {
+    @Test fun imagesBecomingGenericWithdrawPreviouslyAcceptedHeroAndShelfResults() = runTest(main.dispatcher) {
         val bytes = fr.sygix.sygixos.data.artworkBytes()
-        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes }).use { fixture ->
+        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes }, dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)).use { fixture ->
             val items = (1..3).map { n -> heroItem("preview-$n", "Fiction $n", "content://fixture/image$n", "fixture.app").copy(contentId = "film$n") }
             var feed = items.take(2)
             fixture.repository.confirm("preview", feed.map { it.artwork to it.fullFingerprint })
@@ -142,9 +144,9 @@ class HomeRefreshTest {
         }
     }
 
-    @Test fun aRefreshedPortraitRemainsCardCompatibleButLeavesHeroAndShelf() = runBlocking(Dispatchers.Default) {
+    @Test fun aRefreshedPortraitRemainsCardCompatibleButLeavesHeroAndShelf() = runTest(main.dispatcher) {
         val bytes = java.util.concurrent.atomic.AtomicReference(fr.sygix.sygixos.data.artworkBytes())
-        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes.get() }).use { fixture ->
+        fr.sygix.sygixos.data.ArtworkFixture(folder.newFolder(), fr.sygix.sygixos.data.ImageBytesReader { _, _ -> bytes.get() }, dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)).use { fixture ->
             val item = heroItem("preview-1", "Fiction", "content://fixture/image", "fixture.app").copy(contentId = "film")
             fixture.repository.confirm("preview", listOf(item.artwork to item.fullFingerprint))
             val home = home(provider { listOf(item) }, artworkRepository = fixture.repository) { _, _ -> null }
@@ -164,7 +166,7 @@ class HomeRefreshTest {
             } finally { home.viewModelScope.coroutineContext[kotlinx.coroutines.Job]?.cancelAndJoin() }
         }
     }
-    @Test fun aChangedImageKeepsItsPreviousPosterUntilTheReplacementIsReady() = runBlocking(Dispatchers.Default) {
+    @Test fun aChangedImageKeepsItsPreviousPosterUntilTheReplacementIsReady() = runTest(main.dispatcher) {
         val initial = heroItem("preview-1", "Fiction", imageUrl = "https://example.invalid/old.jpg", sourcePackage = "fixture.app")
         var feed = listOf(initial)
         val entered = CompletableDeferred<Unit>()
@@ -186,7 +188,7 @@ class HomeRefreshTest {
         assertEquals(1, attempts[replacement])
     }
 
-    @Test fun republishedRowsAndProgressUpdatesDoNotRevalidateImages() = runBlocking(Dispatchers.Default) {
+    @Test fun republishedRowsAndProgressUpdatesDoNotRevalidateImages() = runTest(main.dispatcher) {
         val initial = heroItem("preview-1", "Fiction", imageUrl = "https://example.invalid/one.jpg", sourcePackage = "fixture.app")
         var feed = listOf(initial)
         val home = home(provider { feed }) { _, _ -> null }
@@ -199,7 +201,7 @@ class HomeRefreshTest {
         assertEquals(1, attempts[initial.imageUrl])
     }
 
-    @Test fun lateImagesCannotRepopulateWithdrawnExpiredReplacedOrReusedProgramGenerations() = runBlocking(Dispatchers.Default) {
+    @Test fun lateImagesCannotRepopulateWithdrawnExpiredReplacedOrReusedProgramGenerations() = runTest(main.dispatcher) {
         val testScheduler = programScheduler
         for (event in listOf("withdraw", "expire", "replace", "reuse")) {
             val uri = "https://example.invalid/generation-$event.jpg"
@@ -239,7 +241,7 @@ class HomeRefreshTest {
         }
     }
 
-    @Test fun lateValidationCannotApproveAReplacementWithTheSameRowAndSharedEpisodeArtwork() = runBlocking(Dispatchers.Default) {
+    @Test fun lateValidationCannotApproveAReplacementWithTheSameRowAndSharedEpisodeArtwork() = runTest(main.dispatcher) {
         val uri = "https://example.invalid/shared.jpg"
         val original = heroItem("same-row", "First fiction", imageUrl = uri).copy(episodeArtwork = true)
         var feed = listOf(original)
@@ -299,8 +301,8 @@ class HomeRefreshTest {
     }
 
     private fun viewModel(programs: HeroContentProvider, apps: AppCatalogRepository, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable?) = main.track(HomeViewModel(
-        apps, HeroRepository(programs, provider { emptyList() }), AppArtworkSource(context.packageManager),
-        VisualValidator(context, Loader(respond), Dispatchers.Unconfined).also { it.repository = artworkRepository }, object : ClockSource {
+        apps, HeroRepository(programs, provider { emptyList() }), AppArtworkSource(context.packageManager, main.dispatcher),
+        VisualValidator(context, Loader(respond), main.dispatcher).also { it.repository = artworkRepository }, object : ClockSource {
             override fun current() = ""
             override fun time() = emptyFlow<String>()
         }, FakeUpdateController(), StartupSession().apply { claimColdStart() }, FakeMotionSource(), FakeMascotSource(),
@@ -311,9 +313,8 @@ class HomeRefreshTest {
         programClock = programClock,
     ))
 
-    private suspend fun home(programs: HeroContentProvider, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {
-        context.dataStore.edit { it.clear() }
-        val apps = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
+    private suspend fun TestScope.home(programs: HeroContentProvider, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {
+        val apps = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore()), main.dispatcher)
         val home = viewModel(programs, apps, programClock, artworkRepository, respond)
         artworkRepository?.let { home.observeArtwork(it.events) }
         apps.refreshApps()
@@ -332,7 +333,7 @@ class HomeRefreshTest {
         state.await { (it as? HomeState.Ready)?.hero?.checked?.size == VisualQuality.HERO_VALIDATED }
     }
 
-    @Test fun anUnchangedResumePublishesNothingWhilePackageAndProviderChangesArePublished() = runBlocking(Dispatchers.Default) {
+    @Test fun anUnchangedResumePublishesNothingWhilePackageAndProviderChangesArePublished() = runTest(main.dispatcher) {
         var feed = listOf(heroItem("a", "A").copy(videoUrl = "https://example.invalid/a.mp4"))
         var loads = 0
         val home = home(provider { loads++; feed })
@@ -357,13 +358,13 @@ class HomeRefreshTest {
         watching.cancel()
     }
 
-    @Test fun theHeroIsRereadOnProviderSignalsAndAfterTheTtlOnlyWhileObserved() = runTest {
+    @Test fun theHeroIsRereadOnProviderSignalsAndAfterTheTtlOnlyWhileObserved() = runTest(main.dispatcher) {
         val signals = MutableSharedFlow<Unit>()
         var loads = 0
         val home = viewModel(object : HeroContentProvider {
             override suspend fun load(): List<HeroItem> { loads++; return listOf(heroItem("a", "A")) }
             override fun changes() = signals.onStart { emit(Unit) }
-        }, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))) { _, _ -> broken }
+        }, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore()), main.dispatcher)) { _, _ -> broken }
         advanceTimeBy(HERO_TTL_MS * 2)
         assertEquals(0, loads)
         val watching = backgroundScope.launch { home.heroUpdates.collect() }
@@ -384,7 +385,7 @@ class HomeRefreshTest {
         assertEquals(3, loads)
     }
 
-    @Test fun unpublishedProgramsLeaveTheHeroAndItsValidatedSetsWhileModifiedOnesAreUpdated() = runBlocking(Dispatchers.Default) {
+    @Test fun unpublishedProgramsLeaveTheHeroAndItsValidatedSetsWhileModifiedOnesAreUpdated() = runTest(main.dispatcher) {
         val kept = "https://example.invalid/kept.jpg"
         val gone = "https://example.invalid/gone.jpg"
         val replaced = "https://example.invalid/replaced.jpg"
@@ -398,7 +399,7 @@ class HomeRefreshTest {
         assertEquals(setOf(replaced), home.hero()?.checked)
     }
 
-    @Test fun obsoleteHeroLoadIsCancelledWhenRefreshingAgain() = runBlocking(Dispatchers.Default) {
+    @Test fun obsoleteHeroLoadIsCancelledWhenRefreshingAgain() = runTest(main.dispatcher) {
         val started = CompletableDeferred<Unit>()
         val cancelled = CompletableDeferred<Unit>()
         var calls = 0
@@ -418,7 +419,7 @@ class HomeRefreshTest {
         assertEquals(2, calls)
     }
 
-    @Test fun unreachableVisualsAreRetriedOnRefreshButRejectedOnesAreNot() = runBlocking(Dispatchers.Default) {
+    @Test fun unreachableVisualsAreRetriedOnRefreshButRejectedOnesAreNot() = runTest(main.dispatcher) {
         val offline = "https://example.invalid/offline.jpg"
         val rejected = "https://example.invalid/rejected.jpg"
         val home = home(provider { listOf(heroItem("o", "O", imageUrl = offline), heroItem("r", "R", imageUrl = rejected)) }) { uri, attempt ->
@@ -436,7 +437,7 @@ class HomeRefreshTest {
         assertEquals(mapOf(offline to 2, rejected to 1), attempts)
     }
 
-    @Test fun acceptedYouTubeVariantReplacesThePublishedThumbnail() = runBlocking(Dispatchers.Default) {
+    @Test fun acceptedYouTubeVariantReplacesThePublishedThumbnail() = runTest(main.dispatcher) {
         val published = "https://i.ytimg.com/vi/AAAAAAAAAAA/sddefault.jpg"
         val maxres = "https://i.ytimg.com/vi/AAAAAAAAAAA/maxresdefault.jpg"
         val home = home(provider { listOf(heroItem("y", "Y", imageUrl = published, sourcePackage = "com.y")) }) { uri, _ ->
@@ -450,7 +451,7 @@ class HomeRefreshTest {
         assertEquals(setOf(published, maxres), hero.checked)
     }
 
-    @Test fun interruptedShelfValidationResumesWhenReturningToTheApp() = runBlocking(Dispatchers.Default) {
+    @Test fun interruptedShelfValidationResumesWhenReturningToTheApp() = runTest(main.dispatcher) {
         val uri = "https://example.invalid/a.jpg"
         val home = home(provider { shelfFeed(heroItem("a", "A", imageUrl = uri, sourcePackage = "com.a")) }) { image, attempt ->
             if (image == uri && attempt == 1) awaitCancellation()
@@ -465,7 +466,7 @@ class HomeRefreshTest {
         assertEquals(2, attempts[uri])
     }
 
-    @Test fun theShelfOfTheFocusedAppFollowsTheRepublishedPrograms() = runBlocking(Dispatchers.Default) {
+    @Test fun theShelfOfTheFocusedAppFollowsTheRepublishedPrograms() = runTest(main.dispatcher) {
         val stale = "https://example.invalid/a1.jpg"
         val fresh = "https://example.invalid/a2.jpg"
         var feed = shelfFeed(heroItem("a1", "A1", imageUrl = stale, sourcePackage = "com.a"))

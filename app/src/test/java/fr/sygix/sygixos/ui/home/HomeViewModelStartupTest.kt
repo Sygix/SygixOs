@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import fr.sygix.sygixos.inlineDataStore
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import coil.ComponentRegistry
@@ -69,7 +70,7 @@ class HomeViewModelStartupTest {
     val mainDispatcher = MainDispatcherRule()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(context))
+    private val repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(inlineDataStore()), mainDispatcher.dispatcher)
 
     private fun TestScope.viewModel(
         session: StartupSession,
@@ -78,8 +79,8 @@ class HomeViewModelStartupTest {
     ) = mainDispatcher.track(HomeViewModel(
         apps = repo,
         hero = HeroRepository(EmptyFeed(), EmptyFeed()),
-        artwork = AppArtworkSource(context.packageManager),
-        validator = VisualValidator(context, NoImageLoader()),
+        artwork = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
+        validator = VisualValidator(context, NoImageLoader(), mainDispatcher.dispatcher),
         clockSource = object : ClockSource {
             override fun current() = ""
             override fun time() = emptyFlow<String>()

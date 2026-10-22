@@ -20,9 +20,9 @@ import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 import java.util.concurrent.atomic.AtomicInteger
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.async
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Rule
@@ -44,7 +44,7 @@ class UpNextArtworkRenderTest {
     @After fun close() { coil.Coil.reset(); cleanup.reversed().forEach { it() } }
 
     private fun render(read: ImageBytesReader, items: List<UpNextItem> = listOf(item), onRendered: (coil.request.SuccessResult) -> Unit = {}): ArtworkFixture {
-        val fixture = ArtworkFixture(folder.newFolder(), read, onRendered = onRendered)
+        val fixture = ArtworkFixture(folder.newFolder(), read, onRendered = onRendered, dispatcher = kotlinx.coroutines.Dispatchers.Main.immediate)
         cleanup += fixture::close
         coil.Coil.setImageLoader(fixture.loader)
         compose.setContent { CompositionLocalProvider(LocalProgramArtwork provides fixture.repository) {
@@ -86,8 +86,9 @@ class UpNextArtworkRenderTest {
         fixture.now.addAndGet(ArtworkAge.FRESH_MS)
         served.set(artworkBytes(1280, 720))
         compose.onNodeWithTag(placeholder()).assertDoesNotExist()
-        runBlocking { fixture.repository.checkExpiry() }
-        compose.waitUntil(5_000) { compose.waitForIdle(); reads.get() >= 2 && rendered.get() != firstVersion }
+        val expiry = kotlinx.coroutines.MainScope().launch { fixture.repository.checkExpiry() }
+        cleanup += { expiry.cancel() }
+        compose.waitUntil(5_000) { compose.waitForIdle(); expiry.isCompleted && reads.get() >= 2 && rendered.get() != firstVersion }
         compose.onNodeWithTag(placeholder()).assertDoesNotExist()
         fixture.repository.onForeground()
         compose.waitForIdle()
@@ -104,13 +105,12 @@ class UpNextArtworkRenderTest {
         val pixels = artworkBytes()
         val fixture = render(ImageBytesReader { _, _ -> pixels }, listOf(episode))
         compose.waitUntil(5_000) { compose.onAllNodesWithTag(placeholder(episode)).fetchSemanticsNodes().isEmpty() }
-        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
-        cleanup += { scope.cancel() }
-        val prepared = scope.async {
+        val prepared = kotlinx.coroutines.MainScope().async {
             assertNotNull(fixture.repository.resolve(watchNext.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Hero).first)
             assertNotNull(fixture.repository.resolve(preview.artwork, fr.sygix.sygixos.domain.ArtworkPolicy.Shelf(640)).first)
             fixture.repository.checkExpiry()
         }
+        cleanup += { prepared.cancel() }
         compose.waitUntil(5_000) { compose.waitForIdle(); prepared.isCompleted }
         runBlocking { prepared.await() }
         compose.waitForIdle()
