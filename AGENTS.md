@@ -4,11 +4,11 @@
 SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pour remplacer le launcher Google TV. Propriétaire : Sygix. Langue UI : français.
 
 ## Feuille de route
-- P3 — Logo et écran de démarrage animé : livré (v0.0.1) ; cadence de la mascotte en suivi
-- P4 — Mises à jour intégrées depuis les releases GitHub : livré (v0.0.1) ; relance au premier plan bloquée par le constructeur, reprise manuelle, résolution différée à P5
-- P5 — Remplacement du launcher système : livré (v0.1.0-rc.2), archivé (`archive/2026-10-11-p5-real-launcher`) ; ouverture à l'allumage non vérifiable sur la TV de référence (gestionnaire d'auto-démarrage du constructeur), relance après mise à jour toujours en suivi (backlog, sujet 9) ; procédure ADB manuelle conservée dans le README
+- P3 — Logo et écran de démarrage animé : livré (v0.0.1) ; cadence de la mascotte acceptée
+- P4 — Mises à jour intégrées depuis les releases GitHub : livré (v0.0.1) ; relance après mise à jour validée sur la TV de référence avec SygixOs en écran d'accueil par défaut
+- P5 — Remplacement du launcher système : livré (v0.1.0-rc.2), archivé (`archive/2026-10-11-p5-real-launcher`) ; procédure ADB manuelle conservée dans le README
 - P6 — Rangée Up Next : livrée (v0.1.0-rc.2), archivée avec `jellyfin-tvprovider-only` (`archive/2026-10-11-up-next`, `archive/2026-10-11-jellyfin-tvprovider-only`)
-- P7 — Écran d'accueil par défaut : configuration automatique par l'ADB local de la TV (démarrage du constructeur, écran d'accueil, désactivation de l'accueil d'origine si nécessaire) ou par autorisations ; livré, archivé (`archive/2026-10-17-p7-default-launcher`), validation sur la TV de référence encore à faire ; suite : parcours simplifié, troisième façon par Tsuyu installé depuis la TV, réparation automatique, livrée dans v0.3.0-rc.1 et archivée (`archive/2026-10-18-tsuyu-home-setup`), validation TV en attente
+- P7 — Écran d'accueil par défaut : configuration automatique par l'ADB local de la TV (démarrage du constructeur, écran d'accueil, désactivation de l'accueil d'origine si nécessaire) ou par autorisations ; livré et archivé (`archive/2026-10-17-p7-default-launcher`) ; suite : parcours simplifié, troisième façon par Tsuyu installé depuis la TV, réparation automatique, livrée dans v0.3.0-rc.1 et archivée (`archive/2026-10-18-tsuyu-home-setup`) ; validés sur la TV de référence
 - P8 — Recherche : planifié
 - P9 — BetaSeries (OAuth) : planifié
 - P10 — Remappage des boutons de la télécommande : à spécifier
@@ -19,7 +19,7 @@ Les archives historiques (`openspec/changes/archive/`) conservent leur numérota
 - Passer par les skills OpenSpec (`openspec-propose`, `openspec-apply-change`, `openspec-verify-change`, `openspec-archive-change`…) : ils appellent `openspec instructions`, qui applique les règles du repo ; ne pas rédiger les documents d'un change à la main sans eux
 - Exigences courantes par capability : `openspec/specs/<capability>/spec.md`
 - Toute feature ou changement de comportement : créer d'abord `openspec/changes/<id>/proposal.md` (+ `tasks.md` et deltas dans `specs/`), le faire valider, puis implémenter, puis archiver dans `changes/archive/`
-- Ne jamais éditer `openspec/specs/` directement ; les specs courantes évoluent uniquement via des changes implémentés
+- Les specs courantes (`openspec/specs/`) se mettent à jour directement quand le comportement ne change pas : rédaction, renvois, découpage pour `openspec validate --strict`, alignement sur un comportement déjà livré et validé ; un nouveau comportement passe par un change
 - Avant d'ouvrir ou de mettre à jour une PR de feature : `openspec-verify-change` sur le change et `./gradlew test` ; ne cocher une tâche ou déclarer un point de review traité qu'après vérification
 - Après merge et validation sur la TV : `openspec archive <id>`
 

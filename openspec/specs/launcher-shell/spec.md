@@ -265,7 +265,7 @@ L'ordre des apps et les épinglages SHALL être persistés localement (DataStore
 - **THEN** l'ordre d'avant le déplacement est restauré
 
 ### Requirement: Contenu héro TV Provider
-Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission système de lecture. Toute colonne absente ou vide SHALL retirer seulement l'élément concerné. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, relus au changement signalé et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; une relecture sans changement ne republie rien. Un programme SHALL être reconnu par son empreinte de contenu, indépendante de l'identifiant de ligne du provider et de sa progression ; le héro n'enchaîne que les programmes admis par « Diaporama héro ».
+Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission `READ_TV_LISTINGS` ; une colonne absente ou vide ne retire que son élément. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, relus selon « rafraîchissement automatique ». Un programme SHALL être reconnu par son empreinte de contenu, indépendante de son identifiant de ligne et de sa progression. Le héro n'enchaîne que les programmes admis par « Diaporama héro ».
 
 #### Scenario: permission
 - **WHEN** le launcher démarre sans `android.permission.READ_TV_LISTINGS`
@@ -420,7 +420,7 @@ Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro 
 - **THEN** sa lecture est interrompue et ses animations arrêtées conformément à « Préchargement et mémoire » (scénario « économie de ressources ») et « Fond vidéo de secours » ; son lecteur vidéo n'est pas libéré
 
 ### Requirement: Diaporama héro
-Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec des transitions à la tvOS et un bouton d'ouverture focusable. En-tête, ligne d'infos, progression et bouton SHALL toujours correspondre au programme affiché et changer avec son média. Un programme SHALL entrer dans le diaporama quand sa vidéo d'aperçu ou un visuel accepté par la politique du héro est prêt, ou quand la récupération de ses images a échoué (média de secours) ; un programme sans vidéo dont toutes les candidates sont refusées par la qualité ou reconnues comme images génériques SHALL en être écarté.
+Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec un bouton d'ouverture focusable ; en-tête, infos, progression et bouton SHALL correspondre au programme affiché et changer avec son média. Un programme SHALL y entrer quand sa vidéo d'aperçu ou un visuel accepté par la politique du héro est prêt, ou sur son média de secours quand ses images ont échoué ; un programme sans visuel acceptable SHALL en être écarté.
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
