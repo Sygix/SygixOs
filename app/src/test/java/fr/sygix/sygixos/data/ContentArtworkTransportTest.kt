@@ -166,13 +166,17 @@ class ContentArtworkTransportTest {
     private fun checkBlocked() = runBlocking {
         ArtworkScheduler(executors = timer.executors(3)).use { scheduler ->
             val cancellation = ImageCancellation()
+            val cancelled = CountDownLatch(1)
             try {
-                val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) { scheduler.run("fixture", 2_000, cancellation::cancel) { transport.read(uri, cancellation) } }
+                val pending = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                    scheduler.run("fixture", 2_000, { cancellation.cancel(); cancelled.countDown() }) { transport.read(uri, cancellation) }
+                }
                 assertTrue(entered.await(30, TimeUnit.SECONDS))
                 timer.awaitScheduled(1)
                 timer.advance(2_000)
                 val result = withTimeout(30_000) { pending.await() }
                 assertTrue(result.exceptionOrNull() is TimeoutException)
+                assertTrue(cancelled.await(30, TimeUnit.SECONDS))
             } finally { release.countDown() }
             assertTrue(closed.await(30, TimeUnit.SECONDS))
             if (!blockOpen) assertTrue(streamClosed.await(30, TimeUnit.SECONDS))
