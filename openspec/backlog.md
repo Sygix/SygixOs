@@ -1,8 +1,27 @@
-# Suivi : sujets reportés après v0.0.1
+# Suivi des anomalies et travaux reportés
 
-Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot pour ne pas bloquer la release publique. Aucun n'est spécifié ni tranché : chacun deviendra un change OpenSpec (`openspec/changes/<id>/`) ou sera rattaché à un change existant au moment de son traitement. Les pistes ci-dessous sont des hypothèses de travail, pas des décisions.
+Dernière revue : **22 octobre 2026**, sur `main` à `97d87b1`, après la publication de **v0.3.2**. Aucun change actif, aucune PR ni issue ouverte lors de cette revue. Les numéros des sujets sont conservés pour les références historiques.
+
+Les constats et pistes historiques ci-dessous ne remplacent pas les specs courantes. Lorsqu'un sujet a été spécifié ou livré depuis, son état actualisé le précise. Les sujets sans nouvelle mesure restent ouverts, sans présumer que leur anomalie est encore reproductible.
+
+| Sujet | État à la revue |
+| --- | --- |
+| 1. Fournisseurs d'images lents | Solution livrée en v0.3.2 ; nouveau signalement de disparition d'images suivi au sujet 14. |
+| 2. Cadence de la mascotte | Écart accepté ; nouvelle mesure TV nécessaire. |
+| 4. Tests instables | Toujours ouvert ; échec CI actuel précisé ci-dessous. |
+| 5–6. Synchronisation du héro | Implémentation remaniée et tests présents ; scénarios historiques précis à revérifier sur TV. |
+| 7–8. Fluidité | Mesures historiques à renouveler après les optimisations livrées. |
+| 9. Relance après mise à jour | Toujours ouvert ; configuration du launcher livrée, résultat après mise à jour à vérifier. |
+| 10–11. Guidage d'installation et QR | Toujours ouverts. |
+| 12. Documentation post-v0.0.1 | Terminé ; détail historique conservé ci-dessous. |
+| 13. Autorisation constructeur | Reporté, à reprendre seulement sur un appareil concerné. |
+| 14. Disparition des images Jellyfin | Cause reproduite, correctif testé et validé sur TV ; intégration en attente. |
+| 15. Configuration du launcher | Validations TV restantes à consigner. |
+| 16. Validation OpenSpec stricte | Deux avertissements préexistants dans `launcher-shell` font échouer le mode strict. |
 
 ## 1. Visuels du héro servis par un fournisseur `content://` lent
+
+**État actualisé** : traité par `archive/2026-10-21-hero-shuffle-image-provider`, révision livrée en v0.3.2 : chargement Coil commun, index Room, une lecture par app et trois au total, priorité aux demandes visibles, délai de 8 s à partir de la lecture réelle (hors attente en file), cache et reprises ciblées. Ces valeurs sont désormais spécifiées, contrairement aux questions historiques ci-dessous. L'archivage rapporte une validation TV confirmée par le propriétaire sans relevé détaillé. La disparition intermittente nouvellement signalée est suivie au sujet 14.
 
 **Constat** : certaines apps publient leurs visuels sous forme d'URI `content://` servies par leur propre fournisseur. Avec le client Jellyfin, la vérification d'une image prend environ 5 à 6 s et son chargement environ 11 s, contre moins de 0,5 s pour les images HTTPS publiées par d'autres apps. Les visuels étant vérifiés l'un après l'autre (« Préchargement et mémoire », scénario « validation au chargement »), une app lente retarde la vérification des visuels de toutes les apps, donc le premier visuel prêt du héro, que l'écran de démarrage attend dans la limite de son plafond (« Écran de démarrage »).
 
@@ -24,6 +43,10 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 ## 4. Tests Robolectric des réglages instables sous forte charge
 
+**État actualisé** : plusieurs corrections de synchronisation et d'isolation ont été livrées depuis ce constat. La dernière CI de `main` n'est toutefois pas verte : [run 39695972888](https://github.com/Sygix/SygixOs/actions/runs/39695972888), 1 échec sur 1 090 tests, `HomeViewModelSourceToggleTest` / `re-enabling a source re-prepares the shelf of the focused app on the recomputed hero` (`TimeoutCancellationException`, puis `UncaughtExceptionsBeforeTest`). Le run précédent passait ; cela ne suffit pas à établir la cause ni à classer ce nouvel échec comme simple instabilité de charge.
+
+**Vérification locale du 22 octobre** : la suite complète après le correctif du sujet 14 passe avec 1 093 tests, aucun échec ni test ignoré, dont ce test de réactivation. Sa cause d'échec en CI reste à déterminer.
+
 **Constat** : sous forte charge de la machine de build, des tests des réglages échouent par dépassement de délai (`HiddenPaneTest`, `SettingsNavigationTest`, `SettingsViewModelTest`). Ils passent de façon stable en CI.
 
 **Piste** : rendre ces tests déterministes, sans dépendance au temps réel ni à la vitesse de la machine (horloge de test, attente d'un état plutôt que d'un délai).
@@ -32,6 +55,8 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 ## 5. Bouton du héro en avance sur le visuel au changement de programme
 
+**État actualisé** : le bouton fait maintenant partie du `SequentialFade` des textes ; le héro dispose d'un programme affiché distinct de la cible et de tests de synchronisation (`HeroVisualSyncTest`). Le constat rc.7 ne décrit donc plus exactement le code actuel. Le clic pendant le fondu reste à revérifier sur appareil avant clôture de ce sujet.
+
 **Constat** : au test TV de la rc.7, au début d'un changement de programme, le libellé et la cible du bouton du héro changent d'un coup, 100 à 170 ms avant le nouveau visuel. Pendant environ 0,6 s, l'ancien titre s'affiche avec le verbe du programme suivant (« Ouvrir » ou « Reprendre »), et un appui sur le bouton ouvre alors le programme suivant (2 passages sur 12). « Diaporama héro » prévoit que le bouton change avec le visuel, jamais avant, et ouvre le programme dont le visuel est affiché. Cause probable : dans `HeroOverlay` (`ui/hero/HeroStage.kt`), `HeroOpenButton` est hors du `SequentialFade` qui porte le titre et suit directement le programme cible du changement.
 
 **Piste** : le bouton (libellé et cible de l'ouverture) suit le même fondu et la même source de vérité que le titre, pour qu'un appui ouvre toujours le programme dont le titre est affiché.
@@ -39,6 +64,8 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 **À trancher** : comportement du bouton pendant le fondu des textes (libellé qui suit le fondu du titre ou qui change à un instant précis ; appui pendant le fondu qui ouvre le programme sortant, le programme entrant ou qui est ignoré), et le test qui couvrira ce cas.
 
 ## 6. Textes du héro avant le visuel au premier lancement après installation
+
+**État actualisé** : l'attente des images, les replis et le retour au premier plan ont été remaniés en v0.3.2 ; tests dans `HeroVisualSyncTest`, `HeroVisualReadyTest` et `HomeRefreshTest`. Le rapport archivé confirme des parcours de premier lancement sur émulateur, mais pas ce scénario temporel précis sur TV réelle. À recontrôler avant clôture.
 
 **Constat** : au test TV de la rc.7, au premier lancement qui suit l'installation, le titre, la ligne d'infos et le bouton du héro s'affichent environ 0,9 s sur un fond vide avant le visuel. Non reproduit aux démarrages suivants. « Diaporama héro » prévoit des textes qui changent avec le visuel, et « Écran de démarrage » attend le premier visuel du héro, dans la limite de 2 s, avant de révéler l'accueil.
 
@@ -81,6 +108,8 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 **Suite P5 (2026-10-11)** : P5 est livré dans v0.1.0-rc.2 et archivé sans relevé de la relance après mise à jour avec le rôle HOME (tâche 1.4 de `p5-real-launcher`, laissée ouverte) ; aucun nouveau mécanisme de relance (décision 31). Le sujet reste ouvert.
 
+**État actualisé** : la configuration par ADB local et le parcours Tsuyu sont livrés et archivés (`2026-10-17-p7-default-launcher`, `2026-10-18-tsuyu-home-setup`). Attendre la livraison du remplacement du launcher n'est plus une prochaine étape ; il reste à mesurer la relance après une mise à jour intégrée avec la configuration effective de la TV.
+
 ## 10. Guidage vers l'autorisation « Installer des applis inconnues »
 
 **Constat** : sur la TV TCL de référence, l'écran système ouvert par `MANAGE_UNKNOWN_APP_SOURCES` affiche la liste générale des apps et non la page de SygixOs ; la liste paraît vide une à quatre secondes, puis le focus tombe sur l'interrupteur d'une autre app (une pression réflexe sur OK change l'autorisation de cette autre app).
@@ -113,7 +142,7 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 
 **Acceptation historique** : le 6 octobre 2026, Sygix a confirmé « J’ai aussi validé ces anciens changes sur la TV » pour le polish, le démarrage, les mises à jour intégrées et rc5/rc6 ; sa confirmation antérieure couvre `startup-fade-back`. Il s'agit d'une acceptation rapportée par le propriétaire, pas de tests exécutés par l'agente, ni de nouvelles mesures. Les tâches historiques exigeant un relevé ou une consignation détaillée restent non cochées dans les archives, avec cette réserve explicite. La cadence de la mascotte reste un écart accepté (sujet 2) ; la relance après mise à jour reste reportée (sujet 9).
 
-**Reste documentaire** : autorisation de la mise à jour protégée de `AGENTS.md`, publication de la PR, relecture indépendante et CI sur son SHA exact ; aucun nouveau choix produit.
+**État actualisé : terminé.** Les étapes ci-dessus décrivent le lot historique. Up Next et `jellyfin-tvprovider-only` ont depuis été livrés et archivés le 11 octobre ; la configuration du launcher et son parcours Tsuyu le sont également. Le README reflète v0.3.2 et sa roadmap n'utilise plus de numéros de phase. Aucun change actif ne reste dans `openspec/changes/` à la date de revue.
 
 ## 13. Autorisation de démarrage du constructeur réinitialisée au démarrage
 
@@ -124,3 +153,29 @@ Sujets constatés pendant la préparation de v0.0.1 et reportés au prochain lot
 - sinon, réaccorder `AUTO_START` à chaque configuration relancée, ce que P7 permet déjà.
 
 **Décision du propriétaire** : retiré de P7 le 2026-10-13 ; à reprendre seulement si une TV réinitialise `AUTO_START`.
+
+## 14. Images Jellyfin affichées puis retirées
+
+**Signalement du 22 octobre 2026** : des images apparaissent dans « À suivre », puis disparaissent alors que le serveur répond. Les autres zones utilisant le même chargement doivent être vérifiées. La TV de référence exécute v0.3.2.
+
+**Cause confirmée** : les épisodes Jellyfin observés ne publient pas de `series_id`. Le même épisode est représenté par plusieurs identités de publication (carte « À suivre », programme Watch Next du héro, programme Preview), qui étaient comptées comme autant de films ou séries distincts en l'absence de `sharedIdentity`. Au troisième comptage des mêmes octets, l'image était rejetée comme générique et un événement `QUALITY` retirait les visuels déjà affichés. La lecture directe du fournisseur a pourtant confirmé des images de 1 280 × 720 à 3 840 × 2 160 pour les quatre cartes concernées.
+
+**Correctif vérifié** : seules les identités de film ou de série renseignées contribuent au seuil de trois ; une identité de publication inconnue ne prouve pas une série distincte. Les rejets déjà persistés sans cette preuve sont relus immédiatement si leurs dimensions passent une politique, puis validés normalement avant réaffichage. Les vrais génériques associés à trois identités connues restent rejetés. Aucun effacement global du cache ni des données utilisateur.
+
+**Preuves automatisées** : `ArtworkRepositoryTest.publicationsWithoutASeriesIdDoNotProveDistinctSeries` et `previouslyMisclassifiedPublicationsRecoverWithoutWaitingForGenericRetry` échouent avant le correctif et passent après. `UpNextArtworkRenderTest.jellyfinStyleEpisodeStaysVisibleWhenHeroAndPreviewUseTheSameArtworkWithoutSeriesId` couvre le rendu réel de la carte pendant les résolutions des deux autres publications. Suite complète : **1 093 tests réussis** ; `assembleRelease` réussi.
+
+**Validation sur TV Google TV sous Android 14** : avant remplacement, deux des quatre cartes Jellyfin avaient perdu leur image. Après installation de la release corrigée par-dessus v0.3.2, les quatre affichent leur image sans réinitialisation. Vérification répétée plusieurs heures après, après navigation vers le Top Shelf Jellyfin, retour des réglages système et redémarrage du processus de SygixOs : les quatre images restent visibles. Le Top Shelf affiche et fait tourner des visuels Jellyfin ; une des images auparavant absentes s'affiche également dans le héro. Aucun journal `ProgramArtwork` ou `AndroidRuntime` n'a été relevé pour le nouveau processus pendant le dernier parcours. Ces essais ne constituent pas une mesure de fluidité ni une validation de démarrage à froid de la TV.
+
+**État** : correctif validé localement et sur appareil, intégration en attente.
+
+## 15. Validations TV du parcours de configuration du launcher
+
+**État** : `p7-default-launcher` et `tsuyu-home-setup` sont livrés et archivés ; `AGENTS.md` conserve explicitement les validations sur la TV de référence en attente. Les résultats sur émulateur ne remplacent pas ces essais.
+
+**À consigner** : configuration via l'ADB local et via Tsuyu, retour à l'accueil par la télécommande, persistance après redémarrage et réparation sur symptôme. Le test de mise à jour intégrée et de relance reste suivi séparément au sujet 9.
+
+## 16. Avertissements bloquant la validation OpenSpec stricte
+
+**Constat du 22 octobre 2026** : `openspec validate --all --strict` valide sept specs sur huit. `launcher-shell` échoue à cause de deux textes d'exigence de plus de 500 caractères (`requirements[9]` et `requirements[14]`). Ces textes sont déjà présents dans `main` à `97d87b1` et ne sont pas modifiés par le correctif du sujet 14.
+
+**Suite** : reprendre leur rédaction via le workflow OpenSpec, en plaçant les détails dans des scénarios ou en séparant les comportements sans modifier le contrat.
