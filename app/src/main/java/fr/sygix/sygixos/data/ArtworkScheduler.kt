@@ -7,6 +7,7 @@ package fr.sygix.sygixos.data
 
 import java.io.Closeable
 import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadFactory
@@ -15,14 +16,33 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.CompletableDeferred
 
+internal class ArtworkExecutors(
+    val workers: Executor,
+    val cancellations: Executor,
+    val schedule: (Long, Runnable) -> () -> Unit,
+    val shutdown: () -> Unit,
+) {
+    companion object {
+        fun threads(parallelism: Int): ArtworkExecutors {
+            val threads = ThreadFactory { task -> Thread(task, "artwork-worker").apply { isDaemon = true } }
+            val workers = Executors.newFixedThreadPool(parallelism, threads)
+            val deadlines = ScheduledThreadPoolExecutor(1, threads).apply { removeOnCancelPolicy = true }
+            val cancellations = ThreadPoolExecutor(2, 2, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(64), threads, ThreadPoolExecutor.DiscardPolicy())
+            return ArtworkExecutors(
+                workers = workers,
+                cancellations = cancellations,
+                schedule = { delay, action -> deadlines.schedule(action, delay, TimeUnit.MILLISECONDS).let { future -> { future.cancel(false); Unit } } },
+                shutdown = { deadlines.shutdownNow(); workers.shutdownNow(); cancellations.shutdownNow() },
+            )
+        }
+    }
+}
+
 internal class ArtworkScheduler(
     private val parallelism: Int = 3,
     private val capacity: Int = 64,
+    private val executors: ArtworkExecutors = ArtworkExecutors.threads(parallelism),
 ) : Closeable {
-    private val threads = ThreadFactory { task -> Thread(task, "artwork-worker").apply { isDaemon = true } }
-    private val workers = Executors.newFixedThreadPool(parallelism, threads)
-    private val deadlines = ScheduledThreadPoolExecutor(1, threads).apply { removeOnCancelPolicy = true }
-    private val cancellations = ThreadPoolExecutor(2, 2, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(64), threads, ThreadPoolExecutor.DiscardPolicy())
     private val pending = mutableListOf<Work<*>>()
     private val active = mutableSetOf<String>()
     private val quarantined = mutableSetOf<String>()
@@ -32,7 +52,7 @@ internal class ArtworkScheduler(
     private class Work<T>(val app: String, val key: String?, val timeoutMillis: Long, var priority: Boolean, val cancel: () -> Unit, val read: () -> T) {
         val result = CompletableDeferred<Result<T>>()
         var started = false
-        var timeout: java.util.concurrent.ScheduledFuture<*>? = null
+        var timeout: (() -> Unit)? = null
     }
 
     @Synchronized fun promote(key: String) { pending.filter { it.key == key }.forEach { it.priority = true } }
@@ -47,13 +67,13 @@ internal class ArtworkScheduler(
             pump()
         }
         return try { work.result.await() } finally {
-            work.timeout?.cancel(false)
+            work.timeout?.invoke()
             synchronized(this) {
                 if (!work.result.isCompleted) {
                     work.result.cancel()
                     pending.remove(work)
                     if (work.started) quarantined += work.app
-                    cancellations.execute(work.cancel)
+                    executors.cancellations.execute(work.cancel)
                 }
             }
         }
@@ -63,7 +83,7 @@ internal class ArtworkScheduler(
         if (work.result.complete(Result.failure(TimeoutException("Artwork deadline exceeded")))) {
             pending.remove(work)
             if (work.started) quarantined += work.app
-            cancellations.execute(work.cancel)
+            executors.cancellations.execute(work.cancel)
         }
     }
 
@@ -82,12 +102,12 @@ internal class ArtworkScheduler(
         active += work.app
         lastApp = work.app
         work.started = true
-        workers.execute {
+        executors.workers.execute {
             try {
-                work.timeout = deadlines.schedule({ expire(work) }, work.timeoutMillis.coerceAtLeast(1), TimeUnit.MILLISECONDS)
+                work.timeout = executors.schedule(work.timeoutMillis.coerceAtLeast(1)) { expire(work) }
                 if (!work.result.isCompleted) work.result.complete(runCatching(work.read))
             } finally {
-                work.timeout?.cancel(false)
+                work.timeout?.invoke()
                 synchronized(this) {
                     active -= work.app
                     quarantined -= work.app
@@ -102,9 +122,7 @@ internal class ArtworkScheduler(
         closed = true
         pending.forEach { it.result.complete(Result.failure(ArtworkBusyException())) }
         pending.clear()
-        deadlines.shutdownNow()
-        workers.shutdownNow()
-        cancellations.shutdownNow()
+        executors.shutdown()
     }
 }
 

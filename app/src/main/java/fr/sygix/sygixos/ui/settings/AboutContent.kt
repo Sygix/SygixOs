@@ -50,7 +50,7 @@ import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.util.withJson
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
+import fr.sygix.sygixos.ui.LocalBackgroundDispatcher
 import kotlinx.coroutines.withContext
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.SygixColors
@@ -151,8 +151,9 @@ private var parsedLicences: Libs? = null
 @Composable
 private fun rememberLicences(): Libs? {
     val context = LocalContext.current
+    val background = LocalBackgroundDispatcher.current
     return produceState(parsedLicences) {
-        if (value == null) value = withContext(Dispatchers.IO) { Libs.Builder().withJson(context, R.raw.aboutlibraries).build() }.also { parsedLicences = it }
+        if (value == null) value = withContext(background) { Libs.Builder().withJson(context, R.raw.aboutlibraries).build() }.also { parsedLicences = it }
     }.value
 }
 

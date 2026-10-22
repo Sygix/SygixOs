@@ -10,6 +10,7 @@ import fr.sygix.sygixos.domain.RemovedUpNextContent
 import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextPosition
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ data class Catalog(val dock: List<TvApp>, val grid: List<TvApp>)
 class AppCatalogRepository(
     private val appsSource: InstalledAppsSource,
     private val prefs: LauncherPrefs,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val installed = MutableStateFlow<List<TvApp>?>(null)
 
@@ -56,7 +58,7 @@ class AppCatalogRepository(
         if (installed.value == null) {
             prefs.cachedApps.first().takeIf { it.isNotEmpty() }?.let { installed.value = it }
         }
-        val fresh = withContext(Dispatchers.IO) { runCatching { appsSource.load() }.getOrDefault(emptyList()) }
+        val fresh = withContext(io) { runCatching { appsSource.load() }.getOrDefault(emptyList()) }
         if (fresh != installed.value && (fresh.isNotEmpty() || installed.value == null)) {
             installed.value = fresh
             prefs.setCachedApps(fresh)

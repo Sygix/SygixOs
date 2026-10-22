@@ -15,6 +15,7 @@ import fr.sygix.sygixos.domain.ArtworkPolicy
 import fr.sygix.sygixos.model.ProgramArtwork
 import java.io.Closeable
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -46,7 +47,9 @@ internal class ArtworkRepository(
     private val reader: ImageBytesReader,
     private val scheduler: ArtworkScheduler = ArtworkScheduler(),
     private val clock: () -> Long = System::currentTimeMillis,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val decode: CoroutineDispatcher = ArtworkDecodeDispatcher,
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + io),
     private val cardWidth: Int = 396,
     private val requestTimeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS,
     private val localReader: ImageBytesReader = LocalProgramImageReader(context.contentResolver),
@@ -93,7 +96,7 @@ internal class ArtworkRepository(
         } }
     }
 
-    suspend fun resolve(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean = true): Pair<ArtworkImage?, ArtworkFailure?> = withContext(Dispatchers.IO) {
+    suspend fun resolve(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean = true): Pair<ArtworkImage?, ArtworkFailure?> = withContext(io) {
         initialized.await()
         var failure = ArtworkFailure.ABSENT
         for (uri in source.candidates.flatMap(::visualCandidates).distinct()) {
@@ -127,7 +130,7 @@ internal class ArtworkRepository(
         val cancellation = ImageCancellation()
         val result = scheduler.run(source.packageName, requestTimeoutMillis, cancellation::cancel) { localReader.read(Uri.parse(uri), cancellation) }
         val bytes = result.getOrElse { return null to if (it is java.util.concurrent.TimeoutException) ArtworkFailure.TIMEOUT else ArtworkFailure.TRANSPORT }
-        val dimensions = try { withContext(ArtworkDecodeDispatcher) { verifiedDimensions(bytes) } }
+        val dimensions = try { withContext(decode) { verifiedDimensions(bytes) } }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { return null to ArtworkFailure.QUALITY }
         if (!policy.accepts(dimensions)) return null to ArtworkFailure.QUALITY
@@ -206,7 +209,7 @@ internal class ArtworkRepository(
                 val old = dao.image(source.packageName, uri)
                 val matching = dao.matching(source.packageName, hash)
                 val measured = matching.firstOrNull { it.width > 0 && it.height > 0 }
-                val dimensions = measured?.let { ArtworkDimensions(it.width, it.height) } ?: withContext(ArtworkDecodeDispatcher) { verifiedDimensions(bytes) }
+                val dimensions = measured?.let { ArtworkDimensions(it.width, it.height) } ?: withContext(decode) { verifiedDimensions(bytes) }
                 val image = ArtworkImage(imageId(source, uri), source.packageName, uri, uri, dimensions.width, dimensions.height, hash, clock(), "valid")
                 val identities = matching.flatMap { dao.associations(it.id) }.mapNotNull { it.sharedIdentity }.toSet() +
                     listOfNotNull(source.sharedIdentity?.let(::artworkHash))
@@ -296,7 +299,7 @@ internal class ArtworkRepository(
     fun onForeground() { foreground = true; scope.launch { initialized.await(); checkExpiry() } }
     @Synchronized fun onBackground() { foreground = false; refreshes.values.forEach { it.cancel() }; refreshes.clear() }
 
-    suspend fun confirm(table: String, programs: List<Pair<ProgramArtwork, String>>) = withContext(Dispatchers.IO) {
+    suspend fun confirm(table: String, programs: List<Pair<ProgramArtwork, String>>) = withContext(io) {
         initialized.await()
         val previous = dao.programs(table).map { it.imageFingerprint }.toSet()
         val now = clock()

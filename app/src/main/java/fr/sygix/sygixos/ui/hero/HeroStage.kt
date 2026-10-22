@@ -84,7 +84,7 @@ import fr.sygix.sygixos.domain.HeroCaption
 import fr.sygix.sygixos.domain.HeroDetails
 import fr.sygix.sygixos.domain.HeroHeader
 import fr.sygix.sygixos.model.ProgramKind
-import kotlinx.coroutines.Dispatchers
+import fr.sygix.sygixos.ui.LocalBackgroundDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.async
@@ -586,8 +586,9 @@ private fun HeroMetadata(item: HeroItem, icons: AppIconCache) {
 private fun HeroHeaderRow(item: HeroItem, icons: AppIconCache) {
     val header = HeroCaption.header(item)
     val pkg = item.sourcePackage
+    val background = LocalBackgroundDispatcher.current
     val icon by produceState(initialValue = pkg?.let(icons::cached), pkg, icons) {
-        if (value == null && pkg != null) value = withContext(Dispatchers.IO) { icons.get(pkg) }
+        if (value == null && pkg != null) value = withContext(background) { icons.get(pkg) }
     }
     val label = header?.let { headerText(it) }
     val bitmap = icon

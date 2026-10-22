@@ -76,7 +76,7 @@ import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.ui.home.rememberAppArtwork
-import kotlinx.coroutines.Dispatchers
+import fr.sygix.sygixos.ui.LocalBackgroundDispatcher
 import kotlinx.coroutines.withContext
 
 internal val LocalAppIcons = staticCompositionLocalOf<AppIconCache?> { null }
@@ -474,8 +474,9 @@ private fun AppIcon(packageName: String) {
     val context = LocalContext.current
     val provided = LocalAppIcons.current
     val icons = remember(provided) { provided ?: AppIconCache.forPackageManager(context.packageManager) }
+    val background = LocalBackgroundDispatcher.current
     val icon by produceState(initialValue = icons.cached(packageName), packageName, icons) {
-        if (value == null) value = withContext(Dispatchers.IO) { icons.get(packageName) }
+        if (value == null) value = withContext(background) { icons.get(packageName) }
     }
     val bitmap = icon ?: return
     Image(

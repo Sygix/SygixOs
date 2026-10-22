@@ -22,15 +22,16 @@ import androidx.compose.ui.platform.testTag
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.domain.ImageBounds
-import kotlinx.coroutines.Dispatchers
+import fr.sygix.sygixos.ui.LocalBackgroundDispatcher
 import kotlinx.coroutines.withContext
 
 @Composable
 internal fun SetupMascot() {
     val resources = LocalContext.current.resources
     val target = with(LocalDensity.current) { Dimens.OnboardingMascot.roundToPx() }
+    val background = LocalBackgroundDispatcher.current
     val bitmap by produceState<Bitmap?>(null, resources, target) {
-        value = withContext(Dispatchers.IO) {
+        value = withContext(background) {
             runCatching {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 resources.openRawResource(R.raw.splash_mascot).use { BitmapFactory.decodeStream(it, null, bounds) }
