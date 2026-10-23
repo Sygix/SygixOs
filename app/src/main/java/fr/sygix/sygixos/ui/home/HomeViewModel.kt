@@ -173,14 +173,14 @@ class HomeViewModel(
             (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in failed)).copy(expiresAt = Long.MAX_VALUE)
         }
         val hero = HeroState(items.ifEmpty { fallbackItems }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
-            shelfItems = shown.items.filter { it.tracking == null }, generations = generations.filterKeys { id -> items.any { it.id == id } })
+            shelfItems = shown.shelfItems ?: shown.items.filter { it.tracking == null }, generations = generations.filterKeys { id -> items.any { it.id == id } })
         val heroItems = shown.items.asSequence()
             .take(VisualQuality.HERO_VALIDATED)
             .toList()
         launchHeroValidationIfNeeded(heroItems)
-        if (shown.items != lastItems) {
-            lastItems = shown.items
-            lastShelfPackage?.let { requestShelf(it, shown.items) }
+        if (shown.publications != lastItems) {
+            lastItems = shown.publications
+            lastShelfPackage?.let { requestShelf(it, hero.shelfItems.orEmpty()) }
         }
         HomeState.Ready(catalog, hero)
     }.combine(shelfVisuals) { ready, visualState ->
@@ -288,13 +288,13 @@ class HomeViewModel(
         heroRefreshJob = viewModelScope.launch {
             fallbackItems = hero.fallbackItems()
             val feed = hero.load()
-            val previous = rawFeed.value.items.associateBy { it.artwork.identity }
+            val previous = rawFeed.value.publications.associateBy { it.artwork.identity }
             val checkedHero = heroChecks.values.map { it.identity }.toSet()
             val checkedShelf = shelfChecks.values.map { it.identity }.toSet()
-            val retryHero = rawFeed.value.items.filter { it.id in retryable.value }.map { it.artwork.identity }.toSet()
-            val retryShelf = rawFeed.value.items.filter { it.id in shelfRetryable.value }.map { it.artwork.identity }.toSet()
-            val previousByContent = rawFeed.value.items.associateBy(::contentIdentity)
-            fun retained(previousImages: Map<String, String>, alreadyRetained: Map<String, HeroItem>): Map<String, HeroItem> = feed.items.mapNotNull { item ->
+            val retryHero = rawFeed.value.publications.filter { it.id in retryable.value }.map { it.artwork.identity }.toSet()
+            val retryShelf = rawFeed.value.publications.filter { it.id in shelfRetryable.value }.map { it.artwork.identity }.toSet()
+            val previousByContent = rawFeed.value.publications.associateBy(::contentIdentity)
+            fun retained(previousImages: Map<String, String>, alreadyRetained: Map<String, HeroItem>): Map<String, HeroItem> = feed.publications.mapNotNull { item ->
                 val old = previousByContent[contentIdentity(item)]
                 val held = alreadyRetained.values.firstOrNull { contentIdentity(it) == contentIdentity(item) }
                 val retained = held ?: old?.takeIf { it.artwork.identity != item.artwork.identity }?.let { oldItem -> previousImages[oldItem.id]?.let { oldItem.copy(imageUrl = it) } }
@@ -302,15 +302,15 @@ class HomeViewModel(
             }.toMap()
             retainedHero.value = retained(validated.value, retainedHero.value)
             retainedShelf.value = retained(shelfResults.value, retainedShelf.value)
-            val previousValidated = rawFeed.value.items.mapNotNull { old -> validated.value[old.id]?.let { old.artwork.identity to it } }.toMap()
-            val previousShelf = rawFeed.value.items.mapNotNull { old -> shelfResults.value[old.id]?.let { old.artwork.identity to it } }.toMap()
-            val ids = feed.items.map { it.id }.toSet()
+            val previousValidated = rawFeed.value.publications.mapNotNull { old -> validated.value[old.id]?.let { old.artwork.identity to it } }.toMap()
+            val previousShelf = rawFeed.value.publications.mapNotNull { old -> shelfResults.value[old.id]?.let { old.artwork.identity to it } }.toMap()
+            val ids = feed.publications.map { it.id }.toSet()
             generations.keys.retainAll(ids)
             heroChecks.keys.retainAll(ids)
             shelfChecks.keys.retainAll(ids)
             retryable.update { it intersect ids }
             shelfRetryable.update { it intersect ids }
-            feed.items.forEach { item ->
+            feed.publications.forEach { item ->
                 if (item.artwork.identity in checkedHero) heroChecks[item.id] = item.artwork
                 if (item.artwork.identity in checkedShelf) shelfChecks[item.id] = item.artwork
                 if (item.artwork.identity in retryHero) retryable.update { it + item.id }
@@ -321,10 +321,10 @@ class HomeViewModel(
                     shelfChecks.remove(item.id)
                 }
             }
-            validated.value = feed.items.mapNotNull { item -> previousValidated[item.artwork.identity]?.let { item.id to it } }.toMap()
-            shelfResults.value = feed.items.mapNotNull { item -> previousShelf[item.artwork.identity]?.let { item.id to it } }.toMap()
+            validated.value = feed.publications.mapNotNull { item -> previousValidated[item.artwork.identity]?.let { item.id to it } }.toMap()
+            shelfResults.value = feed.publications.mapNotNull { item -> previousShelf[item.artwork.identity]?.let { item.id to it } }.toMap()
             rawFeed.value = feed.copy(items = order.arrange(feed.items))
-            val kept = feed.items.flatMap { it.artwork.candidates }.toSet() + validated.value.values
+            val kept = feed.publications.flatMap { it.artwork.candidates }.toSet() + validated.value.values
             checked.update { it intersect kept }
             shelfChecked.update { it intersect (kept + shelfResults.value.values) }
             if (heroValidationJob?.isActive != true) validateHero()
@@ -334,8 +334,8 @@ class HomeViewModel(
 
     private fun expirePrograms() {
         val now = programClock()
-        rawFeed.update { it.copy(items = order.arrange(it.items.filter { item -> item.expiresAt > now })) }
-        val live = rawFeed.value.items.map { it.id }.toSet()
+        rawFeed.update { it.copy(items = order.arrange(it.items.filter { item -> item.expiresAt > now }), shelfItems = it.shelfItems?.filter { item -> item.expiresAt > now }) }
+        val live = rawFeed.value.publications.map { it.id }.toSet()
         generations.keys.retainAll(live)
         heroChecks.keys.retainAll(live)
         shelfChecks.keys.retainAll(live)
@@ -349,7 +349,7 @@ class HomeViewModel(
 
     private fun scheduleProgramExpiry() {
         programExpiry?.cancel()
-        val deadline = rawFeed.value.items.minOfOrNull { it.expiresAt } ?: return
+        val deadline = rawFeed.value.publications.minOfOrNull { it.expiresAt } ?: return
         if (deadline == Long.MAX_VALUE) return
         programExpiry = viewModelScope.launch {
             delay((deadline - programClock()).coerceAtLeast(1))
@@ -364,7 +364,7 @@ class HomeViewModel(
     }
 
     private fun requestShelf(packageName: String, items: List<HeroItem>) {
-        val candidates = rawFeed.value.items.filter { it.tracking == null && it.sourcePackage == packageName && items.any { visible -> visible.sourcePackage == packageName } }.take(VisualQuality.SHELF_VALIDATED_PER_APP)
+        val candidates = (rawFeed.value.shelfItems ?: rawFeed.value.items).filter { it.tracking == null && it.sourcePackage == packageName && items.any { visible -> visible.sourcePackage == packageName } }.take(VisualQuality.SHELF_VALIDATED_PER_APP)
         val uris = candidates.map { it.id + it.artwork.toString() + generations[it.id] }
         if (uris == shelfValidationUris && shelfValidationJob?.isActive == true) return
         if (shelfValidationPackage != packageName) validationBatches.filterValues { it }.keys.forEach { it.cancel() }
@@ -385,10 +385,10 @@ class HomeViewModel(
         val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             try { kotlinx.coroutines.coroutineScope { pending.groupBy { it.sourcePackage }.values.forEach { group -> launch {
                 group.forEach { item ->
-                    if (rawFeed.value.items.none { it.artwork.identity == item.artwork.identity }) return@forEach
+                    if (rawFeed.value.publications.none { it.artwork.identity == item.artwork.identity }) return@forEach
                     val policy = if (shelf) ArtworkPolicy.Shelf(shelfWidth) else ArtworkPolicy.Hero
                     val check = if (shelf) validator.prepare(item.artwork, shelfWidth) else validator.validate(item.artwork, policy)
-                    val current = rawFeed.value.items.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
+                    val current = rawFeed.value.publications.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
                     checks[current.id] = current.artwork
                     retries.update { if (check.retryable) it + current.id else it - current.id }
                     checked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
@@ -428,7 +428,7 @@ class HomeViewModel(
     internal fun observeArtwork(events: Flow<fr.sygix.sygixos.data.ArtworkEvent>) = viewModelScope.launch {
         events.collect { event ->
             if (event is fr.sygix.sygixos.data.ArtworkEvent.ProgramsChanged) return@collect
-            val affected = rawFeed.value.items.filter { item -> event.uri in item.artwork.candidates.flatMap { fr.sygix.sygixos.data.visualCandidates(it) } }
+            val affected = rawFeed.value.publications.filter { item -> event.uri in item.artwork.candidates.flatMap { fr.sygix.sygixos.data.visualCandidates(it) } }
             val heroAffected = affected.filter { validated.value[it.id].let { chosen -> chosen == null || chosen == event.uri } }
             val shelfAffected = affected.filter { shelfResults.value[it.id].let { chosen -> chosen == null || chosen == event.uri } }
             heroAffected.forEach { item ->

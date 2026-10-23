@@ -62,6 +62,8 @@ data class RemovedUpNextContent(
     val removedAt: Long,
 )
 
+data class UpNextIdentityLink(val legacy: UpNextContentKey, val enriched: UpNextContentKey)
+
 interface UpNextMemory {
     val opened: Flow<Map<UpNextContentKey, Long>>
     val removed: Flow<List<RemovedUpNextContent>>
@@ -69,6 +71,7 @@ interface UpNextMemory {
     suspend fun pruneOpened(keep: (UpNextContentKey) -> Boolean)
     suspend fun addRemoved(content: RemovedUpNextContent)
     suspend fun restoreRemoved(key: UpNextContentKey)
+    suspend fun enrich(links: List<UpNextIdentityLink>) {}
 }
 
 class InMemoryUpNextMemory : UpNextMemory {
@@ -80,4 +83,8 @@ class InMemoryUpNextMemory : UpNextMemory {
         removed.value = removed.value.filterNot { it.key == content.key } + content
     }
     override suspend fun restoreRemoved(key: UpNextContentKey) { removed.value = removed.value.filterNot { it.key == key } }
+    override suspend fun enrich(links: List<UpNextIdentityLink>) {
+        opened.value = UpNextIdentityMigration.opened(opened.value, links)
+        removed.value = UpNextIdentityMigration.removed(removed.value, links)
+    }
 }

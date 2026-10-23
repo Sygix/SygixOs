@@ -82,7 +82,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
     val mascotAnimation: RawMascotAnimationSource by lazy { RawMascotAnimationSource(resources) }
     private val appScope = CoroutineScope(SupervisorJob() + applicationDispatcher)
     val tracking by lazy { fr.sygix.sygixos.tracking.TrackingRuntime(this, appCatalogRepository, appScope, privilegedAccess,
-        onArtwork = { items -> programArtwork.confirm("tracking", items) }) }
+        onArtwork = { items -> programArtwork.confirm("tracking", items) }, onIdentities = launcherPrefs::enrich) }
     private val userAgentValue by lazy {
         "SygixOs/${runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull().orEmpty()}"
     }

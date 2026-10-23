@@ -62,4 +62,28 @@ class TrackingSessionTest {
         assertEquals("second", controller.state.value.account?.id)
         assertEquals(listOf(secondContent.copy(sessionGeneration = controller.state.value.generation)), controller.state.value.contents)
     }
+
+    @Test fun knownAccessRefusalWithdrawsSnapshotAndStopsFurtherCallsUntilReassociation() = runTest {
+        var snapshots = 0
+        val content = TrackingContent(TrackingIdentity("fixture", TrackingType.MOVIE, "1"), title = "Fixture")
+        val controller = TrackingController(object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
+            override suspend fun snapshot(token: String): TrackingSnapshot { ++snapshots; return TrackingSnapshot(listOf(content)) }
+            override suspend fun revoke(token: String) {}
+        }, object : TrackingSessionStore {
+            override suspend fun read() = "fixture-token"
+            override suspend fun write(token: String?) {}
+        }, backgroundScope)
+        controller.restore(); runCurrent()
+        try { controller.authenticated<Unit> { throw TrackingException(TrackingFailure.ACCESS) }; fail() }
+        catch (error: TrackingException) { assertEquals(TrackingFailure.ACCESS, error.failure) }
+        assertEquals(TrackingFailure.ACCESS, controller.state.value.failure)
+        assertTrue(controller.state.value.contents.isEmpty())
+        val before = snapshots
+        assertNull(controller.refresh()); runCurrent()
+        assertEquals(before, snapshots)
+        controller.connect("fixture-new-token"); runCurrent()
+        assertNull(controller.state.value.failure)
+        assertFalse(controller.state.value.contents.isEmpty())
+    }
 }

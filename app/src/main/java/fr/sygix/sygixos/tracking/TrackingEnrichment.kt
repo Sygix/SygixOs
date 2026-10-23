@@ -14,16 +14,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-class TrackingEnrichment(private val controller: TrackingController, private val provider: BetaSeriesProvider, private val scope: CoroutineScope) {
+interface TrackingLocalContents {
+    val contents: kotlinx.coroutines.flow.StateFlow<Map<String, TrackingContent>>
+    fun items(): List<UpNextItem>
+}
+
+class TrackingEnrichment(private val controller: TrackingController, private val provider: BetaSeriesProvider, private val scope: CoroutineScope,
+    private val onIdentities: suspend (List<fr.sygix.sygixos.domain.UpNextIdentityLink>) -> Unit = {}) : TrackingLocalContents {
     private val mutable = MutableStateFlow<Map<String, TrackingContent>>(emptyMap())
-    val contents = mutable.asStateFlow()
+    override val contents = mutable.asStateFlow()
     private val failureMutable = MutableStateFlow<Map<String, TrackingFailure>>(emptyMap())
     val failures = failureMutable.asStateFlow()
     @Volatile private var local: List<UpNextItem> = emptyList()
     val sourcePackages: Set<String> get() = local.map { it.source.packageName }.toSet()
-    fun items(): List<UpNextItem> = local.map { item ->
+    override fun items(): List<UpNextItem> = local.map { item ->
         val current = controller.state.value
-        val content = mutable.value[item.key]?.takeIf { current.account != null && current.failure == null && it.sessionGeneration == current.generation }
+        val content = mutable.value[item.key]?.takeIf { current.account != null && current.failure == null && it.sessionGeneration == current.generation }?.let { content ->
+            content.copy(membership = current.memberships?.let { if (content.parent in it) AccountMembership.PRESENT else AccountMembership.ABSENT } ?: AccountMembership.UNKNOWN)
+        }
         if (content == null) item else item.copy(tracking = content, externalIds = content.externalIds,
             source = item.source.copy(targetIdentity = content.identity), sources = item.sources.map { it.copy(targetIdentity = content.identity) })
     }
@@ -72,6 +80,13 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                 }
             }
             if (generation == controller.state.value.generation && controller.state.value.failure == null) {
+                val links = items.mapNotNull { item -> updated[item.key]?.let { content ->
+                    fr.sygix.sygixos.domain.UpNextIdentityLink(fr.sygix.sygixos.domain.UpNextContentKey.of(item.copy(tracking = null)), fr.sygix.sygixos.domain.UpNextContentKey.of(item.copy(tracking = content)))
+                } }
+                try { onIdentities(links) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { failureMutable.value = items.associate { it.key to TrackingFailure.STORAGE }; return@launch }
+                if (generation != controller.state.value.generation) return@launch
                 mutable.value = updated.toMap()
                 failureMutable.value = failures.toMap()
             }

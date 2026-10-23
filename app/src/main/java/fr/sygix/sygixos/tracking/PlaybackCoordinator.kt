@@ -28,10 +28,12 @@ data class PlaybackSelection(
     val otherApps: Boolean = false,
     val failure: TrackingFailure? = null,
     val preferredPackage: String? = null,
+    val missingPreferred: Boolean = false,
 )
 
 interface PlaybackAppResolver {
     suspend fun installed(): List<PlaybackApp>
+    fun changes(): kotlinx.coroutines.flow.Flow<Unit> = kotlinx.coroutines.flow.emptyFlow()
 }
 
 interface PlaybackLauncher {
@@ -59,6 +61,7 @@ class PlaybackCoordinator(
     private val precisionMutable = MutableStateFlow<PlaybackPrecision?>(null)
     val precision = precisionMutable.asStateFlow()
     private var job: Job? = null
+    private var catalogJob: Job? = null
     private var pending: Pair<PlaybackRequest, Long>? = null
     private var departed = false
     private var requestId = 0L
@@ -68,6 +71,7 @@ class PlaybackCoordinator(
     private var observationEnabled = true
 
     init {
+        scope.launch { apps.changes().collect { refreshSelection() } }
         scope.launch { tracking.state.collect { state ->
             if (state.account == null || accountGeneration != state.generation) {
                 close(); evidenceGate.stop(); evidenceSource?.stop(); pending = null
@@ -92,7 +96,7 @@ class PlaybackCoordinator(
                 if (id != requestId || generation != tracking.state.value.generation) return@launch
                 val app = installed.firstOrNull { it.packageName == preferred }
                 if (!choose && app != null) launch(request, app, id, generation)
-                else mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred)
+                else mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred, missingPreferred = preferred != null && app == null)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { if (id == requestId) mutable.value = PlaybackSelection(request, loading = false, failure = error.trackingFailure()) }
         }
@@ -103,6 +107,8 @@ class PlaybackCoordinator(
     fun choose(packageName: String) {
         val current = mutable.value ?: return
         if (current.loading) return
+        if (current.request.content.sessionGeneration?.let { it != tracking.state.value.generation } == true) { close(); return }
+        catalogJob?.cancel()
         val id = requestId
         val generation = tracking.state.value.generation
         mutable.value = current.copy(loading = true, failure = null)
@@ -111,15 +117,31 @@ class PlaybackCoordinator(
                 val installed = apps.installed()
                 if (id != requestId || generation != tracking.state.value.generation) return@launch
                 val app = installed.firstOrNull { it.packageName == packageName }
-                if (app == null) mutable.value = current.copy(apps = installed, failure = TrackingFailure.PROTOCOL)
+                if (app == null) mutable.value = current.copy(apps = installed, missingPreferred = true)
                 else launch(current.request, app, id, generation)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { if (id == requestId) mutable.value = current.copy(loading = false, failure = error.trackingFailure()) }
         }
     }
 
+    private fun refreshSelection() {
+        val current = mutable.value?.takeUnless { it.loading } ?: return
+        val id = requestId
+        val generation = tracking.state.value.generation
+        catalogJob?.cancel()
+        catalogJob = scope.launch {
+            try {
+                val installed = apps.installed()
+                val latest = mutable.value
+                if (id == requestId && generation == tracking.state.value.generation && latest != null && !latest.loading) mutable.value = latest.copy(apps = installed,
+                    missingPreferred = latest.preferredPackage != null && installed.none { it.packageName == latest.preferredPackage })
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { if (id == requestId) mutable.value = current.copy(failure = error.trackingFailure()) }
+        }
+    }
+
     private suspend fun launch(request: PlaybackRequest, app: PlaybackApp, id: Long, generation: Long) {
-        if (generation != tracking.state.value.generation || id != requestId) return
+        if (generation != tracking.state.value.generation || id != requestId || tracking.state.value.account == null || request.content.sessionGeneration?.let { it != generation } == true) return
         val result = launcher.launch(app, request)
         if (result == null) {
             mutable.value = PlaybackSelection(request, apps.installed(), loading = false, failure = TrackingFailure.PROTOCOL)
@@ -154,7 +176,7 @@ class PlaybackCoordinator(
         evidenceSource?.stop()
     }
 
-    fun close() { ++requestId; job?.cancel(); mutable.value = null }
+    fun close() { ++requestId; job?.cancel(); catalogJob?.cancel(); mutable.value = null }
     fun setObservationEnabled(enabled: Boolean) {
         observationEnabled = enabled
         if (!enabled) { evidenceGate.stop(); evidenceSource?.stop() }

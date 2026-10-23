@@ -131,7 +131,7 @@ private fun TrackingCountryDropdown(state: TrackingUiState, onClose: () -> Unit,
 internal data class TrackingModalAction(val key: String, val label: String, val click: () -> Unit)
 
 @Composable
-internal fun TrackingModal(title: String, tag: String, actions: List<TrackingModalAction>, onClose: () -> Unit, initial: Int = 0, body: @Composable ColumnScope.() -> Unit = {}) {
+internal fun TrackingModal(title: String, tag: String, actions: List<TrackingModalAction>, onClose: () -> Unit, initial: Int = 0, onFocusedAction: (String) -> Unit = {}, focusFallbackKey: String? = null, body: @Composable ColumnScope.() -> Unit = {}) {
     val index = initial.coerceIn(0, actions.lastIndex.coerceAtLeast(0))
     val list = rememberLazyListState(index)
     val keys = actions.map { it.key }
@@ -139,6 +139,9 @@ internal fun TrackingModal(title: String, tag: String, actions: List<TrackingMod
     var focusedKey by remember(tag) { mutableStateOf<String?>(null) }
     var focusedIndex by remember(tag) { mutableIntStateOf(index) }
     var previousKeys by remember(tag) { mutableStateOf<List<String>>(emptyList()) }
+    val previousFocusedKey = focusedKey
+    val previousFocusedIndex = focusedIndex
+    val focusedActionRemoved = focusedKey != null && focusedKey !in keys
     Popup(onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
         Box(Modifier.fillMaxSize().background(SygixColors.Scrim).testTag(tag).onPreviewKeyEvent {
             when (it.key) {
@@ -154,7 +157,7 @@ internal fun TrackingModal(title: String, tag: String, actions: List<TrackingMod
                     LazyColumn(Modifier.heightIn(max = 280.dp), state = list) {
                         itemsIndexed(actions, key = { _, action -> action.key }) { i, action ->
                             Box(Modifier.focusProperties { if (i == 0) up = FocusRequester.Cancel; if (i == actions.lastIndex) down = FocusRequester.Cancel }) {
-                                TrackingRow(action.label, action.key, requester = requesters[action.key], onFocused = { if (it) { focusedKey = action.key; focusedIndex = i } }, onClick = action.click)
+                                TrackingRow(action.label, action.key, requester = requesters[action.key], onFocused = { if (it) { focusedKey = action.key; focusedIndex = i; onFocusedAction(action.key) } }, onClick = action.click)
                             }
                         }
                     }
@@ -163,7 +166,11 @@ internal fun TrackingModal(title: String, tag: String, actions: List<TrackingMod
         }
         LaunchedEffect(tag, keys) {
             val loadingFinished = previousKeys.size == 1 && previousKeys.single().endsWith("-close") && keys.size > 1
-            val target = if (loadingFinished) keys.getOrNull(index) else fr.sygix.sygixos.domain.FocusFallback.entry(keys, focusedKey, focusedIndex)
+            val target = when {
+                previousKeys.isEmpty() || loadingFinished -> keys.getOrNull(index)
+                focusedActionRemoved && focusFallbackKey in keys -> focusFallbackKey
+                else -> fr.sygix.sygixos.domain.FocusFallback.entry(keys, previousFocusedKey, previousFocusedIndex)
+            }
             previousKeys = keys
             val targetIndex = keys.indexOf(target)
             if (targetIndex >= 0) { list.scrollToItem(targetIndex); withFrameNanos { }; requesters[target]?.tryRequestFocus() }

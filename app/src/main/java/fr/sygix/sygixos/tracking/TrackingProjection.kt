@@ -50,7 +50,7 @@ object TrackingProjection {
                 val sameEpisode = content.identity.type == TrackingType.MOVIE || resume.season?.toIntOrNull() == content.season && resume.episode?.toIntOrNull() == content.episode
                 val identity = resume.tracking ?: content.takeIf { sameEpisode }
                 resume.copy(tracking = identity?.copy(membership = AccountMembership.PRESENT, readerPackage = content.readerPackage, readerName = content.readerName), sources = candidates.flatMap { it.sources }.distinctBy { it.packageName to it.targetIdentity })
-            } else card(content).copy(sources = candidates.flatMap { it.sources }.distinctBy { it.packageName })
+            } else card(content).copy(sources = candidates.flatMap { it.sources }.distinctBy { it.packageName to it.targetIdentity })
         }
         return remaining.filterNot { it.tracking?.membership == AccountMembership.PRESENT && it.tracking.seen } + tracked
     }

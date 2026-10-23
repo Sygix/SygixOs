@@ -10,7 +10,12 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.advanceTimeBy
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class TrackingActionsTest {
     private val content = TrackingContent(TrackingIdentity("fixture", TrackingType.MOVIE, "42"), title = "Fixture")
 
@@ -59,4 +64,47 @@ class TrackingActionsTest {
         override suspend fun read() = "fixture-token"
         override suspend fun write(token: String?) {}
     }, scope)
+
+    @Test fun confirmedRemovalRemainsExcludedUntilFreshSnapshotConfirmsAbsence() = runTest {
+        val reconciled = kotlinx.coroutines.CompletableDeferred<TrackingSnapshot>()
+        var removing = false
+        var writes = 0
+        val controller = TrackingController(object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
+            override suspend fun snapshot(token: String) = if (removing) reconciled.await() else TrackingSnapshot(listOf(content))
+            override suspend fun revoke(token: String) {}
+        }, object : TrackingSessionStore {
+            override suspend fun read() = "fixture-token"
+            override suspend fun write(token: String?) {}
+        }, backgroundScope)
+        controller.restore(); runCurrent()
+        val actions = TrackingActions(controller, { _, _, _ -> ++writes; removing = true }, backgroundScope) { testScheduler.currentTime * 1_000_000 }
+        actions.perform(content, TrackingAction.REMOVE)
+        runCurrent(); advanceTimeBy(10_000); runCurrent()
+        assertEquals(1, writes)
+        assertTrue(content.parent in actions.excluded.value)
+        assertTrue(actions.notice.value?.busy == true)
+        reconciled.complete(TrackingSnapshot(emptyList())); runCurrent()
+        assertTrue(actions.excluded.value.isEmpty())
+        assertNull(actions.notice.value)
+        assertTrue(controller.state.value.contents.isEmpty())
+    }
+
+    @Test fun movieUndoRestoresStateTwoAndConcurrentDuplicateActionIsNotSent() = runTest {
+        val fixture = TrackingMovieFixture(backgroundScope) { testScheduler.currentTime }
+        fixture.state = 2
+        fixture.runtime.controller.restore(); runCurrent()
+        val requested = content.copy(identity = TrackingIdentity("betaseries", TrackingType.MOVIE, "42"), parent = TrackingIdentity("betaseries", TrackingType.MOVIE, "42"), movieState = 2,
+            sessionGeneration = fixture.runtime.controller.state.value.generation)
+        fixture.runtime.actions.perform(requested, TrackingAction.SEEN)
+        fixture.runtime.actions.perform(requested, TrackingAction.SEEN)
+        runCurrent()
+        assertEquals(1, fixture.state)
+        assertEquals(1, fixture.writes)
+        fixture.runtime.actions.undo(); runCurrent()
+        assertEquals(2, fixture.state)
+        assertEquals(2, fixture.writes)
+        assertEquals(0, fixture.removals)
+        assertNull(fixture.runtime.actions.notice.value)
+    }
 }

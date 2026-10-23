@@ -146,6 +146,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
         })
     }
     val trackingUi = trackingViewModel?.state?.collectAsStateWithLifecycle()?.value
+    androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { trackingViewModel?.onForeground() }
     CompositionLocalProvider(
         LocalAppArtwork provides viewModel.artwork,
         LocalAppIcons provides settingsViewModel.icons,

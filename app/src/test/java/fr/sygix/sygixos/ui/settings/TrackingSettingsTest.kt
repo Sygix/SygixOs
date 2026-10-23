@@ -89,26 +89,69 @@ class TrackingSettingsTest {
         compose.waitForIdle()
     }
 
+    @Test fun choosingAnOldSeenEpisodeDoesNotOpenPlayerAndCanMarkOnlyThatEpisodeUnseen() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            val content = fixture.runtime.controller.state.value.contents.single()
+            fixture.viewModel.menu(TrackingProjection.card(content))
+            fixture.viewModel.showEpisodes()
+            runCurrent(); show(fixture)
+            compose.onNodeWithTag("tracking-episode-2").assertIsFocused()
+            press(Key.DirectionUp, "tracking-episodes")
+            press(Key.Enter, "tracking-episodes")
+            compose.onNodeWithTag("tracking-episode-actions").assertExists()
+            assertTrue(fixture.episodeWrites.isEmpty())
+            assertNull(fixture.runtime.playback.selection.value)
+            press(Key.DirectionDown, "tracking-episode-actions")
+            press(Key.Enter, "tracking-episode-actions")
+            assertEquals(listOf("1" to false), fixture.episodeWrites)
+            assertFalse(fixture.seen.getValue("2"))
+        } finally { fixture.close() }
+    }
+
     private fun press(key: Key, tag: String = "tracking-settings") {
         compose.onNodeWithTag(tag).performKeyInput { keyDown(key); keyUp(key) }
         compose.waitForIdle()
     }
 
-    private class Preferences : TrackingSettingsStore {
-        override val country = MutableStateFlow<String?>(null)
-        override val observation = MutableStateFlow(false)
-        override val players = MutableStateFlow<Map<String, String>>(emptyMap())
-        override suspend fun confirmCountry(country: String) { this.country.value = country }
-        override suspend fun observation(enabled: Boolean) { observation.value = enabled }
-        override suspend fun preferred(content: TrackingIdentity) = players.value[TrackingPreferences.playerKey(content)]
-        override suspend fun remember(content: TrackingIdentity, packageName: String) { players.value += TrackingPreferences.playerKey(content) to packageName }
+    @Test fun selectedUnseenEpisodeDoesNotMarkPreviousEpisodesAndReturnRefreshRestoresNeighbor() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            fixture.viewModel.menu(TrackingProjection.card(fixture.runtime.controller.state.value.contents.single()))
+            fixture.viewModel.showEpisodes(); runCurrent(); show(fixture)
+            press(Key.DirectionDown, "tracking-episodes")
+            compose.onNodeWithTag("tracking-episode-3").assertIsFocused()
+            val reads = fixture.episodeListReads
+            fixture.availableEpisodes.remove("3")
+            fixture.viewModel.onForeground(); runCurrent(); compose.waitForIdle()
+            assertEquals(reads + 1, fixture.episodeListReads)
+            compose.onNodeWithTag("tracking-episode-2").assertIsFocused()
+            assertTrue(fixture.episodeWrites.isEmpty())
+            fixture.availableEpisodes.add("3")
+            fixture.viewModel.onForeground(); runCurrent(); compose.waitForIdle()
+            press(Key.DirectionDown, "tracking-episodes")
+            press(Key.Enter, "tracking-episodes")
+            press(Key.DirectionDown, "tracking-episode-actions")
+            press(Key.Enter, "tracking-episode-actions")
+            assertEquals(listOf("3" to true), fixture.episodeWrites)
+            assertTrue(fixture.seen.getValue("1"))
+            assertFalse(fixture.seen.getValue("2"))
+        } finally { fixture.close() }
     }
 
-    private class Fixture(scope: CoroutineScope, clock: () -> Long) : AutoCloseable {
+    private class Fixture(scope: CoroutineScope, clock: () -> Long, private val episodeMode: Boolean = false) : AutoCloseable {
         private val harness = SettingsHarness()
         private val store = ViewModelStore()
-        val preferences = Preferences()
+        val preferences = TrackingPreferencesFixture()
         var polls = 0
+        val seen = mutableMapOf("1" to true, "2" to false, "3" to false)
+        val episodeWrites = mutableListOf<Pair<String, Boolean>>()
+        val availableEpisodes = linkedSetOf("1", "2", "3")
+        var episodeListReads = 0
+        private val show = "{\"id\":1,\"title\":\"Fixture\",\"user\":{\"archived\":false}}"
+        private fun episode(id: String) = "{\"id\":$id,\"season\":1,\"episode\":$id,\"title\":\"Fixture episode $id\",\"date\":\"2020-01-01\",\"user\":{\"seen\":${seen.getValue(id)}}}"
         val runtime = TrackingRuntime(ApplicationProvider.getApplicationContext(), harness.repo, scope,
             transport = TrackingTransport { request ->
                 when {
@@ -116,7 +159,21 @@ class TrackingSettingsTest {
                     request.url.endsWith("oauth/device") -> TrackingResponse(200, "{\"device_code\":\"fixture-device\",\"user_code\":\"FIXTURE\",\"verification_url\":\"https://www.betaseries.com/device\",\"expires_in\":100,\"interval\":1}")
                     request.url.endsWith("oauth/access_token") -> { ++polls; TrackingResponse(400, "{\"errors\":[{\"code\":2001}]}") }
                     request.url.endsWith("members/infos") -> TrackingResponse(200, "{\"member\":{\"id\":1,\"login\":\"Fixture\"}}")
-                    request.url.contains("shows/member") || request.url.contains("episodes/list") -> TrackingResponse(200, "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
+                    request.url.contains("shows/member") -> TrackingResponse(200, if (episodeMode) "{\"shows\":[$show],\"total\":1,\"totalMissingShows\":0}" else "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
+                    request.url.contains("episodes/list") -> TrackingResponse(200, if (episodeMode) "{\"shows\":[{\"id\":1,\"unseen\":[${seen.filterValues { !it }.keys.joinToString(",") { episode(it) }}]}],\"total\":1,\"totalMissingShows\":0}" else "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
+                    request.url.contains("shows/display") -> TrackingResponse(200, "{\"show\":$show}")
+                    request.url.contains("shows/episodes") -> { ++episodeListReads; TrackingResponse(200, "{\"episodes\":[${availableEpisodes.joinToString(",") { episode(it) }}],\"total\":${availableEpisodes.size},\"totalMissingEpisodes\":0}") }
+                    request.url.contains("episodes/watched") -> {
+                        val id = requireNotNull(request.fields["id"])
+                        if (request.method == "POST") check(request.fields["bulk"] == "false")
+                        seen[id] = request.method == "POST"
+                        episodeWrites += id to seen.getValue(id)
+                        TrackingResponse(200, "{}")
+                    }
+                    request.url.contains("episodes/display") -> {
+                        val id = java.net.URI(request.url).rawQuery.split('&').first { it.startsWith("id=") }.substringAfter('=')
+                        TrackingResponse(200, "{\"episode\":${episode(id)}}")
+                    }
                     request.url.contains("movies/member") -> TrackingResponse(200, "{\"movies\":[],\"total\":0,\"totalMissingMovies\":0}")
                     else -> error("Unexpected fixture endpoint")
                 }

@@ -39,7 +39,7 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
         ContextMenuHeader(item.displayTitle, stringResource(R.string.upnext_open_with), "upnext-menu") {
             UpNextArtwork(item, Modifier.aspectRatio(16f / 9f).clip(RoundedCornerShape(Dimens.MenuThumbnailCorner)).testTag("upnext-menu-thumbnail"))
         }
-        item.sources.forEachIndexed { index, entry ->
+        item.sources.distinctBy { it.packageName }.forEachIndexed { index, entry ->
             key(entry.packageName) {
                 MenuEntry("upnext-menu-entry-${entry.packageName}", entry.label, { onOpen(entry) }, if (index == 0) first else null) {
                     entry.icon?.let { icon ->

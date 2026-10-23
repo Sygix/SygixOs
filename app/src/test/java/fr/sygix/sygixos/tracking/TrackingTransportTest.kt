@@ -60,4 +60,11 @@ class TrackingTransportTest {
         assertFalse(officialTrackingUrl("https://api.betaseries.com:444/"))
         assertTrue(officialTrackingUrl("https://www.betaseries.com/device"))
     }
+
+    @Test fun serviceUnavailableReadsAlsoHaveALimitedRetryCount() = runTest {
+        var calls = 0
+        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(503, "{}") }
+        assertEquals(503, transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")).status)
+        assertEquals(3, calls)
+    }
 }

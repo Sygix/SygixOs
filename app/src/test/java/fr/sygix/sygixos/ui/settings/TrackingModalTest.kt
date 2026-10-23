@@ -66,4 +66,22 @@ class TrackingModalTest {
         compose.onNodeWithTag("fixture-modal").performKeyInput { keyDown(key); keyUp(key) }
         compose.waitForIdle()
     }
+
+    @Test fun removedFocusedPlayerUsesNextThenPreviousWithoutEscapingModal() {
+        val players = androidx.compose.runtime.mutableStateOf(listOf("a", "b", "c"))
+        compose.setContent {
+            MaterialTheme {
+                TrackingModal("Fixture", "fixture-modal", players.value.map { key -> TrackingModalAction("fixture-$key", key) {} }, {})
+            }
+        }
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("fixture-b").assertIsFocused()
+        compose.runOnIdle { players.value = listOf("a", "c") }
+        compose.waitForIdle()
+        compose.onNodeWithTag("fixture-c").assertIsFocused()
+        compose.runOnIdle { players.value = listOf("a") }
+        compose.waitForIdle()
+        compose.onNodeWithTag("fixture-a").assertIsFocused()
+    }
 }

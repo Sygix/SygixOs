@@ -45,4 +45,15 @@ class TrackingProjectionTest {
         assertEquals(25, items.map { TrackingProjection.hero(requireNotNull(it.tracking)) }.size)
         assertEquals(25, items.map { it.key }.distinct().size)
     }
+
+    @Test fun samePlayerKeepsTheExactNextEpisodeIntentAlongsideSeenResumeIntent() {
+        val seen = next.copy(identity = next.identity.copy(id = "5"), episode = 5, seen = true)
+        val oldSource = UpNextSourceEntry("fixture.player", intentUri = "fixture://episode5", targetIdentity = seen.identity)
+        val exactSource = UpNextSourceEntry("fixture.player", intentUri = "fixture://episode3", targetIdentity = next.identity)
+        val old = UpNextItem(1, oldSource, UpNextContentType.EPISODE, "Fixture", season = "2", episode = "5", watchNextType = ProgramKind.CONTINUE, tracking = seen)
+        val fresh = UpNextItem(2, exactSource, UpNextContentType.EPISODE, "Fixture", season = "2", episode = "3", tracking = next)
+        val selected = UpNextFeed.build(TrackingProjection.merge(listOf(old, fresh), listOf(next))).single()
+        assertEquals(next.identity, selected.tracking?.identity)
+        assertEquals("fixture://episode3", selected.sources.firstOrNull { it.targetIdentity == selected.tracking?.identity }?.intentUri)
+    }
 }

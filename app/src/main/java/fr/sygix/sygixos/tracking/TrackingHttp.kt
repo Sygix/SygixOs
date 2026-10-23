@@ -36,10 +36,9 @@ fun interface TrackingTransport {
     suspend fun execute(request: TrackingRequest): TrackingResponse
 }
 
-class TrackingHttpsTransport : TrackingTransport {
-    private val client = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS)
+class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS).callTimeout(15, TimeUnit.SECONDS)
-        .followRedirects(false).followSslRedirects(false).build()
+        .followRedirects(false).followSslRedirects(false).build()) : TrackingTransport {
 
     override suspend fun execute(request: TrackingRequest): TrackingResponse = withContext(Dispatchers.IO) {
         if (!officialTrackingUrl(request.url)) throw TrackingException(TrackingFailure.CONFIGURATION)

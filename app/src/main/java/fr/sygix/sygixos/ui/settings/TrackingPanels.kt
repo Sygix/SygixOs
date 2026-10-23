@@ -37,29 +37,49 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
                 initial = actions.indexOfFirst { it.key == "tracking-player-${player.preferredPackage}" }.coerceAtLeast(0)) {
                 Text(player.request.content.title, style = TextStyles.Row, color = SygixColors.OnDark)
                 Text(stringResource(if (player.loading) R.string.tracking_loading else if (player.failure != null) R.string.tracking_error else if (player.apps.isEmpty()) R.string.tracking_no_apps else R.string.tracking_unconfirmed), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
-                player.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
+                if (player.failure != null) Text(stringResource(R.string.tracking_player_error), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+                if (player.missingPreferred) Text(stringResource(R.string.tracking_player_missing), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+                val services = player.request.content.offers.mapNotNull { it.name }.distinct()
+                if (services.isNotEmpty()) Text(stringResource(R.string.tracking_offer_services, services.joinToString(", ")), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, maxLines = 2)
             }
         }
         state.episodes != null -> {
             val episodes = state.episodes
+            val selected = episodes.items.firstOrNull { it.identity == episodes.selected }
+            if (selected != null) {
+                TrackingModal(selected.episodeTitle ?: selected.title, "tracking-episode-actions", listOf(
+                    TrackingModalAction("tracking-episode-open", stringResource(R.string.tracking_open_episode), viewModel::openSelectedEpisode),
+                    TrackingModalAction("tracking-episode-seen", stringResource(if (selected.seen) R.string.tracking_unseen else R.string.tracking_seen), viewModel::markSelectedEpisode),
+                    TrackingModalAction("tracking-episode-back", stringResource(R.string.tracking_episode_back), viewModel::close),
+                ), viewModel::close)
+                return
+            }
             val actions = episodes.items.map { content ->
-                TrackingModalAction("tracking-episode-${content.identity.id}", "S${content.season}E${content.episode} · ${content.episodeTitle.orEmpty()}${if (content.seen) " ✓" else ""}") { viewModel.openEpisode(content) }
-            } + if (episodes.failure != null) listOf(TrackingModalAction("tracking-episodes-retry", retry, viewModel::retryEpisodes)) else emptyList()
+                val numbers = fr.sygix.sygixos.domain.UpNextCardText.episodeNumbers(TrackingProjection.card(content))
+                val label = listOfNotNull(numbers?.let { stringResource(R.string.upnext_episode_number, it.first, it.second) }, content.episodeTitle).joinToString(stringResource(R.string.hero_details_separator))
+                TrackingModalAction("tracking-episode-${content.identity.id}", label + if (content.seen) " ✓" else "") { viewModel.selectEpisode(content) }
+            } + if (episodes.failure != null) listOf(TrackingModalAction("tracking-episodes-retry", stringResource(if (episodes.failure == TrackingFailure.ACCESS) R.string.tracking_reconnect else R.string.tracking_retry),
+                if (episodes.failure == TrackingFailure.ACCESS) viewModel::reconnectEpisodes else viewModel::retryEpisodes)) else emptyList()
             TrackingModal(stringResource(R.string.tracking_episodes), "tracking-episodes", actions + TrackingModalAction("tracking-episodes-close", close, viewModel::close), viewModel::close,
-                initial = episodes.items.indexOfFirst { it.identity == episodes.content.identity }.coerceAtLeast(0)) {
+                initial = episodes.items.indexOfFirst { it.identity == (episodes.focused ?: episodes.content.identity) }.coerceAtLeast(0), onFocusedAction = viewModel::episodeFocused,
+                focusFallbackKey = episodes.focused?.let { "tracking-episode-${it.id}" }) {
                 if (episodes.loading || episodes.failure != null || episodes.items.isEmpty()) Text(stringResource(if (episodes.loading) R.string.tracking_loading else if (episodes.failure != null) R.string.tracking_error else R.string.tracking_empty), style = TextStyles.Row, color = SygixColors.OnDarkSecondary)
             }
         }
         state.menu != null -> {
             val item = state.menu
             val content = item.tracking ?: return
+            val episodesAction = if (content.identity.type == TrackingType.EPISODE) listOf(
+                TrackingModalAction("tracking-action-episodes", stringResource(R.string.tracking_episodes), viewModel::showEpisodes),
+            ) else emptyList()
+            val archived = content.archived
+            val archiveAction = if (content.parent.type == TrackingType.SHOW && archived != null) listOf(
+                TrackingModalAction("tracking-action-archive", stringResource(if (archived) R.string.tracking_unarchive else R.string.tracking_archive)) { viewModel.action(if (archived) TrackingAction.UNARCHIVE else TrackingAction.ARCHIVE) },
+            ) else emptyList()
             val actions = listOf(
                 TrackingModalAction("tracking-action-player", stringResource(R.string.upnext_open_with), viewModel::openWith),
                 TrackingModalAction("tracking-action-seen", stringResource(if (content.seen) R.string.tracking_unseen else R.string.tracking_seen)) { viewModel.action(if (content.seen) TrackingAction.UNSEEN else TrackingAction.SEEN) },
-            ) + if (content.identity.type == TrackingType.EPISODE) listOf(
-                TrackingModalAction("tracking-action-episodes", stringResource(R.string.tracking_episodes), viewModel::showEpisodes),
-                TrackingModalAction("tracking-action-archive", stringResource(R.string.tracking_archive)) { viewModel.action(TrackingAction.ARCHIVE) },
-            ) else emptyList()
+            ) + episodesAction + archiveAction
             TrackingModal(item.displayTitle, "upnext-menu", actions + listOf(
                 TrackingModalAction("tracking-action-remove", stringResource(R.string.tracking_remove)) { viewModel.action(TrackingAction.REMOVE) },
                 TrackingModalAction("upnext-menu-remove", stringResource(R.string.upnext_remove), viewModel::removeLocal),

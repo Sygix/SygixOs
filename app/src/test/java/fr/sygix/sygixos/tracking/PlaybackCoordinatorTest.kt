@@ -65,4 +65,30 @@ class PlaybackCoordinatorTest {
         override suspend fun read() = "fixture-token"
         override suspend fun write(token: String?) {}
     }, scope)
+
+    @Test fun installedAppChangesUpdateAnOpenPickerWithoutLaunchingOrRememberingGoneApp() = runTest {
+        val controller = controller(backgroundScope)
+        controller.restore(); runCurrent()
+        val changes = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        var installed = listOf(PlaybackApp("fixture.a", "Alpha", true), PlaybackApp("fixture.b", "Beta", true), PlaybackApp("fixture.c", "Gamma", true))
+        var launches = 0
+        var remembered = 0
+        val coordinator = PlaybackCoordinator(object : PlaybackAppResolver {
+            override suspend fun installed() = installed
+            override fun changes() = changes
+        }, object : PlaybackLauncher {
+            override fun launch(app: PlaybackApp, request: PlaybackRequest): PlaybackPrecision { ++launches; return PlaybackPrecision.APPLICATION }
+        }, object : PlaybackPreferences {
+            override suspend fun preferred(content: TrackingIdentity) = "fixture.b"
+            override suspend fun remember(content: TrackingIdentity, packageName: String) { ++remembered }
+        }, controller, TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope), backgroundScope)
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT), choose = true); runCurrent()
+        installed = installed.filterNot { it.packageName == "fixture.b" }
+        changes.emit(Unit); runCurrent()
+        assertEquals(listOf("fixture.a", "fixture.c"), coordinator.selection.value?.apps?.map { it.packageName })
+        assertTrue(coordinator.selection.value?.missingPreferred == true)
+        coordinator.choose("fixture.b"); runCurrent()
+        assertEquals(0, launches)
+        assertEquals(0, remembered)
+    }
 }

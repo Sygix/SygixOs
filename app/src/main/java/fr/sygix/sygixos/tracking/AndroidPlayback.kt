@@ -12,8 +12,10 @@ import fr.sygix.sygixos.data.AppCatalogRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.map
 
 class AndroidPlaybackApps(private val context: Context, private val catalog: AppCatalogRepository, private val knownVideoPackages: () -> Set<String> = { emptySet() }) : PlaybackAppResolver {
+    override fun changes() = catalog.allApps.map { Unit }
     override suspend fun installed(): List<PlaybackApp> = withContext(Dispatchers.IO) {
         catalog.allApps.first().filter { it.packageName != context.packageName }.map { app ->
             val category = runCatching { context.packageManager.getApplicationInfo(app.packageName, 0).category }.getOrNull()

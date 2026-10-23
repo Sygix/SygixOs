@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 
 class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: CoroutineScope, privilegedAccess: fr.sygix.sygixos.data.AdbAccess? = null,
     private val onArtwork: suspend (List<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>) -> Unit = {},
+    private val onIdentities: suspend (List<fr.sygix.sygixos.domain.UpNextIdentityLink>) -> Unit = {},
     transport: TrackingTransport = BoundedTrackingTransport(TrackingHttpsTransport()),
     sessionStore: TrackingSessionStore = KeystoreTrackingSession(context),
     val preferences: TrackingSettingsStore = TrackingPreferences(context),
@@ -38,7 +39,11 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
         }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
     val controller = TrackingController(provider, sessionStore, scope)
-    val enrichment = TrackingEnrichment(controller, provider, scope)
+    val enrichment = TrackingEnrichment(controller, provider, scope, onIdentities = { links ->
+        try { onIdentities(links) }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { controller.markFailure(TrackingFailure.STORAGE); throw TrackingException(TrackingFailure.STORAGE) }
+    })
     val device = BetaSeriesDevice(api, controller, scope, clock)
     val actions = TrackingActions(controller, provider::mutate, scope, reconcile = provider::statusMatches, clock = nanoTime)
     val media = MediaAccessController(mediaGateway, scope)
@@ -56,9 +61,14 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
                 listOf(card.artwork to card.cardIdentity, hero.artwork to hero.fullFingerprint)
             })
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-        catch (_: Exception) { return@combine value.copy(contents = emptyList(), failure = TrackingFailure.STORAGE) }
-        if (value.generation == controller.state.value.generation) value else controller.state.value.copy(contents = emptyList())
+        catch (_: Exception) { return@combine controller.state.value.copy(contents = emptyList(), failure = TrackingFailure.STORAGE) }
+        val latest = controller.state.value
+        if (current == latest) value
+        else if (current.generation == latest.generation && current.revision == latest.revision && latest.failure == null && current.contents == latest.contents && current.memberships == latest.memberships)
+            value.copy(account = latest.account, loading = latest.loading)
+        else latest.copy(contents = emptyList())
     }.stateIn(scope, SharingStarted.Eagerly, TrackingState())
+    private var observationEnabled: Boolean? = null
 
     init {
         scope.launch {
@@ -67,7 +77,7 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
         }
         scope.launch {
             combine(controller.state, preferences.observation) { state, enabled -> Triple(state.generation, state.account != null, enabled) }
-                .distinctUntilChanged().collect { (generation, connected, enabled) -> media.refresh(generation, connected, enabled) }
+                .distinctUntilChanged().collect { (generation, connected, enabled) -> observationEnabled = enabled; media.refresh(generation, connected, enabled) }
         }
     }
 
@@ -75,11 +85,12 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
         device.setVisible(true)
         actions.setForeground(true)
         playback.onForeground()
-        controller.refresh()
-        media.refresh(controller.state.value.generation, controller.state.value.account != null, media.state.value != MediaAccessState.DISABLED)
+        controller.setForeground(true)
+        media.refresh(controller.state.value.generation, controller.state.value.account != null, observationEnabled == true)
     }
 
     fun onBackground() {
+        controller.setForeground(false)
         device.setVisible(false)
         actions.setForeground(false)
         playback.onBackground()

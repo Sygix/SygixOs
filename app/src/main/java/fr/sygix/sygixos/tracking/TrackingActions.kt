@@ -56,7 +56,7 @@ class TrackingActions(
         if (work?.isActive == true || mutable.value?.busy == true) return
         val applicable = when (action) {
             TrackingAction.ADD -> content.membership == AccountMembership.ABSENT
-            TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> content.membership == AccountMembership.PRESENT && content.parent.type == TrackingType.SHOW
+            TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> content.membership == AccountMembership.PRESENT && content.parent.type == TrackingType.SHOW && content.archived != null
             TrackingAction.SEEN, TrackingAction.UNSEEN, TrackingAction.RESTORE_MOVIE_STATE -> content.membership == AccountMembership.PRESENT && content.identity.type != TrackingType.SHOW
             TrackingAction.REMOVE -> content.membership == AccountMembership.PRESENT
         }
@@ -81,7 +81,13 @@ class TrackingActions(
                     if (notice.failure == null || !reconcile(token, operation.content, action)) mutate(token, operation.content, action)
                 }
                 if (controller.state.value.generation != notice.generation) return@launch
-                controller.refresh()
+                if (notice.action == TrackingAction.REMOVE) {
+                    val refreshed = controller.reconcile()
+                    if (refreshed.memberships?.contains(notice.content.parent) != false) {
+                        controller.markFailure(TrackingFailure.INCOMPLETE)
+                        throw TrackingException(TrackingFailure.INCOMPLETE)
+                    }
+                } else controller.refresh()
                 excludedMutable.value = excludedMutable.value - notice.content.parent
                 if (operation.undoing || notice.action == TrackingAction.REMOVE || notice.action == TrackingAction.ADD) mutable.value = null
                 else { mutable.value = operation.copy(busy = false, failure = null); startTimer() }
@@ -99,7 +105,7 @@ class TrackingActions(
     private fun inverse(notice: TrackingNotice): TrackingAction = when (notice.action) {
         TrackingAction.SEEN, TrackingAction.UNSEEN -> if (notice.content.identity.type == TrackingType.MOVIE) TrackingAction.RESTORE_MOVIE_STATE
             else if (notice.content.seen) TrackingAction.SEEN else TrackingAction.UNSEEN
-        TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> if (notice.content.archived) TrackingAction.ARCHIVE else TrackingAction.UNARCHIVE
+        TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> if (notice.content.archived == true) TrackingAction.ARCHIVE else TrackingAction.UNARCHIVE
         else -> throw TrackingException(TrackingFailure.PROTOCOL)
     }
 

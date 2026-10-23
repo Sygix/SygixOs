@@ -89,7 +89,7 @@ object UpNextFeed {
 
     private fun merge(items: List<UpNextItem>): UpNextItem {
         val ranked = items.sortedWith(winner)
-        return ranked.first().copy(sources = ranked.flatMap { it.sources }.distinctBy { it.packageName })
+        return ranked.first().copy(sources = ranked.flatMap { it.sources }.distinctBy { it.packageName to it.targetIdentity })
     }
 
     private data class EpisodeKey(val identity: Any, val season: String, val episode: String)

@@ -52,6 +52,7 @@ class UpNextController(
         val opened: Map<UpNextContentKey, Long> = emptyMap(),
         val returnKey: UpNextContentKey? = null,
         val returnId: Long = 0,
+        val memoryLoaded: Boolean = false,
     )
 
     private val raw = MutableStateFlow(Loaded(UpNextContent.Pending))
@@ -64,8 +65,11 @@ class UpNextController(
     private val removedKeys: Flow<List<UpNextContentKey>> = memory.removed.keys()
 
     private val combinedRaw = combine(raw, tracking, disabledSources, enrichment, readers) { loaded, tracked, disabled, identities, readers ->
+        if (!loaded.memoryLoaded) return@combine loaded.copy(content = if (loaded.content == UpNextContent.Skeleton) UpNextContent.Skeleton else UpNextContent.Pending)
         val local = (loaded.content as? UpNextContent.Items)?.items.orEmpty().filter { it.source.packageName !in disabled }.map { item ->
-            val content = identities[item.key]?.takeIf { tracked.account != null && tracked.failure == null && it.sessionGeneration == tracked.generation }
+            val content = identities[item.key]?.takeIf { tracked.account != null && tracked.failure == null && it.sessionGeneration == tracked.generation }?.let { content ->
+                content.copy(membership = tracked.memberships?.let { if (content.parent in it) fr.sygix.sygixos.tracking.AccountMembership.PRESENT else fr.sygix.sygixos.tracking.AccountMembership.ABSENT } ?: fr.sygix.sygixos.tracking.AccountMembership.UNKNOWN)
+            }
             if (content == null) item else item.copy(tracking = content, externalIds = content.externalIds,
                 source = item.source.copy(targetIdentity = content.identity), sources = item.sources.map { it.copy(targetIdentity = content.identity) })
         }.filter { it.tracking?.parent !in tracked.pendingRemovals }
@@ -92,6 +96,23 @@ class UpNextController(
 
     val updates: Flow<Unit> = source.changes().onEach { refresh() }
 
+    init {
+        scope.launch {
+            memory.opened.catch { emit(emptyMap()) }.collect { stored ->
+                fun identified(key: UpNextContentKey?): UpNextContentKey? {
+                    if (key == null || key.tracking != null) return key
+                    val identities = stored.keys.filter { it.tracking != null && it.matches(key) }.mapNotNull { it.tracking }.distinct()
+                    return identities.singleOrNull()?.let { key.copy(tracking = it) } ?: key
+                }
+                pendingReturn = pendingReturn?.let { requireNotNull(identified(it.first)) to it.second }
+                raw.update {
+                    it.copy(opened = if (!it.memoryLoaded || pendingReturn == null) stored else it.opened,
+                        memoryLoaded = true, returnKey = identified(it.returnKey))
+                }
+            }
+        }
+    }
+
     fun refresh() {
         expireIfNeeded()
         reload?.cancel()
@@ -110,11 +131,10 @@ class UpNextController(
                     onSuccess = { items -> loaded(items) },
                     onFailure = { error ->
                         if (error is SecurityException) {
-                            pendingReturn = null
-                            raw.value = Loaded(UpNextContent.Items(emptyList()))
-                        } else if (raw.value.content !is UpNextContent.Items) {
-                            raw.update { it.copy(content = UpNextContent.Error) }
-                        }
+                            confirmedAt = null
+                            expiry?.cancel()
+                            publish(UpNextContent.Items(emptyList()))
+                        } else publish(raw.value.content.takeIf { it is UpNextContent.Items } ?: UpNextContent.Error)
                     },
                 )
             } finally { skeleton?.cancel() }
@@ -122,11 +142,7 @@ class UpNextController(
     }
 
     private suspend fun loaded(items: List<UpNextItem>) {
-        val stored = readOpened()
-        val pending = pendingReturn
-        pendingReturn = null
-        val opened = if (pending == null) stored else stored.filterKeys { it != pending.first } + pending
-        raw.value = Loaded(UpNextContent.Items(items), opened, pending?.first, if (pending == null) 0 else ++returns)
+        publish(UpNextContent.Items(items))
         confirmedAt = clock()
         expiry?.cancel()
         expiry = scope.launch { delay(ArtworkAge.FRESH_MS); expireIfNeeded() }
@@ -135,6 +151,14 @@ class UpNextController(
             val published = items + tracked.contents.map(fr.sygix.sygixos.tracking.TrackingProjection::card)
             guard { memory.pruneOpened { key -> key.tracking != null && tracked.account == null || UpNextFeed.stillPublished(key, published) } }
         }
+    }
+
+    private suspend fun publish(content: UpNextContent) {
+        val stored = readOpened()
+        val pending = pendingReturn
+        pendingReturn = null
+        val opened = if (pending == null) stored else stored.filterKeys { it != pending.first } + pending
+        raw.value = Loaded(content, opened, pending?.first, if (pending == null) 0 else ++returns, memoryLoaded = true)
     }
 
     private fun expireIfNeeded() {

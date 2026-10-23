@@ -56,7 +56,11 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         val episodes = api.pages("episodes/list", "shows", token, mapOf("released" to "1", "showsLimit" to "100", "limit" to "100"))
         val contents = episodes.mapNotNull { group ->
             val show = shows[group.requiredId()] ?: throw TrackingException(TrackingFailure.INCOMPLETE)
-            if (show.optJSONObject("user")?.optBoolean("archived") == true) return@mapNotNull null
+            when (archiveState(show)) {
+                true -> return@mapNotNull null
+                null -> throw TrackingException(TrackingFailure.INCOMPLETE)
+                false -> Unit
+            }
             val unseen = group.optJSONArray("unseen") ?: throw TrackingException(TrackingFailure.PROTOCOL)
             val next = (0 until unseen.length()).map { unseen.getJSONObject(it) }.filter {
                 val date = it.text("date")?.let { value -> runCatching { LocalDate.parse(value.take(10)) }.getOrNull() }
@@ -117,8 +121,8 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
                 members.any { it.requiredId() == content.parent.id } == (action == TrackingAction.ADD)
             }
             TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> {
-                val user = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).optJSONObject("show")?.optJSONObject("user")
-                user?.has("archived") == true && user.optBoolean("archived") == (action == TrackingAction.ARCHIVE)
+                val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).optJSONObject("show")
+                show?.let(::archiveState) == (action == TrackingAction.ARCHIVE)
             }
             TrackingAction.SEEN, TrackingAction.UNSEEN, TrackingAction.RESTORE_MOVIE_STATE -> {
                 val user = api.request(if (movie) "movies/movie" else "episodes/display", token, fields = mapOf("id" to content.identity.id))
@@ -139,10 +143,12 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             identity = TrackingIdentity("betaseries", TrackingType.EPISODE, value.requiredId()),
             parent = TrackingIdentity("betaseries", TrackingType.SHOW, show.requiredId()),
             title = show.text("title") ?: throw TrackingException(TrackingFailure.PROTOCOL),
-            episodeTitle = value.text("title"), season = value.optInt("season").takeIf { it >= 0 }, episode = value.optInt("episode").takeIf { it > 0 },
+            episodeTitle = value.text("title"), season = value.optInt("season", -1).takeIf { it >= 0 }, episode = value.optInt("episode", -1).takeIf { it > 0 },
             image = images?.text("show"), poster = images?.text("poster"),
             durationMillis = value.optLong("duration").takeIf { it > 0 }?.times(60_000),
             externalIds = externalIds(show), seen = value.optJSONObject("user")?.optBoolean("seen") == true,
+            archived = archiveState(show),
+            offers = BetaSeriesOffers.show(show),
         )
     }
 
@@ -153,9 +159,16 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         durationMillis = value.optLong("length").takeIf { it > 0 }?.times(60_000), externalIds = externalIds(value),
         movieState = value.optJSONObject("user")?.optInt("status") ?: 0,
         seen = value.optJSONObject("user")?.optInt("status") == 1,
+        offers = BetaSeriesOffers.movie(value),
     )
 
     private fun externalIds(value: JSONObject): Map<String, String> = listOf("thetvdb_id", "imdb_id", "themoviedb_id").mapNotNull { key ->
         value.text(key)?.takeUnless { it == "0" }?.let { key to it }
     }.toMap()
+
+    private fun archiveState(show: JSONObject): Boolean? = when (val value = show.optJSONObject("user")?.opt("archived")) {
+        is Boolean -> value
+        is Number -> when (value.toInt()) { 0 -> false; 1 -> true; else -> null }
+        else -> value?.toString()?.toBooleanStrictOrNull()
+    }
 }

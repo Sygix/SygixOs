@@ -7,6 +7,14 @@ package fr.sygix.sygixos.tracking
 
 enum class TrackingType { SHOW, EPISODE, MOVIE }
 enum class TrackingAction { ADD, SEEN, UNSEEN, ARCHIVE, UNARCHIVE, REMOVE, RESTORE_MOVIE_STATE }
+enum class OfferScope { SHOW, SEASONS, EPISODE, MOVIE }
+sealed interface RegionalAvailability {
+    data object Unknown : RegionalAvailability
+    data object Unconfirmed : RegionalAvailability
+    data class Confirmed(val country: String, val scope: OfferScope) : RegionalAvailability
+}
+data class PlaybackOffer(val id: String?, val name: String?, val logo: String?, val url: String?, val scope: OfferScope,
+    val firstSeason: Int? = null, val lastSeason: Int? = null, val availability: RegionalAvailability = RegionalAvailability.Unconfirmed)
 
 data class TrackingIdentity(val provider: String, val type: TrackingType, val id: String)
 data class TrackingAccount(val id: String, val name: String)
@@ -28,12 +36,13 @@ data class TrackingContent(
     val durationMillis: Long? = null,
     val externalIds: Map<String, String> = emptyMap(),
     val seen: Boolean = false,
-    val archived: Boolean = false,
+    val archived: Boolean? = null,
     val membership: AccountMembership = AccountMembership.PRESENT,
     val movieState: Int = 0,
     val readerPackage: String? = null,
     val readerName: String? = null,
     val sessionGeneration: Long? = null,
+    val offers: List<PlaybackOffer> = emptyList(),
 )
 
 data class TrackingSnapshot(val contents: List<TrackingContent>, val memberships: Set<TrackingIdentity> = contents.map { it.parent }.toSet())
@@ -45,6 +54,7 @@ data class TrackingState(
     val failure: TrackingFailure? = null,
     val memberships: Set<TrackingIdentity>? = null,
     val pendingRemovals: Set<TrackingIdentity> = emptySet(),
+    val revision: Long = 0,
 )
 
 interface WatchTrackingProvider {

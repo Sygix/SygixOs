@@ -17,9 +17,14 @@ class BetaSeriesApi(
         require(path.matches(Regex("[a-z_]+/[a-z_]+")))
         val config = configuration.get()
         val result = execute(config, path, token, method, fields)
-        if (result.errorsCode() == 1001 && method == "GET") {
+        if (result.errorsCode() == 1001) {
             configuration.invalidate(config)
-            return checked(execute(configuration.get(), path, token, method, fields))
+            if (method == "GET") {
+                val renewed = configuration.get()
+                val replayed = execute(renewed, path, token, method, fields)
+                if (replayed.errorsCode() == 1001) configuration.invalidate(renewed)
+                return checked(replayed)
+            }
         }
         return checked(result)
     }

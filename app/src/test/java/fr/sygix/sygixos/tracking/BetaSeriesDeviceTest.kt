@@ -90,4 +90,22 @@ class BetaSeriesDeviceTest {
         advanceTimeBy(20_000); runCurrent()
         assertEquals(1, polls)
     }
+
+    @Test fun consumedCodeStopsPollingAndRepeatedRetryKeepsOnlyOneAttempt() = runTest {
+        var attempts = 0
+        var polls = 0
+        val transport = TrackingTransport { request -> when {
+            request.url.endsWith("/") -> TrackingResponse(200, "{apiHost:\"https://api.betaseries.com\",apiKey:\"fixture-client\"}")
+            request.url.endsWith("oauth/device") -> { ++attempts; TrackingResponse(200, "{\"device_code\":\"fixture-device-$attempts\",\"user_code\":\"FIXTURE-$attempts\",\"verification_url\":\"https://www.betaseries.com/device\",\"expires_in\":30,\"interval\":1}") }
+            else -> { ++polls; TrackingResponse(400, "{\"errors\":[{\"code\":2002}]}") }
+        } }
+        val device = BetaSeriesDevice(BetaSeriesApi(transport, BetaSeriesConfigurationSource(transport)), controller(backgroundScope), backgroundScope) { testScheduler.currentTime }
+        device.open(); runCurrent(); advanceTimeBy(1000); runCurrent()
+        assertEquals(DeviceAssociationState.Error(TrackingFailure.ACCESS), device.state.value)
+        advanceTimeBy(10_000); runCurrent(); assertEquals(1, polls)
+        device.open(); device.open(); runCurrent()
+        assertEquals(2, attempts)
+        assertEquals("FIXTURE-2", (device.state.value as DeviceAssociationState.Waiting).association.userCode)
+        advanceTimeBy(1000); runCurrent(); assertEquals(2, polls)
+    }
 }

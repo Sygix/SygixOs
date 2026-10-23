@@ -22,7 +22,7 @@ class TrackingHeroSource(
     private val local: HeroContentProvider,
     private val tracking: StateFlow<TrackingState>,
     private val memory: UpNextMemory,
-    private val enrichment: TrackingEnrichment? = null,
+    private val enrichment: TrackingLocalContents? = null,
     private val disabledSources: Flow<Set<String>> = kotlinx.coroutines.flow.flowOf(emptySet()),
 ) : HeroContentProvider {
     override suspend fun load(): List<HeroItem> = read().items
@@ -34,7 +34,10 @@ class TrackingHeroSource(
         val tracked = tracking.value.contents.filter { content -> removed.none { it.matches(UpNextContentKey.of(TrackingProjection.card(content))) } }
         val disabled = disabledSources.first()
         val local = enrichment?.items().orEmpty().filter { it.source.packageName !in disabled }
-        val merged = TrackingProjection.merge(local, tracked).filter { it.tracking?.membership == AccountMembership.PRESENT }
+        val merged = TrackingProjection.merge(local, tracked).filter { item ->
+            val content = item.tracking
+            content?.membership == AccountMembership.PRESENT && content.parent !in tracking.value.pendingRemovals && removed.none { it.matches(UpNextContentKey.of(item)) }
+        }
         val identities = merged.mapNotNull { it.tracking?.parent }.toSet()
         val localByKey = local.associateBy { "${it.source.packageName}:${it.id}" }
         val native = original.items.filter { hero ->
@@ -42,7 +45,7 @@ class TrackingHeroSource(
             val content = localByKey[localKey]?.tracking
             content == null || content.parent !in identities || !hero.id.startsWith("watchnext-")
         }
-        return original.copy(items = native + merged.map(TrackingProjection::hero))
+        return original.copy(items = native + merged.map(TrackingProjection::hero), shelfItems = original.shelfItems ?: original.items)
     }
 
     override fun changes(): Flow<Unit> = merge(local.changes(), tracking.map { Unit }, memory.removed.catch { emit(emptyList()) }.map { Unit },
