@@ -130,7 +130,19 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 
 #### Scenario: association
 - **WHEN** le test ouvre puis ferme une association, laisse expirer son code et demande un nouveau code
-- **THEN** adresse/code/QR appartiennent à la même tentative, le QR n'est pas focusable, les actions ont un focus initial et Retour restaure Connecter sans poller une ancienne tentative
+- **THEN** adresse/code/QR appartiennent à la même tentative, l'adresse visible conserve le chemin complet de `verification_url` et le QR encode la même URL précise plutôt que le domaine ; le QR n'est pas focusable, les actions ont un focus initial et Retour restaure Connecter sans poller une ancienne tentative
+
+#### Scenario: pays en liste déroulante
+- **WHEN** le test ouvre le pays, parcourt ses options, valide puis rouvre et annule
+- **THEN** la liste reste ancrée dans les réglages sans modale, le focus et les bords suivent settings, seule la validation modifie la valeur et le libellé n'ajoute pas « · confirmé »
+
+#### Scenario: composants du suivi
+- **WHEN** le test présente synchronisation, indisponibilité, modales de contenu et retours transitoires
+- **THEN** l'indicateur reste discret à droite sans suffixe « · Réglages », les modales réutilisent le composant existant dimensionné au contenu et les retours partagent le composant compact en bas à droite ; rendu glass, bordure et flou sont vérifiés sur TV, sans remplacer ces surfaces par des panneaux opaques
+
+#### Scenario: échéance d'annulation
+- **WHEN** une horloge contrôlée avance pendant une fenêtre Annuler, avec puis sans interaction
+- **THEN** le retrait distant attend 10 secondes actives, le focus suspend le décompte sans le réinitialiser et la sortie reprend le temps restant ; annuler avant échéance n'envoie aucun retrait et l'expiration ne marque jamais vu
 
 #### Scenario: sélecteur et épisodes
 - **WHEN** le test parcourt les lecteurs et Autre application, puis les épisodes vus et non vus, annule et simule la disparition de l'entrée focusée
@@ -145,5 +157,9 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 - **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement utilise le parcours commun, avec confirmation du premier lecteur si aucune préférence n'existe ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive
 
 #### Scenario: autorisation média
-- **WHEN** le double refuse, accorde, retire l'accès ou ne fournit aucun écran système
-- **THEN** le contrôle affiche l'état réel, retrouve le focus et laisse fonctionner le suivi manuel sans nouvelle sollicitation automatique
+- **WHEN** le double propose ADB/Tsuyu utilisable, retarde ou refuse son activation, retire son accès ou ne fournit aucune voie privilégiée ni écran système
+- **THEN** l'accès privilégié est activé sans ouvrir l'écran système et n'est déclaré disponible qu'après vérification ; échec et retrait exposent le repli manuel sans boucle, une désactivation volontaire est respectée et aucune permission ne vaut preuve de fin de lecture
+
+#### Scenario: autorisation média manuelle
+- **WHEN** sans accès privilégié effectif, le double refuse, accorde ou retire l'accès système demandé volontairement
+- **THEN** le contrôle affiche l'état relu, retrouve le focus et laisse fonctionner le suivi manuel sans nouvelle sollicitation automatique

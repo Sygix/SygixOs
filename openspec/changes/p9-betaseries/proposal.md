@@ -13,9 +13,9 @@ Le TV Provider ne représente qu'une partie des séries et films à regarder et 
 - Choisir une application au premier lancement, même avec une seule offre connue, puis mémoriser ce choix par série ou film ; proposer les apps vidéo reconnues et « Autre application » ; mutualiser les préférences entre héro et À suivre.
 - Présenter honnêtement les offres dont la disponibilité régionale n'est pas confirmée ; choisir et confirmer le pays dans les réglages, sans déduire une disponibilité d'une app installée.
 - Ajouter vu/non vu, annulation non bloquante, choix d'un épisode diffusé, ajout au compte depuis un contenu existant, retrait/archivage et masquage local.
-- Proposer un accès Android optionnel aux sessions média ; n'automatiser le marquage qu'avec une identité et une fin de lecture fiables, sinon demander discrètement au retour.
+- Activer et vérifier automatiquement l'accès média lorsqu'une voie ADB/Tsuyu déjà autorisée est utilisable, avec accès Android manuel optionnel en repli ; n'automatiser le marquage qu'avec une identité et une fin de lecture fiables, sinon demander discrètement au retour.
 - En cas d'échec BetaSeries, retirer sa contribution et conserver les sources locales, avec un indicateur discret, détail et réessai ; aucune file de mutations hors ligne.
-- Préparer les parcours et états nécessaires à une future passe Penpot, sans produire ni approuver de maquette dans ce change de cadrage.
+- Conserver les parcours et états de la passe Penpot ainsi que les décisions visuelles confirmées dans le design et les scénarios ; les planches ne valent ni implémentation ni validation sur TV.
 
 ## Capabilities
 
@@ -47,7 +47,7 @@ Aucun change ouvert au début du cadrage. P9 part des capabilities déjà livré
 - Trakt et connexion simultanée de plusieurs fournisseurs : futur change de suivi, phase non fixée.
 - Backend, collecte des mots de passe et lecteurs vidéo intégrés : hors périmètre.
 - Garantie d'ouverture ciblée ou de suivi automatique pour toute app, accès aux bibliothèques personnelles et abonnements réels : non fournis par le simple lien BetaSeries.
-- Passe visuelle Penpot et valeurs géométriques des nouveaux parcours : étape suivante sur instruction de Sygix, avant implémentation de l'UI.
+- Implémentation des écrans et validation de leur navigation sur TV : étape suivante, à partir des maquettes et décisions de ce cadrage.
 
 ## Questions ouvertes
 

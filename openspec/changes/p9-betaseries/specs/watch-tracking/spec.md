@@ -131,6 +131,10 @@ Un marquage vu/non vu ou archivage SHALL proposer une annulation non bloquante d
 - **WHEN** l'utilisateur annule avant l'échéance d'un retrait du compte
 - **THEN** la carte retrouve sa place de tri et aucun retrait distant n'a été envoyé
 
+#### Scenario: durée de la fenêtre
+- **WHEN** une annulation devient disponible
+- **THEN** sa fenêtre dure 10 secondes de temps actif ; son décompte est suspendu pendant l'interaction avec le composant, notamment tant qu'il porte le focus, puis reprend avec le temps restant ; aucun retrait distant ne part avant cette échéance
+
 #### Scenario: annuler un archivage
 - **WHEN** l'utilisateur annule un archivage confirmé
 - **THEN** l'état d'archive précédent est rétabli puis relu, sans retrait de la série ni modification de ses épisodes vus ou de son masquage local
@@ -148,11 +152,19 @@ Un marquage vu/non vu ou archivage SHALL proposer une annulation non bloquante d
 - **THEN** elle n'interrompt pas la navigation, ne prend pas spontanément le focus et reste accessible au D-pad pendant sa fenêtre ; son échéance n'exécute jamais un marquage vu à la place de l'utilisateur
 
 ### Requirement: Accès optionnel aux sessions média
-Le suivi automatique SHALL proposer un accès Android optionnel, séparé de la connexion au compte et de READ_TV_LISTINGS. Refus, retrait ou écran système absent SHALL laisser le launcher et la confirmation manuelle utilisables, sans nouvelle sollicitation automatique.
+L'accès média SHALL être séparé du compte et de READ_TV_LISTINGS. Avec une voie ADB/Tsuyu déjà utilisable, son activation SHALL être automatique et vérifiée, sans demander d'autorisation système supplémentaire. Sinon l'accès Android manuel reste optionnel. Refus, retrait ou indisponibilité SHALL laisser la confirmation manuelle utilisable sans sollicitation répétée.
+
+#### Scenario: voie privilégiée disponible
+- **WHEN** un compte est connecté, que l'observation n'a pas été désactivée par l'utilisateur et que la voie ADB/Tsuyu déjà autorisée est utilisable
+- **THEN** l'accès média est activé automatiquement puis vérifié avec un délai borné, sans ouvrir l'écran d'autorisation Android ; l'état distingue activation en cours, accès effectivement disponible et échec ; la seule présence d'ADB ou de Tsuyu ne vaut pas accord ni preuve d'accès
+
+#### Scenario: échec ou disparition de la voie privilégiée
+- **WHEN** l'activation échoue ou que l'accès effectif disparaît, notamment au retour au premier plan
+- **THEN** l'état est relu, aucune collecte ni mutation ne présume l'accès et les réglages proposent réessai ou accès Android manuel si disponible ; le suivi manuel continue sans boucle d'activation ni ouverture automatique d'un écran système
 
 #### Scenario: autorisation demandée
 - **WHEN** l'utilisateur ouvre volontairement le contrôle d'accès aux sessions
-- **THEN** l'écran système disponible s'ouvre ; l'accord est relu au retour et le focus revient au contrôle, sans présumer du succès
+- **THEN** sans accès effectif par la voie privilégiée, l'écran système disponible s'ouvre ; l'accord est relu au retour et le focus revient au contrôle, sans présumer du succès ; un accès déjà disponible ne demande pas une seconde autorisation
 
 #### Scenario: accès absent ou retiré
 - **WHEN** l'accès est refusé, révoqué, non pris en charge ou que les données d'une app manquent

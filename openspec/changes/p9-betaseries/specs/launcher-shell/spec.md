@@ -154,7 +154,11 @@ Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seu
 
 #### Scenario: proposition non bloquante
 - **WHEN** Terminé ou Annuler est proposé au retour
-- **THEN** l'origine conserve son focus ; l'action reste accessible au D-pad selon le parcours complété dans la passe Penpot avant implémentation, sans quatrième palier
+- **THEN** l'origine conserve son focus ; l'action reste accessible au D-pad selon le parcours complété dans la passe Penpot avant implémentation, sans quatrième palier ; les états transitoires partagent un composant compact en bas à droite dans la zone sûre, de taille adaptée au contenu plutôt qu'une barre pleine largeur, avec le fond et la bordure transparents floutés du composant de modale existant
+
+#### Scenario: taille des modales du suivi
+- **WHEN** le suivi ouvre une modale, notamment un état vide ou indisponible
+- **THEN** elle réutilise le composant de modale existant et sa matière glass transparente floutée ; sa taille épouse le contenu et les actions avec les retraits du composant, sans grande réserve vide ni panneau opaque de substitution
 
 **Détails.** — Le home reste une page continue, héro/dock puis grille, sans fondu ni saut dans la traversée, avec durée/courbe de Focus tvOS. Première entrée : titre de la première section en haut et première ligne dessous. Retour : position et élément laissés, pas une descente d'un écran imposée. La disparition d'un élément suit Repli du focus des cartes. Les contrôles du suivi n'annulent ni ces positions ni l'isolation des zones inactives.
 
@@ -248,7 +252,11 @@ Une panne du fournisseur connecté SHALL avoir un indicateur discret donnant acc
 
 #### Scenario: panne partielle
 - **WHEN** le compte échoue et que les programmes locaux restent disponibles
-- **THEN** ils restent utilisables et l'indicateur n'occupe pas une carte de la limite de 20, ne vole pas le focus et ne remplace pas la rangée
+- **THEN** ils restent utilisables et l'indicateur n'occupe pas une carte de la limite de 20, ne vole pas le focus et ne remplace pas la rangée ; il reste de petite taille, aligné à droite sur la ligne du titre À suivre, sans suffixe « · Réglages »
+
+#### Scenario: synchronisation en cours
+- **WHEN** une synchronisation affiche un statut dans l'en-tête d'À suivre
+- **THEN** ce statut reprend le placement discret à droite et n'agrandit pas l'en-tête ni ne prend la place des cartes
 
 #### Scenario: aucune carte restante
 - **WHEN** la panne retire les dernières cartes du suivi

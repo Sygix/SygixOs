@@ -11,7 +11,11 @@ L'authentification SHALL se faire par association OAuth BetaSeries pour appareil
 
 #### Scenario: association disponible
 - **WHEN** l'utilisateur choisit de connecter BetaSeries
-- **THEN** un code est demandé avec délai borné ; la TV affiche le code, l'adresse officielle lisible et son QR, puis attend l'autorisation selon l'intervalle et l'expiration renvoyés par le service
+- **THEN** un code est demandé avec délai borné ; la TV affiche le code et la `verification_url` officielle lisible avec son chemin complet, et son QR encode cette même URL de la même tentative ; afficher seulement le domaine ou un QR vers l'accueil ne suffit pas ; l'attente respecte l'intervalle et l'expiration renvoyés par le service
+
+#### Scenario: adresse de saisie du code
+- **WHEN** l'association fournit une adresse comme `https://www.betaseries.com/device`
+- **THEN** cette adresse précise est affichée et encodée sans remplacer son chemin ni inventer de paramètre prérempli ; si l'adresse manque ou est invalide, le parcours présente l'erreur réessayable plutôt qu'un lien de secours vers le domaine
 
 #### Scenario: connexion confirmée
 - **WHEN** l'échange retourne un jeton utilisable et que l'identité du compte est confirmée

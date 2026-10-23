@@ -182,7 +182,15 @@ La catégorie Suivi de visionnage SHALL exposer le fournisseur BetaSeries, conne
 
 #### Scenario: pays
 - **WHEN** le pays est ouvert puis validé ou annulé
-- **THEN** le pays proposé depuis la TV, sinon aucun pays confirmé, est affiché ; la valeur confirmée est persistée et appliquée selon watch-tracking ; annuler ne change rien et le contrôle reprend le focus
+- **THEN** une liste déroulante ancrée au contrôle reprend le composant de position d'À suivre, sans modale ; le pays proposé depuis la TV reste distingué d'une valeur choisie ; OK valide, persiste et applique la valeur selon watch-tracking puis referme la liste ; Retour referme sans modification ; le contrôle reprend le focus et n'ajoute pas « · confirmé » après le pays
+
+#### Scenario: navigation dans les pays
+- **WHEN** la liste déroulante est ouverte
+- **THEN** le pays choisi sinon proposé, sinon la première option prend le focus ; haut/bas parcourent les pays sans boucle, gauche/droite ne quittent pas la liste et Retour l'annule ; une option disparue transmet le focus à sa suivante sinon précédente, sinon referme la liste sur son contrôle
+
+#### Scenario: accès média automatique
+- **WHEN** la voie privilégiée est utilisable pour l'accès média selon watch-tracking
+- **THEN** le contrôle expose l'activation automatique en cours puis son résultat vérifié, sans demander un passage par l'autorisation Android ; échec et repli manuel sont distingués, et une désactivation volontaire n'est pas annulée automatiquement
 
 #### Scenario: retour système
 - **WHEN** l'utilisateur revient des réglages Android d'accès média

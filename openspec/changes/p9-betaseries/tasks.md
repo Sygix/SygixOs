@@ -4,22 +4,24 @@ Cette liste suit l'implémentation future, pas la rédaction de cette PR. Aucune
 
 ## 1. Contrats et appareil avant code produit
 
-- [ ] 1.1 Sur une TV Google TV sous Android 14, vérifier l'accès Android aux notifications/sessions (écran présent ou absent, refus, accord, révocation) et relever uniquement les colonnes/types d'identité, progression et événements des apps testées ; critère : matrice anonymisée indiquant preuve de fin disponible ou confirmation manuelle obligatoire, sans code produit engagé avant cette vérification.
+- [ ] 1.1 Sur une TV Google TV sous Android 14, vérifier la commande et l'accès média effectif via ADB/Tsuyu déjà autorisé, son échec/retrait, puis le repli Android manuel (écran présent ou absent, refus, accord, révocation) ; relever uniquement les colonnes/types d'identité, progression et événements des apps testées ; critère : matrice anonymisée prouvant l'activation automatique sans écran d'autorisation supplémentaire ou son repli, et indiquant preuve de fin disponible ou confirmation manuelle obligatoire, sans code produit engagé avant cette vérification.
 - [ ] 1.2 Tester les intents et liens de plateforme pour les lecteurs disponibles, avec cible épisode/film, fiche, recherche et ouverture simple ; critère : chaque adaptateur prévu a une cible et un repli réellement observés, les liens non testés restent non confirmés.
 - [ ] 1.3 Confirmer la pagination complète des séries, épisodes et films et la sémantique des dates d'activité avec un accès de test autorisé ; critère : exemple structurel de deux pages et de fin de pagination, dates absentes couvertes et aucune confusion entre diffusion, ajout, visionnage et synchronisation.
 - [ ] 1.4 Vérifier vu/non vu, bulk=false, retrait, archive et annulation sur des contenus de test explicitement autorisés ; critère : état avant/après et épisodes voisins contrôlés, différences de restauration consignées sans historique personnel publié.
 
 ## 2. Passe Penpot sur instruction de Sygix
 
+La maquette a été produite, montrée puis validée par Sygix ; les décisions sont reportées dans design et handoff. Cette validation visuelle ne vaut pas validation du comportement D-pad ni exécution des tests de l'implémentation future.
+
 - [ ] 2.1 À la demande explicite de Sygix, produire les états du handoff dans Penpot et lui montrer les aperçus ; critère : écrans de connexion, compte, pays, accès média, lecteur, épisodes, menu, erreur et propositions annotés avec leurs états.
-- [ ] 2.2 Valider le trajet D-pad des propositions non bloquantes, leur accès après disparition d'une carte, l'indicateur sans rangée et la fenêtre Annuler ; critère : choix de Sygix reportés dans design et scénarios concernés, aucun point de navigation laissé à deviner avant code UI.
+- [ ] 2.2 Valider le trajet D-pad des propositions non bloquantes, leur accès après disparition d'une carte et l'indicateur sans rangée ; critère : parcours complétés et fenêtre Annuler de 10 secondes actives suspendue pendant l'interaction vérifiée, aucun point de navigation laissé à deviner avant code UI.
 
 ## 3. Frontières, transport et session
 
 - [ ] 3.1 Ajouter les contrats de fournisseur de suivi, identité, lecteur et preuve, avec états succès/vide/erreur/incomplet et génération de session ; critère : tests JUnit démontrant isolation de deux comptes et rejet des réponses tardives sans dépendance BetaSeries dans le contrat commun.
 - [ ] 3.2 Ajouter le transport de requêtes et les erreurs structurées, avec délais, limites de taille et reprises de lectures bornées de D3 ; critère : tests de 502/503/non JSON/timeout/Retry-After, fermeture des ressources et aucun replay de mutation sur réponse perdue.
 - [ ] 3.3 Implémenter découverte et lecture des seules données de configuration web, sans exécution de script ni valeur de clé fixe ; critère : fixtures synthétiques couvrant nom de bundle changé, champ absent, hôte refusé et récupération concurrente mutualisée.
-- [ ] 3.4 Implémenter l'association appareil, son polling borné, expiration, fermeture et reconnexion ; critère : tests d'attente 2001, succès, code consommé/expiré, panne, suspension/reprise et absence de polling dupliqué.
+- [ ] 3.4 Implémenter l'association appareil, son polling borné, expiration, fermeture et reconnexion ; critère : tests d'attente 2001, succès, code consommé/expiré, panne, suspension/reprise, absence de polling dupliqué et même URL complète avec chemin dans texte/QR de la même tentative, sans repli vers le domaine.
 - [ ] 3.5 Ajouter le stockage Android Keystore et la fin de session avec révocation au mieux ; critère : tests de stockage indisponible, déconnexion hors ligne et nettoyage immédiat, puis contrôle Android de chiffrement et exclusion des sauvegardes, sans jeton dans logs ou fixtures.
 
 ## 4. Lecture du compte et fusion
@@ -42,16 +44,16 @@ Cette liste suit l'implémentation future, pas la rédaction de cette PR. Aucune
 
 ## 6. Observation média optionnelle
 
-- [ ] 6.1 Ajouter le service et la passerelle de sessions média, séparés du service Home, avec ouverture volontaire et relecture de l'autorisation ; critère : tests de refus, retrait, écran absent et arrêt de l'observation à la déconnexion, sans collecte du corps général des notifications.
+- [ ] 6.1 Ajouter le service et la passerelle de sessions média, séparés du service Home, avec activation automatique via ADB/Tsuyu déjà utilisable, vérification effective et repli Android volontaire ; critère : tests activation en cours/succès/échec, accès retiré, écran absent, désactivation respectée et arrêt à la déconnexion, sans faux succès ni collecte du corps général des notifications.
 - [ ] 6.2 Implémenter les adaptateurs de preuve seulement pour les cas démontrés par 1.1, avec session exacte et dédoublonnage ; critère : tests pause/STOPPED/titre ambigu/changement d'épisode/ancien compte n'envoyant aucune mutation et preuve complète n'en envoyant qu'une.
-- [ ] 6.3 Ajouter la proposition Terminé au retour et Annuler après succès manuel ou automatique ; critère : tests sans réponse inchangée, contenu demandé conservé malgré nouveau prochain épisode et annulation possible après disparition de carte.
+- [ ] 6.3 Ajouter la proposition Terminé au retour et Annuler après succès manuel ou automatique ; critère : tests sans réponse inchangée, contenu demandé conservé malgré nouveau prochain épisode, annulation après disparition de carte, échéance de 10 secondes actives et suspension/reprise du temps restant pendant l'interaction, aucun retrait avant échéance.
 - [ ] 6.4 Documenter les limites de compatibilité et le fonctionnement sans accès média ; critère : README ne présentant aucune app non validée comme compatible avec le suivi automatique.
 
 ## 7. Interface et navigation après validation Penpot
 
-- [ ] 7.1 Ajouter la catégorie Suivi de visionnage, le compte, le pays, le QR/code/adresse et les états de connexion ; critère : chaînes FR en ressources, testTags de ui-testing et tests Compose `@Config(qualifiers = "w960dp-h540dp-xhdpi")` pour focus, bords, Retour et restauration.
+- [ ] 7.1 Ajouter la catégorie Suivi de visionnage, le compte, le pays en dropdown natif sans suffixe « · confirmé », le QR/code/adresse complète et les états de connexion ; critère : chaînes FR en ressources, testTags de ui-testing et tests Compose `@Config(qualifiers = "w960dp-h540dp-xhdpi")` pour focus, bords, validation/annulation de la liste, Retour et restauration.
 - [ ] 7.2 Ajouter les menus de suivi, sélecteurs de lecteur/épisode et badges, selon les composants et maquettes validés ; critère : tests Compose TV locaux inchangés et nouveaux cas vus/non vus, app disparue, image absente, préférence partagée et Ajouter au suivi depuis une carte locale identifiée absente du compte couverts, y compris maintien local avant ajout et bascule après succès confirmé.
-- [ ] 7.3 Ajouter indicateur, détail/réessai et actions transitoires accessibles sans vol de focus ; critère : tests Compose TV rangée vide, carte disparue, panne en cours de navigation, arrivée/expiration d'une proposition et restauration de l'origine.
+- [ ] 7.3 Ajouter petit indicateur à droite sans « · Réglages », détail/réessai et composant transitoire compact bas droite sans vol de focus ; réutiliser les modales glass transparentes floutées dimensionnées au contenu ; critère : tests Compose TV rangée vide, carte disparue, panne, arrivée/expiration et restauration, puis contrôle TV des matières et de la compacité, notamment état indisponible.
 - [ ] 7.4 Adapter Réafficher dans Applications cachées pour les contenus du compte et du héro ; critère : tests Compose TV conservant tri, dépliage, première ligne et réaffichage sans mutation distante.
 
 ## 8. Validation intégrée

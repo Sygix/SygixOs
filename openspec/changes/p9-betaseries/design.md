@@ -13,7 +13,7 @@ Les vérifications de `technical-verification.md` distinguent documentation, ess
 - Faire converger les deux surfaces vers une identité et un parcours de lecture communs, sans réécrire leur rendu.
 - Séparer fournisseur de suivi, lecteur et preuve de visionnage ; conserver la possibilité d'un autre fournisseur sans exposer une option vide.
 - Garantir la distinction succès/vide/erreur/incomplet et l'isolation des sessions, sans arrière-plan de synchronisation réseau permanent.
-- Préparer une passe Penpot exploitable avant l'implémentation de l'UI.
+- Conserver les décisions de la passe Penpot et compléter sa navigation avant l'implémentation de l'UI.
 
 **Non-Goals:**
 
@@ -47,7 +47,7 @@ Découvrir le bundle de configuration depuis le HTML officiel, plutôt que figer
 
 Utiliser HTTPS, hôtes officiels attendus, limites de corps et délais. La clé n'est envoyée qu'à l'API attendue, jamais à un lien de plateforme après redirection. Une récupération de configuration est mutualisée, mémorisée localement et renouvelée au plus une fois après refus explicite de configuration ; un jeton utilisateur refusé requiert une nouvelle association. Ne pas transformer une 502 en rotation de clé.
 
-L'association utilise `device_code`, `user_code`, `verification_url`, `expires_in` et `interval`. Le QR encode l'adresse officielle renvoyée et le code reste également lisible ; ne pas inventer un paramètre d'URL préremplie absent du contrat. Le lien et le code doivent suffire à une saisie depuis PC. Une seule boucle par tentative, bornée par l'expiration, suspendue/arrêtée selon la visibilité du panneau et sans réutilisation après fermeture. Un code déjà consommé n'est pas réessayé indéfiniment.
+L'association utilise `device_code`, `user_code`, `verification_url`, `expires_in` et `interval`. Le texte et le QR utilisent la même `verification_url` complète de la même tentative, chemin compris ; la page officielle vérifiée pour la saisie est `https://www.betaseries.com/device`, au singulier. Cette adresse sert de référence, pas de valeur de secours codée en dur : ne pas remplacer l'URL renvoyée par le domaine ou inventer un paramètre prérempli. Le lien et le code doivent suffire à une saisie depuis PC. Une seule boucle par tentative, bornée par l'expiration, suspendue/arrêtée selon la visibilité du panneau et sans réutilisation après fermeture. Un code déjà consommé n'est pas réessayé indéfiniment.
 
 Stocker le jeton chiffré par une clé AES-GCM générée dans Android Keystore, hors sauvegarde transférable. Les préférences non secrètes de lecteur restent séparées du compte. Déconnexion : invalider la génération locale, arrêter les travaux, effacer jeton/données, puis révoquer au mieux le jeton courant par `POST /members/destroy`. Une réponse tardive d'une ancienne génération est rejetée.
 
@@ -106,11 +106,13 @@ Sérialiser par compte/contenu et conserver l'état antérieur nécessaire. Envo
 
 Pour vu/non vu ou archive, relire le résultat confirmé puis proposer l'opération inverse avec son propre résultat. Pour un retrait destructif, masquer temporairement et conserver une action en mémoire pendant la fenêtre d'annulation ; ne pas envoyer avant son échéance. Si l'utilisateur annule ou se déconnecte avant envoi, abandonner. À l'échéance, une erreur restaure la projection cohérente du compte et expose le réessai. Une réaddition n'est pas une restauration d'historique garantie.
 
-La durée et l'accès D-pad des actions transitoires sont fixés dans la passe Penpot avant code ; aucun message ne prend automatiquement le focus. Les opérations ne sont pas mises dans une file de synchronisation hors ligne persistante. Une interruption avant l'envoi d'un retrait abandonne ce retrait, conformément à la spec.
+La fenêtre Annuler est fixée à 10 secondes actives, suspendues pendant l'interaction, notamment tant que le composant porte le focus, puis reprises avec le temps restant. Aucun message ne prend automatiquement le focus. Le trajet D-pad doit rester accessible après disparition de la carte et être validé avant code UI. Les opérations ne sont pas mises dans une file de synchronisation hors ligne persistante. Une interruption avant l'envoi d'un retrait abandonne ce retrait, conformément à la spec.
 
 ### D8 — Observation média optionnelle
 
-Utiliser la voie Android documentée du `NotificationListenerService` activé volontairement et de `MediaSessionManager`, pas une hypothèse de `MEDIA_CONTENT_CONTROL` accordable par une simple permission runtime. Déclarer le service séparément du service Home existant, ouvrir l'écran système seulement sur action et relire l'accès. Si la TV ne l'expose pas ou refuse, le mode manuel reste pleinement utilisable.
+Déclarer le `NotificationListenerService` séparément du service Home et utiliser `MediaSessionManager`. Quand un compte est connecté et qu'une voie ADB/Tsuyu déjà autorisée est utilisable, activer automatiquement l'accès média puis relire l'accès effectif avant de l'annoncer disponible, sauf désactivation volontaire de l'observation. Réutiliser la frontière de commandes privilégiées existante ; la commande exacte et son effet sont à prouver dans la tâche appareil 1.1. La présence d'ADB/Tsuyu n'est pas une permission de l'app et `MEDIA_CONTENT_CONTROL` n'est pas une simple permission runtime accordable par hypothèse.
+
+Sans accès effectif par cette voie, proposer le parcours Android documenté d'autorisation du listener ; ouvrir l'écran système seulement sur action et relire l'accès au retour. Activation bornée, erreur explicite et relecture au premier plan évitent toute boucle ou faux succès. Si la TV ne l'expose pas ou refuse, le mode manuel reste pleinement utilisable. Une désactivation volontaire ou une déconnexion arrête l'observation sans réactivation automatique de cette session.
 
 Ne conserver que les observations nécessaires à la session de lecture demandée (paquet, identité corrélable, événements et position/durée utiles), sans collecter le contenu général des notifications. Pas de journal de visionnage en logs. Un adaptateur de preuve doit fournir identité exacte, fin établie et provenance ; `STOPPED`, temps écoulé, changement de carte ou de titre ne sont pas une preuve seuls. Aucun seuil arbitraire de 90 % n'est décidé dans ce cadrage.
 
@@ -122,7 +124,19 @@ Projeter les mêmes contenus identifiés vers les candidats du héro avant la li
 
 Garder les contrats de dimensions, cache et affichage existants. Préférer le paysage réellement reçu (backdrop/show/image d'épisode s'il existe), sinon portrait accepté seulement dans les cartes ; pas de promesse de bande-annonce native depuis un lien YouTube. Enrichir les images ne crée pas de position de lecture.
 
-Réutiliser `tvFocus`/`tvClickable`, `Motion`, `Dimens` et `GlassSurface` aux endroits autorisés par le design system. Les nouveaux contrôles exposent les tags de ui-testing. `handoff.md` contient les états à maqueter ; la PR est une base de spécification, pas une validation graphique ni un feu vert d'implémentation UI.
+Réutiliser `tvFocus`/`tvClickable`, `Motion`, `Dimens` et `GlassSurface` aux endroits autorisés par le design system. Les nouveaux contrôles exposent les tags de ui-testing. `handoff.md` contient les états et la référence Penpot validée ; la PR reste un cadrage, sans implémentation UI ni validation sur TV.
+
+#### Décisions visuelles confirmées après la passe Penpot
+
+La maquette est validée par Sygix après intégration des retours ci-dessous. Cette validation porte sur le design ; les vérifications de navigation et de compatibilité sur TV restent à exécuter.
+
+- Réutiliser le composant de modale de la maquette et sa matière transparente floutée, fond et bordure compris ; dimensionner ses instances au contenu et aux actions, notamment les états vide/indisponible, sans surface opaque de substitution ni grande réserve vide.
+- Mutualiser Terminé, Annuler et les résultats transitoires dans le composant Notification de suivi, compact en bas à droite dans la zone sûre, largeur adaptée au contenu, même matière que les modales. Les variantes repos/focus/information partagent cette base.
+- Présenter le pays dans la liste déroulante native des réglages, comme la position d'À suivre, sans modale ni suffixe « · confirmé ». La valeur proposée n'est pas confirmée implicitement.
+- Garder le statut de synchronisation petit et aligné à droite du titre À suivre, sans suffixe « · Réglages » ; les réglages conservent le détail/réessai même sans rangée.
+- Fenêtre Annuler : 10 secondes actives selon D7. Le délai ne déclenche jamais une confirmation Terminé à la place de l'utilisateur.
+
+Les surfaces Penpot de référence sont les pages P9 du fichier partagé « SygixOs Maquette », avec le Panneau de verre et le dropdown existants et le composant Notification de suivi. Les valeurs de matière, focus et animation continuent de provenir du design system ; les exports ne justifient pas de les remplacer par des fonds opaques.
 
 ## Risks / Trade-offs
 
@@ -136,7 +150,7 @@ Réutiliser `tvFocus`/`tvClickable`, `Motion`, `Dimens` et `GlassSurface` aux en
 
 ## Migration Plan
 
-1. Valider le cadrage et les hypothèses restantes, puis faire la passe Penpot sur cette branche à la demande de Sygix.
+1. Partir du cadrage et des retours Penpot reportés sur cette branche ; compléter et faire valider les trajets D-pad encore ouverts avant code UI.
 2. Avant code, exécuter les tâches 1 de validation de contrat/appareil et reporter une matrice sans données personnelles.
 3. Ajouter les frontières de suivi et le stockage protégé ; conserver le chemin local comme repli lorsque le compte est absent.
 4. Migrer les identités par enrichissement compatible et vérifier que masquages, ouvertures et préférences ne disparaissent pas.
@@ -148,7 +162,7 @@ Réutiliser `tvFocus`/`tvClickable`, `Motion`, `Dimens` et `GlassSurface` aux en
 
 ### Questions ouvertes — passe Penpot
 
-À confirmer pendant la prochaine passe, sans modifier le périmètre accepté : placement de l'indicateur quand À suivre est masqué, trajet D-pad vers les propositions non bloquantes, présentation des saisons/épisodes et durée de la fenêtre Annuler. Les defaults conservateurs restent **à confirmer** : reprendre les panneaux existants, ne pas voler le focus, garder l'accès aux actions dans un contexte indépendant d'une carte disparue. Ces décisions sont un prérequis à l'implémentation de l'UI, pas une invitation à démarrer Penpot dans cette session.
+La passe Penpot et les retours ont fixé les décisions visuelles de D9 et la fenêtre de 10 secondes de D7. Restent à valider avant code UI : le trajet D-pad exact vers Terminé/Annuler depuis chaque origine, y compris après disparition d'une carte, et l'accès à l'indicateur quand À suivre est masqué. Les réglages fournissent déjà le détail/réessai sans carte ; les propositions ne volent pas le focus et n'ajoutent aucun quatrième palier. Ne pas déclarer une navigation validée sur la seule base des planches statiques.
 
 ### Hypothèses vérifiables avant code
 
