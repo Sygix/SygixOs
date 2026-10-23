@@ -42,6 +42,7 @@ class UpNextController(
     disabledSources: Flow<Set<String>>,
     private val scope: CoroutineScope,
     private val memory: UpNextMemory = InMemoryUpNextMemory(),
+    tracking: StateFlow<fr.sygix.sygixos.tracking.TrackingState> = MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private data class Loaded(
@@ -60,7 +61,12 @@ class UpNextController(
 
     private val removedKeys: Flow<List<UpNextContentKey>> = memory.removed.keys()
 
-    val state: StateFlow<UpNextState?> = combine(raw, visible, position, disabledSources, removedKeys) { loaded, enabled, placement, disabled, removed ->
+    private val combinedRaw = combine(raw, tracking) { loaded, tracked ->
+        val local = (loaded.content as? UpNextContent.Items)?.items.orEmpty()
+        if (tracked.contents.isEmpty()) loaded else loaded.copy(content = UpNextContent.Items(fr.sygix.sygixos.tracking.TrackingProjection.merge(local, tracked.contents)))
+    }
+
+    val state: StateFlow<UpNextState?> = combine(combinedRaw, visible, position, disabledSources, removedKeys) { loaded, enabled, placement, disabled, removed ->
         val content = loaded.content
         val shown = if (content is UpNextContent.Items) {
             UpNextContent.Items(UpNextFeed.build(content.items, disabled, loaded.opened, removed))

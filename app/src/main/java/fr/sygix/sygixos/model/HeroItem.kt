@@ -29,6 +29,7 @@ data class HeroItem(
     val episodeArtwork: Boolean = season != null || episode != null,
     val seriesId: String? = null,
     val artworkFailed: Boolean = false,
+    val tracking: fr.sygix.sygixos.tracking.TrackingContent? = null,
 ) {
     val artwork: ProgramArtwork get() = ProgramArtwork(
         sourcePackage.orEmpty(), listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),

@@ -40,6 +40,7 @@ data class UpNextItem(
     val posterAspectRatio: Int = -1,
     val releaseDate: String? = null,
     val seriesId: String? = null,
+    val tracking: fr.sygix.sygixos.tracking.TrackingContent? = null,
 ) {
     val artwork: ProgramArtwork get() = ProgramArtwork(
         source.packageName, listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
@@ -47,7 +48,7 @@ data class UpNextItem(
         publicationId = "watchnext-$id",
         sharedIdentity = sharedArtworkIdentity(type == UpNextContentType.EPISODE, seriesId, contentId, internalProviderId, source.intentUri, title, releaseDate),
     )
-    val key: String get() = "${source.packageName}:$id"
+    val key: String get() = tracking?.identity?.let { "${it.provider}:${it.type}:${it.id}" } ?: "${source.packageName}:$id"
     val cardIdentity: String get() = listOf(source.packageName, type, title, source.intentUri, internalProviderId, contentId,
         releaseDate, season, episode, seriesId).joinToString("\u0000")
     val displayTitle: String get() = if (type == UpNextContentType.EPISODE) seriesTitle ?: title else title
