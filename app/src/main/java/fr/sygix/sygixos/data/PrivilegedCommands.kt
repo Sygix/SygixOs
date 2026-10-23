@@ -24,6 +24,7 @@ object PrivilegedCommands {
         "pm (?:disable-user|default-state) $User (?:$stock)",
         "settings $User put secure enabled_accessibility_services '(?:$ComponentPattern(?::$ComponentPattern)*)?'",
         "settings $User put secure accessibility_enabled 1",
+        "cmd notification allow_listener $own/fr\\.sygix\\.sygixos\\.tracking\\.TrackingNotificationService [0-9]{1,6}",
     ).map(::Regex)
 
     fun allowed(command: String): Boolean = shapes.any { it.matches(command) }
@@ -38,4 +39,8 @@ object PrivilegedCommands {
     fun accessibilityServices(user: Int, services: List<String>) =
         "settings --user $user put secure enabled_accessibility_services '${services.joinToString(":")}'"
     fun accessibilityOn(user: Int) = "settings --user $user put secure accessibility_enabled 1"
+    fun trackingListener(user: Int): String {
+        require(user >= 0)
+        return "cmd notification allow_listener $OwnPackage/fr.sygix.sygixos.tracking.TrackingNotificationService $user"
+    }
 }

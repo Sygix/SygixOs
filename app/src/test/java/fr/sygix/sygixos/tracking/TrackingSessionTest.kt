@@ -40,4 +40,26 @@ class TrackingSessionTest {
         assertNotEquals(TrackingIdentity("one", TrackingType.MOVIE, "42"), TrackingIdentity("two", TrackingType.MOVIE, "42"))
         assertNotEquals(TrackingIdentity("one", TrackingType.MOVIE, "42"), TrackingIdentity("one", TrackingType.SHOW, "42"))
     }
+
+    @Test fun secondAccountCannotBeReplacedByNonCancellableFirstAccountResponse() = runTest {
+        val first = CompletableDeferred<TrackingSnapshot>()
+        val secondContent = TrackingContent(TrackingIdentity("fixture", TrackingType.MOVIE, "2"), title = "Second fixture")
+        val provider = object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount(token, "Fixture")
+            override suspend fun snapshot(token: String) = if (token == "first") kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { first.await() } else TrackingSnapshot(listOf(secondContent))
+            override suspend fun revoke(token: String) {}
+        }
+        var saved: String? = "first"
+        val controller = TrackingController(provider, object : TrackingSessionStore {
+            override suspend fun read() = saved
+            override suspend fun write(token: String?) { saved = token }
+        }, backgroundScope)
+        controller.restore(); runCurrent()
+        controller.connect("second"); runCurrent()
+        assertEquals("second", controller.state.value.account?.id)
+        first.complete(TrackingSnapshot(emptyList())); runCurrent()
+        assertEquals("second", saved)
+        assertEquals("second", controller.state.value.account?.id)
+        assertEquals(listOf(secondContent.copy(sessionGeneration = controller.state.value.generation)), controller.state.value.contents)
+    }
 }

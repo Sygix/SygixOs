@@ -42,6 +42,7 @@ class KeystoreTrackingSession(context: Context) : TrackingSessionStore {
 
     override suspend fun write(token: String?) = withContext(Dispatchers.IO) {
         if (token == null) {
+            KeyStore.getInstance("AndroidKeyStore").apply { load(null); deleteEntry(alias) }
             file.delete()
             if (file.baseFile.exists()) throw TrackingException(TrackingFailure.STORAGE)
             return@withContext

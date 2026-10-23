@@ -38,7 +38,10 @@ class BetaSeriesApiTest {
 
     @Test fun episodeMutationDisablesBulkAndUnseenDoesNotRemoveMovie() = runTest {
         val sent = mutableListOf<TrackingRequest>()
-        val api = api { sent += it; TrackingResponse(200, "{}") }
+        val api = api { request ->
+            if (request.method == "GET") TrackingResponse(200, if (request.url.contains("episodes/display")) "{\"episode\":{\"user\":{\"seen\":true}}}" else "{\"movie\":{\"user\":{\"status\":0}}}")
+            else { sent += request; TrackingResponse(200, "{}") }
+        }
         val provider = BetaSeriesProvider(api)
         provider.mutate("fixture-token", TrackingContent(TrackingIdentity("betaseries", TrackingType.EPISODE, "5"), title = "Fixture"), TrackingAction.SEEN)
         assertEquals("false", sent.single().fields["bulk"])
@@ -54,6 +57,19 @@ class BetaSeriesApiTest {
         val api = api { TrackingResponse(502, "Unavailable") }
         try { api.pages("shows/member", "shows", "fixture-token"); fail() }
         catch (error: TrackingException) { assertEquals(TrackingFailure.PROTOCOL, error.failure) }
+    }
+
+    @Test fun lostMutationResponseIsReconciledWithoutReplayingMutation() = runTest {
+        var writes = 0
+        var reads = 0
+        val api = api { request ->
+            if (request.method == "POST") { ++writes; throw TrackingException(TrackingFailure.NETWORK) }
+            ++reads
+            TrackingResponse(200, "{\"episode\":{\"user\":{\"seen\":true}}}")
+        }
+        BetaSeriesProvider(api).mutate("fixture-token", TrackingContent(TrackingIdentity("betaseries", TrackingType.EPISODE, "5"), title = "Fixture"), TrackingAction.SEEN)
+        assertEquals(1, writes)
+        assertEquals(1, reads)
     }
 
     private fun api(handler: suspend (TrackingRequest) -> TrackingResponse): BetaSeriesApi {

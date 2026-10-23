@@ -35,23 +35,23 @@ object UpNextFeed {
     ): List<UpNextItem> {
         val normalized = mutableMapOf<String, String>()
         fun title(value: String): String = normalized.getOrPut(value) { normalize(value) }
-        val enabled = items.filter { it.source.packageName !in disabledSources }
+        val enabled = items.filter { it.tracking?.membership == fr.sygix.sygixos.tracking.AccountMembership.PRESENT || it.source.packageName !in disabledSources }
         val remade = enabled.filter { it.type == UpNextContentType.MOVIE }.groupBy { title(it.title) }
             .filterValues { movies -> movies.mapNotNull { it.year }.distinct().size > 1 }.keys
-        val exact = enabled.groupBy { listOf(it.source.packageName, exactIdentity(it)) }.values.map(::merge)
+        val exact = enabled.groupBy { listOf(it.source.packageName, it.type, it.tracking?.identity ?: exactIdentity(it)) }.values.map(::merge)
         val series = exact.groupBy {
-            if (it.type == UpNextContentType.EPISODE) listOf(it.source.packageName, "series", title(it.displayTitle))
+            if (it.type == UpNextContentType.EPISODE) listOf(it.source.packageName, "series", it.tracking?.parent ?: title(it.displayTitle))
             else listOf(it.source.packageName, "row", it.id.toString())
         }.values.map(::merge)
         val episodes = mergeAcrossApps(series) { item ->
             if (item.type == UpNextContentType.EPISODE && item.season != null && item.episode != null) {
-                EpisodeKey(title(item.displayTitle), number(item.season), number(item.episode))
+                EpisodeKey(item.tracking?.parent ?: title(item.displayTitle), number(item.season), number(item.episode))
             } else null
         }
         val movies = mergeAcrossApps(episodes) { item ->
             if (item.type == UpNextContentType.MOVIE) {
                 val name = title(item.title)
-                MovieKey(name, item.year.takeIf { name in remade })
+                item.tracking?.parent ?: MovieKey(name, item.year.takeIf { name in remade })
             } else null
         }
         val keys = movies.associateWith(UpNextContentKey::of)
@@ -92,7 +92,7 @@ object UpNextFeed {
         return ranked.first().copy(sources = ranked.flatMap { it.sources }.distinctBy { it.packageName })
     }
 
-    private data class EpisodeKey(val title: String, val season: String, val episode: String)
+    private data class EpisodeKey(val identity: Any, val season: String, val episode: String)
     private data class MovieKey(val title: String, val year: Int?)
 
     private fun mergeAcrossApps(items: List<UpNextItem>, identity: (UpNextItem) -> Any?): List<UpNextItem> {

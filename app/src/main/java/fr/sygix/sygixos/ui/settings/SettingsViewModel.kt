@@ -110,7 +110,7 @@ data class SettingsState(
     fun canEnter(category: SettingsCategory): Boolean = when (category) {
         SettingsCategory.SOURCES -> sources.isNotEmpty()
         SettingsCategory.HIDDEN -> hiddenRows.isNotEmpty() || hiddenContents.isNotEmpty()
-        SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN -> true
+        SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING -> true
     }
 }
 
@@ -215,7 +215,7 @@ class SettingsViewModel(
                 hiddenFocusedIndex = 0
                 hiddenVisit.update { it + 1 }
             }
-            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN -> Unit
+            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING -> Unit
         }
     }
 

@@ -14,7 +14,7 @@ data class HeroFeed(val items: List<HeroItem>, val fromApps: Boolean, val errors
 }
 
 fun filterBySources(feed: HeroFeed, disabled: Set<String>): HeroFeed =
-    feed.copy(items = feed.items.filter { it.sourcePackage == null || it.sourcePackage !in disabled })
+    feed.copy(items = feed.items.filter { it.tracking != null || it.sourcePackage == null || it.sourcePackage !in disabled })
 
 fun HeroFeed.withSources(disabled: Set<String>, fallback: List<HeroItem>): HeroFeed {
     if (!fromApps) return this

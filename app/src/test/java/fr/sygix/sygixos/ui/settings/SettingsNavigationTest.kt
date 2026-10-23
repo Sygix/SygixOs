@@ -109,7 +109,7 @@ class SettingsNavigationTest {
     }
 
     private fun openAboutAndWaitForLicenses() {
-        repeat(3) { press(Key.DirectionDown) }
+        repeat(4) { press(Key.DirectionDown) }
         compose.waitUntil(10_000) { compose.onAllNodes(licenseRow).fetchSemanticsNodes().isNotEmpty() }
     }
 
@@ -142,7 +142,11 @@ class SettingsNavigationTest {
         press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
         press(Key.DirectionDown)
+        compose.onNodeWithTag("settings-category-TRACKING").assertIsFocused()
+        press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("settings-category-TRACKING").assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
         press(Key.DirectionUp)
@@ -154,7 +158,7 @@ class SettingsNavigationTest {
         setState()
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
-        repeat(3) { press(Key.DirectionDown) }
+        repeat(4) { press(Key.DirectionDown) }
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
         press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()

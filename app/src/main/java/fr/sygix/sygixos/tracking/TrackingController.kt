@@ -89,11 +89,11 @@ class TrackingController(
             mutable.value = state.value.copy(account = account)
             val snapshot = provider.snapshot(current)
             if (generation == state.value.generation && current == token) {
-                mutable.value = TrackingState(generation, account, contents = snapshot.contents)
+                mutable.value = TrackingState(generation, account, contents = snapshot.contents.map { it.copy(sessionGeneration = generation) }, memberships = snapshot.memberships)
             }
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) {
-            if (generation == state.value.generation) mutable.value = state.value.copy(loading = false, contents = emptyList(), failure = error.trackingFailure())
+            if (generation == state.value.generation) mutable.value = state.value.copy(loading = false, contents = emptyList(), failure = error.trackingFailure(), memberships = null)
         }
     }
 

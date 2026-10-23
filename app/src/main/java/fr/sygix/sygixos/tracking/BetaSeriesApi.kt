@@ -6,7 +6,7 @@
 package fr.sygix.sygixos.tracking
 
 import java.net.URLEncoder
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 class BetaSeriesApi(
@@ -41,7 +41,7 @@ class BetaSeriesApi(
         throw BetaSeriesApiException(code)
     }
 
-    suspend fun pages(path: String, key: String, token: String, fields: Map<String, String> = emptyMap()): List<JSONObject> = withTimeout(90_000) {
+    suspend fun pages(path: String, key: String, token: String, fields: Map<String, String> = emptyMap()): List<JSONObject> = withTimeoutOrNull(90_000) {
         val result = linkedMapOf<String, JSONObject>()
         var previous: Set<String> = emptySet()
         for (page in 1..200) {
@@ -54,14 +54,14 @@ class BetaSeriesApi(
             batch.forEach { result[it.requiredId()] = it }
             val missingKey = when (key) { "shows" -> "totalMissingShows"; "movies" -> "totalMissingMovies"; else -> "totalMissingEpisodes" }
             val total = json.optInt("total", -1)
-            if (json.has(missingKey) && json.optInt(missingKey, -1) == 0 || total >= 0 && result.size >= total) return@withTimeout result.values.toList()
+            if (json.has(missingKey) && json.optInt(missingKey, -1) == 0 || total >= 0 && result.size >= total) return@withTimeoutOrNull result.values.toList()
             if (batch.isEmpty()) {
                 if (json.optInt(missingKey, 0) > 0 || total > result.size) throw TrackingException(TrackingFailure.INCOMPLETE)
-                return@withTimeout result.values.toList()
+                return@withTimeoutOrNull result.values.toList()
             }
         }
         throw TrackingException(TrackingFailure.INCOMPLETE)
-    }
+    } ?: throw TrackingException(TrackingFailure.INCOMPLETE)
 }
 
 class BetaSeriesApiException(val code: Int) : Exception("BetaSeries error $code")

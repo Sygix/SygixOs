@@ -32,7 +32,7 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 
 @Composable
-internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier) {
+internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier, onAddToTracking: (() -> Unit)? = null) {
     val first = remember { FocusRequester() }
     LaunchedEffect(item.key) { withFrameNanos { }; first.tryRequestFocus() }
     ContextMenuPanel(modifier.testTag("upnext-menu")) {
@@ -49,6 +49,7 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
                 }
             }
         }
+        if (onAddToTracking != null) MenuEntry("tracking-action-add", stringResource(R.string.tracking_add), onAddToTracking) { }
         MenuEntry("upnext-menu-remove", stringResource(R.string.upnext_remove), onRemove) { color ->
             HiddenEyeGlyph(color, Modifier.size(Dimens.MenuEntryIcon).testTag("upnext-menu-remove-icon"))
         }

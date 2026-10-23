@@ -53,6 +53,8 @@ class SettingsHeaderGapTest {
         press(Key.DirectionDown)
         assertEquals(expected, gap(hasText("Choisissez ce qu'affiche l'accueil de SygixOs."), "setting-upnext-visible"), 0.5f)
         press(Key.DirectionDown)
+        compose.onNodeWithTag("settings-category-TRACKING").assertExists()
+        press(Key.DirectionDown)
         assertEquals(expected, gap(hasText("SygixOs est un logiciel libre", substring = true), "update-check"), 0.5f)
     }
 }

@@ -12,7 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
@@ -57,7 +57,11 @@ class TrackingHttpsTransport : TrackingTransport {
                         val result = response.use {
                             val bytes = it.body?.byteStream()?.use { stream -> stream.readNBytes(request.maxBytes + 1) } ?: byteArrayOf()
                             if (bytes.size > request.maxBytes) throw TrackingException(TrackingFailure.PROTOCOL)
-                            TrackingResponse(it.code, bytes.toString(Charsets.UTF_8), it.header("Retry-After")?.toLongOrNull()?.takeIf { seconds -> seconds in 0..15 }?.times(1000))
+                            val retryAfter = it.header("Retry-After")?.let { header ->
+                                header.toLongOrNull()?.takeIf { seconds -> seconds in 0..Long.MAX_VALUE / 1000 }?.times(1000)
+                                    ?: runCatching { (java.time.ZonedDateTime.parse(header, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() - System.currentTimeMillis()).coerceAtLeast(0) }.getOrNull()
+                            }
+                            TrackingResponse(it.code, bytes.toString(Charsets.UTF_8), retryAfter)
                         }
                         if (continuation.isActive) continuation.resume(result)
                     } catch (_: Exception) {
@@ -70,13 +74,13 @@ class TrackingHttpsTransport : TrackingTransport {
 }
 
 class BoundedTrackingTransport(private val delegate: TrackingTransport) : TrackingTransport {
-    override suspend fun execute(request: TrackingRequest): TrackingResponse = withTimeout(15_000) {
+    override suspend fun execute(request: TrackingRequest): TrackingResponse = withTimeoutOrNull(15_000) {
         var last: TrackingResponse? = null
         repeat(if (request.method == "GET") 3 else 1) { attempt ->
             try {
                 val response = delegate.execute(request)
                 last = response
-                if (request.method != "GET" || response.status !in setOf(429, 502, 503, 504)) return@withTimeout response
+                if (request.method != "GET" || response.status !in setOf(429, 502, 503, 504)) return@withTimeoutOrNull response
                 if (attempt < 2) delay(response.retryAfterMillis ?: (500L shl attempt))
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
@@ -85,7 +89,7 @@ class BoundedTrackingTransport(private val delegate: TrackingTransport) : Tracki
             }
         }
         last ?: throw TrackingException(TrackingFailure.NETWORK)
-    }
+    } ?: throw TrackingException(TrackingFailure.NETWORK)
 }
 
 internal fun officialTrackingUrl(value: String): Boolean = runCatching {

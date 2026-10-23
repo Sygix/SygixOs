@@ -21,12 +21,14 @@ data class TrackingNotice(
     val busy: Boolean = false,
     val failure: TrackingFailure? = null,
     val returnPrompt: Boolean = false,
+    val undoing: Boolean = false,
 )
 
 class TrackingActions(
     private val controller: TrackingController,
     private val mutate: suspend (String, TrackingContent, TrackingAction) -> Unit,
     private val scope: CoroutineScope,
+    private val reconcile: suspend (String, TrackingContent, TrackingAction) -> Boolean = { _, _, _ -> false },
     private val clock: () -> Long = System::nanoTime,
 ) {
     private val mutable = MutableStateFlow<TrackingNotice?>(null)
@@ -50,7 +52,15 @@ class TrackingActions(
     }
 
     fun perform(content: TrackingContent, action: TrackingAction) {
+        if (controller.state.value.account == null || content.sessionGeneration?.let { it != controller.state.value.generation } == true) return
         if (work?.isActive == true || mutable.value?.busy == true) return
+        val applicable = when (action) {
+            TrackingAction.ADD -> content.membership == AccountMembership.ABSENT
+            TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> content.membership == AccountMembership.PRESENT && content.parent.type == TrackingType.SHOW
+            TrackingAction.SEEN, TrackingAction.UNSEEN, TrackingAction.RESTORE_MOVIE_STATE -> content.membership == AccountMembership.PRESENT && content.identity.type != TrackingType.SHOW
+            TrackingAction.REMOVE -> content.membership == AccountMembership.PRESENT
+        }
+        if (!applicable) return
         if (mutable.value?.action == TrackingAction.REMOVE && mutable.value?.failure == null) return
         timer?.cancel()
         val notice = TrackingNotice(content, action, controller.state.value.generation, busy = action != TrackingAction.REMOVE)
@@ -63,19 +73,23 @@ class TrackingActions(
 
     private fun send(notice: TrackingNotice, inverse: Boolean = false) {
         work = scope.launch {
-            mutable.value = notice.copy(busy = true, failure = null)
+            val operation = notice.copy(undoing = inverse || notice.undoing)
+            mutable.value = operation.copy(busy = true, failure = null)
             try {
-                controller.authenticated { token -> mutate(token, notice.content, if (inverse) inverse(notice) else notice.action) }
+                controller.authenticated { token ->
+                    val action = if (operation.undoing) inverse(operation) else operation.action
+                    if (notice.failure == null || !reconcile(token, operation.content, action)) mutate(token, operation.content, action)
+                }
                 if (controller.state.value.generation != notice.generation) return@launch
                 controller.refresh()
                 excludedMutable.value = excludedMutable.value - notice.content.parent
-                if (inverse || notice.action == TrackingAction.REMOVE || notice.action == TrackingAction.ADD) mutable.value = null
-                else { mutable.value = notice.copy(busy = false); startTimer() }
+                if (operation.undoing || notice.action == TrackingAction.REMOVE || notice.action == TrackingAction.ADD) mutable.value = null
+                else { mutable.value = operation.copy(busy = false, failure = null); startTimer() }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
                 if (controller.state.value.generation == notice.generation) {
                     excludedMutable.value = excludedMutable.value - notice.content.parent
-                    mutable.value = notice.copy(busy = false, failure = error.trackingFailure())
+                    mutable.value = operation.copy(busy = false, failure = error.trackingFailure())
                     controller.refresh()
                 }
             }
@@ -83,7 +97,8 @@ class TrackingActions(
     }
 
     private fun inverse(notice: TrackingNotice): TrackingAction = when (notice.action) {
-        TrackingAction.SEEN, TrackingAction.UNSEEN -> if (notice.content.seen || notice.content.movieState == 1) TrackingAction.SEEN else TrackingAction.UNSEEN
+        TrackingAction.SEEN, TrackingAction.UNSEEN -> if (notice.content.identity.type == TrackingType.MOVIE) TrackingAction.RESTORE_MOVIE_STATE
+            else if (notice.content.seen) TrackingAction.SEEN else TrackingAction.UNSEEN
         TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> if (notice.content.archived) TrackingAction.ARCHIVE else TrackingAction.UNARCHIVE
         else -> throw TrackingException(TrackingFailure.PROTOCOL)
     }
@@ -96,6 +111,12 @@ class TrackingActions(
             excludedMutable.value = excludedMutable.value - current.content.parent
             mutable.value = null
         } else send(current, inverse = true)
+    }
+
+    fun retry() {
+        val current = mutable.value ?: return
+        if (current.busy || current.failure == null) return
+        send(current)
     }
 
     fun returned(content: TrackingContent, generation: Long) {

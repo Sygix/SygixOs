@@ -101,6 +101,7 @@ class HomeViewModel(
     private val onArtworkBackground: () -> Unit = {},
     private val order: fr.sygix.sygixos.domain.HeroOrder = HeroSessionOrder(),
     private val programClock: () -> Long = System::currentTimeMillis,
+    val tracking: fr.sygix.sygixos.tracking.TrackingRuntime? = null,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -143,7 +144,9 @@ class HomeViewModel(
     private val validationBatches = java.util.concurrent.ConcurrentHashMap<Job, Boolean>()
 
     private val upNext = upNextSource?.let {
-        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory)
+        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory,
+            tracking = tracking?.state ?: MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()), enrichment = tracking?.enrichment?.contents ?: MutableStateFlow(emptyMap()),
+            readers = tracking?.readers ?: MutableStateFlow(emptyMap()))
     }
 
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
@@ -151,9 +154,14 @@ class HomeViewModel(
     val heroUpdates: Flow<Unit> = merge(hero.changes(), artwork.changes.drop(1).map { Unit }, flow { while (true) { delay(HERO_TTL_MS); emit(Unit) } })
         .onEach { refreshHero(); refreshUpNext() }
 
+    private val visibleFeed = combine(rawFeed, tracking?.state ?: MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState())) { feed, session ->
+        if (tracking == null) feed else feed.copy(items = feed.items.filter { item -> item.tracking == null ||
+            session.account != null && session.failure == null && item.tracking.sessionGeneration == session.generation })
+    }
+
     val state: StateFlow<HomeState> = combine(
         apps.catalog,
-        rawFeed,
+        visibleFeed,
         apps.disabledSources,
         heroVisuals,
         checked,
@@ -165,7 +173,7 @@ class HomeViewModel(
             (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in failed)).copy(expiresAt = Long.MAX_VALUE)
         }
         val hero = HeroState(items.ifEmpty { fallbackItems }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
-            shelfItems = shown.items, generations = generations.filterKeys { id -> items.any { it.id == id } })
+            shelfItems = shown.items.filter { it.tracking == null }, generations = generations.filterKeys { id -> items.any { it.id == id } })
         val heroItems = shown.items.asSequence()
             .take(VisualQuality.HERO_VALIDATED)
             .toList()
@@ -202,6 +210,12 @@ class HomeViewModel(
     val startup: StateFlow<StartupPhase> = startupController.phase
 
     init {
+        tracking?.let { runtime ->
+            runtime.controller.restore()
+            viewModelScope.launch { runtime.opened.collect { request ->
+                if (request.origin == fr.sygix.sygixos.tracking.PlaybackOrigin.UP_NEXT) upNext?.opened(fr.sygix.sygixos.tracking.TrackingProjection.card(request.content))
+            } }
+        }
         viewModelScope.launch { artwork.changes.collect { apps.refreshApps() } }
         viewModelScope.launch(startupDispatcher) {
             startup.first { it == StartupPhase.Done }
@@ -233,23 +247,33 @@ class HomeViewModel(
     }
 
     private fun validateHero() {
-        heroValidationJob = launchValidation(rawFeed.value.items.filter { it.sourcePackage !in disabledHeroSources }.take(VisualQuality.HERO_VALIDATED), holdAfterFirstDuringStartup = true)
+        heroValidationJob = launchValidation(lastHeroItems.filter { it.tracking != null || it.sourcePackage !in disabledHeroSources }.take(VisualQuality.HERO_VALIDATED), holdAfterFirstDuringStartup = true)
     }
 
     fun refreshUpNext() { upNext?.refresh() }
 
     fun openUpNext(item: UpNextItem, source: UpNextSourceEntry? = null) {
+        if (item.tracking?.membership == fr.sygix.sygixos.tracking.AccountMembership.PRESENT && tracking != null) {
+            tracking.playback.open(fr.sygix.sygixos.tracking.PlaybackRequest(item.tracking, fr.sygix.sygixos.tracking.PlaybackOrigin.UP_NEXT,
+                item.sources.mapNotNull { entry -> entry.targetIdentity?.let { target -> fr.sygix.sygixos.tracking.PlaybackTarget(entry.packageName, target, entry.intentUri) } }))
+            return
+        }
         if (upNextOpener.open(item, source)) upNext?.opened(item)
+    }
+
+    fun openHero(item: HeroItem, local: () -> Unit) {
+        if (item.tracking != null && tracking != null) tracking.playback.open(fr.sygix.sygixos.tracking.PlaybackRequest(item.tracking, fr.sygix.sygixos.tracking.PlaybackOrigin.HERO, item.playbackTargets)) else local()
     }
 
     fun removeUpNext(item: UpNextItem) { upNext?.remove(item) }
 
     fun onUpNextReturnHandled(id: Long) { upNext?.returnHandled(id) }
 
-    fun onForeground() { foreground = true; expirePrograms(); onArtworkForeground(); updates.onForeground() }
+    fun onForeground() { foreground = true; tracking?.onForeground(); expirePrograms(); onArtworkForeground(); updates.onForeground() }
 
     fun onBackground() {
         foreground = false
+        tracking?.onBackground()
         onArtworkBackground()
         validationBatches.keys.forEach { it.cancel() }
     }
@@ -340,7 +364,7 @@ class HomeViewModel(
     }
 
     private fun requestShelf(packageName: String, items: List<HeroItem>) {
-        val candidates = rawFeed.value.items.filter { it.sourcePackage == packageName && items.any { visible -> visible.sourcePackage == packageName } }.take(VisualQuality.SHELF_VALIDATED_PER_APP)
+        val candidates = rawFeed.value.items.filter { it.tracking == null && it.sourcePackage == packageName && items.any { visible -> visible.sourcePackage == packageName } }.take(VisualQuality.SHELF_VALIDATED_PER_APP)
         val uris = candidates.map { it.id + it.artwork.toString() + generations[it.id] }
         if (uris == shelfValidationUris && shelfValidationJob?.isActive == true) return
         if (shelfValidationPackage != packageName) validationBatches.filterValues { it }.keys.forEach { it.cancel() }
@@ -434,7 +458,7 @@ class HomeViewModel(
             val app = context.applicationContext as SygixOsApp
             return HomeViewModel(
                 apps = app.appCatalogRepository,
-                hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
+                hero = HeroRepository(fr.sygix.sygixos.tracking.TrackingHeroSource(app.tvProviderHeroSource, app.tracking.state, app.launcherPrefs, app.tracking.enrichment, app.appCatalogRepository.disabledSources), NatureFallbackProvider()),
                 artwork = app.appArtwork,
                 validator = VisualValidator(app).also { it.repository = app.programArtwork },
                 clockSource = SystemClockSource(app),
@@ -442,11 +466,12 @@ class HomeViewModel(
                 session = app.startupSession,
                 motion = SettingsMotionSource(app.contentResolver),
                 mascot = app.mascotAnimation,
-                upNextSource = TvProviderUpNextSource(app, onSnapshot = { items -> app.programArtwork.confirm("watchnext", items.map { it.artwork to it.toString() }) }),
+                upNextSource = TvProviderUpNextSource(app, onSnapshot = { items -> app.tracking.enrichment.local(items); app.programArtwork.confirm("watchnext", items.map { it.artwork to it.toString() }) }),
                 upNextMemory = app.launcherPrefs,
                 onArtworkForeground = app.programArtwork::onForeground,
                 onArtworkBackground = app.programArtwork::onBackground,
                 order = app.heroOrder,
+                tracking = app.tracking,
                 upNextOpener = UpNextOpener { item, source ->
                     if (source == null) AppLauncher.open(app, item) else AppLauncher.openWith(app, item, source)
                 },

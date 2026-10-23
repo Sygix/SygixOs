@@ -44,6 +44,15 @@ class TrackingTransportTest {
         assertEquals(1, calls)
     }
 
+    @Test fun serverDelayBeyondCallBudgetFailsWithoutRetryingEarly() = runTest {
+        var calls = 0
+        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(429, "{}", 20_000) }
+        try { transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")); fail() }
+        catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
+        assertEquals(1, calls)
+        assertEquals(15_000L, testScheduler.currentTime)
+    }
+
     @Test fun hostValidationRejectsCredentialsAndLookalikes() {
         assertFalse(officialTrackingUrl("https://www.betaseries.com.example.org/"))
         assertFalse(officialTrackingUrl("http://www.betaseries.com/"))

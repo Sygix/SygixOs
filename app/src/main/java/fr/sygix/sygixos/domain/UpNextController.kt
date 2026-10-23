@@ -42,7 +42,9 @@ class UpNextController(
     disabledSources: Flow<Set<String>>,
     private val scope: CoroutineScope,
     private val memory: UpNextMemory = InMemoryUpNextMemory(),
-    tracking: StateFlow<fr.sygix.sygixos.tracking.TrackingState> = MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()),
+    private val tracking: StateFlow<fr.sygix.sygixos.tracking.TrackingState> = MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()),
+    enrichment: StateFlow<Map<String, fr.sygix.sygixos.tracking.TrackingContent>> = MutableStateFlow(emptyMap()),
+    readers: StateFlow<Map<String, fr.sygix.sygixos.model.UpNextSourceEntry>> = MutableStateFlow(emptyMap()),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private data class Loaded(
@@ -61,9 +63,16 @@ class UpNextController(
 
     private val removedKeys: Flow<List<UpNextContentKey>> = memory.removed.keys()
 
-    private val combinedRaw = combine(raw, tracking) { loaded, tracked ->
-        val local = (loaded.content as? UpNextContent.Items)?.items.orEmpty()
-        if (tracked.contents.isEmpty()) loaded else loaded.copy(content = UpNextContent.Items(fr.sygix.sygixos.tracking.TrackingProjection.merge(local, tracked.contents)))
+    private val combinedRaw = combine(raw, tracking, disabledSources, enrichment, readers) { loaded, tracked, disabled, identities, readers ->
+        val local = (loaded.content as? UpNextContent.Items)?.items.orEmpty().filter { it.source.packageName !in disabled }.map { item ->
+            val content = identities[item.key]?.takeIf { tracked.account != null && tracked.failure == null && it.sessionGeneration == tracked.generation }
+            if (content == null) item else item.copy(tracking = content, externalIds = content.externalIds,
+                source = item.source.copy(targetIdentity = content.identity), sources = item.sources.map { it.copy(targetIdentity = content.identity) })
+        }.filter { it.tracking?.parent !in tracked.pendingRemovals }
+        if (tracked.contents.isEmpty() && identities.isEmpty()) loaded else loaded.copy(content = UpNextContent.Items(fr.sygix.sygixos.tracking.TrackingProjection.merge(local, tracked.contents).map { item ->
+            val reader = item.tracking?.readerPackage?.let(readers::get)
+            if (reader == null) item else item.copy(source = reader)
+        }))
     }
 
     val state: StateFlow<UpNextState?> = combine(combinedRaw, visible, position, disabledSources, removedKeys) { loaded, enabled, placement, disabled, removed ->
@@ -121,7 +130,11 @@ class UpNextController(
         confirmedAt = clock()
         expiry?.cancel()
         expiry = scope.launch { delay(ArtworkAge.FRESH_MS); expireIfNeeded() }
-        guard { memory.pruneOpened { key -> UpNextFeed.stillPublished(key, items) } }
+        val tracked = tracking.value
+        if (!tracked.loading && tracked.failure == null) {
+            val published = items + tracked.contents.map(fr.sygix.sygixos.tracking.TrackingProjection::card)
+            guard { memory.pruneOpened { key -> key.tracking != null && tracked.account == null || UpNextFeed.stillPublished(key, published) } }
+        }
     }
 
     private fun expireIfNeeded() {

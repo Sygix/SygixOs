@@ -139,6 +139,13 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
+    val trackingViewModel = viewModel.tracking?.let { runtime ->
+        androidx.lifecycle.viewmodel.compose.viewModel<fr.sygix.sygixos.tracking.TrackingViewModel>(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = fr.sygix.sygixos.tracking.TrackingViewModel(runtime, viewModel::removeUpNext) as T
+        })
+    }
+    val trackingUi = trackingViewModel?.state?.collectAsStateWithLifecycle()?.value
     CompositionLocalProvider(
         LocalAppArtwork provides viewModel.artwork,
         LocalAppIcons provides settingsViewModel.icons,
@@ -167,7 +174,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 upNextUpdates = viewModel.upNextUpdates,
                 onTogglePin = viewModel::togglePin,
                 onOpenApp = { AppLauncher.open(context, it) },
-                onOpenHero = { AppLauncher.open(context, it) },
+                onOpenHero = { item -> viewModel.openHero(item) { AppLauncher.open(context, item) } },
                 onAppFocused = viewModel::prepareShelf,
                 onMoveInGrid = viewModel::moveInGrid,
                 onRestoreOrder = viewModel::setGridOrder,
@@ -185,6 +192,8 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 gridReady = startup == StartupPhase.Done,
                 launcherState = launcherState,
                 launcherActions = launcher?.actions ?: LauncherSystemActions(),
+                trackingViewModel = trackingViewModel,
+                trackingUi = trackingUi,
             )
         }
     }
@@ -376,6 +385,8 @@ internal fun LauncherHome(
     upNextUpdates: Flow<Unit> = emptyFlow(),
     launcherState: LauncherSystemState = LauncherSystemState(),
     launcherActions: LauncherSystemActions = LauncherSystemActions(),
+    trackingViewModel: fr.sygix.sygixos.tracking.TrackingViewModel? = null,
+    trackingUi: fr.sygix.sygixos.tracking.TrackingUiState? = null,
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -393,7 +404,23 @@ internal fun LauncherHome(
     var gearFocused by remember { mutableStateOf(false) }
     val dockAvailable = catalog.dock.isNotEmpty()
     val gridAvailable = GridSections.hasFocusTarget(catalog.grid.size, upNext)
-    val menuOpen = menuApp != null || menuItem != null
+    var notificationActive by remember { mutableStateOf(false) }
+    val notificationFocus = remember { FocusRequester() }
+    var trackingReturnGear by remember { mutableStateOf(false) }
+    val menuOpen = menuApp != null || menuItem != null || trackingUi?.modal == true || notificationActive
+    LaunchedEffect(trackingUi?.notice) {
+        if (trackingUi?.notice == null && notificationActive) {
+            notificationActive = false; gearFocused = true
+            trackingViewModel?.runtime?.actions?.setFocused(false)
+            withFrameNanos { }; gearFocus.tryRequestFocus()
+        }
+    }
+    LaunchedEffect(notificationActive) { if (notificationActive) { withFrameNanos { }; notificationFocus.tryRequestFocus() } }
+    LaunchedEffect(trackingUi?.modal) {
+        if (trackingUi?.modal != true && trackingReturnGear) {
+            trackingReturnGear = false; gearFocused = true; withFrameNanos { }; gearFocus.tryRequestFocus()
+        }
+    }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
 
     LaunchedEffect(upNextUpdates, lifecycle) {
@@ -404,6 +431,9 @@ internal fun LauncherHome(
     LaunchedEffect(launcherState.homeRequest) {
         if (handledHome == launcherState.homeRequest) return@LaunchedEffect
         handledHome = launcherState.homeRequest
+        notificationActive = false
+        trackingViewModel?.runtime?.actions?.setFocused(false)
+        trackingViewModel?.close()
         settingsOpen = false
         menuApp = null
         menuItem = null
@@ -424,7 +454,7 @@ internal fun LauncherHome(
     LaunchedEffect(zone, menuOpen, settingsOpen, interactive, launcherOverlay) {
         if (!interactive || menuOpen || settingsOpen || launcherOverlay) return@LaunchedEffect
         val target = when (zone) {
-            Zone.HERO -> heroFocus
+            Zone.HERO -> if (gearFocused) gearFocus else heroFocus
             Zone.DOCK -> dockFocus
             Zone.GRID -> gridFocus
         }
@@ -454,6 +484,22 @@ internal fun LauncherHome(
                 if (launcherOverlay) return@onPreviewKeyEvent false
                 if (!homeHandlesBack && e.key == Key.Back) return@onPreviewKeyEvent false
                 if (settingsOpen) return@onPreviewKeyEvent false
+                if (trackingUi?.modal == true) return@onPreviewKeyEvent false
+                if (notificationActive) return@onPreviewKeyEvent when (e.key) {
+                    Key.DirectionLeft, Key.DirectionUp, Key.Back -> {
+                        if (e.key == Key.Back && (trackingUi?.notice?.returnPrompt == true || trackingUi?.notice?.failure != null)) trackingViewModel?.runtime?.actions?.dismiss()
+                        notificationActive = false; gearFocused = true; trackingViewModel?.runtime?.actions?.setFocused(false); true
+                    }
+                    Key.DirectionRight, Key.DirectionDown -> true
+                    else -> false
+                }
+                if (e.key == Key.DirectionRight && zone == Zone.HERO && gearFocused && trackingUi?.notice != null) {
+                    notificationActive = true
+                    return@onPreviewKeyEvent true
+                }
+                if (e.key == Key.DirectionRight && zone == Zone.HERO && gearFocused && trackingUi?.tracking?.failure != null) {
+                    trackingReturnGear = true; trackingViewModel?.showStatus(); return@onPreviewKeyEvent true
+                }
                 if (menuOpen) {
                     return@onPreviewKeyEvent if (e.key == Key.Back) { menuApp = null; menuItem = null; true } else false
                 }
@@ -585,9 +631,16 @@ internal fun LauncherHome(
                         movingApp = movingApp,
                         upNext = upNext,
                         onOpenUpNext = onOpenUpNext,
-                        onUpNextMenu = { menuItem = it },
+                        onUpNextMenu = { if (trackingViewModel?.menu(it) != true) menuItem = it },
                         onRetryUpNext = onRetryUpNext,
                         onUpNextReturnHandled = onUpNextReturnHandled,
+                        trackingStatus = {
+                            if (trackingUi?.tracking?.account != null && (trackingUi.tracking.loading || trackingUi.tracking.failure != null)) Text(
+                                stringResource(if (trackingUi.tracking.loading) R.string.tracking_loading else R.string.tracking_error),
+                                style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary,
+                                modifier = Modifier.testTag("tracking-status").tvClickable(onClick = { trackingViewModel?.showStatus() }),
+                            )
+                        },
                         modifier = Modifier.testTag("home-grid"),
                     )
                 }
@@ -620,6 +673,9 @@ internal fun LauncherHome(
                 onBack = { settingsOpen = false },
                 homeHandlesBack = homeHandlesBack,
                 homeScreenRows = { enabled -> LauncherSystemControls(launcherState, launcherActions, enabled && !launcherOverlay) },
+                trackingContent = { enabled, focus ->
+                    if (trackingUi != null && trackingViewModel != null) fr.sygix.sygixos.ui.settings.TrackingSettingsContent(trackingUi, trackingViewModel, enabled && !trackingUi.modal, focus)
+                },
             )
         }
         menuItem?.let { item ->
@@ -628,6 +684,7 @@ internal fun LauncherHome(
                 onOpen = { source -> onOpenUpNextSource(item, source); menuItem = null },
                 onRemove = { onRemoveUpNext(item); menuItem = null },
                 modifier = Modifier.zIndex(10f),
+                onAddToTracking = if (item.tracking?.membership == fr.sygix.sygixos.tracking.AccountMembership.ABSENT && trackingViewModel != null) ({ trackingViewModel.addLocal(item); menuItem = null }) else null,
             )
         }
         menuApp?.let { app ->
@@ -647,6 +704,13 @@ internal fun LauncherHome(
                 },
                 modifier = Modifier.zIndex(10f),
             )
+        }
+        if (trackingUi != null && trackingViewModel != null) CompositionLocalProvider(LocalHazeState provides overlayHaze) {
+            fr.sygix.sygixos.ui.settings.TrackingPanels(trackingUi, trackingViewModel)
+            if (!settingsOpen && !trackingUi.modal && !launcherOverlay) trackingUi.notice?.let { notice ->
+                fr.sygix.sygixos.ui.settings.TrackingNotification(notice, trackingViewModel, notificationActive, notificationFocus,
+                    Modifier.align(Alignment.BottomEnd).padding(end = Dimens.ScreenMarginH, bottom = 24.dp).zIndex(12f))
+            }
         }
         if (launcherState.guideShown) CompositionLocalProvider(LocalHazeState provides overlayHaze) { DefaultLauncherPanel(launcherState, launcherActions) }
     }

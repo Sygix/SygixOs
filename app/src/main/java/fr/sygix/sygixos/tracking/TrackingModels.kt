@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.tracking
 
 enum class TrackingType { SHOW, EPISODE, MOVIE }
+enum class TrackingAction { ADD, SEEN, UNSEEN, ARCHIVE, UNARCHIVE, REMOVE, RESTORE_MOVIE_STATE }
 
 data class TrackingIdentity(val provider: String, val type: TrackingType, val id: String)
 data class TrackingAccount(val id: String, val name: String)
@@ -30,15 +31,20 @@ data class TrackingContent(
     val archived: Boolean = false,
     val membership: AccountMembership = AccountMembership.PRESENT,
     val movieState: Int = 0,
+    val readerPackage: String? = null,
+    val readerName: String? = null,
+    val sessionGeneration: Long? = null,
 )
 
-data class TrackingSnapshot(val contents: List<TrackingContent>)
+data class TrackingSnapshot(val contents: List<TrackingContent>, val memberships: Set<TrackingIdentity> = contents.map { it.parent }.toSet())
 data class TrackingState(
     val generation: Long = 0,
     val account: TrackingAccount? = null,
     val loading: Boolean = false,
     val contents: List<TrackingContent> = emptyList(),
     val failure: TrackingFailure? = null,
+    val memberships: Set<TrackingIdentity>? = null,
+    val pendingRemovals: Set<TrackingIdentity> = emptySet(),
 )
 
 interface WatchTrackingProvider {

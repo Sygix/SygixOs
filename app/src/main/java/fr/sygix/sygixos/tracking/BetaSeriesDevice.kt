@@ -36,7 +36,7 @@ class BetaSeriesDevice(
     private val api: BetaSeriesApi,
     private val controller: TrackingController,
     private val scope: CoroutineScope,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
     private val mutable = MutableStateFlow<DeviceAssociationState>(DeviceAssociationState.Closed)
     val state = mutable.asStateFlow()

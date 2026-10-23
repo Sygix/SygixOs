@@ -1,0 +1,162 @@
+/*
+ * Copyright (C) 2026 Sygix
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+package fr.sygix.sygixos.tracking
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+enum class PlaybackOrigin { HERO, UP_NEXT }
+enum class PlaybackPrecision { CONTENT, DETAILS, SEARCH, APPLICATION }
+data class PlaybackApp(val packageName: String, val label: String, val video: Boolean)
+data class PlaybackTarget(val packageName: String, val identity: TrackingIdentity, val intentUri: String? = null)
+data class PlaybackRequest(
+    val content: TrackingContent,
+    val origin: PlaybackOrigin,
+    val targets: List<PlaybackTarget> = emptyList(),
+)
+data class PlaybackSelection(
+    val request: PlaybackRequest,
+    val apps: List<PlaybackApp> = emptyList(),
+    val loading: Boolean = true,
+    val otherApps: Boolean = false,
+    val failure: TrackingFailure? = null,
+    val preferredPackage: String? = null,
+)
+
+interface PlaybackAppResolver {
+    suspend fun installed(): List<PlaybackApp>
+}
+
+interface PlaybackLauncher {
+    fun launch(app: PlaybackApp, request: PlaybackRequest): PlaybackPrecision?
+}
+
+interface PlaybackPreferences {
+    suspend fun preferred(content: TrackingIdentity): String?
+    suspend fun remember(content: TrackingIdentity, packageName: String)
+}
+
+class PlaybackCoordinator(
+    private val apps: PlaybackAppResolver,
+    private val launcher: PlaybackLauncher,
+    private val preferences: PlaybackPreferences,
+    private val tracking: TrackingController,
+    private val actions: TrackingActions,
+    private val scope: CoroutineScope,
+    private val onOpened: (PlaybackRequest) -> Unit = {},
+    private val evidenceSource: PlaybackEvidenceSource? = null,
+    verifiedAdapters: Set<String> = emptySet(),
+) {
+    private val mutable = MutableStateFlow<PlaybackSelection?>(null)
+    val selection = mutable.asStateFlow()
+    private val precisionMutable = MutableStateFlow<PlaybackPrecision?>(null)
+    val precision = precisionMutable.asStateFlow()
+    private var job: Job? = null
+    private var pending: Pair<PlaybackRequest, Long>? = null
+    private var departed = false
+    private var requestId = 0L
+    private var playbackId = 0L
+    private val evidenceGate = PlaybackEvidenceGate(verifiedAdapters)
+    private var accountGeneration = tracking.state.value.generation
+    private var observationEnabled = true
+
+    init {
+        scope.launch { tracking.state.collect { state ->
+            if (state.account == null || accountGeneration != state.generation) {
+                close(); evidenceGate.stop(); evidenceSource?.stop(); pending = null
+            }
+            accountGeneration = state.generation
+        } }
+        evidenceSource?.let { source -> scope.launch { source.evidence.collect { proof ->
+            if (proof.generation == tracking.state.value.generation && tracking.state.value.account != null && evidenceGate.accept(proof)) actions.perform(proof.content, TrackingAction.SEEN)
+        } } }
+    }
+
+    fun open(request: PlaybackRequest, choose: Boolean = false) {
+        close()
+        val id = requestId
+        val generation = tracking.state.value.generation
+        if (request.content.membership != AccountMembership.PRESENT || tracking.state.value.account == null || request.content.sessionGeneration?.let { it != generation } == true) return
+        mutable.value = PlaybackSelection(request)
+        job = scope.launch {
+            try {
+                val installed = apps.installed()
+                val preferred = preferences.preferred(request.content.parent)
+                if (id != requestId || generation != tracking.state.value.generation) return@launch
+                val app = installed.firstOrNull { it.packageName == preferred }
+                if (!choose && app != null) launch(request, app, id, generation)
+                else mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { if (id == requestId) mutable.value = PlaybackSelection(request, loading = false, failure = error.trackingFailure()) }
+        }
+    }
+
+    fun otherApps() { mutable.value = mutable.value?.copy(otherApps = true) }
+
+    fun choose(packageName: String) {
+        val current = mutable.value ?: return
+        if (current.loading) return
+        val id = requestId
+        val generation = tracking.state.value.generation
+        mutable.value = current.copy(loading = true, failure = null)
+        job = scope.launch {
+            try {
+                val installed = apps.installed()
+                if (id != requestId || generation != tracking.state.value.generation) return@launch
+                val app = installed.firstOrNull { it.packageName == packageName }
+                if (app == null) mutable.value = current.copy(apps = installed, failure = TrackingFailure.PROTOCOL)
+                else launch(current.request, app, id, generation)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { if (id == requestId) mutable.value = current.copy(loading = false, failure = error.trackingFailure()) }
+        }
+    }
+
+    private suspend fun launch(request: PlaybackRequest, app: PlaybackApp, id: Long, generation: Long) {
+        if (generation != tracking.state.value.generation || id != requestId) return
+        val result = launcher.launch(app, request)
+        if (result == null) {
+            mutable.value = PlaybackSelection(request, apps.installed(), loading = false, failure = TrackingFailure.PROTOCOL)
+            return
+        }
+        pending = request to generation
+        ++playbackId
+        if (observationEnabled) {
+            evidenceGate.start(request.content.identity, generation, playbackId, app.packageName)
+            evidenceSource?.start(request, app.packageName, generation, playbackId)
+        }
+        departed = false
+        precisionMutable.value = result
+        onOpened(request)
+        try { preferences.remember(request.content.parent, app.packageName) }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) {
+            if (generation == tracking.state.value.generation) mutable.value = PlaybackSelection(request, loading = false, failure = TrackingFailure.STORAGE)
+            return
+        }
+        if (id == requestId) mutable.value = null
+    }
+
+    fun onBackground() { if (pending != null) departed = true }
+    fun onForeground() {
+        if (!departed) return
+        val returned = pending
+        pending = null
+        departed = false
+        if (returned != null) actions.returned(returned.first.content, returned.second)
+        evidenceGate.stop()
+        evidenceSource?.stop()
+    }
+
+    fun close() { ++requestId; job?.cancel(); mutable.value = null }
+    fun setObservationEnabled(enabled: Boolean) {
+        observationEnabled = enabled
+        if (!enabled) { evidenceGate.stop(); evidenceSource?.stop() }
+    }
+}
