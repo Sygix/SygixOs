@@ -45,6 +45,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     private val episodes = MutableStateFlow<TrackingEpisodeList?>(null)
     private val status = MutableStateFlow(false)
     private var episodeJob: Job? = null
+    private var episodeRequest = 0L
     private val countryProposed = Locale.getDefault().country.takeIf { it in Locale.getISOCountries() }
     private val countries = Locale.getISOCountries().map { code -> TrackingCountry(code, Locale.Builder().setRegion(code).build().getDisplayCountry(Locale.FRENCH)) }.sortedBy { it.label }
     private val base = combine(runtime.state, runtime.device.state, runtime.preferences.country, runtime.playback.selection, runtime.actions.notice) { tracking, device, country, player, notice ->
@@ -57,7 +58,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     init {
         viewModelScope.launch { runtime.controller.state.map { it.generation }.distinctUntilChanged().collect {
             if (menu.value?.tracking?.sessionGeneration?.let { generation -> generation != it } == true) menu.value = null
-            if (episodes.value?.content?.sessionGeneration?.let { generation -> generation != it } == true) { episodeJob?.cancel(); episodes.value = null }
+            if (episodes.value?.content?.sessionGeneration?.let { generation -> generation != it } == true) endEpisodes()
         } }
     }
 
@@ -102,7 +103,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     }
 
     fun retryEpisodes() { episodes.value?.content?.let(::loadEpisodes) }
-    fun reconnectEpisodes() { episodeJob?.cancel(); episodes.value = null; runtime.disconnect(); runtime.device.open() }
+    fun reconnectEpisodes() { endEpisodes(); runtime.disconnect(); runtime.device.open() }
     fun onForeground() { episodes.value?.content?.let(::loadEpisodes) }
     fun episodeFocused(key: String) {
         val current = episodes.value ?: return
@@ -116,19 +117,24 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     }
     private fun loadEpisodes(content: TrackingContent) {
         episodeJob?.cancel()
+        val request = ++episodeRequest
         val previous = episodes.value?.takeIf { it.content.parent == content.parent }
         episodes.value = (previous ?: TrackingEpisodeList(content)).copy(loading = true, failure = null)
         episodeJob = viewModelScope.launch {
             try {
                 val generation = runtime.controller.state.value.generation
+                if (content.sessionGeneration?.let { it != generation } == true) { endEpisodes(); return@launch }
                 val items = runtime.controller.authenticated { token -> runtime.provider.episodes(token, content) }.map { it.copy(sessionGeneration = generation) }
-                val focused = fr.sygix.sygixos.domain.FocusFallback.entry(items.map { it.identity.id }, (previous?.focused ?: content.identity).id, previous?.focusedIndex ?: 0)
+                val current = episodes.value?.takeIf { request == episodeRequest && it.content.parent == content.parent } ?: return@launch
+                val focused = fr.sygix.sygixos.domain.FocusFallback.entry(items.map { it.identity.id }, (current.focused ?: content.identity).id, current.focusedIndex)
                 episodes.value = TrackingEpisodeList(content, loading = false, items = items,
-                    selected = previous?.selected?.takeIf { selected -> items.any { it.identity == selected } },
+                    selected = current.selected?.takeIf { selected -> items.any { it.identity == selected } },
                     focused = items.firstOrNull { it.identity.id == focused }?.identity,
                     focusedIndex = items.indexOfFirst { it.identity.id == focused }.coerceAtLeast(0))
             } catch (cancelled: CancellationException) { throw cancelled }
-            catch (error: Exception) { episodes.value = TrackingEpisodeList(content, loading = false, failure = error.trackingFailure()) }
+            catch (error: Exception) {
+                if (request == episodeRequest && episodes.value?.content?.parent == content.parent) episodes.value = TrackingEpisodeList(content, loading = false, failure = error.trackingFailure())
+            }
         }
     }
 
@@ -137,12 +143,12 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     fun markSelectedEpisode() {
         if (runtime.actions.notice.value?.busy == true) return
         val content = selectedEpisode() ?: return
-        episodes.value = null
+        endEpisodes()
         runtime.actions.perform(content, if (content.seen) TrackingAction.UNSEEN else TrackingAction.SEEN)
     }
     fun openSelectedEpisode() {
         val content = selectedEpisode() ?: return
-        episodes.value = null
+        endEpisodes()
         runtime.playback.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT))
     }
 
@@ -151,11 +157,12 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
             status.value -> status.value = false
             state.value.player != null -> runtime.playback.close()
             episodes.value?.selected != null -> episodes.value = episodes.value?.copy(selected = null)
-            episodes.value != null -> { episodeJob?.cancel(); episodes.value = null }
+            episodes.value != null -> endEpisodes()
             menu.value != null -> menu.value = null
             else -> runtime.device.close()
         }
     }
 
-    override fun onCleared() { episodeJob?.cancel(); runtime.device.close(); runtime.playback.close() }
+    private fun endEpisodes() { ++episodeRequest; episodeJob?.cancel(); episodes.value = null }
+    override fun onCleared() { endEpisodes(); runtime.device.close(); runtime.playback.close() }
 }

@@ -63,12 +63,39 @@ class TrackingRefreshScheduleTest {
         assertEquals(1, fixture.maximumActive)
     }
 
+    @Test fun initialRestoreFailureStillRetriesWhenForegroundPrecedesTokenLoading() = runTest {
+        val fixture = Fixture(backgroundScope)
+        fixture.failSnapshot = true
+        fixture.runtime.onForeground()
+        fixture.runtime.controller.restore(); runCurrent()
+        assertEquals(TrackingFailure.NETWORK, fixture.runtime.controller.state.value.failure)
+        val initial = fixture.accounts
+        fixture.failSnapshot = false
+        advanceTimeBy(interval); runCurrent()
+        assertEquals(initial + 1, fixture.accounts)
+        assertNull(fixture.runtime.controller.state.value.failure)
+    }
+
+    @Test fun initialConnectionSnapshotFailureStillRetriesWithoutAnotherLifecycleEvent() = runTest {
+        val fixture = Fixture(backgroundScope)
+        fixture.failSnapshot = true
+        fixture.runtime.onForeground()
+        fixture.runtime.controller.connect("fixture-token"); runCurrent()
+        assertEquals(TrackingFailure.NETWORK, fixture.runtime.controller.state.value.failure)
+        val initial = fixture.accounts
+        fixture.failSnapshot = false
+        advanceTimeBy(interval); runCurrent()
+        assertEquals(initial + 1, fixture.accounts)
+        assertNull(fixture.runtime.controller.state.value.failure)
+    }
+
     private class Fixture(scope: CoroutineScope) {
         private val context: android.content.Context = ApplicationProvider.getApplicationContext()
         var accounts = 0
         var gate: CompletableDeferred<Unit>? = null
         private var active = 0
         var maximumActive = 0
+        var failSnapshot = false
         val runtime = TrackingRuntime(context, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore(scope))), scope,
             transport = TrackingTransport { request ->
                 ++active; maximumActive = maxOf(maximumActive, active)
@@ -76,7 +103,7 @@ class TrackingRefreshScheduleTest {
                     when {
                         request.url.endsWith("/") -> TrackingResponse(200, "{apiHost:\"https://api.betaseries.com\",apiKey:\"fixture-client\"}")
                         request.url.contains("members/infos") -> { ++accounts; TrackingResponse(200, "{\"member\":{\"id\":1,\"login\":\"Fixture\"}}") }
-                        request.url.contains("shows/member") -> { gate?.await(); TrackingResponse(200, "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}") }
+                        request.url.contains("shows/member") -> { if (failSnapshot) throw TrackingException(TrackingFailure.NETWORK); gate?.await(); TrackingResponse(200, "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}") }
                         request.url.contains("episodes/list") -> TrackingResponse(200, "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
                         request.url.contains("movies/member") -> TrackingResponse(200, "{\"movies\":[],\"total\":0,\"totalMissingMovies\":0}")
                         else -> error("Unexpected refresh fixture endpoint")

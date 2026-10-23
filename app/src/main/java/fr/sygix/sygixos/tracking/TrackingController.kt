@@ -76,6 +76,7 @@ class TrackingController(
                 val saved = storage.withLock { store.read() }
                 if (generation != state.value.generation || request != loads || saved == null) return@launch
                 token = saved
+                startPeriodic()
                 load(generation, saved, request)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
@@ -99,6 +100,7 @@ class TrackingController(
             }
             if (generation != state.value.generation) return
             mutable.value = TrackingState(generation, account, loading = true)
+            startPeriodic()
             refresh()
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) {

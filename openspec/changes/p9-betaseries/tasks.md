@@ -58,7 +58,7 @@ La maquette a été produite, montrée puis validée par Sygix ; les décisions 
 
 ## 8. Validation intégrée
 
-- [ ] 8.1 Exécuter `./gradlew test` et `openspec validate --all --strict`, puis vérifier la conformité du change avec openspec-verify-change ; critère : commandes réussies et aucun scénario accepté déclaré couvert sans test ou preuve de runtime correspondante.
+- [x] 8.1 Exécuter `./gradlew test` et `openspec validate --all --strict`, puis vérifier la conformité du change avec openspec-verify-change ; critère : commandes réussies et aucun scénario accepté déclaré couvert sans test ou preuve de runtime correspondante.
 - [ ] 8.2 Produire `./gradlew assembleRelease` puis valider sur TV réelle connexion/reconnexion, compte, lecteur, pays, panne/reprise, autorisation média et retour des deux surfaces ; critère : matrice anonymisée des scénarios réussis/partiels et fluidité vérifiée selon launcher-shell, sans confondre émulateur et TV réelle.
 - [ ] 8.3 Vérifier la migration et les régressions sans compte puis après déconnexion, et mettre à jour README/attribution/licences si nécessaire ; critère : sources locales, tri, masquages et préférences conservés, aucune clé, donnée personnelle ni sortie de build dans le diff public.
 

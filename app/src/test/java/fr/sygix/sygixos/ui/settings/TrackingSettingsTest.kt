@@ -141,6 +141,50 @@ class TrackingSettingsTest {
         } finally { fixture.close() }
     }
 
+    @Test fun delayedEpisodeRefreshKeepsCurrentBackAndSelectionDecisions() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            fixture.viewModel.menu(TrackingProjection.card(fixture.runtime.controller.state.value.contents.single()))
+            fixture.viewModel.showEpisodes(); runCurrent(); show(fixture)
+            press(Key.DirectionUp, "tracking-episodes"); press(Key.Enter, "tracking-episodes")
+            val first = kotlinx.coroutines.CompletableDeferred<Unit>()
+            fixture.episodeGate = first
+            fixture.viewModel.onForeground(); runCurrent(); compose.waitForIdle()
+            press(Key.Back, "tracking-episode-actions")
+            first.complete(Unit); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-episode-actions").assertDoesNotExist()
+            compose.onNodeWithTag("tracking-episode-1").assertIsFocused()
+            val second = kotlinx.coroutines.CompletableDeferred<Unit>()
+            fixture.episodeGate = second
+            fixture.viewModel.onForeground(); runCurrent(); compose.waitForIdle()
+            press(Key.DirectionDown, "tracking-episodes"); press(Key.Enter, "tracking-episodes")
+            second.complete(Unit); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-episode-actions").assertExists()
+            assertEquals("2", fixture.viewModel.state.value.episodes?.selected?.id)
+            assertTrue(fixture.episodeWrites.isEmpty())
+        } finally { fixture.close() }
+    }
+
+    @Test fun markingAnEpisodeCancelsPendingRefreshAndNeverReopensTheList() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            fixture.viewModel.menu(TrackingProjection.card(fixture.runtime.controller.state.value.contents.single()))
+            fixture.viewModel.showEpisodes(); runCurrent(); show(fixture)
+            press(Key.DirectionUp, "tracking-episodes"); press(Key.Enter, "tracking-episodes")
+            val pending = kotlinx.coroutines.CompletableDeferred<Unit>()
+            fixture.episodeGate = pending
+            fixture.viewModel.onForeground(); runCurrent(); compose.waitForIdle()
+            press(Key.DirectionDown, "tracking-episode-actions"); press(Key.Enter, "tracking-episode-actions")
+            pending.complete(Unit); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-episodes").assertDoesNotExist()
+            compose.onNodeWithTag("tracking-episode-actions").assertDoesNotExist()
+            assertNull(fixture.viewModel.state.value.episodes)
+            assertEquals(listOf("1" to false), fixture.episodeWrites)
+        } finally { fixture.close() }
+    }
+
     private class Fixture(scope: CoroutineScope, clock: () -> Long, private val episodeMode: Boolean = false) : AutoCloseable {
         private val harness = SettingsHarness()
         private val store = ViewModelStore()
@@ -150,6 +194,7 @@ class TrackingSettingsTest {
         val episodeWrites = mutableListOf<Pair<String, Boolean>>()
         val availableEpisodes = linkedSetOf("1", "2", "3")
         var episodeListReads = 0
+        var episodeGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
         private val show = "{\"id\":1,\"title\":\"Fixture\",\"user\":{\"archived\":false}}"
         private fun episode(id: String) = "{\"id\":$id,\"season\":1,\"episode\":$id,\"title\":\"Fixture episode $id\",\"date\":\"2020-01-01\",\"user\":{\"seen\":${seen.getValue(id)}}}"
         val runtime = TrackingRuntime(ApplicationProvider.getApplicationContext(), harness.repo, scope,
@@ -162,7 +207,7 @@ class TrackingSettingsTest {
                     request.url.contains("shows/member") -> TrackingResponse(200, if (episodeMode) "{\"shows\":[$show],\"total\":1,\"totalMissingShows\":0}" else "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
                     request.url.contains("episodes/list") -> TrackingResponse(200, if (episodeMode) "{\"shows\":[{\"id\":1,\"unseen\":[${seen.filterValues { !it }.keys.joinToString(",") { episode(it) }}]}],\"total\":1,\"totalMissingShows\":0}" else "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
                     request.url.contains("shows/display") -> TrackingResponse(200, "{\"show\":$show}")
-                    request.url.contains("shows/episodes") -> { ++episodeListReads; TrackingResponse(200, "{\"episodes\":[${availableEpisodes.joinToString(",") { episode(it) }}],\"total\":${availableEpisodes.size},\"totalMissingEpisodes\":0}") }
+                    request.url.contains("shows/episodes") -> { ++episodeListReads; episodeGate?.await(); TrackingResponse(200, "{\"episodes\":[${availableEpisodes.joinToString(",") { episode(it) }}],\"total\":${availableEpisodes.size},\"totalMissingEpisodes\":0}") }
                     request.url.contains("episodes/watched") -> {
                         val id = requireNotNull(request.fields["id"])
                         if (request.method == "POST") check(request.fields["bulk"] == "false")
