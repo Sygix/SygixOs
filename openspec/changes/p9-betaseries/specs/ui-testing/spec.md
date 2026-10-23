@@ -7,7 +7,7 @@ Les zones, tuiles et contrôles SHALL exposer des testTags stables, sans dépend
 
 #### Scenario: sélection par tag
 - **WHEN** un test cible héro, dock, grille, shelf, À suivre, titres, menus, cartes, badges, progression, placeholder, squelette, erreur ou réglages d'accueil
-- **THEN** il conserve les tags existants : zone-hero, zone-dock, zone-grid, shelf-panel, zone-upnext, section-title-upnext, section-title-apps, app-menu, upnext-menu, upnext-menu-remove, upnext-skeleton, upnext-error, settings-home-screen, setting-upnext-visible, setting-upnext-position, setting-upnext-position-list, settings-category-HOME_SCREEN et préfixes app-tile-, upnext-card-, upnext-card-badge-, upnext-card-progress-, upnext-card-placeholder-, upnext-menu-entry-, setting-upnext-position-
+- **THEN** il conserve les tags zone-hero, zone-dock, zone-grid, shelf-panel, zone-upnext, section-title-upnext, section-title-apps, app-menu, upnext-menu, upnext-menu-remove, upnext-skeleton, upnext-error, settings-home-screen, setting-upnext-visible, setting-upnext-position, setting-upnext-position-list, settings-category-HOME_SCREEN et les formes `app-tile-<package>`, `upnext-card-<key>`, `upnext-card-badge-<key>`, `upnext-card-progress-<key>`, `upnext-card-placeholder-<key>`, `upnext-menu-entry-<package>`, `setting-upnext-position-<VALUE>`, sans dépendre du libellé affiché
 
 #### Scenario: contrôles du suivi
 - **WHEN** un test cible le suivi
@@ -49,8 +49,8 @@ La navigation héro, dock et grille, À suivre et titres compris, SHALL rester t
 - **THEN** le héro reprend le focus
 
 #### Scenario: retour dans la grille à la position laissée
-- **WHEN** le test quitte puis retrouve une carte non initiale ou une rangée d'apps profonde
-- **THEN** l'élément reprend le focus à la même position à l'écran
+- **WHEN** le test quitte la grille depuis une carte À suivre non initiale, redescend, puis recommence depuis une tuile d'une rangée d'apps profonde
+- **THEN** à chaque redescente la carte puis la tuile reprend le focus à la même position à l'écran qu'avant la sortie
 
 #### Scenario: carte focusée disparue
 - **WHEN** le test retire une carte au milieu puis à la fin
@@ -69,24 +69,24 @@ La navigation héro, dock et grille, À suivre et titres compris, SHALL rester t
 - **THEN** squelette initial, maintien local valide, erreur locale et vide suivent leurs contrats ; refus TV n'efface pas le compte et panne du compte ne masque pas les apps
 
 #### Scenario: structure des cartes
-- **WHEN** les cartes locales existantes sont rendues à taille TV avec épisode, film, image et icône absentes
-- **THEN** largeur (contenu − 3 × GridSpacing) / 4, ratio 16:9, quatre cartes entières puis cinquième coupée, textes épisode/film, badges/progression/placeholders conditionnels, défilement de la cinquième et alignement de la dernière à ScreenMarginH sont conservés, sans texte d'action ou nom d'app et sans assertion de pixel
+- **WHEN** le test compose les cartes locales à taille TV avec au moins cinq items, dont un épisode CONTINUE avec image, un film, un item sans image et un item sans icône d'app, puis parcourt une rangée de huit cartes
+- **THEN** chaque `upnext-card-<key>` a une largeur (contenu − 3 × `Dimens.GridSpacing`) / 4 et un ratio 16:9, quatre cartes entières depuis la marge gauche et cinquième dépassant le bord droit ; `upnext-card-badge-<key>` est présent sauf sans icône, `upnext-card-progress-<key>` seulement pour l'item en cours, `upnext-card-placeholder-<key>` seulement sans image ; l'épisode porte deux nœuds texte (série et « SxxEyy · titre d'épisode »), le film un seul, sans texte d'action ni nom d'app ; droite jusqu'à la cinquième la rend entière, puis jusqu'à la huitième aligne son bord droit sans zoom à `Dimens.ScreenMarginH`, symétriquement au bord gauche initial ; aucune assertion de pixel
 
 #### Scenario: squelette et carte d'erreur
 - **WHEN** la rangée locale passe du chargement à l'erreur sans autre source prête
-- **THEN** cinq cartes non focusables à deux barres sont remplacées par la seule carte upnext-error focusable avec ses textes existants sous le titre
+- **THEN** `upnext-skeleton` contient cinq nœuds de la taille d'une carte, chacun avec deux barres et aucun focusable ; en erreur `upnext-error` est un nœud unique de la taille d'une carte, focusable, portant « Impossible de charger » et « OK pour réessayer » sous `section-title-upnext`
 
 #### Scenario: menu Ouvrir avec
-- **WHEN** l'appui long est simulé sur une carte locale non associée
-- **THEN** le menu, l'en-tête et les sources existants sont présents, première app focusée, Retirer après la dernière, sans boucle ; Retour rend la carte, choisir ouvre l'app et retirer persiste le masquage avec focus suivant/précédent ; une seconde carte de la même série disparaît aussi
+- **WHEN** l'appui long est simulé sans compte connecté sur une carte locale, avec une seule source puis plusieurs
+- **THEN** `upnext-menu` montre vignette, titre et « Ouvrir avec… », une entrée `upnext-menu-entry-<package>` par source dans l'ordre, première focusée puis `upnext-menu-remove` juste après la dernière ; Bas depuis la dernière app atteint Retirer et Bas depuis Retirer ne fait rien ; OK ouvre l'app et ferme le menu, Retour ferme et rend la carte ; valider Retirer ferme, persiste le masquage, retire aussi la seconde carte de même série d'une autre app et donne le focus à la suivante sinon précédente
 
 #### Scenario: réglage de position
-- **WHEN** Position d'À suivre est ouvert, modifié, annulé et laissé ouvert pendant un passage en arrière-plan
-- **THEN** liste et contrôle gardent ordre, ancrage, coche courante, pilule sans zoom, focus et D-pad existants ; validation persiste et replace la rangée, Retour ferme sans modifier, arrière-plan ferme la liste sans quitter la page et restaure le contrôle
+- **WHEN** le test ouvre Écran d'accueil, ouvre Position d'À suivre, change de valeur et valide, recommence avec Retour puis laisse la liste ouverte pendant un passage en arrière-plan/premier plan
+- **THEN** `settings-home-screen` montre titre « Écran d'accueil », description, `setting-upnext-visible` avant `setting-upnext-position` avec valeur courante et chevron ; la liste contient exactement les deux `setting-upnext-position-<VALUE>` dans l'ordre, valeur courante focusée et seule cochée, rectangle sous le contrôle et dans le volet droit ; Haut/Bas sans boucle, Gauche/Droite sans effet ; OK ferme, restaure le contrôle, persiste et replace titre/rangée au home ; Retour ferme sans modifier ni quitter les réglages, le cycle arrière-plan ferme aussi et restaure le contrôle sans changer la valeur ; liste fermée Haut atteint la visibilité, Gauche `settings-category-HOME_SCREEN`, Retour ferme ; rectangle de chaque ligne identique avec/sans focus, pilule sans zoom et aucune assertion de pixel
 
 #### Scenario: réglage de visibilité
 - **WHEN** Afficher À suivre est désactivé puis réactivé
-- **THEN** titre et rangée disparaissent puis reviennent à la position persistée ; Position reste modifiable ; D-pad et focus du contrôle sont inchangés
+- **THEN** titre et rangée disparaissent et sont sautés, désactivation conservée après redémarrage ; Bas atteint Position toujours focusable/modifiable, sans état grisé, avec même rectangle et même liste qu'activé ; une position modifiée pendant la désactivation s'applique au titre et à la rangée dès réactivation ; Haut/Droite sur la visibilité ne font rien, Gauche rend `settings-category-HOME_SCREEN` et Retour ferme les réglages
 
 #### Scenario: aucune app TV détectée
 - **WHEN** le catalogue d'apps est vide
@@ -139,6 +139,10 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 #### Scenario: badge et masquage
 - **WHEN** une carte de suivi n'a pas de lecteur choisi puis en reçoit un et est masquée/réaffichée
 - **THEN** son badge passe du fournisseur à l'app ; le masquage persiste pour la série toutes sources et les candidats BetaSeries du héro, sans mutation du compte ; Réafficher restaure l'éligibilité
+
+#### Scenario: ajout au compte depuis une carte locale
+- **WHEN** le test ouvre le menu d'un contenu local identifié absent du compte connecté, puis répète sans compte, avec identité ambiguë et avec appartenance inconnue
+- **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement utilise le parcours commun, avec confirmation du premier lecteur si aucune préférence n'existe ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive
 
 #### Scenario: autorisation média
 - **WHEN** le double refuse, accorde, retire l'accès ou ne fournit aucun écran système

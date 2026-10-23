@@ -24,6 +24,7 @@
 - Disponibilité non confirmée si la région n'est pas prouvée ; pays confirmé/modifiable. Aucun filtre ne masque un contenu uniquement faute d'offre.
 - Badge du lecteur choisi, sinon BetaSeries ; informations habituelles sans mode anti-spoilers supplémentaire.
 - Compte actif unique ; déconnexion pour changer, préférences de lecteur et masquages locaux conservés sur la TV.
+- Une carte locale identifiée absente du compte connecté propose Ajouter au suivi, mais garde son ouverture locale avant l'ajout ; l'appartenance confirmée, pas la simple correspondance catalogue, active le lecteur partagé.
 - Vu/non vu sur le seul épisode choisi ; Annuler non bloquant, suppression distante différée pendant sa fenêtre.
 - Confirmation Terminé discrète sans preuve fiable ; accès média optionnel ; aucun marquage automatique à partir du simple lancement de l'app.
 - Masquage local de la série entière toutes sources d'À suivre, et des candidats BetaSeries du héro ; archive/retrait du compte distincts. Une reprise locale peut rester après archivage.

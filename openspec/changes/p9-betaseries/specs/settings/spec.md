@@ -31,7 +31,7 @@ Les réglages SHALL conserver deux volets plein écran, leur fond et leurs pilul
 
 #### Scenario: focus d'une ligne
 - **WHEN** une ligne prend le focus
-- **THEN** elle devient une pilule claire à texte et icônes sombres sans zoom, halo ou verre, sans changer son rectangle ; les états de repos existants sont conservés
+- **THEN** elle devient une pilule claire à texte et icônes sombres sans zoom, halo ou verre, sans changer son rectangle ; les lignes au repos n'ont pas de fond, sauf Tout réactiver qui garde son fond discret
 
 #### Scenario: catégorie active, focus à droite
 - **WHEN** le focus est à droite
@@ -44,7 +44,7 @@ Les réglages SHALL conserver deux volets plein écran, leur fond et leurs pilul
 **Détails.** — Le focus des catégories, lignes, contenus, dépliages, contrôles et actions reprend la pilule claire sans zoom, halo ou verre, et l'état marqué de la catégorie active. Les parcours de connexion, pays et accès média respectent cette base et leur navigation propre ; les autres catégories ne changent pas de règles.
 
 ### Requirement: Afficher À suivre
-Afficher À suivre SHALL conserver sa place de premier contrôle, son switch activé par défaut et sa persistance. Il autorise les contenus affichables de toutes les sources sans imposer READ_TV_LISTINGS au suivi connecté. Désactiver SHALL retirer rangée et titre sans modifier programmes, compte, filtres ni apport du compte au héro.
+Afficher À suivre SHALL rester le premier contrôle, avec libellé à gauche et switch Apple à droite, activé par défaut et persisté. Il autorise les contenus affichables de toutes les sources sans imposer READ_TV_LISTINGS au compte. Désactiver SHALL retirer rangée et titre sans modifier programmes, compte, filtres ni apport du compte au héro.
 
 #### Scenario: réglage activé
 - **WHEN** le réglage est activé
@@ -60,7 +60,7 @@ Afficher À suivre SHALL conserver sa place de premier contrôle, son switch act
 
 #### Scenario: bascule
 - **WHEN** OK est pressé sur la ligne
-- **THEN** le switch et la préférence changent avec effet immédiat sans redémarrage, et le focus reste sur la ligne
+- **THEN** le switch et la préférence changent avec animation Apple et effet immédiat sans redémarrage, et le focus reste sur la ligne
 
 #### Scenario: navigation D-pad de la ligne
 - **WHEN** le focus est sur Afficher À suivre
@@ -83,11 +83,11 @@ Le volet SHALL conserver sa liste directe d'apps cachées puis Retirés d'À sui
 
 #### Scenario: tri des apps cachées
 - **WHEN** des apps ont des dates de masquage et d'autres non
-- **THEN** les datées sont triées par date décroissante puis les sans date par alphabet
+- **THEN** les datées sont triées par date décroissante puis les sans date par nom en ordre alphabétique sans casse
 
 #### Scenario: réactivation
 - **WHEN** OK est pressé sur une app cachée
-- **THEN** son switch devient visible, elle revient immédiatement dans la grille, l'état est persisté et sa ligne reste focusée à sa place
+- **THEN** son switch devient visible avec animation Apple, elle revient immédiatement dans la grille à son ancienne place si elle existe encore, sinon selon l'ordre alphabétique ; l'état est persisté et sa ligne reste focusée à sa place dans les réglages
 
 #### Scenario: recacher avant le recalcul
 - **WHEN** OK est pressé à nouveau sur cette ligne sans quitter la catégorie
@@ -115,7 +115,7 @@ Le volet SHALL conserver sa liste directe d'apps cachées puis Retirés d'À sui
 
 #### Scenario: navigation D-pad dans le volet
 - **WHEN** le focus parcourt le volet
-- **THEN** haut/bas suivent bouton, lignes et dépliages sans boucle, en sautant l'intertitre ; défilement garde la ligne visible, gauche rend la catégorie, Retour ferme la page, OK bascule, réaffiche ou déplie selon l'élément
+- **THEN** haut/bas suivent bouton, lignes et dépliages sans boucle, en sautant l'intertitre ; le défilement garde la ligne focusée entièrement visible, gauche rend la catégorie, Retour ferme la page, OK bascule, réaffiche ou déplie selon l'élément
 
 #### Scenario: app de la ligne focalisée désinstallée
 - **WHEN** l'app focusée est désinstallée et des lignes restent
@@ -135,7 +135,7 @@ Le volet SHALL conserver sa liste directe d'apps cachées puis Retirés d'À sui
 
 #### Scenario: contenus retirés
 - **WHEN** des contenus locaux ou de suivi sont retirés
-- **THEN** Retirés d'À suivre précède leurs lignes par retrait décroissant, vignette, titre et type/sources ; Réafficher apparaît seulement sur la ligne focusée, sans package fictif pour BetaSeries
+- **THEN** Retirés d'À suivre précède leurs lignes par retrait décroissant, vignette 16:9 avec image persistée sinon placeholder, titre puis « Série · … » ou « Film · … » avec sources affichables, ou le type seul sans source ; Réafficher apparaît à droite seulement sur la ligne focusée, sans package fictif pour BetaSeries
 
 #### Scenario: réafficher un contenu
 - **WHEN** OK est pressé sur un contenu retiré
@@ -157,7 +157,7 @@ Le volet SHALL conserver sa liste directe d'apps cachées puis Retirés d'À sui
 - **WHEN** seuls des contenus sont retirés
 - **THEN** aucun bouton Tout réactiver ni app n'est affiché ; l'intertitre et les contenus forment le volet
 
-**Détails.** — Les vignettes et replis, tri par retrait décroissant et libellés Série ou Film avec sources persistées sont conservés ; les apps sources encore installées sont séparées par virgules, le fournisseur peut être nommé sans paquet d'app fictif. Dépliage non persisté, trois lignes par groupe puis Afficher les N autres ou Afficher l'autre, quatrième focusée au dépliage. Le recalcul a lieu uniquement à l'entrée de catégorie, pas entre volets. Les switches et Tout réactiver agissent immédiatement sur grille/dock en gardant les lignes pendant la visite ; ils n'annulent jamais les retraits de contenus. Réafficher est une action locale sans mutation du suivi.
+**Détails.** — Les contenus retirés gardent une vignette 16:9, image persistée sinon placeholder, tri par retrait décroissant, titre et libellés « Série · … » ou « Film · … » avec sources persistées ; les apps sources encore installées sont séparées par virgules, le fournisseur peut être nommé sans paquet d'app fictif, et le type seul est affiché sans source disponible. Réafficher est à droite uniquement au focus et ne modifie pas le compte. Dépliage non persisté, trois lignes par groupe puis Afficher les N autres ou Afficher l'autre, quatrième focusée au dépliage. Le recalcul a lieu uniquement à l'entrée de catégorie, pas entre volets. Les switches et Tout réactiver agissent immédiatement sur grille/dock avec animation Apple en gardant les lignes pendant la visite ; ils n'annulent jamais les retraits de contenus. Une app réactivée retrouve son ancien ordre de grille s'il existe encore, sinon son ordre alphabétique.
 
 ## ADDED Requirements
 

@@ -143,7 +143,7 @@ La dernière ouverture locale SHALL rester mémorisée par contenu, depuis carte
 
 #### Scenario: chargement et premier lancement
 - **WHEN** le launcher redémarre avec une mémoire persistée
-- **THEN** les contenus encore présents sont ordonnés dès le premier affichage ; une mémoire vide ou illisible donne le tri des groupes sans erreur
+- **THEN** les contenus déjà chargés et encore présents sont ordonnés avec leur mémoire dès le premier affichage, sans réordonnancement ultérieur dû au chargement tardif de cette mémoire ; une mémoire vide ou illisible donne le tri des groupes sans erreur, sans empêcher l'insertion ultérieure de nouveaux contenus
 
 #### Scenario: purge des contenus disparus
 - **WHEN** les sources concernées ont été lues entièrement avec succès et qu'aucune ne contient le contenu
@@ -187,7 +187,7 @@ La dernière ouverture locale SHALL rester mémorisée par contenu, depuis carte
 - **THEN** le retrait est supprimé et le contenu revient selon les sources encore valides, le tri et la politique du héro ; aucun statut du compte n'est modifié
 
 ### Requirement: Carte Up Next
-Les cartes SHALL conserver les maquettes 7.1 à 7.5, Carte Up Next et les politiques de rendu, textes, qualité et focus existantes. Pour un contenu associé au suivi, le badge SHALL montrer l'app choisie, sinon le fournisseur ; une carte purement locale SHALL conserver son icône d'app réelle. La progression SHALL provenir uniquement d'une lecture connue.
+« À suivre » SHALL désigner la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes 7.1 à 7.5 et Carte Up Next, avec rendu et qualité décrits ci-dessous et focus intégral selon « Focus tvOS ». Un contenu du compte SHALL montrer le badge du lecteur choisi, sinon du fournisseur ; une carte locale conserve l'icône réelle d'app. La progression SHALL provenir uniquement d'une lecture connue.
 
 #### Scenario: largeur et débordement
 - **WHEN** au moins cinq cartes sont affichées à 960 dp de large
@@ -195,10 +195,10 @@ Les cartes SHALL conserver les maquettes 7.1 à 7.5, Carte Up Next et les politi
 
 #### Scenario: défilement horizontal
 - **WHEN** une carte partiellement visible ou hors écran prend le focus
-- **THEN** la rangée défile juste pour la rendre entière avec le mouvement existant ; sa position est conservée hors retour suivant une ouverture depuis la rangée
+- **THEN** la rangée défile juste pour la rendre entière entre la marge gauche et le bord droit, avec la durée et la courbe de « Focus tvOS » ; sa position est conservée hors retour suivant une ouverture depuis la rangée
 
 #### Scenario: fin de rangée
-- **WHEN** la dernière carte prend le focus
+- **WHEN** la rangée dépasse la largeur disponible et que sa dernière carte prend le focus
 - **THEN** son bord droit hors zoom finit à `Dimens.ScreenMarginH` du bord, symétriquement au début ; seul le zoom peut dépasser
 
 #### Scenario: rangée qui tient dans la largeur
@@ -215,7 +215,7 @@ Les cartes SHALL conserver les maquettes 7.1 à 7.5, Carte Up Next et les politi
 
 #### Scenario: badge et image
 - **WHEN** une carte est affichée
-- **THEN** une carte locale montre l'icône réelle de son app via PackageManager ; une carte de suivi montre celle du lecteur choisi, sinon le badge BetaSeries ; si le badge applicable est indisponible, il est omis sans libellé texte de substitution
+- **THEN** une carte locale montre en haut à droite l'icône réelle de son app via PackageManager, sans logo embarqué ; une carte de suivi montre au même emplacement celle du lecteur choisi, sinon le badge BetaSeries ; si le badge applicable est indisponible, il est omis sans libellé texte de substitution
 
 #### Scenario: poster portrait
 - **WHEN** seul un poster portrait exploitable existe
@@ -245,7 +245,7 @@ Les cartes SHALL conserver les maquettes 7.1 à 7.5, Carte Up Next et les politi
 - **WHEN** une copie reste utilisable selon le contrat d'images et le contenu est encore valide
 - **THEN** elle est affichée sans attendre le fournisseur ; à expiration le placeholder la remplace ; une image en cache ne réintroduit pas un contenu BetaSeries retiré pour panne
 
-**Détails.** — Barre : conserver `Dimens.ProgressHeight`, `SygixColors.ProgressTrack`, `SygixColors.OnDark`, `Dimens.UpNextTextBottom` et `Dimens.UpNextTextAboveProgress`, sans réserve quand elle manque. Badge : conserver emplacement `Dimens.UpNextBadgeInset`, taille `Dimens.HeroSourceIcon` et coins `Dimens.UpNextBadgeCorner` concentriques ; l'exception fournisseur ci-dessus remplace seulement l'obligation d'un package pour un contenu de suivi. Géométrie : largeur (contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4, départ `Dimens.ScreenMarginH`, pas de marge droite, fin symétrique hors zoom. Médias : 16:9, `Dimens.TileCorner`, `SygixColors.TileBackground`, paysage sinon portrait centré sinon `Dimens.UpNextPlaceholderIcon` / `SygixColors.PlaceholderGlyph` centré dans la moitié haute ; dégradé transparent à `Dimens.CardScrimStart` vers `SygixColors.CardScrimEnd`. Textes : `Dimens.UpNextTextInset`, `TextStyles.Row` / `SygixColors.OnDark`, détails `TextStyles.RowSecondary` / `SygixColors.OnDarkDetails`, sans texte supplémentaire ni nom d'app. Qualité : largeur réelle au moins égale à la carte en pixels hors zoom, portrait accepté, dimensions partagées sans verdict global ; essayer alternatives et copies utilisables avant placeholder.
+**Détails.** — Barre : CONTINUE avec progression SHALL montrer une barre de hauteur `Dimens.ProgressHeight`, piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`, placée à `Dimens.UpNextTextBottom` du bas ; ses textes sont à `Dimens.UpNextTextAboveProgress` au-dessus. Sans barre, les textes sont à `Dimens.UpNextTextBottom` sans réserve de progression. Badge : en haut à droite à `Dimens.UpNextBadgeInset`, taille `Dimens.HeroSourceIcon`, coins `Dimens.UpNextBadgeCorner` concentriques avec la carte selon « Thème » ; l'exception fournisseur ci-dessus remplace seulement l'obligation d'un package pour un contenu du compte, sans autoriser de logo embarqué à la place de l'icône PackageManager d'une carte locale. Géométrie : largeur (contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4, départ `Dimens.ScreenMarginH`, pas de marge droite, fin symétrique hors zoom ; seul le demi-agrandissement du zoom peut déborder. Médias : 16:9, coins `Dimens.TileCorner`, fond `SygixColors.TileBackground` continu avec la grille, paysage sinon portrait centré à pleine hauteur sinon `Dimens.UpNextPlaceholderIcon` / `SygixColors.PlaceholderGlyph` centré dans la moitié haute ; dégradé transparent à `Dimens.CardScrimStart` jusqu'à `SygixColors.CardScrimEnd` en bas. Textes : en bas à gauche à `Dimens.UpNextTextInset`, `TextStyles.Row` / `SygixColors.OnDark`, détails `TextStyles.RowSecondary` / `SygixColors.OnDarkDetails`, sans texte supplémentaire, action ni nom d'app. Qualité : largeur réelle au moins égale à la carte en pixels hors zoom, portrait accepté, dimensions issues du parcours partagé de launcher-shell sans hériter du verdict d'une autre zone ; essayer alternatives et copies utilisables avant placeholder.
 
 ### Requirement: Ouverture d'un item
 L'appui sur une carte associée au suivi SHALL utiliser le parcours commun de `watch-tracking`. Une carte locale non associée SHALL conserver l'ouverture de son intent publié, sinon de son app source. L'origine de l'ouverture SHALL déterminer la restauration et la mémoire existantes.
@@ -263,11 +263,19 @@ L'appui sur une carte associée au suivi SHALL utiliser le parcours commun de `w
 - **THEN** le choix initial ou mémorisé, les replis, la preuve de lecture et le retour suivent le parcours commun, partagé avec le héro
 
 ### Requirement: Menu « Ouvrir avec… »
-L'appui long SHALL toujours ouvrir le menu. Sans association au suivi, les sources et « Retirer d'À suivre » SHALL conserver leur comportement et aucun choix d'app n'est persisté. Pour un contenu suivi, le menu SHALL ajouter les actions applicables de `watch-tracking` et mémoriser le lecteur choisi selon cette capability ; le retrait local reste distinct du retrait du compte.
+L'appui long SHALL toujours ouvrir le menu. Le menu local conserve sources et retrait local sans préférence de lecteur, mais SHALL proposer Ajouter au suivi si un compte est connecté et le contenu identifié absent de ce compte. Un contenu appartenant au compte SHALL offrir les actions et le lecteur partagé de `watch-tracking`. Identité résolue et appartenance au compte SHALL être distinctes ; retrait local et retrait du compte aussi.
 
 #### Scenario: ouverture du menu
 - **WHEN** une carte locale non associée reçoit un appui long
-- **THEN** les sources conservées sont listées dans leur ordre, avec icône et nom, suivies de « Retirer d'À suivre », sous vignette, titre et « Ouvrir avec… »
+- **THEN** les sources conservées sont listées dans leur ordre, avec icône et nom, suivies de « Retirer d'À suivre », sous vignette, titre et « Ouvrir avec… » ; si le compte est connecté et le contenu identifié absent de ce compte, Ajouter au suivi est également proposé sans remplacer ces actions locales
+
+#### Scenario: contenu identifié absent du compte
+- **WHEN** une carte locale est identifiée sans ambiguïté mais absente du compte connecté
+- **THEN** son menu propose Ajouter au suivi ; sa simple identification ne déclenche ni préférence persistante ni parcours de lecteur du compte ; après ajout confirmé et appartenance relue, ses prochaines ouvertures suivent le parcours commun
+
+#### Scenario: compte absent ou identité incertaine
+- **WHEN** aucun compte n'est connecté, que la correspondance est ambiguë ou que l'appartenance au compte n'est pas établie
+- **THEN** le menu conserve les ouvertures locales ; aucune action Ajouter n'est proposée sur la base d'une absence supposée et aucun statut du compte n'est modifié
 
 #### Scenario: rendu des entrées
 - **WHEN** le menu est ouvert
@@ -295,9 +303,9 @@ L'appui long SHALL toujours ouvrir le menu. Sans association au suivi, les sourc
 
 #### Scenario: intent en échec depuis le menu
 - **WHEN** l'intent d'une source locale choisie échoue
-- **THEN** l'app est lancée en repli avec « Contenu indisponible, ouverture de <nom de l'app> », sans crash ; un contenu suivi suit les replis du parcours commun
+- **THEN** l'app est lancée en repli avec un toast « Contenu indisponible, ouverture de <nom de l'app> », sans crash ; un contenu suivi suit les replis du parcours commun
 
-**Détails.** — Conserver pour le menu local le voile `SygixColors.Scrim`, `GlassLook.Menu`, `Dimens.MenuWidth`, `Dimens.MenuCorner`, `Dimens.MenuPadding`, vignette `Dimens.MenuThumbnailWidth`, titre `TextStyles.MenuTitle`, sous-titre `TextStyles.MenuSubtitle` / `SygixColors.MenuSubtitle`. Les entrées gardent `Dimens.PillCorner`, `Dimens.MenuActionHeight`, `Dimens.MenuEntryPadding`, `Dimens.MenuEntryIcon`, `Dimens.MenuEntryIconCorner`, `Dimens.MenuEntryGap`, `TextStyles.Row` / `RowFocused`. Le retrait local suit la dernière app sans séparateur, même pilule et œil barré dans la couleur du texte, conformément à 7.6. La passe Penpot complète ce composant pour les actions de suivi sans modifier ces règles locales.
+**Détails.** — Le menu local SHALL être centré sous voile `SygixColors.Scrim`, verre `GlassLook.Menu`, largeur `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`. Son en-tête garde une vignette 16:9 `Dimens.MenuThumbnailWidth`, image sinon placeholder, titre `TextStyles.MenuTitle`, sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` / `SygixColors.MenuSubtitle`. Les entrées gardent `Dimens.PillCorner`, hauteur minimale `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, vraie icône `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom `TextStyles.Row` au repos et `TextStyles.RowFocused` au focus. Le retrait local suit la dernière app sans séparateur, même pilule et œil barré de `Dimens.MenuEntryIcon` dans la couleur du texte, conformément à 7.6. La passe Penpot complète ce composant pour Ajouter et les actions du compte sans modifier ces règles locales.
 
 ### Requirement: États de la rangée
 La rangée SHALL distinguer chargement, vide, erreur et accès refusé par source, sans bloquer le home. Les programmes locaux SHALL garder leur contrat de validité ; l'apport du suivi en échec SHALL être retiré immédiatement avec son indicateur. Focus et disparition SHALL suivre « Navigation 3 paliers ».
@@ -308,15 +316,15 @@ La rangée SHALL distinguer chargement, vide, erreur et accès refusé par sourc
 
 #### Scenario: erreur
 - **WHEN** la lecture locale échoue au premier chargement et qu'aucune autre source n'apporte de contenu
-- **THEN** la carte d'erreur focusable existante remplace le contenu sous le titre, distincte du vide ; une erreur du suivi reste aussi consultable via son indicateur
+- **THEN** une seule carte d'état focusable remplace le contenu en première position sous le titre À suivre à sa position réglée (maquette 7.4), distincte du vide : même taille et coins qu'une carte, fond `SygixColors.TileBackground`, pictogramme recharger centré de `Dimens.UpNextErrorIcon`, « Impossible de charger » en `TextStyles.Row` / `SygixColors.OnDark`, « OK pour réessayer » en `TextStyles.RowSecondary` / `SygixColors.OnDarkSecondary` ; une erreur du suivi reste aussi consultable via son indicateur
 
 #### Scenario: carte d'erreur
 - **WHEN** la carte d'erreur locale prend le focus
-- **THEN** le focus de tuile et la place de navigation existants s'appliquent et OK relance la requête
+- **THEN** le focus d'une tuile selon « Focus tvOS » s'applique ; elle occupe la place de la rangée sous À suivre dans la navigation de grille, avant ou après les applications selon le réglage, et OK relance la requête
 
 #### Scenario: chargement initial
 - **WHEN** le premier chargement sans contenu prêt dépasse environ 300 ms
-- **THEN** le squelette existant montre cinq cartes non focusables avec leurs deux barres ; un résultat local prêt n'attend pas la fin du chargement du compte
+- **THEN** le squelette sous À suivre (maquette 7.3) montre cinq cartes de la taille et des coins d'une carte, fond `SygixColors.SkeletonBase`, chacune avec deux barres `SygixColors.SkeletonBar` en bas à gauche, `Dimens.UpNextSkeletonTitle` puis `Dimens.UpNextSkeletonSubtitle`, rayons à mi-hauteur, sans animation imposée ni élément focusable ; sous environ 300 ms aucune étape intermédiaire n'apparaît, et un résultat local prêt n'attend pas le compte
 
 #### Scenario: rechargement
 - **WHEN** la rangée se recharge avec du contenu encore valide

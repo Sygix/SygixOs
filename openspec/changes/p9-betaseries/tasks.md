@@ -25,7 +25,7 @@ Cette liste suit l'implémentation future, pas la rédaction de cette PR. Aucune
 ## 4. Lecture du compte et fusion
 
 - [ ] 4.1 Mapper les listes paginées et détails réellement nécessaires, y compris films state=0, séries archivées et épisodes diffusés ; critère : tests de champs nuls, pages manquantes, compte vide, erreurs distinctes et absence de limite de compte à 20.
-- [ ] 4.2 Ajouter la résolution exacte des identifiants et des correspondances sans ambiguïté, avec cache borné ; critère : tests de titres localisés, remakes, série/film homonymes, épisodes mal numérotés et correspondance multiple sans fusion ni mutation.
+- [ ] 4.2 Ajouter la résolution exacte des identifiants et des correspondances sans ambiguïté, avec cache borné et appartenance au compte distincte (présent/absent/inconnu) ; critère : tests de titres localisés, remakes, série/film homonymes, épisodes mal numérotés, correspondance multiple et erreur de compte sans fusion, appartenance fictive ni mutation.
 - [ ] 4.3 Étendre le dédoublonnage et le choix d'épisode selon up-next ; critère : tests reprise S02E05 contre prochain S02E03, reprise déjà vue, plusieurs sources conservées et absence de réutilisation d'un intent d'un autre épisode.
 - [ ] 4.4 Migrer par enrichissement la mémoire d'ouvertures et de masquages ; critère : tests conservant les clés existantes, tri actuel, activité inconnue, retrait de série entière et absence de purge sur erreur, permission manquante ou pagination incomplète.
 - [ ] 4.5 Brancher la source de suivi partagée dans les projections À suivre et héro ; critère : tests 20 cartes après tri, candidats du héro au-delà de 20, ordre de session stable, masquage BetaSeries du héro et aucun ajout au Top Shelf.
@@ -50,7 +50,7 @@ Cette liste suit l'implémentation future, pas la rédaction de cette PR. Aucune
 ## 7. Interface et navigation après validation Penpot
 
 - [ ] 7.1 Ajouter la catégorie Suivi de visionnage, le compte, le pays, le QR/code/adresse et les états de connexion ; critère : chaînes FR en ressources, testTags de ui-testing et tests Compose `@Config(qualifiers = "w960dp-h540dp-xhdpi")` pour focus, bords, Retour et restauration.
-- [ ] 7.2 Ajouter les menus de suivi, sélecteurs de lecteur/épisode et badges, selon les composants et maquettes validés ; critère : tests Compose TV locaux inchangés et nouveaux cas vus/non vus, app disparue, image absente et préférence partagée couverts.
+- [ ] 7.2 Ajouter les menus de suivi, sélecteurs de lecteur/épisode et badges, selon les composants et maquettes validés ; critère : tests Compose TV locaux inchangés et nouveaux cas vus/non vus, app disparue, image absente, préférence partagée et Ajouter au suivi depuis une carte locale identifiée absente du compte couverts, y compris maintien local avant ajout et bascule après succès confirmé.
 - [ ] 7.3 Ajouter indicateur, détail/réessai et actions transitoires accessibles sans vol de focus ; critère : tests Compose TV rangée vide, carte disparue, panne en cours de navigation, arrivée/expiration d'une proposition et restauration de l'origine.
 - [ ] 7.4 Adapter Réafficher dans Applications cachées pour les contenus du compte et du héro ; critère : tests Compose TV conservant tri, dépliage, première ligne et réaffichage sans mutation distante.
 

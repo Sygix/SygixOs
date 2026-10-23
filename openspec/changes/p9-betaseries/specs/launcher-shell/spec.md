@@ -15,11 +15,11 @@ Le launcher SHALL auto-détecter les apps TV et conserver la grille, les titres 
 
 #### Scenario: lisibilité du menu contextuel
 - **WHEN** le menu s'ouvre sur des tuiles claires ou sombres
-- **THEN** le voile sombre et le verre du menu rendent le texte lisible ; nom et package précèdent les actions verticales et la pilule claire focusée n'a ni zoom ni halo
+- **THEN** le voile sombre et le verre du menu rendent le texte lisible ; nom et package précèdent les actions verticales, la pilule claire focusée n'a ni zoom ni halo et les actions non focusées n'ont pas de fond
 
 #### Scenario: navigation dans le menu
 - **WHEN** le menu d'une tuile s'ouvre
-- **THEN** la première action a le focus ; haut/bas parcourent les actions sans boucle, gauche/droite ne sortent pas du menu, Retour rend le focus à la tuile
+- **THEN** la première action, Épingler ou Retirer du dock selon l'état, a le focus ; haut/bas parcourent les actions sans boucle, gauche/droite ne sortent pas du menu, Retour rend le focus à la tuile
 
 #### Scenario: titres de section
 - **WHEN** À suivre est réglé avant les applications
@@ -71,7 +71,7 @@ Le home SHALL s'ouvrir sur un héro plein écran sans cadre, avec les programmes
 
 #### Scenario: fallback sans contenu
 - **WHEN** aucune source ne fournit de programme admissible
-- **THEN** les vidéos nature bouclent, précédées du dégradé sombre à passage unique tant qu'elles ne jouent pas, sans écran noir ni crash ; une permission TV refusée n'écarte pas les contenus BetaSeries accessibles
+- **THEN** les vidéos nature bouclent, précédées du dégradé sombre qui effectue un passage lent puis reste immobile à sa dernière position tant qu'elles ne jouent pas, sans écran noir ni crash ; une permission TV refusée n'écarte pas les contenus BetaSeries accessibles
 
 ### Requirement: Navigation 3 paliers
 Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seule zone active. À suivre SHALL rester une ligne de grille. Parcours et actions de suivi SHALL restaurer leur origine sans créer de palier ; les messages non bloquants ne SHALL pas voler le focus. Défilement, positions et replis existants SHALL être conservés.
@@ -114,7 +114,7 @@ Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seu
 
 #### Scenario: remontée depuis les apps
 - **WHEN** haut est pressé sur la première rangée d'apps
-- **THEN** À suivre prend le focus s'il est placé avant, sinon la remontée vers le dock s'applique
+- **THEN** si À suivre est placé avant, sa dernière carte visitée, sinon sa première carte prend le focus sans défilement vers le héro ; sinon la remontée vers le dock s'applique
 
 #### Scenario: position après les applications
 - **WHEN** À suivre est placé après les apps
@@ -146,7 +146,7 @@ Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seu
 
 #### Scenario: couches inactives
 - **WHEN** une zone ou un contexte est inactif
-- **THEN** ses éléments ne prennent pas le focus ; une surcouche de suivi active isole son propre focus selon watch-tracking
+- **THEN** ses éléments ne prennent pas le focus ; gauche/droite restent dans la zone active et une surcouche de suivi active isole son propre focus selon watch-tracking
 
 #### Scenario: retour depuis le héro
 - **WHEN** une app ouverte par le parcours de suivi depuis le héro rend la main
@@ -167,7 +167,7 @@ Le héro SHALL conserver les programmes watch next et preview encore publiés de
 
 #### Scenario: programmes disponibles
 - **WHEN** des apps publient des programmes
-- **THEN** vidéo puis images selon les contrats partagés, titre, source, type, saison, épisode, durée et progression disponibles sont conservés ; les requêtes sans clause de sélection sont filtrées côté launcher et l'ordre suit Ordre aléatoire du héro
+- **THEN** vidéo puis images selon les contrats partagés, titre, source, type, saison, épisode, durée et progression disponibles sont conservés, sans liste d'apps codée en dur ; le type affiché provient de `watch_next_type` pour Watch Next, du type preview sinon, et les numéros de `season_display_number` / `episode_display_number` ; les requêtes sans clause de sélection sont filtrées côté launcher et l'ordre suit Ordre aléatoire du héro
 
 #### Scenario: fallback
 - **WHEN** aucune app ne publie de programme et qu'aucun contenu de suivi admissible n'existe
@@ -187,7 +187,7 @@ Le héro SHALL conserver les programmes watch next et preview encore publiés de
 
 #### Scenario: programme modifié
 - **WHEN** titre ou visuel d'un programme change
-- **THEN** la nouvelle version est reflétée à la prochaine lecture ; seule son image nouvelle est vérifiée et récupérée
+- **THEN** la nouvelle version est reflétée dans le héro et le Top Shelf à la prochaine lecture ; seule son image nouvelle est vérifiée et récupérée
 
 #### Scenario: programme republié ou progression mise à jour
 - **WHEN** seule la ligne, la progression, l'activité ou la durée change

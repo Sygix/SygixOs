@@ -17,6 +17,10 @@ Le launcher SHALL utiliser un seul compte de suivi actif, distinct des applicati
 - **WHEN** la connexion est confirmée
 - **THEN** le fournisseur alimente le suivi partagé du héro et d'À suivre, sans charger séparément le compte pour chaque zone
 
+#### Scenario: identité et appartenance distinctes
+- **WHEN** un contenu local a une identité résolue dans le catalogue du fournisseur
+- **THEN** cela ne prouve pas son appartenance au compte actif ; « contenu suivi » désigne un contenu identifié appartenant au compte, seul cas activant le parcours commun de lecteur et sa préférence persistante ; un contenu identifié absent du compte peut proposer l'ajout en conservant son ouverture locale
+
 #### Scenario: changement de compte
 - **WHEN** l'utilisateur se déconnecte puis associe un autre compte
 - **THEN** les données, mutations et preuves du premier compte ne sont jamais réutilisées pour le second ; préférences de lecteur et masquages locaux restent conservés sur la TV
@@ -101,8 +105,8 @@ Un contenu identifié SHALL proposer les actions applicables : ajouter au suivi 
 - **THEN** seul S02E05 change de statut ; aucun marquage implicite des précédents n'a lieu
 
 #### Scenario: ajout depuis une source locale
-- **WHEN** une série ou un film existant est identifié sans ambiguïté et n'est pas dans le compte
-- **THEN** l'ajout est proposé depuis son menu ; aucune recherche générale de catalogue n'est requise et une correspondance incertaine ne permet pas l'envoi
+- **WHEN** un compte est connecté et qu'une série ou un film existant est identifié sans ambiguïté et confirmé absent de ce compte
+- **THEN** l'ajout est proposé dans son menu local sans exiger une appartenance préalable ; aucune recherche générale de catalogue n'est requise et une identité ou appartenance incertaine ne permet pas l'envoi ; seule une appartenance confirmée après succès active le parcours de lecteur commun
 
 #### Scenario: archivage
 - **WHEN** une série est archivée avec succès
