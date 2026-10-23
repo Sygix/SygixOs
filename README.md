@@ -4,7 +4,7 @@
 [![release](https://img.shields.io/github/v/release/Sygix/SygixOs?include_prereleases&sort=semver)](https://github.com/Sygix/SygixOs/releases)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
-A free and open source launcher for Android TV / Google TV, inspired by tvOS 26: dark Liquid Glass, polished focus and animations, the Figtree typeface, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, with no server and no account.
+A free and open source launcher for Android TV / Google TV, inspired by tvOS 26: dark Liquid Glass, polished focus and animations, the Figtree typeface, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, without a launcher account or a backend. An optional BetaSeries account adds shared watch tracking.
 
 > Independent project, not affiliated with Apple, Google or TCL. Apple TV and tvOS are trademarks of Apple Inc.; Android TV and Google TV are trademarks of Google LLC.
 
@@ -21,6 +21,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Startup splash**: on a cold start, the SygixOs ghost mascot floats and blinks alone on a black background, then crossfades into the hero. Never shows on return. Respects the system's animation setting.
 - **Full-screen hero**: a muted slideshow of the programs published by your installed apps (continue watching, new releases, recommendations), with preview video when available. Source app and label above the title, details and progress bar below, readable on any poster.
 - **À suivre**: a single row combining Watch Next from all your apps, deduplicated, with opened content first and removal per series or movie.
+- **BetaSeries tracking (optional)**: connect from the TV with a code and QR, combine aired unwatched episodes and watchlist movies with local programs, choose a shared player and manage watched status from the content menu.
 - **Dock and app grid**: apps detected automatically, 16:9 banners, tvOS-style focus, up to 6 pinned apps, reorderable grid.
 - **Dark glass**: translucent glass with live blur on the dock, capsule, context menu and move-mode banner.
 - **Top Shelf preview**: artwork appears above an app tile after a short hover and pans once.
@@ -43,11 +44,11 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Built-in updates** — check, download and install new versions from GitHub
 - **System launcher setup** — guided setup to make SygixOs your home screen, automatic or by permissions
 - **Simplified home setup** — [Tsuyu](https://github.com/Sygix/Tsuyu)-based automatic setup and repair for non-technical users
+- **BetaSeries tracking** — optional device association, shared watchlist and player choice, watched actions and manual completion confirmation
 
 ### Coming next
 
 - **Search**
-- **BetaSeries (OAuth)** — richer Up Next data and reliability
 - **Remote button remapping**
 
 Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Follow-ups deferred after v0.0.1, not specified yet, are tracked in [`openspec/backlog.md`](openspec/backlog.md). Specs and the user interface are written in French.
@@ -117,6 +118,24 @@ The hero reads the programs apps publish to the TV Provider (`content://android.
 - **Text follows the picture**: the title, details and button change together with the picture, never before it. A program whose picture is not ready within 1 s (some apps serve their pictures slowly through their own content provider) is skipped; its picture keeps loading in the background and the program comes back once it is ready.
 - **Optional fields**: the program type (`watch_next_type`), season and episode numbers, duration and playback position are all optional; whatever an app leaves out is simply not shown.
 - **Instant startup**: the app catalog is cached.
+
+## BetaSeries watch tracking
+
+Open Settings → **Suivi de visionnage** → **Connecter BetaSeries**. On your phone or computer, open the complete address shown on the TV and enter its code, or scan the QR. The QR and text use the same address, including its path. Closing the panel cancels that association attempt; an expired code requires a new attempt. No password or application secret is entered on the TV.
+
+The account contributes to the existing **À suivre** row and the hero, independently of the TV-program permission. The row still shows at most 20 cards; the hero can consider account content beyond that limit. A BetaSeries outage removes its contribution while keeping usable local programs. Sync status and retry are available in the tracking settings, including when À suivre is hidden.
+
+- **Player**: the first opening asks which installed app to use, even when there is only one recognized video app. **Autre application** lists the other launchable apps. The choice is shared by the hero and À suivre, remembered per series or movie, and can be changed through **Ouvrir avec…**. An absent player prompts for a new choice. A published intent is used only for its exact target; otherwise opening the app is explicitly announced. Installing an app proves neither a subscription nor access to the content.
+- **Country and availability**: confirm or change the country in the native settings dropdown. Offers without regional proof remain **Disponibilité non confirmée**; missing offers never hide an otherwise eligible title.
+- **Watched status**: the content menu offers watched/unwatched actions and, for a series, **Choisir un épisode**. Opening that list changes nothing. Marking an episode never implicitly marks earlier episodes. After returning from a player without reliable completion evidence, **Terminé ?** asks for confirmation; ignoring it never marks the content watched.
+- **Undo**: confirmed watched/unwatched and archive actions offer **Annuler**. A remote removal is held for 10 active seconds before sending; focus on the notification or leaving the foreground pauses the remaining time. Cancelling during that window sends no removal. Disconnecting or stopping the process before sending abandons it; re-adding a remotely removed title is not promised to restore its history.
+- **Remote access to the notification**: from the hero, press Up to the settings gear, then Right. From the grid, Back → Up → Right reaches the same notification without automatically taking focus. Left, Up or Back returns to the gear. When no notification is present, the same route opens an unavailable-tracking detail if needed.
+- **Media access**: an already authorized ADB/Tsuyu route can enable access and verify it without opening another permission screen. Otherwise the tracking settings offer Android's optional authorization screen when available. Access alone is not proof of completion. No playback app is currently declared validated for automatic watched marking; the manual return confirmation remains available. General notification text is not collected.
+- **Three distinct operations**: **Retirer d'À suivre** hides the whole series or movie locally, across row sources, and excludes its BetaSeries hero candidates; restore it under **Applications cachées**. **Archiver la série** changes the account, while an existing local resume may remain. **Retirer du compte** removes remote membership after the undo window. Local hiding and restoring never mutate the remote account.
+
+Disconnecting immediately clears local account data and the encrypted token, stops its work and attempts to revoke that session remotely. Player preferences and local hides remain on the TV. The token is encrypted with Android Keystore and excluded from transferable backups. No offline mutation queue is persisted.
+
+Data and attribution: [BetaSeries](https://www.betaseries.com/). The integration discovers the official web client's configuration as static data; a format change can make association temporarily unavailable rather than falling back to an embedded key. Real-TV compatibility and authenticated mutation checks remain part of the implementation validation, not a promise of universal playback support.
 
 ## Building from source
 

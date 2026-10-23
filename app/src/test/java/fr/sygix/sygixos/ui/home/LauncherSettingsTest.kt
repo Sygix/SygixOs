@@ -99,7 +99,7 @@ class LauncherSettingsTest {
         listOf("setting-home-role", "setting-boot-start", "setting-accessibility-home", "onboarding-row-boot").forEach {
             compose.onNodeWithTag(it).assertDoesNotExist()
         }
-        assertEquals(listOf(SettingsCategory.SOURCES, SettingsCategory.HIDDEN, SettingsCategory.HOME_SCREEN, SettingsCategory.ABOUT), SettingsCategory.entries)
+        assertEquals(listOf(SettingsCategory.SOURCES, SettingsCategory.HIDDEN, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING, SettingsCategory.ABOUT), SettingsCategory.entries)
     }
 
     @Test

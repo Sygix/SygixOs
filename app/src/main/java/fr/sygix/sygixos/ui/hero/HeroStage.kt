@@ -272,7 +272,7 @@ fun HeroStage(
     val shown = items.firstOrNull { it.artwork.identity == shownId }
     LaunchedEffect(shown?.id) { onDisplayed(shown?.id) }
     var buttonFocused by remember { mutableStateOf(false) }
-    val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null)
+    val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null || shown.tracking != null)
     val hasVisual = showVideo && player.firstFrameRendered || posterUrl != null
     LaunchedEffect(launchable, active, claimFocus) {
         if (!active || !claimFocus) return@LaunchedEffect

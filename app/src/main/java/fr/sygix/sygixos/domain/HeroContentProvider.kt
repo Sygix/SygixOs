@@ -21,4 +21,4 @@ interface HeroContentProvider {
     fun changes(): Flow<Unit> = flowOf(Unit)
 }
 
-data class HeroRead(val items: List<HeroItem>, val errors: List<Throwable> = emptyList())
+data class HeroRead(val items: List<HeroItem>, val errors: List<Throwable> = emptyList(), val shelfItems: List<HeroItem>? = null)
