@@ -6,8 +6,8 @@ Les tâches cochées sont vérifiées par les tests nommés ci-dessous ; 1.x, 3.
 
 - [ ] 1.1 Valider association/reconnexion et chargement corrigés en release sur TV ; critère : code lisible du canapé, échange `code`, absence d'accès aux notifications et chargement sans blocage du thread principal.
 - [ ] 1.2 Vérifier les cibles et replis réellement obtenus pour chaque lecteur depuis héro et À suivre ; critère : matrice de cibles anonymisée, aucun lien non testé annoncé ciblé.
-- [ ] 1.3 Vérifier la pagination authentifiée et les volumes avec limit=1/showsLimit=100, seuls films state=0 ; critère : deux pages et fin établies, aucune réponse volumineuse ni purge sur liste partielle.
-- [ ] 1.4 Vérifier mutations, DELETE en query, bulk=false et voisins sur contenus autorisés ; critère : états avant/après et annulations consignés sans historique personnel.
+- [x] 1.3 Vérifier la pagination authentifiée et les volumes avec limit=1/showsLimit=100, seuls films state=0 ; critère : deux pages et fin établies, aucune réponse volumineuse ni purge sur liste partielle.
+- [x] 1.4 Vérifier mutations, DELETE en query, bulk=false et voisins sur contenus autorisés ; critère : états avant/après et annulations consignés sans historique personnel.
 
 ## 2. Design accepté et navigation
 
