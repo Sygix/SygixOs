@@ -83,7 +83,7 @@ Le fournisseur SHALL charger les films à voir et le prochain épisode diffusé 
 
 #### Scenario: rafraîchissement
 - **WHEN** le launcher revient au premier plan
-- **THEN** la lecture complète n'est relancée qu'à la connexion ou si la dernière lecture, réussie, partielle ou en échec, date de plus de 15 minutes ; une session déjà chargée n'est pas relue par la recréation de l'accueil avant cette échéance ; aucune boucle de synchronisation ne tourne au repos ; aucune réponse d'une ancienne session ne remplace le compte courant
+- **THEN** la lecture complète n'est relancée qu'à la connexion, si la dernière lecture réussie date de plus de 15 minutes, ou si la dernière lecture partielle ou en échec, hors refus d'accès, date de plus d'une minute ; une session déjà chargée n'est pas relue par la recréation de l'accueil avant cette échéance ; aucune boucle de synchronisation ne tourne au repos ; aucune réponse d'une ancienne session ne remplace le compte courant
 
 #### Scenario: mutation confirmée
 - **WHEN** une mutation est confirmée sur un épisode, un film ou une série
