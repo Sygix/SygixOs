@@ -145,7 +145,10 @@ class TrackingController(
         }
     }
 
-    private fun snapshotDue() = state.value.snapshotAt?.let { clock() - it >= 15 * 60_000 } != false
+    private fun snapshotDue() = state.value.snapshotAt?.let {
+        val failure = state.value.failure
+        clock() - it >= if (failure != null && failure != TrackingFailure.ACCESS) 60_000 else 15 * 60_000
+    } != false
 
     private suspend fun revoke(value: String, reportGeneration: Long? = null) {
         try { provider.revoke(value) }

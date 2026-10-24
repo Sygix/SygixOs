@@ -43,6 +43,32 @@ class TrackingReviewV2Test {
         assertEquals(6, lists())
     }
 
+    @Test fun failedReadIsRetriedOnForegroundAfterAMinuteInsteadOfTheFullTtl() = runTest {
+        val fixture = TrackingMovieFixture(backgroundScope) { testScheduler.currentTime }
+        fixture.incomplete = true
+        fixture.runtime.controller.restore(); runCurrent()
+        fun lists() = fixture.requests.count { java.net.URI(it.url).path in setOf("/shows/member", "/movies/member", "/episodes/list") }
+        val first = lists()
+        advanceTimeBy(30_000)
+        fixture.runtime.controller.setForeground(false); fixture.runtime.controller.setForeground(true); runCurrent()
+        assertEquals(first, lists())
+        fixture.incomplete = false
+        advanceTimeBy(31_000)
+        fixture.runtime.controller.setForeground(false); fixture.runtime.controller.setForeground(true); runCurrent()
+        assertEquals(2 * first, lists())
+        assertNull(fixture.runtime.controller.state.value.failure)
+    }
+    @Test fun returnPromptWaitsBehindAFailedMutationNotice() = runTest {
+        val fixture = TrackingMovieFixture(backgroundScope) { testScheduler.currentTime }
+        fixture.runtime.controller.restore(); runCurrent()
+        val content = fixture.content
+        fixture.mutationFailure = TrackingFailure.NETWORK
+        fixture.runtime.actions.perform(content, TrackingAction.SEEN); runCurrent()
+        fixture.runtime.actions.returned(content, content.sessionGeneration!!)
+        assertEquals(TrackingFailure.NETWORK, fixture.runtime.actions.notice.value?.failure)
+        fixture.runtime.actions.dismiss()
+        assertTrue(fixture.runtime.actions.notice.value?.returnPrompt == true)
+    }
     @Test fun failedMutationKeepsCardAndHeroBeforeAndAfterDismissingError() = runTest {
         val fixture = TrackingMovieFixture(backgroundScope) { testScheduler.currentTime }
         fixture.runtime.controller.restore(); runCurrent()

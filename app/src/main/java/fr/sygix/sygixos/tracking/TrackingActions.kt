@@ -130,7 +130,7 @@ class TrackingActions(
         if (generation != controller.state.value.generation || controller.state.value.account == null) return
         pendingReturn = TrackingNotice(content, TrackingAction.SEEN, generation, returnPrompt = true)
         val current = mutable.value
-        if (current?.busy != true && (current == null || current.action != TrackingAction.REMOVE || current.failure != null)) finishNotice()
+        if (current?.busy != true && (current == null || current.action != TrackingAction.REMOVE && current.failure == null)) finishNotice()
     }
 
     fun confirmReturn() { val current = mutable.value ?: return; if (current.returnPrompt) { mutable.value = null; perform(current.content, TrackingAction.SEEN) } }
