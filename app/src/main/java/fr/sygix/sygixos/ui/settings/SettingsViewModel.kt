@@ -97,6 +97,7 @@ data class SettingsState(
     val update: AboutUpdateState = AboutUpdateState(),
     val upNextVisible: Boolean = true,
     val upNextPosition: UpNextPosition = UpNextPosition.BEFORE_APPS,
+    val visualMotion: Boolean = true,
     val hiddenContents: List<HiddenContentRow> = emptyList(),
     val hiddenExpanded: Set<HiddenGroup> = emptySet(),
     val hiddenRefocus: HiddenRefocus? = null,
@@ -191,8 +192,8 @@ class SettingsViewModel(
             version = version,
             update = update,
         )
-    }.combine(combine(apps.upNextVisible, apps.upNextPosition) { visible, position -> visible to position }) { state, preferences ->
-        state.copy(upNextVisible = preferences.first, upNextPosition = preferences.second)
+    }.combine(combine(apps.upNextVisible, apps.upNextPosition, apps.visualMotion, ::Triple)) { state, preferences ->
+        state.copy(upNextVisible = preferences.first, upNextPosition = preferences.second, visualMotion = preferences.third)
     }.combine(combine(hiddenContents, hiddenExpanded) { contents, expanded -> contents to expanded }) { state, hidden ->
         state.copy(hiddenContents = hidden.first, hiddenExpanded = hidden.second)
     }.combine(hiddenVisit) { state, visit -> withHiddenRefocus(state, visit) }
@@ -235,6 +236,7 @@ class SettingsViewModel(
         homeScreen = HomeScreenActions(
             onToggleUpNext = { viewModelScope.launch { apps.setUpNextVisible(!state.value.upNextVisible) } },
             onUpNextPosition = { position -> viewModelScope.launch { apps.setUpNextPosition(position) } },
+            onToggleVisualMotion = { viewModelScope.launch { apps.setVisualMotion(!state.value.visualMotion) } },
         ),
     )
 

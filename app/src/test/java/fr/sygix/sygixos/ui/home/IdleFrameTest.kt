@@ -147,7 +147,7 @@ class IdleFrameTest {
         assertEquals(0, stateWritesDuring(5_000))
     }
 
-    private fun showPosters(vararg posters: HeroItem, zone: Zone = Zone.HERO) {
+    private fun showPosters(vararg posters: HeroItem, zone: Zone = Zone.HERO, visualMotion: Boolean = true) {
         Coil.setImageLoader(InstantImageLoader())
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -156,6 +156,7 @@ class IdleFrameTest {
                     catalog = catalogOf(dock = emptyList(), grid = grid),
                     hero = heroStateOf(items = posters.toList(), validated = posters.mapNotNull { it.imageUrl }.toSet()),
                     initialZone = zone,
+                    visualMotion = visualMotion,
                 )
             }
         }
@@ -261,6 +262,26 @@ class IdleFrameTest {
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
         compose.onNodeWithTag("app-tile-com.g0").assertIsFocused()
+        assertEquals(0, stateWritesDuring(5_000))
+    }
+
+    @Test
+    fun `without visual motion the hero redraws only its crossfades between two programs`() {
+        showPosters(poster("h1"), poster("h2"), visualMotion = false)
+        advance(Motion.HERO_VIDEO_FADE_MS + 200L)
+        compose.onNodeWithTag("hero-poster").assertExists()
+        assertEquals(0, stateWritesDuring(Motion.HERO_DWELL_MS - Motion.HERO_VIDEO_FADE_MS - 1_000L))
+        advance(1_000)
+        assertTrue(stateWritesDuring(Motion.HERO_CROSSFADE_MS / 2L) > 0)
+        advance(Motion.HERO_CROSSFADE_MS.toLong())
+        assertEquals(0, stateWritesDuring(5_000))
+    }
+
+    @Test
+    fun `without visual motion the top shelf poster fades in then stands still`() {
+        showPosters(poster("s1", pkg = "com.g0"), zone = Zone.GRID, visualMotion = false)
+        advance(Motion.SHELF_OPEN_DELAY_MS + 1_000)
+        compose.onNodeWithTag("shelf-poster").assertExists()
         assertEquals(0, stateWritesDuring(5_000))
     }
 }

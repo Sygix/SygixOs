@@ -90,7 +90,7 @@ class HomeViewModel(
     clockSource: ClockSource,
     private val updates: UpdateController,
     session: StartupSession,
-    motion: SystemMotionSource,
+    private val motion: SystemMotionSource,
     val mascot: MascotAnimationSource,
     startupClock: () -> Long = SystemClock::uptimeMillis,
     startupDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
@@ -103,6 +103,7 @@ class HomeViewModel(
     private val programClock: () -> Long = System::currentTimeMillis,
     val tracking: fr.sygix.sygixos.tracking.TrackingRuntime? = null,
     private val projectionDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -112,6 +113,11 @@ class HomeViewModel(
         .map { it.badge }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), updates.status.value.badge)
+
+    private val systemMotion = MutableStateFlow(true)
+
+    val visualMotion: StateFlow<Boolean> = combine(apps.visualMotion, systemMotion) { enabled, system -> enabled && system }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
     private var projectedPublications = emptyList<HeroItem>()
@@ -281,7 +287,14 @@ class HomeViewModel(
 
     fun onUpNextReturnHandled(id: Long) { upNext?.returnHandled(id) }
 
-    fun onForeground() { foreground = true; tracking?.onForeground(); expirePrograms(); onArtworkForeground(); updates.onForeground() }
+    fun onForeground() {
+        foreground = true
+        tracking?.onForeground()
+        expirePrograms()
+        onArtworkForeground()
+        updates.onForeground()
+        viewModelScope.launch(io) { systemMotion.value = motion.animationsEnabled() }
+    }
 
     fun onDeparture() { tracking?.playback?.onDeparture() }
 

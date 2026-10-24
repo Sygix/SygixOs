@@ -35,7 +35,7 @@ internal class FakeMascotSource(private val drawable: Drawable? = FakeMascotDraw
         drawable?.let { Result.success(it) } ?: Result.failure(IllegalStateException("mascotte illisible"))
 }
 
-internal class FakeMotionSource(private val enabled: Boolean = true) : SystemMotionSource {
+internal class FakeMotionSource(var enabled: Boolean = true) : SystemMotionSource {
     var reads = 0
         private set
 

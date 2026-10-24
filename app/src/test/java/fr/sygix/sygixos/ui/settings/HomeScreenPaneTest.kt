@@ -39,6 +39,7 @@ class HomeScreenPaneTest {
     fun resetPreferences() = runBlocking {
         harness.prefs.setUpNextVisible(true)
         harness.prefs.setUpNextPosition(UpNextPosition.BEFORE_APPS)
+        harness.prefs.setVisualMotion(true)
     }
 
     @After
@@ -102,5 +103,34 @@ class HomeScreenPaneTest {
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
         compose.onNodeWithTag("setting-upnext-position-value").assertTextEquals("Avant les applications")
         assertEquals(UpNextPosition.BEFORE_APPS, runBlocking { harness.prefs.upNextPosition.first() })
+    }
+
+    @Test
+    fun `visual motion switch is persisted, keeps the focus and follows the settings page navigation`() {
+        harness.install("Alpha")
+        compose.showSettings(harness)
+        repeat(2) { press(Key.DirectionDown) }
+        press(Key.DirectionRight)
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        compose.waitForToggle("setting-visual-motion", true)
+        press(Key.Enter)
+        compose.waitForToggle("setting-visual-motion", false)
+        assertEquals(false, runBlocking { harness.prefs.visualMotion.first() })
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
+        press(Key.DirectionDown)
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
+        press(Key.Back)
+        assertEquals(1, harness.backs)
+        compose.onNodeWithTag("settings-screen").assertDoesNotExist()
+        compose.runOnIdle { harness.openSettings() }
+        compose.waitForIdle()
+        repeat(2) { press(Key.DirectionDown) }
+        compose.waitForToggle("setting-visual-motion", false)
     }
 }

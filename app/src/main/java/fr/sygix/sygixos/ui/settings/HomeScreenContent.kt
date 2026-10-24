@@ -34,12 +34,14 @@ import fr.sygix.sygixos.model.UpNextPosition
 class HomeScreenActions(
     val onToggleUpNext: () -> Unit = {},
     val onUpNextPosition: (UpNextPosition) -> Unit = {},
+    val onToggleVisualMotion: () -> Unit = {},
 )
 
 @Composable
 internal fun HomeScreenContent(
     visible: Boolean,
     position: UpNextPosition,
+    visualMotion: Boolean,
     actions: HomeScreenActions,
     focusEnabled: Boolean,
     contentFocus: FocusRequester,
@@ -95,6 +97,15 @@ internal fun HomeScreenContent(
                 }
             }
         }
+        Spacer(Modifier.height(RowSpacing))
+        SwitchPreferenceRow(
+            label = stringResource(R.string.visual_motion),
+            detail = stringResource(R.string.visual_motion_detail),
+            checked = visualMotion,
+            enabled = focusEnabled && !dropdown,
+            onToggle = actions.onToggleVisualMotion,
+            tag = "setting-visual-motion",
+        )
         additionalRows(focusEnabled && !dropdown)
     }
 }

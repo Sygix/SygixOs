@@ -90,12 +90,14 @@ internal fun SwitchPreferenceRow(
     tag: String,
     modifier: Modifier = Modifier,
     focusRequester: FocusRequester? = null,
+    detail: String? = null,
 ) {
     PreferenceRow(
         label = label,
         enabled = enabled,
         onClick = onToggle,
         focusRequester = focusRequester,
+        detail = detail,
         modifier = modifier.testTag(tag).switchSemantics(checked, onToggle),
     ) {
         AppleSwitch(checked = checked, tag = "$tag-switch")

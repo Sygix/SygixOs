@@ -54,7 +54,7 @@ internal fun posterRequest(context: Context, uri: String, size: PixelSize, artwo
         .size(size.width, size.height).scale(Scale.FILL).precision(coil.size.Precision.INEXACT).build()
 
 @Composable
-internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier, sources: Map<String, ProgramArtwork> = emptyMap()) {
+internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Modifier = Modifier, sources: Map<String, ProgramArtwork> = emptyMap(), motion: Boolean = true) {
     var failed by remember(uris) { mutableStateOf(emptySet<String>()) }
     val loadable = uris.filter { it !in failed }
     var current by remember { mutableStateOf(loadable.firstOrNull()) }
@@ -80,7 +80,7 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
             label = "shelfCrossfade",
         ) { uri ->
             if (uri != null && uri in loadable) {
-                LoadedPoster(uri, posterSize, sources[uri], onError = {
+                LoadedPoster(uri, posterSize, sources[uri], motion, onError = {
                     failed = failed + uri
                 })
             }
@@ -89,7 +89,7 @@ internal fun ShelfPanel(uris: List<String>, posterSize: PixelSize, modifier: Mod
 }
 
 @Composable
-private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, onError: () -> Unit) {
+private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, motion: Boolean, onError: () -> Unit) {
     val event = artworkEvent(source, uri)
     val context = LocalContext.current
     val request = remember(context, uri, size, source?.identity, event) { posterRequest(context, uri, size, source) }
@@ -111,8 +111,9 @@ private fun LoadedPoster(uri: String, size: PixelSize, source: ProgramArtwork?, 
     val displayed = painter.state as? AsyncImagePainter.State.Success ?: previous
     val ready = displayed != null
     val pan = remember(uri) { Animatable(PanStart) }
-    LaunchedEffect(ready) {
-        if (ready) pan.animateTo(PanEnd, tween(Motion.SHELF_KEN_BURNS_MS, easing = AppleEasing))
+    LaunchedEffect(ready, motion) {
+        if (!motion) pan.snapTo(PanStart)
+        else if (ready) pan.animateTo(PanEnd, tween(Motion.SHELF_KEN_BURNS_MS, easing = AppleEasing))
     }
     val alpha by animateFloatAsState(if (ready) 1f else 0f, tween(Motion.SHELF_FADE_MS, easing = AppleEasing), label = "posterAlpha")
     if (ready) {

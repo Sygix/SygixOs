@@ -147,6 +147,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
     }
     val trackingUi = trackingViewModel?.state?.collectAsStateWithLifecycle()?.value
     androidx.lifecycle.compose.LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { trackingViewModel?.onForeground() }
+    val visualMotion by viewModel.visualMotion.collectAsStateWithLifecycle()
     CompositionLocalProvider(
         LocalAppArtwork provides viewModel.artwork,
         LocalAppIcons provides settingsViewModel.icons,
@@ -195,6 +196,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 launcherActions = launcher?.actions ?: LauncherSystemActions(),
                 trackingViewModel = trackingViewModel,
                 trackingUi = trackingUi,
+                visualMotion = visualMotion,
             )
         }
     }
@@ -388,6 +390,7 @@ internal fun LauncherHome(
     launcherActions: LauncherSystemActions = LauncherSystemActions(),
     trackingViewModel: fr.sygix.sygixos.tracking.TrackingViewModel? = null,
     trackingUi: fr.sygix.sygixos.tracking.TrackingUiState? = null,
+    visualMotion: Boolean = true,
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -574,6 +577,7 @@ internal fun LauncherHome(
                         onVisualReady = onHeroVisualReady,
                         onDisplayed = onHeroDisplayed,
                         motion = interactive,
+                        visualMotion = visualMotion,
                         backdrop = backdrop,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
@@ -643,6 +647,7 @@ internal fun LauncherHome(
                                 modifier = Modifier.testTag("tracking-status"),
                             )
                         },
+                        visualMotion = visualMotion,
                         modifier = Modifier.testTag("home-grid"),
                     )
                 }

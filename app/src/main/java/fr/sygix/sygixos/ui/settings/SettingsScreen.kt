@@ -212,6 +212,7 @@ fun SettingsScreen(
                     SettingsCategory.HOME_SCREEN -> HomeScreenContent(
                         visible = state.upNextVisible,
                         position = state.upNextPosition,
+                        visualMotion = state.visualMotion,
                         actions = actions.homeScreen,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,

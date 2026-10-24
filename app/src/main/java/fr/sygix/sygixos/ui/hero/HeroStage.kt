@@ -133,6 +133,7 @@ fun HeroStage(
     keepVideo: Boolean = false,
     onDisplayed: (String?) -> Unit = {},
     generations: Map<String, Long> = emptyMap(),
+    visualMotion: Boolean = true,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -321,6 +322,7 @@ fun HeroStage(
             generation = generation,
             running = visible && motion,
             animated = motion,
+            zooms = visualMotion,
             onReady = { url ->
                 onVisualReadyState.value()
                 val (id, poster) = currentPoster
@@ -388,6 +390,7 @@ private fun HeroPosterLayers(
     onReady: (String) -> Unit,
     onError: (String) -> Unit,
     animated: Boolean = true,
+    zooms: Boolean = true,
     onLoaded: (String) -> Unit = {},
     artwork: fr.sygix.sygixos.model.ProgramArtwork? = null,
     version: String = "",
@@ -460,8 +463,9 @@ private fun HeroPosterLayers(
         backdrop.layers.forEach { layer ->
             key(layer.key) {
                 val ready = layer.image != null
-                LaunchedEffect(ready, running) {
-                    if (!ready || !running) return@LaunchedEffect
+                LaunchedEffect(ready, running, zooms) {
+                    if (!zooms) layer.zoom.snapTo(1f)
+                    if (!ready || !running || !zooms) return@LaunchedEffect
                     val remaining = (KenBurnsScale - layer.zoom.value) / (KenBurnsScale - 1f)
                     layer.zoom.animateTo(KenBurnsScale, tween((Motion.HERO_KEN_BURNS_MS * remaining).toInt(), easing = LinearEasing))
                 }
