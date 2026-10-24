@@ -11,7 +11,7 @@ Les zones, tuiles et contrôles SHALL exposer des testTags stables, sans dépend
 
 #### Scenario: contrôles du suivi
 - **WHEN** un test cible le suivi
-- **THEN** il utilise tracking-settings, tracking-connect, tracking-disconnect, tracking-sync, tracking-country, tracking-media-access, tracking-device-code, tracking-device-qr, tracking-device-retry, tracking-status, tracking-status-retry, tracking-player-picker, tracking-other-app, tracking-episodes, tracking-return-prompt, tracking-undo et les préfixes tracking-player-, tracking-episode-, tracking-action-, avec identités fictives en test
+- **THEN** il utilise tracking-settings, tracking-connect, tracking-disconnect, tracking-sync, tracking-country, tracking-country-list, tracking-device, tracking-device-code, tracking-device-qr, tracking-device-retry, tracking-device-close, tracking-status, tracking-status-detail, tracking-status-retry, tracking-status-close, tracking-player-picker, tracking-player-close, tracking-other-app, tracking-episodes, tracking-episodes-close, tracking-episodes-retry, tracking-episode-actions, tracking-episode-open, tracking-episode-seen, tracking-episode-back, tracking-notification, tracking-return-prompt, tracking-undo et les préfixes tracking-player-, tracking-episode-, tracking-country-, tracking-card-, tracking-hero-, tracking-action-<add|seen|archive|remove|episodes|player>, avec identités fictives
 
 ### Requirement: Navigation D-pad des trois zones
 La navigation héro, dock et grille, À suivre et titres compris, SHALL rester testée par key events physiques en Compose à taille TV. Les sources du compte SHALL être simulées indépendamment du TV Provider ; menus, propositions et retours de suivi SHALL ne pas changer les trois paliers.
@@ -98,7 +98,7 @@ La navigation héro, dock et grille, À suivre et titres compris, SHALL rester t
 
 #### Scenario: sources indépendantes et propositions
 - **WHEN** le test refuse READ_TV_LISTINGS avec compte accessible, puis fait échouer le compte avec apps accessibles
-- **THEN** les contenus de la source encore accessible sont navigables ; une proposition de retour ou Annuler ne vole pas leur focus et son action est atteignable selon le parcours validé en Penpot
+- **THEN** les contenus de la source encore accessible sont navigables ; une proposition ou Annuler ne vole pas leur focus ; Haut puis Droite depuis le héro, ou Retour, Haut puis Droite depuis la grille l'atteignent ; Gauche, Haut ou Retour rendent l'engrenage
 
 #### Scenario: ouverture depuis le héro
 - **WHEN** le test choisit un lecteur depuis le héro puis ouvre la même série depuis À suivre et inversement
@@ -107,7 +107,7 @@ La navigation héro, dock et grille, À suivre et titres compris, SHALL rester t
 ## ADDED Requirements
 
 ### Requirement: Couverture du fournisseur de suivi
-Les contrats de suivi SHALL être testés en JUnit avec transport, stockage, compte, lecteurs, horloges et sessions média contrôlés, sans réseau réel. Les tests SHALL vérifier les limites de reprise, pagination, isolation des comptes et absence de mutation sur preuve ambiguë.
+Les contrats de suivi SHALL être testés en JUnit avec transport, stockage, compte, lecteurs et horloges contrôlés, sans réseau, temps ou threads réels. Les tests SHALL vérifier reprises, pagination, isolation et absence de mutation sans confirmation.
 
 #### Scenario: association et configuration
 - **WHEN** le transport simule ressource web changée, attente OAuth, 502 non JSON, expiration, succès puis jeton refusé
@@ -121,12 +121,16 @@ Les contrats de suivi SHALL être testés en JUnit avec transport, stockage, com
 - **WHEN** le test marque S02E05, annule puis retire un contenu avec annulation avant échéance, échec après échéance et réponse perdue
 - **THEN** bulk reste désactivé, les précédents ne changent pas, aucune suppression n'est envoyée avant échéance et une réponse incertaine déclenche une lecture avant réessai ; aucune mutation différée ne traverse une déconnexion
 
-#### Scenario: fin de lecture
-- **WHEN** le test fournit identité fiable et fin prouvée, puis seulement pause, arrêt, titre ambigu, carte retirée et compte changé
-- **THEN** seul le premier cas autorise au plus un marquage du bon contenu ; les autres restent sans mutation et la confirmation au retour ne marque rien sans action
+#### Scenario: retour manuel
+- **WHEN** le test revient d'un lecteur, ignore puis confirme « Terminé ? », et répète après changement de compte
+- **THEN** seule la confirmation du compte courant marque le contenu demandé ; aucune autre action ni temps écoulé ne marque vu
+
+#### Scenario: relectures ciblées
+- **WHEN** le test revient avant TTL, effectue une mutation, revient après TTL puis émet un état de suivi
+- **THEN** il compte respectivement zéro lecture de liste, une relecture ciblée, une lecture complète et zéro requête au TV Provider
 
 ### Requirement: Couverture des parcours de suivi TV
-Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key events physiques et données fictives : connexion, pays, accès média, sélecteur, épisodes, actions et erreur. Rendu et navigation SHALL suivre les parcours fonctionnels et la passe Penpot validée, sans capture comparative.
+Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key events physiques et données fictives : connexion, pays, sélecteur, épisodes, actions et erreur. Rendu et navigation SHALL suivre les parcours fonctionnels et la passe Penpot validée, sans capture comparative.
 
 #### Scenario: association
 - **WHEN** le test ouvre puis ferme une association, laisse expirer son code et demande un nouveau code
@@ -148,6 +152,10 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 - **WHEN** le test parcourt les lecteurs et Autre application, puis les épisodes vus et non vus, annule et simule la disparition de l'entrée focusée
 - **THEN** les bords ne bouclent pas, l'origine est restaurée, consulter ne modifie rien et le repli suivant/précédent reste utilisable ; chargement, vide, erreur et reconnexion sont distincts
 
+#### Scenario: saisons à la demande
+- **WHEN** la saison courante s'affiche puis qu'Autres saisons est ouvert et qu'une autre saison est validée
+- **THEN** aucun épisode des autres saisons n'est chargé avant cette validation ; seuls les appels avec season explicite sont utilisés ; les tags tracking-seasons, tracking-season-picker, tracking-season-<number>, tracking-seasons-retry et tracking-season-back identifient le parcours sans texte ni donnée personnelle
+
 #### Scenario: badge et masquage
 - **WHEN** une carte de suivi n'a pas de lecteur choisi puis en reçoit un et est masquée/réaffichée
 - **THEN** son badge passe du fournisseur à l'app ; le masquage persiste pour la série toutes sources et les candidats BetaSeries du héro, sans mutation du compte ; Réafficher restaure l'éligibilité
@@ -155,11 +163,3 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 #### Scenario: ajout au compte depuis une carte locale
 - **WHEN** le test ouvre le menu d'un contenu local identifié absent du compte connecté, puis répète sans compte, avec identité ambiguë et avec appartenance inconnue
 - **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement utilise le parcours commun, avec confirmation du premier lecteur si aucune préférence n'existe ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive
-
-#### Scenario: autorisation média
-- **WHEN** le double propose ADB/Tsuyu utilisable, retarde ou refuse son activation, retire son accès ou ne fournit aucune voie privilégiée ni écran système
-- **THEN** l'accès privilégié est activé sans ouvrir l'écran système et n'est déclaré disponible qu'après vérification ; échec et retrait exposent le repli manuel sans boucle, une désactivation volontaire est respectée et aucune permission ne vaut preuve de fin de lecture
-
-#### Scenario: autorisation média manuelle
-- **WHEN** sans accès privilégié effectif, le double refuse, accorde ou retire l'accès système demandé volontairement
-- **THEN** le contrôle affiche l'état relu, retrouve le focus et laisse fonctionner le suivi manuel sans nouvelle sollicitation automatique

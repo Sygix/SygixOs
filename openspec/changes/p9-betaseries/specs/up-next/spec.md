@@ -3,7 +3,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Source multi-apps
-La rangée SHALL agréger les `WatchNextPrograms` visibles du TV Provider sous `READ_TV_LISTINGS`, filtrés sur `COLUMN_BROWSABLE`, sans lecture de `PreviewPrograms`, et l'apport du fournisseur de suivi connecté. Les filtres d'apps SHALL suivre settings et launcher-shell ; chaque source SHALL fonctionner indépendamment des permissions et pannes des autres.
+La rangée SHALL agréger les `WatchNextPrograms` visibles du TV Provider sous `READ_TV_LISTINGS`, filtrés sur `COLUMN_BROWSABLE`, sans app privilégiée ni lecture de `PreviewPrograms`, et l'apport du fournisseur de suivi connecté. Les filtres d'apps SHALL suivre settings et launcher-shell ; chaque source SHALL fonctionner indépendamment des permissions et pannes des autres.
 
 #### Scenario: agrégation
 - **WHEN** plusieurs apps publient des programmes watch next
@@ -344,4 +344,4 @@ La rangée SHALL distinguer chargement, vide, erreur et accès refusé par sourc
 
 #### Scenario: expiration du dernier résultat après une erreur
 - **WHEN** les programmes locaux atteignent leur plafond sans confirmation
-- **THEN** ils sont retirés ; s'il reste des contenus de suivi, ils restent affichés, sinon l'erreur locale réessayable apparaît ; aucune mémoire de retrait ou d'ouverture n'est effacée sur cette erreur
+- **THEN** ils sont retirés ; s'il reste des contenus de suivi, ils restent affichés, sinon l'erreur locale réessayable apparaît ; le focus est restauré selon la navigation existante ; aucune mémoire de retrait ou d'ouverture n'est effacée sur cette erreur

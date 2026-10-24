@@ -1,69 +1,62 @@
 # Tasks
 
-Cette liste suit l'implémentation future, pas la rédaction de cette PR. Aucune tâche n'est déclarée faite à partir d'un simple essai de cadrage. La passe Penpot peut reprendre le handoff indépendamment des validations TV ; le code des parcours concernés attend leurs prérequis.
+Les tâches cochées sont vérifiées par les tests nommés ci-dessous ; 1.x, 3.5b et 8.2 restent ouvertes jusqu'à validation TV. Une couverture partielle ne clôt pas un critère complet.
 
-## 1. Contrats et appareil avant code produit
+## 1. Contrats et appareil
 
-- [ ] 1.1 Sur une TV Google TV sous Android 14, vérifier la commande et l'accès média effectif via ADB/Tsuyu déjà autorisé, son échec/retrait, puis le repli Android manuel (écran présent ou absent, refus, accord, révocation) ; relever uniquement les colonnes/types d'identité, progression et événements des apps testées ; critère : matrice anonymisée prouvant l'activation automatique sans écran d'autorisation supplémentaire ou son repli, et indiquant preuve de fin disponible ou confirmation manuelle obligatoire, sans code produit engagé avant cette vérification.
-- [ ] 1.2 Tester les intents et liens de plateforme pour les lecteurs disponibles, avec cible épisode/film, fiche, recherche et ouverture simple ; critère : chaque adaptateur prévu a une cible et un repli réellement observés, les liens non testés restent non confirmés.
-- [ ] 1.3 Confirmer la pagination complète des séries, épisodes et films et la sémantique des dates d'activité avec un accès de test autorisé ; critère : exemple structurel de deux pages et de fin de pagination, dates absentes couvertes et aucune confusion entre diffusion, ajout, visionnage et synchronisation.
-- [ ] 1.4 Vérifier vu/non vu, bulk=false, retrait, archive et annulation sur des contenus de test explicitement autorisés ; critère : état avant/après et épisodes voisins contrôlés, différences de restauration consignées sans historique personnel publié.
+- [ ] 1.1 Valider association/reconnexion et chargement corrigés en release sur TV ; critère : code lisible du canapé, échange `code`, absence d'accès aux notifications et chargement sans blocage du thread principal.
+- [ ] 1.2 Vérifier les cibles et replis réellement obtenus pour chaque lecteur depuis héro et À suivre ; critère : matrice de cibles anonymisée, aucun lien non testé annoncé ciblé.
+- [ ] 1.3 Vérifier la pagination authentifiée et les volumes avec limit=1/showsLimit=100, seuls films state=0 ; critère : deux pages et fin établies, aucune réponse volumineuse ni purge sur liste partielle.
+- [ ] 1.4 Vérifier mutations, DELETE en query, bulk=false et voisins sur contenus autorisés ; critère : états avant/après et annulations consignés sans historique personnel.
 
-## 2. Passe Penpot sur instruction de Sygix
+## 2. Design accepté et navigation
 
-La maquette a été produite, montrée puis validée par Sygix ; les décisions sont reportées dans design et handoff. Cette validation visuelle ne vaut pas validation du comportement D-pad ni exécution des tests de l'implémentation future.
+- [ ] 2.1 Vérifier les surfaces réutilisées et matières selon le design accepté ; critère : ContextMenuPanel et Dimens utilisés, contrôle TV du verre et des états compacts (inclus dans 8.2).
+- [x] 2.2 Vérifier les trajets explicites et le retour à l'engrenage ; preuve : TrackingHomeNavigationTest, incluant carte disparue et rangée masquée.
 
-- [ ] 2.1 À la demande explicite de Sygix, produire les états du handoff dans Penpot et lui montrer les aperçus ; critère : écrans de connexion, compte, pays, accès média, lecteur, épisodes, menu, erreur et propositions annotés avec leurs états.
-- [ ] 2.2 Valider le trajet D-pad des propositions non bloquantes, leur accès après disparition d'une carte et l'indicateur sans rangée ; critère : parcours complétés et fenêtre Annuler de 10 secondes actives suspendue pendant l'interaction vérifiée, aucun point de navigation laissé à deviner avant code UI.
+## 3. Transport et session
 
-## 3. Frontières, transport et session
+- [x] 3.1 Isoler les comptes et réponses tardives ; preuve : TrackingSessionTest.disconnectedAccountCannotPublishLateData et secondAccountCannotBeReplacedByNonCancellableFirstAccountResponse.
+- [x] 3.2 Borner appels/reprises/Retry-After et fermer les ressources ; preuve : TrackingTransportTest et TrackingHttpsTransportTest, sans mutation rejouée.
+- [x] 3.3 Découvrir les données statiques sans exécution de script ; preuve : BetaSeriesConfigTest.discoveryOnlyReadsSixOfficialScriptsAndLargeUnrelatedBlocksDoNotChangeConfiguration et concurrentDiscoverySharesOneHtmlAndRenamedBundleRequest ; analyse hors main vérifiée dans le code.
+- [x] 3.4 Associer avec code, intervalle, expiration et fermeture ; preuve : BetaSeriesDeviceTest.confirmedAccountFinishesAssociationAndStopsPolling et autres cas d'attente/expiration.
+- [x] 3.5a Stockage et fin de session au niveau contrôleur ; preuve : TrackingSessionTest.offlineRevocationIsNotAnAccountFailure, cancelledAssociationValidatesWithoutReplacingExistingSessionAndRevokesUnusedToken et TrackingRefreshScheduleTest.transientStorageFailureRetriesOnNextForegroundWithoutDeletingSession ; Keystore réel en 3.5b.
+- [ ] 3.5b Contrôler sur TV le chiffrement de tracking-session hors sauvegarde, compte conservé après redémarrage et effacement à la déconnexion.
+- [x] 3.6 Persister la configuration 7 jours et l'invalider sur refus explicite ; preuve : BetaSeriesConfigTest.persistedConfigurationSurvivesRestartExpiresAfterSevenDaysAndIsRemovedOnRefusal et BetaSeriesApiTest.rejectedPostConfigurationIsInvalidatedButMutationIsNotReplayed.
 
-- [ ] 3.1 Ajouter les contrats de fournisseur de suivi, identité, lecteur et preuve, avec états succès/vide/erreur/incomplet et génération de session ; critère : tests JUnit démontrant isolation de deux comptes et rejet des réponses tardives sans dépendance BetaSeries dans le contrat commun.
-- [ ] 3.2 Ajouter le transport de requêtes et les erreurs structurées, avec délais, limites de taille et reprises de lectures bornées de D3 ; critère : tests de 502/503/non JSON/timeout/Retry-After, fermeture des ressources et aucun replay de mutation sur réponse perdue.
-- [ ] 3.3 Implémenter découverte et lecture des seules données de configuration web, sans exécution de script ni valeur de clé fixe ; critère : fixtures synthétiques couvrant nom de bundle changé, champ absent, hôte refusé et récupération concurrente mutualisée.
-- [ ] 3.4 Implémenter l'association appareil, son polling borné, expiration, fermeture et reconnexion ; critère : tests d'attente 2001, succès, code consommé/expiré, panne, suspension/reprise, absence de polling dupliqué et même URL complète avec chemin dans texte/QR de la même tentative, sans repli vers le domaine.
-- [ ] 3.5 Ajouter le stockage Android Keystore et la fin de session avec révocation au mieux ; critère : tests de stockage indisponible, déconnexion hors ligne et nettoyage immédiat, puis contrôle Android de chiffrement et exclusion des sauvegardes, sans jeton dans logs ou fixtures.
+## 4. Compte et fusion
 
-## 4. Lecture du compte et fusion
+- [ ] 4.1 Mapper listes et détails, compte vide, pages/éléments incomplets ; critère : BetaSeriesApiTest avec paramètres limit/showsLimit et conservation des autres entrées sur dépassement de corps.
+- [x] 4.2 Identifier exactement sans ambiguïté et distinguer l'appartenance ; preuves : ContentIdentityResolverTest.verifiedIdsResolveLocalizedTitlesButConflictingIdsNeverMerge et TrackingEnrichmentTest.accountRefreshDoesNotReidentifyLocalContentAndExpiryOnlyReadsItsCachedIdentity.
+- [x] 4.3 Fusionner reprises/prochains épisodes sans mélanger leurs intents ; preuve : TrackingProjectionTest.unseenResumeWinsWithoutReusingAnIntentForAnotherEpisode et samePlayerKeepsTheExactNextEpisodeIntentAlongsideSeenResumeIntent.
+- [x] 4.4 Préserver ouvertures, masquages et identités migrées ; preuves : TrackingIdentityMigrationTest.persistedOpeningAndHideRetainIdentityAcrossPreferenceRecreation et UpNextTrackingMemoryTest.permissionAndReadErrorsKeepRemoteOpeningAndReturnTarget.
+- [ ] 4.5 Projeter rangée et héro sans ajout au Top Shelf ; preuves attendues : TrackingHeroExclusionsTest et TrackingProjectionTest, identité visuelle native conservée.
+- [ ] 4.6 Vérifier indépendance des sources et rétablissement après panne ; critère : tests nommés couvrant refus TV, erreur partielle et absence de résurrection par cache d'image.
+- [x] 4.7 Compter les lectures : retour avant TTL (0 liste), mutation (1 relecture ciblée), retour après TTL (1 lecture complète), émission d'état (0 requête TV Provider) ; preuves : TrackingRefreshScheduleTest.foregroundUsesLazyTtlAndMutationOnlyPatchesItsContent et TrackingHeroExclusionsTest.trackingAndMemoryEmissionsNeverTriggerTvProviderReadsWithOrWithoutAccount.
 
-- [ ] 4.1 Mapper les listes paginées et détails réellement nécessaires, y compris films state=0, séries archivées et épisodes diffusés ; critère : tests de champs nuls, pages manquantes, compte vide, erreurs distinctes et absence de limite de compte à 20.
-- [ ] 4.2 Ajouter la résolution exacte des identifiants et des correspondances sans ambiguïté, avec cache borné et appartenance au compte distincte (présent/absent/inconnu) ; critère : tests de titres localisés, remakes, série/film homonymes, épisodes mal numérotés, correspondance multiple et erreur de compte sans fusion, appartenance fictive ni mutation.
-- [ ] 4.3 Étendre le dédoublonnage et le choix d'épisode selon up-next ; critère : tests reprise S02E05 contre prochain S02E03, reprise déjà vue, plusieurs sources conservées et absence de réutilisation d'un intent d'un autre épisode.
-- [ ] 4.4 Migrer par enrichissement la mémoire d'ouvertures et de masquages ; critère : tests conservant les clés existantes, tri actuel, activité inconnue, retrait de série entière et absence de purge sur erreur, permission manquante ou pagination incomplète.
-- [ ] 4.5 Brancher la source de suivi partagée dans les projections À suivre et héro ; critère : tests 20 cartes après tri, candidats du héro au-delà de 20, ordre de session stable, masquage BetaSeries du héro et aucun ajout au Top Shelf.
-- [ ] 4.6 Brancher les erreurs indépendantes des sources et l'indicateur ; critère : tests compte accessible sans permission TV, apps conservées en panne BetaSeries, retour du compte après succès et cache d'images incapable de ressusciter une contribution invalide.
+## 5. Lecteurs et actions
 
-## 5. Lecture commune et actions de suivi
+- [ ] 5.1 Vérifier catalogue vidéo/Autre application, absence et désinstallation ; critère : tests nommés sur toute la matrice et préférences persistantes.
+- [x] 5.2 Mutualiser le premier choix et la préférence ; preuve : PlaybackCoordinatorTest.firstChoiceIsRequiredForSingleAppAndPreferenceIsSharedAcrossSurfaces ; cibles réelles dans 1.2.
+- [x] 5.3 Appliquer le pays aux offres, sans relecture du compte ; preuve : BetaSeriesOffersTest.changingCountryRechecksOnlyPlatformsAndNeverReloadsAccount et seasonOfferDoesNotBecomeAnEpisodeOrRegionConfirmation.
+- [x] 5.4 Mutations ciblées et Annuler ; preuves : TrackingActionsTest.movieUndoRestoresStateTwoAndConcurrentDuplicateActionIsNotSent, blockedActionPreservesUndoAndItsRemainingRemovalDeadline et BetaSeriesApiTest.archiveMappingAndUndoRestoreBothOriginalArchiveStates ; API réelle dans 1.4.
+- [ ] 5.5 Liste d'épisodes à plat et actions isolées ; preuve attendue : TrackingSettingsTest.selectedUnseenEpisodeDoesNotMarkPreviousEpisodesAndReturnRefreshRestoresNeighbor, complétée pour vide/erreur/reconnexion.
+- [ ] 5.6 Réconcilier README avec lecteurs, masquages, archive et retrait ; critère : documentation cohérente et aucune promesse de restauration de l'historique.
 
-- [ ] 5.1 Détecter les lecteurs reconnus et proposer Autre application depuis le catalogue lançable ; critère : tests catégorie absente, aucune app, app désinstallée et préférence commune par série/film conservée après déconnexion.
-- [ ] 5.2 Mutualiser l'ouverture du héro, des cartes et des menus avec leurs origines et replis ; critère : tests du premier choix obligatoire, choix mémorisé, lancement refusé, fiche/recherche/app simple annoncés et focus de retour sans changer la règle de tri depuis le héro.
-- [ ] 5.3 Mapper les offres et le pays sans confirmation régionale inventée ; critère : tests pays non confirmé/changé, offres identiques entre pays, offre de saison non promue en épisode et app installée sans abonnement présumé.
-- [ ] 5.4 Implémenter ajout depuis contenu identifié, vu/non vu, archive et retrait différé ; critère : tests d'action applicable, bulk=false, état film et archive restaurés par Annuler, double envoi empêché, annulation avant échéance sans suppression et réconciliation après échec.
-- [ ] 5.5 Ajouter la liste des saisons/épisodes diffusés, vus et non vus, sans mutation à la consultation ; critère : tests chargement/vide/erreur/reconnexion, épisode disparu et sélection du bon épisode sans changer les précédents.
-- [ ] 5.6 Mettre à jour la documentation utilisateur des lecteurs, replis, masquages et retraits ; critère : README distinguant clairement masquage local, archive et suppression du compte, sans promesse de restauration distante d'historique.
+## 6. Confirmation manuelle
 
-## 6. Observation média optionnelle
+- [x] 6.3 Terminé au retour effectif et Annuler accessible sans vol de focus ; preuves : TrackingHomeNavigationTest.returnPromptDoesNotStealFocusAndRemainsReachableAfterItsCardDisappears et TrackingActionsTest.watchedAndArchiveUndoSurviveAccountRereadsForTenActiveSeconds.
+- [ ] 6.4 Retirer toute demande d'accès média et preuve automatique ; critère : manifeste, commandes et UI sans accès aux notifications, README limité au mode manuel.
 
-- [ ] 6.1 Ajouter le service et la passerelle de sessions média, séparés du service Home, avec activation automatique via ADB/Tsuyu déjà utilisable, vérification effective et repli Android volontaire ; critère : tests activation en cours/succès/échec, accès retiré, écran absent, désactivation respectée et arrêt à la déconnexion, sans faux succès ni collecte du corps général des notifications.
-- [ ] 6.2 Implémenter les adaptateurs de preuve seulement pour les cas démontrés par 1.1, avec session exacte et dédoublonnage ; critère : tests pause/STOPPED/titre ambigu/changement d'épisode/ancien compte n'envoyant aucune mutation et preuve complète n'en envoyant qu'une.
-- [ ] 6.3 Ajouter la proposition Terminé au retour et Annuler après succès manuel ou automatique ; critère : tests sans réponse inchangée, contenu demandé conservé malgré nouveau prochain épisode, annulation après disparition de carte, échéance de 10 secondes actives et suspension/reprise du temps restant pendant l'interaction, aucun retrait avant échéance.
-- [ ] 6.4 Documenter les limites de compatibilité et le fonctionnement sans accès média ; critère : README ne présentant aucune app non validée comme compatible avec le suivi automatique.
+## 7. Interface
 
-## 7. Interface et navigation après validation Penpot
-
-- [ ] 7.1 Ajouter la catégorie Suivi de visionnage, le compte, le pays en dropdown natif sans suffixe « · confirmé », le QR/code/adresse complète et les états de connexion ; critère : chaînes FR en ressources, testTags de ui-testing et tests Compose `@Config(qualifiers = "w960dp-h540dp-xhdpi")` pour focus, bords, validation/annulation de la liste, Retour et restauration.
-- [ ] 7.2 Ajouter les menus de suivi, sélecteurs de lecteur/épisode et badges, selon les composants et maquettes validés ; critère : tests Compose TV locaux inchangés et nouveaux cas vus/non vus, app disparue, image absente, préférence partagée et Ajouter au suivi depuis une carte locale identifiée absente du compte couverts, y compris maintien local avant ajout et bascule après succès confirmé.
-- [ ] 7.3 Ajouter petit indicateur à droite sans « · Réglages », détail/réessai et composant transitoire compact bas droite sans vol de focus ; réutiliser les modales glass transparentes floutées dimensionnées au contenu ; critère : tests Compose TV rangée vide, carte disparue, panne, arrivée/expiration et restauration, puis contrôle TV des matières et de la compacité, notamment état indisponible.
-- [ ] 7.4 Adapter Réafficher dans Applications cachées pour les contenus du compte et du héro ; critère : tests Compose TV conservant tri, dépliage, première ligne et réaffichage sans mutation distante.
+- [x] 7.1 Réglages, pays et association ; preuve : TrackingSettingsTest.associationShowsOneCompleteAddressAndBackRestoresConnectWithoutPolling et countryDropdownCancelsOrCommitsAndReturnsFocusToItsControl à taille TV ; lisibilité réelle dans 1.1.
+- [ ] 7.2 Vérifier menus, lecteurs, épisodes, badges et ajout local ; critère : matrice Compose TV des quatre états d'appartenance, ajout sans remplacer les actions locales.
+- [x] 7.3 Réutiliser modales et notification compacte, focus piloté par ViewModel ; preuves : TrackingModalTest.removedFocusedPlayerUsesNextThenPreviousWithoutEscapingModal et TrackingHomeNavigationTest ; matières et compacité dans 8.2.
+- [ ] 7.4 Vérifier Réafficher et mémoire des contenus du compte ; critère : test Compose TV conservant tri, dépliage et réaffichage sans mutation distante.
 
 ## 8. Validation intégrée
 
-- [ ] 8.1 Exécuter `./gradlew test` et `openspec validate --all --strict`, puis vérifier la conformité du change avec openspec-verify-change ; critère : commandes réussies et aucun scénario accepté déclaré couvert sans test ou preuve de runtime correspondante.
-- [ ] 8.2 Produire `./gradlew assembleRelease` puis valider sur TV réelle connexion/reconnexion, compte, lecteur, pays, panne/reprise, autorisation média et retour des deux surfaces ; critère : matrice anonymisée des scénarios réussis/partiels et fluidité vérifiée selon launcher-shell, sans confondre émulateur et TV réelle.
-- [ ] 8.3 Vérifier la migration et les régressions sans compte puis après déconnexion, et mettre à jour README/attribution/licences si nécessaire ; critère : sources locales, tri, masquages et préférences conservés, aucune clé, donnée personnelle ni sortie de build dans le diff public.
-
-## Workflow follow-up
-
-- Obtenir la validation explicite de Sygix avant merge de l'implémentation ; le merge de cette PR de spécification ne vaut ni validation graphique ni validation TV.
-- Après merge de l'implémentation et validation sur TV, exécuter `openspec archive p9-betaseries`, puis `openspec validate --all --strict` sur les specs fusionnées.
-- Aucun ordre d'archive concurrent n'est requis au cadrage ; réexaminer les changes ouverts avant l'implémentation future et réconcilier les mêmes exigences si nécessaire.
+- [x] 8.1 Exécuter tests, build release et `openspec validate --all --strict`, puis openspec-verify-change ; preuves : 1 180 tests sans échec ni skip, build release réussi et 9 validations ; commandes Gradle séparées avec `--no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g`. Vérification du change partielle : tâches non cochées et validations TV non couvertes restent ouvertes ; aucun archivage déclaré possible.
+- [ ] 8.2 Valider la release sur TV : association, compte, lecteurs, pays, panne/reprise, stockage, retours, matières et fluidité ; critère : matrice anonymisée validée par le propriétaire.
+- [ ] 8.3 Vérifier régressions sans compte/déconnexion et hygiène publique ; critère : tests nommés, attribution/licences, aucune donnée personnelle ni sortie de build dans le diff.

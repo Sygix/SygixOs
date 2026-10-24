@@ -41,7 +41,7 @@ Les réglages SHALL conserver deux volets plein écran, leur fond et leurs pilul
 - **WHEN** une ligne d'app est affichée
 - **THEN** elle garde la vignette 16:9, bannière sinon icône centrée ; le fournisseur de suivi n'est pas ajouté à la liste des applications
 
-**Détails.** — Le focus des catégories, lignes, contenus, dépliages, contrôles et actions reprend la pilule claire sans zoom, halo ou verre, et l'état marqué de la catégorie active. Les parcours de connexion, pays et accès média respectent cette base et leur navigation propre ; les autres catégories ne changent pas de règles.
+**Détails.** — Le focus des catégories, lignes, contenus, dépliages, contrôles et actions reprend la pilule claire sans zoom, halo ou verre, et l'état marqué de la catégorie active. Les parcours de connexion et pays respectent cette base et leur navigation propre ; les autres catégories ne changent pas de règles.
 
 ### Requirement: Afficher À suivre
 Afficher À suivre SHALL rester le premier contrôle, avec libellé à gauche et switch Apple à droite, activé par défaut et persisté. Il autorise les contenus affichables de toutes les sources sans imposer READ_TV_LISTINGS au compte. Désactiver SHALL retirer rangée et titre sans modifier programmes, compte, filtres ni apport du compte au héro.
@@ -162,7 +162,7 @@ Le volet SHALL conserver sa liste directe d'apps cachées puis Retirés d'À sui
 ## ADDED Requirements
 
 ### Requirement: Réglages du suivi de visionnage
-La catégorie Suivi de visionnage SHALL exposer le fournisseur BetaSeries, connexion ou déconnexion, état du compte, synchronisation et réessai, pays confirmé et accès média optionnel. Aucun fournisseur non implémenté SHALL être proposé ; les erreurs et accès manquants SHALL être distingués d'un compte vide.
+La catégorie Suivi de visionnage SHALL exposer BetaSeries, connexion ou déconnexion, état du compte, synchronisation, réessai et pays confirmé. Aucun fournisseur non implémenté SHALL être proposé ; erreurs et révocation distante non confirmée SHALL être distinguées d'un compte vide.
 
 #### Scenario: sans compte
 - **WHEN** la catégorie est ouverte sans compte
@@ -170,7 +170,7 @@ La catégorie Suivi de visionnage SHALL exposer le fournisseur BetaSeries, conne
 
 #### Scenario: compte connecté
 - **WHEN** la catégorie est ouverte avec un compte
-- **THEN** son identité et son état sont affichés avec Synchroniser, pays, accès média et Déconnecter ; aucune donnée d'une session précédente n'est présentée comme courante
+- **THEN** son identité et son état sont affichés avec Synchroniser, pays et Déconnecter ; aucune donnée d'une session précédente n'est présentée comme courante
 
 #### Scenario: état du chargement
 - **WHEN** une synchronisation charge, est vide, échoue ou n'est plus autorisée
@@ -187,14 +187,6 @@ La catégorie Suivi de visionnage SHALL exposer le fournisseur BetaSeries, conne
 #### Scenario: navigation dans les pays
 - **WHEN** la liste déroulante est ouverte
 - **THEN** le pays choisi sinon proposé, sinon la première option prend le focus ; haut/bas parcourent les pays sans boucle, gauche/droite ne quittent pas la liste et Retour l'annule ; une option disparue transmet le focus à sa suivante sinon précédente, sinon referme la liste sur son contrôle
-
-#### Scenario: accès média automatique
-- **WHEN** la voie privilégiée est utilisable pour l'accès média selon watch-tracking
-- **THEN** le contrôle expose l'activation automatique en cours puis son résultat vérifié, sans demander un passage par l'autorisation Android ; échec et repli manuel sont distingués, et une désactivation volontaire n'est pas annulée automatiquement
-
-#### Scenario: retour système
-- **WHEN** l'utilisateur revient des réglages Android d'accès média
-- **THEN** l'autorisation réelle est relue, le contrôle d'origine retrouve le focus et un refus ou une indisponibilité ne bloque pas la catégorie
 
 #### Scenario: attribution
 - **WHEN** le fournisseur est présenté dans les réglages

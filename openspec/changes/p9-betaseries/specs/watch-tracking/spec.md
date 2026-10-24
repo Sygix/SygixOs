@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Suivi de visionnage indépendant du fournisseur et du lecteur : identité des contenus, compte actif, ouverture commune au héro et À suivre, actions sur le compte et observation optionnelle de la lecture.
+Suivi de visionnage indépendant du fournisseur et du lecteur : identité des contenus, compte actif, ouverture commune au héro et À suivre, actions et confirmation manuelle au retour.
 
 ## ADDED Requirements
 
@@ -39,6 +39,14 @@ La correspondance d'un contenu local avec le suivi SHALL reposer sur une identit
 #### Scenario: enrichissement indisponible
 - **WHEN** le rapprochement est en attente, vide, en erreur ou non autorisé
 - **THEN** les métadonnées et règles locales restent utilisables ; le retour au premier plan peut réessayer avec un délai borné sans bloquer l'accueil
+
+#### Scenario: cache par contenu
+- **WHEN** un contenu local a déjà été identifié
+- **THEN** son identité est conservée par clé locale et réutilisée sans nouvelle recherche lors d'un rafraîchissement du compte ; son statut est un objet de cache avec validité de 15 minutes, relu individuellement après expiration, mutation ou changement de l'épisode local ; l'enrichissement ne change jamais la clé de focus locale
+
+#### Scenario: émissions sans lecture locale
+- **WHEN** l'état du suivi, un masquage ou une préférence de source change
+- **THEN** les programmes locaux déjà lus sont combinés en mémoire ; aucune nouvelle requête au TV Provider n'est déclenchée, y compris sans compte
 
 ### Requirement: Choix et mémorisation du lecteur
 Le premier lancement d'un contenu suivi SHALL demander son application de lecture, même avec une seule offre connue. Le choix SHALL être commun au héro et à À suivre, persistant par série ou film, et réutilisé tant que l'app est lançable et qu'aucune indisponibilité du contenu n'est établie.
@@ -87,7 +95,11 @@ Sélecteur, menu et liste d'épisodes SHALL être navigables au D-pad, avec focu
 
 #### Scenario: épisodes diffusés
 - **WHEN** « Choisir un épisode » s'ouvre
-- **THEN** l'épisode courant, sinon le premier épisode diffusé est focalisé ; les saisons et épisodes diffusés vus et non vus sont parcourables, sans boucle, avec leur statut ; consulter la liste ne lance rien et ne change aucun statut
+- **THEN** seule la saison courante est chargée d'abord ; sa liste à plat par numéro affiche « SxxEyy · titre » et une coche pour les vus ; l'épisode courant sinon le premier a le focus ; haut/bas parcourent sans boucle, gauche/droite restent dans la liste ; OK ouvre Ouvrir l'épisode, Marquer comme vu ou non vu, Retour aux épisodes, première action focusée ; consulter ne lance rien et ne modifie aucun statut ; Retour ferme d'abord les actions puis la liste et rend l'origine
+
+#### Scenario: autres saisons à la demande
+- **WHEN** Autres saisons est choisi
+- **THEN** les numéros de saisons disponibles sont lus sans charger leurs épisodes ; la saison courante sinon la première a le focus, haut/bas parcourent sans boucle et Retour rend la liste d'épisodes ; OK charge uniquement la saison choisie, sans pagination fictive ; chargement, vide, erreur et réessai sont explicites
 
 #### Scenario: état de la liste d'épisodes
 - **WHEN** la liste charge, réussit sans épisode, échoue ou perd l'accès au compte
@@ -133,7 +145,7 @@ Un marquage vu/non vu ou archivage SHALL proposer une annulation non bloquante d
 
 #### Scenario: durée de la fenêtre
 - **WHEN** une annulation devient disponible
-- **THEN** sa fenêtre dure 10 secondes de temps actif ; son décompte est suspendu pendant l'interaction avec le composant, notamment tant qu'il porte le focus, puis reprend avec le temps restant ; aucun retrait distant ne part avant cette échéance
+- **THEN** sa fenêtre dure 10 secondes actives ; focus et arrière-plan suspendent le décompte, repris avec le temps restant ; aucun retrait distant ne part avant cette échéance ; une nouvelle action refusée conserve Annuler et explique le refus ; la fin du processus abandonne le retrait
 
 #### Scenario: annuler un archivage
 - **WHEN** l'utilisateur annule un archivage confirmé
@@ -151,47 +163,16 @@ Un marquage vu/non vu ou archivage SHALL proposer une annulation non bloquante d
 - **WHEN** une proposition ou une annulation est présentée
 - **THEN** elle n'interrompt pas la navigation, ne prend pas spontanément le focus et reste accessible au D-pad pendant sa fenêtre ; son échéance n'exécute jamais un marquage vu à la place de l'utilisateur
 
-### Requirement: Accès optionnel aux sessions média
-L'accès média SHALL être séparé du compte et de READ_TV_LISTINGS. Avec une voie ADB/Tsuyu déjà utilisable, son activation SHALL être automatique et vérifiée, sans demander d'autorisation système supplémentaire. Sinon l'accès Android manuel reste optionnel. Refus, retrait ou indisponibilité SHALL laisser la confirmation manuelle utilisable sans sollicitation répétée.
-
-#### Scenario: voie privilégiée disponible
-- **WHEN** un compte est connecté, que l'observation n'a pas été désactivée par l'utilisateur et que la voie ADB/Tsuyu déjà autorisée est utilisable
-- **THEN** l'accès média est activé automatiquement puis vérifié avec un délai borné, sans ouvrir l'écran d'autorisation Android ; l'état distingue activation en cours, accès effectivement disponible et échec ; la seule présence d'ADB ou de Tsuyu ne vaut pas accord ni preuve d'accès
-
-#### Scenario: échec ou disparition de la voie privilégiée
-- **WHEN** l'activation échoue ou que l'accès effectif disparaît, notamment au retour au premier plan
-- **THEN** l'état est relu, aucune collecte ni mutation ne présume l'accès et les réglages proposent réessai ou accès Android manuel si disponible ; le suivi manuel continue sans boucle d'activation ni ouverture automatique d'un écran système
-
-#### Scenario: autorisation demandée
-- **WHEN** l'utilisateur ouvre volontairement le contrôle d'accès aux sessions
-- **THEN** sans accès effectif par la voie privilégiée, l'écran système disponible s'ouvre ; l'accord est relu au retour et le focus revient au contrôle, sans présumer du succès ; un accès déjà disponible ne demande pas une seconde autorisation
-
-#### Scenario: accès absent ou retiré
-- **WHEN** l'accès est refusé, révoqué, non pris en charge ou que les données d'une app manquent
-- **THEN** aucun marquage automatique n'est réalisé sur cette base ; la raison est consultable dans les réglages et le parcours manuel reste disponible
-
-#### Scenario: arrêt du suivi
-- **WHEN** l'utilisateur désactive l'observation ou se déconnecte
-- **THEN** l'observation associée à ce compte s'arrête et aucune nouvelle preuve ne peut déclencher une mutation pour cette session
-
-### Requirement: Preuve de fin de lecture
-Le marquage automatique SHALL exiger une preuve vérifiée de fin pour le bon contenu et le compte courant. Ni temps passé dans l'app, ni simple arrêt média, ni disparition d'une carte, ni passage à l'épisode suivant ne SHALL suffire seuls. Un succès automatique SHALL proposer Annuler au retour.
-
-#### Scenario: preuve complète
-- **WHEN** un adaptateur validé observe la fin du film ou de l'épisode identifié avec certitude
-- **THEN** ce contenu seul est marqué vu, au plus une fois pour cette session de lecture, et son résultat est partagé entre héro et À suivre
-
-#### Scenario: preuve incomplète
-- **WHEN** seuls le paquet, un titre ambigu, une pause ou un arrêt sont connus
-- **THEN** aucune mutation automatique n'est envoyée et la confirmation discrète au retour est utilisée
+### Requirement: Confirmation manuelle au retour
+Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur ; seul un accord explicite SHALL marquer le contenu demandé. Aucun accès aux notifications ou aux sessions média SHALL être demandé dans P9.
 
 #### Scenario: confirmation au retour
-- **WHEN** l'utilisateur revient après un lancement de contenu suivi sans preuve complète
-- **THEN** une proposition non bloquante « Terminé ? » concerne le contenu réellement demandé, pas l'épisode éventuellement affiché après rafraîchissement ; sans réponse le suivi ne change pas
+- **WHEN** l'utilisateur revient après un lancement effectif de contenu suivi
+- **THEN** « Terminé ? » concerne le contenu demandé, pas l'épisode affiché après rafraîchissement ; sans réponse rien ne change ; la proposition reste sans échéance jusqu'à OK, Retour sur le composant, nouveau lancement suivi, déconnexion ou relecture montrant le contenu déjà vu
 
 #### Scenario: compte ou contenu changé
-- **WHEN** un signal tardif concerne une ancienne session, un autre épisode ou un compte déconnecté
-- **THEN** il est ignoré pour les mutations ; une autorisation Android ne constitue pas une preuve d'identité ni de fin
+- **WHEN** un retour concerne une ancienne session ou un lancement qui n'a pas quitté le launcher
+- **THEN** aucune proposition ni mutation ne vise ce lancement ; un cycle arrière-plan ultérieur ne le réutilise pas
 
 ### Requirement: Offres et région
 Le pays SHALL être proposé depuis la configuration de la TV s'il existe puis confirmé et modifiable dans les réglages. Les offres non vérifiées pour ce pays SHALL être signalées « Disponibilité non confirmée ». L'installation d'une app ne SHALL prouver ni abonnement ni présence du contenu.
@@ -206,4 +187,4 @@ Le pays SHALL être proposé depuis la configuration de la TV s'il existe puis c
 
 #### Scenario: pays modifié
 - **WHEN** le pays confirmé change
-- **THEN** les informations d'offre sont réévaluées pour ce pays et au prochain retour au premier plan ; les préférences de lecteur ne sont pas effacées et une donnée d'un ancien pays ne devient pas une preuve pour le nouveau
+- **THEN** seule la liste des plateformes du pays est relue et les offres sont recombinées en mémoire, sans lecture complète du compte ; une offre n'est confirmée que si son service figure dans la liste du pays confirmé ; cela ne prouve ni abonnement ni disponibilité de chaque épisode ; l'ancien pays ne confirme pas le nouveau

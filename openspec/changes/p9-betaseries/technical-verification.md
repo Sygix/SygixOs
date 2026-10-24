@@ -1,6 +1,20 @@
 # Vérifications techniques
 
-Vérifications effectuées le 23 octobre 2026. Ce document conserve les contrats, statuts et limites, sans clé, jeton, code d'association, identité de compte, titre personnel ou réponse brute. Les essais réseau ont été faits par une sonde locale temporaire, pas par une implémentation de l'application.
+Contrats et structures observés les 23–24 octobre 2026, sans identifiant, clé, jeton ni historique personnel. Les essais publics, retours de TV et fixtures sont distingués.
+
+## 0. Corrections confirmées sur TV
+
+Retour de validation externe sur le build initial : l'échange avec `device_code` reste en erreur 2001 après autorisation. Avec le seul remplacement par **`code`**, l'association aboutit en quelques secondes ; ce paramètre reçoit la valeur du device_code, conformément à « Identification by code ».
+
+Le premier instantané échoue aussi lorsque `episodes/list` demande 100 épisodes par série : réponse supérieure à 2 Mio. La correction demande `limit=1`, `showsLimit=100`, `released=1`, conserve les limites explicites dans la pagination, décode hors thread principal et ne charge que les films state=0. Une erreur de page ou de fiche reste partielle et ne retire pas les autres entrées valides. L'association corrigée est confirmée par le validateur sur TV ; le chargement corrigé reste à y contrôler.
+
+La validation externe établit que `page` est ignoré par `shows/member` et `movies/member` : utiliser respectivement **offset** et **start**, à partir de zéro. Les compteurs `totalMissingShows/Movies` peuvent être zéro dès le premier lot ; la fin exige le total atteint ou une page vide cohérente, avec détection des pages répétées.
+
+`shows/episodes` ne pagine pas non plus : les décalages renvoient la même liste complète. La correction utilise **season**, saison courante d'abord ; `shows/seasons` fournit les numéros, les autres épisodes ne sont chargés que sur choix explicite. Le SDK officiel et son test de saisons décrivent number/episodes/seen. Les POST vu et archive, avec relecture de fiche, ont été validés sur TV par le validateur ; DELETE et Annuler restent à y vérifier sur la version corrigée. Annuler dure 10 secondes actives, survit aux réémissions/relectures et suspend son reliquat au focus ou en arrière-plan.
+
+La correction finale confirme un épisode muté par `episodes/display` puis, seulement pour vu, demande le prochain candidat avec `episodes/list` filtré par showId (paramètre du SDK officiel). Cette seconde lecture ciblée évite de charger une saison entière ou le compte et couvre la frontière de saison ; son fonctionnement authentifié dans l'application corrigée reste dans 1.4. Tests : BetaSeriesApiTest.seenCrossesSeasonBoundaryAndUndoRestoresOneCandidateThroughRealReadbacks et repeatedEmptyAndMalformedPagesPreservePreviouslyDecodedItems ; le changement de pays suspendu est couvert par BetaSeriesOffersTest.changingCountryRechecksOnlyPlatformsAndNeverReloadsAccount.
+
+Pour `episodes/list`, le SDK documente `page` et `showsLimit`, mais aucun décalage offset ; le compte testé tient dans un lot. Sans nouvel essai authentifié autorisé ici, le cas de plus de 100 séries reste ouvert en 1.3 : le code utilise le paramètre documenté et refuse une page répétée plutôt que déclarer la liste complète. Le SDK expose `shows/member.status` et `summary`, sans preuve qu'un filtre unique conserve toutes les séries non archivées avec les images et états indispensables ; ces paramètres ne sont pas activés par hypothèse. La recherche locale utilise le titre de série nettoyé et cinq candidats maximum, avec cache par clé locale.
 
 ## 1. Résultats des essais API
 
@@ -8,13 +22,13 @@ Vérifications effectuées le 23 octobre 2026. Ce document conserve les contrats
 | --- | --- | --- |
 | Découverte du client web | HTML officiel puis bundle de configuration découvert dynamiquement ; champs `apiHost` et `apiKey` trouvés dans des données statiques | Extraction automatique réalisable aujourd'hui ; pas de valeur à embarquer ni de JS à exécuter |
 | Association appareil | `POST /oauth/device` : HTTP 200, `device_code:string`, `user_code:string`, `verification_url:string`, `expires_in:int`, `interval:int` | Code + adresse + QR réalisables ; le code doit rester saisissable depuis un PC |
-| Attente OAuth | `POST /oauth/access_token`, client_id et device_code, sans client_secret : HTTP 400 avec erreur 2001 « en attente » | L'attente n'est pas un échec de secret et doit respecter l'intervalle |
-| Autorisation complète | Après autorisation de l'utilisateur, même échange sans client_secret : jeton `access_token` et `token_type` reçus | Variante du client web testée de bout en bout, alors que la documentation générale demande un secret |
+| Attente OAuth | `POST /oauth/access_token`, client_id et **code** (valeur de device_code), sans client_secret : HTTP 400 erreur 2001 avant autorisation | Respecter l'intervalle ; l'ancien essai avec device_code ne prouvait pas le contrat |
+| Autorisation complète | Échange avec code confirmé sur TV par le validateur | Jeton utilisable ; aucune association réelle effectuée pendant les corrections |
 | Compte | `GET /members/infos` avec ce jeton : HTTP 200, objet `member`, identifiant, nom et `options.country/language` | Compte identifié et pays de compte disponibles ; aucune valeur personnelle conservée dans les documents |
-| Épisodes à regarder | `GET /episodes/list`, limit=1, showsLimit=1, page=1, released=1 : HTTP 200 | Enveloppe `shows`, `total`, `totalEpisodes`, `totalMissingShows`, `totalMissingEpisodes`, liste `unseen` et champs de suivi observés |
-| Séries du compte | `GET /shows/member` : HTTP 200 avec `shows`, `total`, `totalMissingShows` | Archive, prochain épisode, images et identifiants externes disponibles ; cela ne valide pas une lecture exhaustive de toutes les pages |
+| Épisodes à regarder | `GET /episodes/list`, limit=1, showsLimit=100, released=1 : lot unique confirmé sur TV | `shows`, `total`, `totalEpisodes`, compteurs et `unseen` ; pagination de plus de 100 séries encore à établir |
+| Séries du compte | `GET /shows/member`, offset=0 puis décalages successifs : confirmé sur TV | Archive, images, identifiants et total ; ne pas utiliser page ni totalMissingShows comme fin |
 | Films du compte, premier essai | `GET /movies/member`, state=0 : HTTP 502, corps texte non JSON | Panne serveur réelle, à traiter distinctement du vide |
-| Films du compte, nouvel essai | Après nouvelle association, `GET /movies/member`, state=0 : HTTP 200 avec `movies`, `total`, `totalMissingMovies` | Mapping de liste observé : identifiants, images, année, `user.status/date`, `auth_user`, liens et plateformes |
+| Films du compte, nouvel essai | `GET /movies/member`, state=0 et start successifs : confirmé sur TV | Identifiants, images, année, état et total ; offset/page ignorés, aucun besoin de charger state=1/2 pour l'appartenance |
 | Fin des deux sessions authentifiées | `POST /members/destroy` : HTTP 200 sans erreur pour chaque jeton | Jetons de test révoqués ; aucune écriture de suivi, retrait ou archivage effectuée |
 
 Une attente OAuth a aussi reçu une réponse non JSON : la première sonde s'est arrêtée, puis la version suivante a traité cet état comme une erreur transitoire bornée. Un code déjà consommé a été signalé comme absent par la page de saisie ; le test avait entre-temps obtenu le jeton. Le produit doit rendre ces états compréhensibles, sans diagnostiquer chaque code invalide comme une panne de clé.
@@ -36,7 +50,7 @@ Le second essai films a été préparé avec reprises de lecture bornées, mais 
 
 `GET /platforms/list?country=…` a été testé pour trois pays. Les groupes SVOD/VOD et leur cardinalité varient selon le pays : le paramètre est donc opérant pour cette liste de services.
 
-Sur une série et un film publics de référence, `shows/display` et `movies/movie` ont ensuite été appelés avec chacun de ces pays. Les offres reçues sont restées identiques. Cela ne démontre pas que country fonctionne pour l'offre d'un contenu ; une intersection avec les services du pays serait une approximation et n'est pas retenue comme preuve.
+Le contrôle public du 24 octobre confirme des listes de plateformes différentes pour deux pays, sans jeton utilisateur. Les fiches publiques série/film exposent leurs plateformes ; leur filtre country n'a pas été démontré. La décision P9 croise leurs identifiants avec les services du pays confirmé : confirmation au niveau service, jamais garantie d'épisode ni d'abonnement.
 
 ### Champs accessibles
 
@@ -46,7 +60,7 @@ Sur une série et un film publics de référence, `shows/display` et `movies/mov
 
 ### Comportement validé avec Sygix
 
-Afficher « Disponibilité non confirmée » quand la région n'est pas prouvée ; conserver les contenus et le choix manuel. Une app installée ne prouve ni abonnement ni disponibilité. Premier choix confirmé même avec une seule offre, puis préférence commune héro/À suivre. Fiche, recherche et ouverture de l'app restent des replis explicites.
+Sans pays confirmé ou sans service correspondant, afficher « Disponibilité non confirmée » ; conserver contenus et choix manuel. Changer de pays relit uniquement les plateformes. Premier choix obligatoire même avec une seule offre, puis préférence commune héro/À suivre ; replis ciblés seulement s'ils ont été vérifiés.
 
 ## 4. Mutations : documentation, pas d'écriture réelle
 
@@ -55,7 +69,7 @@ Le [SDK officiel](https://github.com/betaseries/betaseries-api-redux-sdk/tree/f1
 | Contrat | Preuve source | Conséquence |
 | --- | --- | --- |
 | `POST episodes/watched` | `lib/modules/shows/actions/doMarkEpisodeAsWatched.js` : paramètre bulk, valeur par défaut true | L'intégration doit imposer bulk=false pour l'épisode seul |
-| `DELETE episodes/watched` | `doUnmarkEpisodeAsWatched.js` | Opération inverse de statut disponible ; ses effets exacts seront vérifiés sur un contenu de test autorisé |
+| `DELETE episodes/watched` | `doUnmarkEpisodeAsWatched.js` : id en query | Même encodage pour les DELETE de retrait et désarchivage ; effets réels à vérifier sur un contenu autorisé |
 | `POST movies/movie` | `lib/modules/movies/actions/doUpdateMovieState.js` : 0 à voir, 1 vu, 2 ne veut pas voir | Non vu n'est pas supprimer ; restaurer l'état antérieur explicitement |
 | Retirer une série | `doRemoveShow.js` : DELETE shows/show | Aucune garantie que réajouter restitue tout l'historique ; envoi différé pendant Annuler |
 | Archiver/désarchiver | Actions distinctes `doAddShowArchive.js` / `doRemoveShowArchive.js` | Distinguer archive, retrait du compte et masquage local |
@@ -68,19 +82,6 @@ Aucune de ces mutations n'a été exécutée sur le compte utilisé pour le test
 - [ApplicationInfo, source AOSP](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/core/java/android/content/pm/ApplicationInfo.java) : CATEGORY_VIDEO existe, mais sa déclaration n'est pas exhaustive. D'où lecteurs reconnus + Autre application.
 - [TvContract, source AOSP](https://github.com/aosp-mirror/platform_frameworks_base/blob/master/media/java/android/media/tv/TvContract.java) : Watch Next expose position/activité/types, pas une preuve universelle de fin du bon contenu.
 - Code existant : UpNextContentKey masque la série entière, UpNextFeed priorise déjà les ouvertures locales, puis CONTINUE/NEXT/WATCHLIST, et UpNextController n'a actuellement qu'une source ; AppLauncher possède des chemins séparés héro et cartes, à mutualiser pour le suivi.
-
-Ce sont des vérifications de contrat et de code, pas un test de disponibilité des écrans système, d'intents ou de métadonnées sur une TV.
-
-## 6. Validations restantes avant implémentation
-
-1. Sur TV Google TV sous Android 14 : vérifier l'écran d'accès notifications/sessions, refus, accord et révocation, sans présumer de sa présence constructeur.
-2. Relever structure et complétude des identités et événements de session par app testée ; établir quelles observations prouvent réellement la fin du bon épisode/film. Sans preuve, repli manuel obligatoire.
-3. Tester les liens/intents par app et leur repli : épisode, fiche, recherche, lancement simple ; noter la précision réelle sans données personnelles.
-4. Vérifier la pagination complète séries/épisodes/films et la sémantique des dates sur fixtures contrôlées ou données autorisées ; résultat partiel interdit pour une purge.
-5. Vérifier vu/non vu, bulk=false, effets des suppressions et archive sur des contenus de test autorisés, sans utiliser l'historique personnel comme fixture publique.
-6. Vérifier sur Android le stockage protégé, le changement de compte et le rejet des réponses tardives ; le test Python ne valide pas une implémentation Keystore.
-
-Ces points sont les premières tâches du change. Ils ne bloquent pas sa PR de spécification ni la future passe Penpot, mais empêchent de déclarer les parcours concernés implémentés ou universellement compatibles.
 
 ## 7. Références officielles
 

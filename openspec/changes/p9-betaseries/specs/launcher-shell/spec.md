@@ -154,7 +154,7 @@ Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seu
 
 #### Scenario: proposition non bloquante
 - **WHEN** Terminé ou Annuler est proposé au retour
-- **THEN** l'origine conserve son focus ; l'action reste accessible au D-pad selon le parcours complété dans la passe Penpot avant implémentation, sans quatrième palier ; les états transitoires partagent un composant compact en bas à droite dans la zone sûre, de taille adaptée au contenu plutôt qu'une barre pleine largeur, avec le fond et la bordure transparents floutés du composant de modale existant
+- **THEN** l'origine conserve son focus ; Haut (engrenage) puis Droite depuis le héro, ou Retour, Haut puis Droite depuis la grille atteignent le composant ; OK valide son action, Gauche, Haut ou Retour rendent l'engrenage, Droite et Bas ne font rien ; aucun quatrième palier n'est créé ; le composant reste compact en bas à droite dans la zone sûre, adapté au contenu, avec fond et bordure transparents floutés du composant de modale existant
 
 #### Scenario: taille des modales du suivi
 - **WHEN** le suivi ouvre une modale, notamment un état vide ou indisponible
@@ -248,11 +248,15 @@ Le héro SHALL recevoir tous les contenus à regarder admissibles du fournisseur
 - **THEN** les candidats conservés ne sont pas remélangés ; ajouts et retraits suivent Ordre aléatoire du héro et l'identité stable évite un doublon du même contenu identifié
 
 ### Requirement: Indicateur d'indisponibilité du suivi
-Une panne du fournisseur connecté SHALL avoir un indicateur discret donnant accès à la cause et à Réessayer ou Reconnecter, sans notification répétée à chaque retour. Il SHALL rester accessible même sans carte À suivre et disparaître après rétablissement confirmé ou déconnexion.
+Une panne du fournisseur connecté SHALL avoir un indicateur sans vol de focus ni notification répétée, avec cause et Réessayer ou Reconnecter. Le détail SHALL rester accessible même sans carte À suivre et disparaître après rétablissement confirmé ou déconnexion.
 
 #### Scenario: panne partielle
 - **WHEN** le compte échoue et que les programmes locaux restent disponibles
-- **THEN** ils restent utilisables et l'indicateur n'occupe pas une carte de la limite de 20, ne vole pas le focus et ne remplace pas la rangée ; il reste de petite taille, aligné à droite sur la ligne du titre À suivre, sans suffixe « · Réglages »
+- **THEN** ils restent utilisables ; l'indicateur ne prend ni carte ni focus, utilise TextStyles.RowSecondary sans dépasser la hauteur du titre, aligné à droite sans suffixe « · Réglages » ; seul le trajet depuis l'engrenage donne accès au détail
+
+#### Scenario: accès sans carte depuis le héro
+- **WHEN** aucune notification de suivi n'est affichée, le compte est en panne et le focus est sur l'engrenage
+- **THEN** Droite ouvre le détail (cause, Réessayer sinon Reconnecter) ; fermer rend l'engrenage ; ce trajet reste identique quand À suivre est masqué
 
 #### Scenario: synchronisation en cours
 - **WHEN** une synchronisation affiche un statut dans l'en-tête d'À suivre

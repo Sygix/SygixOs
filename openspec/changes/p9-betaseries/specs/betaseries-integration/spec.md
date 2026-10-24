@@ -11,7 +11,7 @@ L'authentification SHALL se faire par association OAuth BetaSeries pour appareil
 
 #### Scenario: association disponible
 - **WHEN** l'utilisateur choisit de connecter BetaSeries
-- **THEN** un code est demandé avec délai borné ; la TV affiche le code et la `verification_url` officielle lisible avec son chemin complet, et son QR encode cette même URL de la même tentative ; afficher seulement le domaine ou un QR vers l'accueil ne suffit pas ; l'attente respecte l'intervalle et l'expiration renvoyés par le service
+- **THEN** un code est demandé selon « Bornes réseau et délais » ; la TV affiche le code en grand avec le style de titre existant, puis la `verification_url` complète en dessous ; le QR encode cette même URL ; l'attente respecte l'intervalle et l'expiration serveur ; l'échange envoie le code appareil dans le paramètre `code`
 
 #### Scenario: adresse de saisie du code
 - **WHEN** l'association fournit une adresse comme `https://www.betaseries.com/device`
@@ -50,6 +50,14 @@ L'intégration SHALL récupérer automatiquement la configuration nécessaire de
 - **WHEN** le site ne fournit plus les champs attendus, change de structure ou reste injoignable
 - **THEN** la connexion expose son indisponibilité et son réessai ; les données locales et les préférences restent intactes
 
+#### Scenario: conservation locale
+- **WHEN** une configuration valide a été obtenue
+- **THEN** elle est conservée hors sauvegarde transférable et réutilisée au démarrage pendant 7 jours ; l'appel suivant renouvelle une configuration expirée ; un refus explicite l'invalide immédiatement
+
+#### Scenario: bornes de la découverte
+- **WHEN** la découverte s'exécute
+- **THEN** elle lit au plus la page officielle et six scripts de www.betaseries.com, chacun limité à 10 Mio, dans un délai total de 30 secondes ; découverte et décodage s'effectuent hors du thread principal ; tout dépassement expose une indisponibilité réessayable
+
 ### Requirement: Chargement du compte BetaSeries
 Le fournisseur SHALL charger les films à voir et le prochain épisode diffusé non vu des séries non archivées, sans limiter le compte aux 20 cartes affichées. Les identifiants externes, dates, images et liens réellement présents SHALL enrichir le modèle commun sans inventer les champs absents.
 
@@ -67,11 +75,27 @@ Le fournisseur SHALL charger les films à voir et le prochain épisode diffusé 
 
 #### Scenario: source refusée ou indisponible
 - **WHEN** le jeton est refusé ou qu'un appel indispensable échoue ou dépasse son délai
-- **THEN** sa contribution n'est plus affichée dans À suivre ni comme candidat BetaSeries du héro ; l'état d'erreur ou de reconnexion reste distinct d'un compte vide, sans retirer les programmes locaux
+- **THEN** un refus d'accès retire l'apport du compte ; les autres échecs conservent les entrées valides indépendantes avec état incomplet et réessai ; erreur et reconnexion restent distinctes d'un compte vide, sans retirer les programmes locaux
 
 #### Scenario: rafraîchissement
-- **WHEN** le launcher revient au premier plan, qu'une mutation est confirmée ou qu'une relecture périodique est due
-- **THEN** le compte est réconcilié par une lecture partagée ; aucune réponse d'une ancienne session ne remplace les données du compte courant
+- **WHEN** le launcher revient au premier plan
+- **THEN** la lecture complète n'est relancée qu'à la connexion ou si le dernier instantané réussi date de plus de 15 minutes ; aucune boucle de synchronisation ne tourne au repos ; aucune réponse d'une ancienne session ne remplace le compte courant
+
+#### Scenario: mutation confirmée
+- **WHEN** une mutation est confirmée sur un épisode, un film ou une série
+- **THEN** seul le statut de ce contenu est relu et son objet de cache remplacé, avec données, date et validité ; après un épisode vu, le prochain candidat de sa seule série peut être demandé séparément, y compris dans une autre saison ; aucune lecture complète, invalidation globale ou réidentification des autres contenus n'est déclenchée
+
+#### Scenario: appartenance à la demande
+- **WHEN** l'appartenance d'un contenu local identifié doit être établie
+- **THEN** elle est lue depuis sa fiche authentifiée et mise en cache ; les films vus ou refusés ne sont pas téléchargés pour cela
+
+#### Scenario: élément ou page incomplets
+- **WHEN** une fiche est incohérente ou qu'une page échoue, notamment par dépassement de corps
+- **THEN** les autres contenus valides restent utilisables ; les entrées incohérentes restent individuellement incomplètes, une liste partielle n'est jamais déclarée complète et aucune purge ne se fonde sur ses absences
+
+#### Scenario: volume des épisodes
+- **WHEN** les prochains épisodes sont chargés
+- **THEN** un seul épisode diffusé non vu par série est demandé (`limit=1`, `showsLimit=100`, `released=1`) ; la pagination conserve toute limite explicite
 
 ### Requirement: Contrats de mutation BetaSeries
 Les opérations BetaSeries SHALL respecter « Actions sur le compte » et « Annulation non bloquante » de `watch-tracking`. Le marquage d'épisode SHALL explicitement désactiver le marquage en bloc des précédents ; l'intégration SHALL distinguer retirer, archiver et marquer non vu.
@@ -101,4 +125,19 @@ La déconnexion SHALL supprimer immédiatement le jeton et les données de compt
 
 #### Scenario: stockage indisponible
 - **WHEN** le stockage protégé ne peut pas être lu ou déchiffré
-- **THEN** le launcher demande une nouvelle association sans exposer le jeton ni bloquer les sources locales
+- **THEN** le fichier est conservé et relu au prochain retour au premier plan, sauf erreur définitive de déchiffrement ; seule cette dernière permet sa suppression et une nouvelle association ; aucune donnée secrète n'est exposée
+
+#### Scenario: remplacement de session
+- **WHEN** un nouveau jeton est reçu pendant une association
+- **THEN** il est validé avant remplacement atomique de la session ; fermeture du panneau et annulation de l'appelant ne laissent ni session bloquée ni jeton orphelin ; stockage et révocation terminent leur séquence malgré cette annulation
+
+### Requirement: Bornes réseau et délais
+Les appels BetaSeries SHALL avoir des bornes fixes et annuler leurs ressources au dépassement. Les lectures idempotentes SHALL autoriser au plus deux reprises ; aucune mutation ne SHALL être rejouée automatiquement.
+
+#### Scenario: budgets
+- **WHEN** un appel réseau s'exécute
+- **THEN** les bornes sont connexion 5 s, lecture 10 s, tentative 15 s, lecture avec reprises 60 s, corps API 2 Mio, compte et mutation avec relecture 90 s, identification locale 30 s ; 502/503/504, panne et non-JSON transitoire autorisent des reprises croissantes et Retry-After dans le budget restant ; 401/403 même non JSON expose l'accès refusé
+
+#### Scenario: révocation au mieux
+- **WHEN** la déconnexion révoque le jeton
+- **THEN** une seule tentative est faite dans l'échéance d'appel ; son échec affiche « Révocation distante non confirmée », sans échec du compte ni réessai ni blocage de l'effacement local
