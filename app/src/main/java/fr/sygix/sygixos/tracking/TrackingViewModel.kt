@@ -18,11 +18,20 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import java.util.Locale
 
 data class TrackingCountry(val code: String, val label: String)
+
+object TrackingCountries {
+    fun sorted(locale: Locale): List<TrackingCountry> {
+        val collator = java.text.Collator.getInstance(locale)
+        return Locale.getISOCountries().map { code -> TrackingCountry(code, Locale.Builder().setRegion(code).build().getDisplayCountry(locale)) }
+            .sortedWith(compareBy(collator) { it.label })
+    }
+}
 data class TrackingMenuAction(val tag: String, val label: Int, val mutation: TrackingAction? = null)
 data class TrackingEpisodeList(val content: TrackingContent, val loading: Boolean = true, val items: List<TrackingContent> = emptyList(), val failure: TrackingFailure? = null,
     val selected: TrackingIdentity? = null, val focused: TrackingIdentity? = null, val focusedIndex: Int = 0,
@@ -51,10 +60,11 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     private val status = MutableStateFlow(false)
     private var episodeJob: Job? = null
     private var episodeRequest = 0L
-    private val countryProposed = Locale.getDefault().country.takeIf { it in Locale.getISOCountries() }
-    private val countries = kotlinx.coroutines.flow.flow { emit(kotlinx.coroutines.withContext(runtime.parserDispatcher) {
-        Locale.getISOCountries().map { code -> TrackingCountry(code, Locale.Builder().setRegion(code).build().getDisplayCountry(Locale.FRENCH)) }.sortedBy { it.label }
-    }) }.stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    private val countryProposed = android.content.res.Resources.getSystem().configuration.locales[0].country.takeIf { it in Locale.getISOCountries() }
+    private val displayLocale = MutableStateFlow(Locale.getDefault())
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    private val countries = displayLocale.mapLatest { locale -> kotlinx.coroutines.withContext(runtime.parserDispatcher) { TrackingCountries.sorted(locale) } }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
     private val base = combine(runtime.state, runtime.device.state, runtime.preferences.country, runtime.playback.selection, runtime.actions.notice) { tracking, device, country, player, notice ->
         TrackingUiState(tracking, device, country, countryProposed, player = player, notice = notice,
             qr = (device as? DeviceAssociationState.Waiting)?.association?.verificationUrl?.let(QrCode::encode))
@@ -79,6 +89,10 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
             if (menu.value?.tracking?.sessionGeneration?.let { generation -> generation != it } == true) menu.value = null
             if (episodes.value?.content?.sessionGeneration?.let { generation -> generation != it } == true) endEpisodes()
         } }
+    }
+
+    fun displayLocale(locale: Locale) {
+        displayLocale.value = locale
     }
 
     fun menu(item: UpNextItem): Boolean {

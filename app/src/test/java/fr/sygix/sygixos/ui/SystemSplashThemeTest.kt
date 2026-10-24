@@ -25,7 +25,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class SystemSplashThemeTest {
 

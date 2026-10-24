@@ -526,7 +526,7 @@ private fun HeroOverlay(
             }
             if (launchable && current != null) {
                 HeroOpenButton(
-                    label = if (current.progress != null) "Reprendre" else "Ouvrir",
+                    label = stringResource(if (current.progress != null) R.string.hero_resume else R.string.hero_open),
                     focusRequester = buttonFocusRequester,
                     enabled = focusEnabled,
                     onClick = onOpen,

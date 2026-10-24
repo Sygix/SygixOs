@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_accessibility_label">Retour Home vers SygixOs</string>
+    <string name="home_accessibility_description">Ramène SygixOs à chaque appui sur la touche Home, à la place de l’accueil de la TV. Le service ne lit que la touche Home, jamais le contenu des écrans, et ne conserve aucune donnée. Il est facultatif et peut être désactivé dans ces réglages ; la touche Home retrouve alors son comportement habituel.</string>
+    <string name="launcher_system_group">Launcher système</string>
+    <string name="launcher_guide_row">Configurer SygixOs comme launcher principal</string>
+</resources>

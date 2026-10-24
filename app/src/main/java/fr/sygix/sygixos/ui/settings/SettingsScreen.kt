@@ -53,6 +53,7 @@ import androidx.compose.ui.zIndex
 import fr.sygix.sygixos.core.designsystem.tvClickable
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
+import fr.sygix.sygixos.domain.AppLanguage
 import fr.sygix.sygixos.domain.HiddenGroup
 import fr.sygix.sygixos.domain.UpNextContentKey
 
@@ -63,6 +64,7 @@ enum class SettingsCategory(@StringRes val label: Int) {
     HIDDEN(R.string.settings_category_hidden),
     HOME_SCREEN(R.string.settings_category_home_screen),
     TRACKING(R.string.tracking_title),
+    LANGUAGE(R.string.settings_category_language),
     ABOUT(R.string.settings_category_about),
     ;
 
@@ -79,6 +81,7 @@ class SettingsActions(
     val onExpandHidden: (HiddenGroup) -> Unit = {},
     val onHiddenFocused: (String) -> Unit = {},
     val onCategoryEntered: (SettingsCategory) -> Unit = {},
+    val onSelectLanguage: (AppLanguage?) -> Unit = {},
     val update: UpdateActions = UpdateActions(),
     val homeScreen: HomeScreenActions = HomeScreenActions(),
 )
@@ -208,6 +211,12 @@ fun SettingsScreen(
                         listState = contentListState,
                         focusEnabled = pane == SettingsPane.CONTENT,
                         contentFocus = contentFocus,
+                    )
+                    SettingsCategory.LANGUAGE -> LanguageContent(
+                        state = state.language,
+                        focusEnabled = pane == SettingsPane.CONTENT,
+                        contentFocus = contentFocus,
+                        onSelect = actions.onSelectLanguage,
                     )
                     SettingsCategory.HOME_SCREEN -> HomeScreenContent(
                         visible = state.upNextVisible,

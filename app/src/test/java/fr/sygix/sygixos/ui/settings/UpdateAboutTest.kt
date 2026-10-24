@@ -39,7 +39,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class UpdateAboutTest {
 
     @get:Rule
@@ -78,7 +78,7 @@ class UpdateAboutTest {
             }
         }
         compose.waitForIdle()
-        repeat(4) { press(Key.DirectionDown) }
+        repeat(5) { press(Key.DirectionDown) }
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
     }
 

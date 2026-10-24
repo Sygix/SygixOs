@@ -13,7 +13,7 @@ object PlaybackAppOrder {
     fun sort(apps: List<PlaybackApp>, publishers: Set<String>, offers: List<PlaybackOffer>, includeAll: Boolean = true): List<PlaybackApp> {
         val confirmed = offers.filter { it.confirmedCountry != null }.mapNotNull { normalize(it.name) }
         val mentioned = offers.filter { it.confirmedCountry == null }.mapNotNull { normalize(it.name) }
-        val collator = Collator.getInstance(Locale.FRENCH)
+        val collator = Collator.getInstance(Locale.getDefault())
         fun rank(app: PlaybackApp): Int {
             val label = normalize(app.label)
             return when {

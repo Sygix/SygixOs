@@ -50,7 +50,7 @@ import org.robolectric.android.controller.ActivityController
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class MainActivityLauncherTest {
     private val context: Context = ApplicationProvider.getApplicationContext()

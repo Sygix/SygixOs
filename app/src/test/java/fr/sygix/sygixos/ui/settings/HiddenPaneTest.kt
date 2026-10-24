@@ -41,7 +41,7 @@ import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class HiddenPaneTest {
 
     @get:Rule

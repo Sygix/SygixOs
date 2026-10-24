@@ -27,7 +27,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], qualifiers = "w960dp-h540dp-xhdpi")
+@Config(sdk = [34], qualifiers = "fr-w960dp-h540dp-xhdpi")
 class DefaultLauncherPanelTest {
     @get:Rule val compose = createComposeRule()
     private val state = mutableStateOf(LauncherSystemState(accessibility = SystemControlState.INACTIVE, overlay = SystemControlState.INACTIVE, defaultLauncher = DefaultLauncherState(snapshot = HomeScreenSnapshot())))

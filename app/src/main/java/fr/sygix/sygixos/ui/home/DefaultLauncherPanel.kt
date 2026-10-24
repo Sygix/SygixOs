@@ -131,7 +131,8 @@ private fun SetupStaticRow(row: SetupRow) {
 private fun rowDetail(row: SetupRow): String? {
     if (row.detail == 0) return null
     val repair = row.detailArg ?: return stringResource(row.detail)
-    val date = remember(repair.timeMs) { java.text.SimpleDateFormat("d MMM", java.util.Locale.FRENCH).format(java.util.Date(repair.timeMs)) }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    val date = remember(repair.timeMs, locale) { java.text.SimpleDateFormat(android.text.format.DateFormat.getBestDateTimePattern(locale, "dMMM"), locale).format(java.util.Date(repair.timeMs)) }
     val step = stringResource(if (repair.step == fr.sygix.sygixos.model.SetupStep.ACCESSIBILITY) R.string.setup_home_key else R.string.setup_vendor_boot)
     return stringResource(row.detail, date, step)
 }

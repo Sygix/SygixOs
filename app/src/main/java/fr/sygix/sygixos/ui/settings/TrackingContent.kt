@@ -44,6 +44,8 @@ internal fun trackingFailureLabel(failure: TrackingFailure): Int = when (failure
 internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: TrackingViewModel, enabled: Boolean, first: FocusRequester) {
     var dropdown by remember { mutableStateOf(false) }
     val countryFocus = remember { FocusRequester() }
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
+    LaunchedEffect(locale) { viewModel.displayLocale(locale) }
     LaunchedEffect(enabled) { if (!enabled) dropdown = false }
     LaunchedEffect(state.tracking.account?.id, enabled) { if (enabled) { withFrameNanos { }; first.tryRequestFocus() } }
     Column(Modifier.fillMaxWidth().testTag("tracking-settings")) {

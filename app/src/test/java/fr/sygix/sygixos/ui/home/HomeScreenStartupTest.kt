@@ -77,7 +77,7 @@ private class PosterFeed(private val items: List<HeroItem>) : HeroContentProvide
 
 @OptIn(ExperimentalTestApi::class)
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class HomeScreenStartupTest {
 
     private val scheduler = TestCoroutineScheduler()

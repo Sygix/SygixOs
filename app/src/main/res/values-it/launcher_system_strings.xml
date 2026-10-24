@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_accessibility_label">Tasto Home per SygixOs</string>
+    <string name="home_accessibility_description">Riporta a SygixOs ogni volta che premi il tasto Home, al posto della schermata Home della TV. Il servizio legge solo il tasto Home, mai il contenuto dello schermo, e non conserva alcun dato. È facoltativo e puoi disattivarlo in queste impostazioni; il tasto Home tornerà allora a funzionare come sempre.</string>
+    <string name="launcher_system_group">Launcher di sistema</string>
+    <string name="launcher_guide_row">Imposta SygixOs come launcher principale</string>
+</resources>

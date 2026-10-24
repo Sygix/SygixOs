@@ -19,7 +19,7 @@ object AppLauncher {
     fun open(context: Context, app: TvApp) {
         val intent = launchIntent(context, app.packageName)
         if (intent == null || !start(context, intent)) {
-            Toast.makeText(context, "Impossible d'ouvrir ${app.label}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.upnext_open_error, app.label), Toast.LENGTH_SHORT).show()
         }
     }
 

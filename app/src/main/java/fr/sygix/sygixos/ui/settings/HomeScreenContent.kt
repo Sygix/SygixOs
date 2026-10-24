@@ -126,7 +126,7 @@ internal fun Chevron(up: Boolean, color: Color, modifier: Modifier) {
 }
 
 @Composable
-private fun CheckGlyph(color: Color, modifier: Modifier) {
+internal fun CheckGlyph(color: Color, modifier: Modifier) {
     Canvas(modifier) {
         val stroke = GlyphStroke.toPx()
         drawLine(color, Offset(size.width * .15f, size.height * .55f), Offset(size.width * .4f, size.height * .8f), stroke, StrokeCap.Round)

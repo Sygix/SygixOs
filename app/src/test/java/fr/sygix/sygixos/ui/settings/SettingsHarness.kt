@@ -61,6 +61,7 @@ internal class SettingsHarness(
     var now = 1_000L
     val prefs = LauncherPrefs(testDataStore(scope)) { now }
     val repo = AppCatalogRepository(InstalledAppsSource(context), prefs, dispatcher)
+    val languages = FakeLanguageGateway()
     val toggled = mutableListOf<String>()
     val restored = mutableListOf<UpNextContentKey>()
     var unhideAllCalls = 0
@@ -77,6 +78,7 @@ internal class SettingsHarness(
                 pm = context.packageManager,
                 selfPackage = context.packageName,
                 updates = updates,
+                languages = languages,
             ) as T
         }
         track(ViewModelProvider(store, factory)[SettingsViewModel::class.java])
@@ -153,6 +155,7 @@ internal class SettingsHarness(
                     onExpandHidden = viewModel::expandHidden,
                     onHiddenFocused = viewModel::onHiddenFocused,
                     onCategoryEntered = viewModel::enterCategory,
+                    onSelectLanguage = viewModel::selectLanguage,
                     update = viewModel.actions.update,
                     homeScreen = viewModel.actions.homeScreen,
                 ),

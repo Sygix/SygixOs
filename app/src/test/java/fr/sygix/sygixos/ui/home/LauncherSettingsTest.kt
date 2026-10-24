@@ -36,7 +36,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class LauncherSettingsTest {
     @get:Rule val compose = createComposeRule()
     @get:Rule val viewModels = LauncherViewModelRule()
@@ -99,7 +99,7 @@ class LauncherSettingsTest {
         listOf("setting-home-role", "setting-boot-start", "setting-accessibility-home", "onboarding-row-boot").forEach {
             compose.onNodeWithTag(it).assertDoesNotExist()
         }
-        assertEquals(listOf(SettingsCategory.SOURCES, SettingsCategory.HIDDEN, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING, SettingsCategory.ABOUT), SettingsCategory.entries)
+        assertEquals(listOf(SettingsCategory.SOURCES, SettingsCategory.HIDDEN, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING, SettingsCategory.LANGUAGE, SettingsCategory.ABOUT), SettingsCategory.entries)
     }
 
     @Test

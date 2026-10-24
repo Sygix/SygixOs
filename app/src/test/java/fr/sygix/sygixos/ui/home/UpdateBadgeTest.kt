@@ -46,7 +46,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class UpdateBadgeTest {
 
     @get:Rule
@@ -149,7 +149,7 @@ class UpdateBadgeTest {
         compose.onNodeWithTag("update-badge-gear", useUnmergedTree = true).assertDoesNotExist()
         press(Key.DirectionUp)
         press(Key.Enter)
-        repeat(4) { press(Key.DirectionDown) }
+        repeat(5) { press(Key.DirectionDown) }
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
         compose.onNodeWithTag("update-badge-about", useUnmergedTree = true).assertDoesNotExist()
         press(Key.DirectionRight)

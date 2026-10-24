@@ -662,7 +662,7 @@ internal fun LauncherHome(
                 shape = CapsuleShape,
             ) {
                 Text(
-                    "Flèches : déplacer  ·  OK : valider  ·  Retour : annuler",
+                    stringResource(R.string.move_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.85f),
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),

@@ -93,11 +93,9 @@ private val UnhideAllGap = 20.dp
 private const val PlaceholderArea = 0.5f
 private const val IconHeightFraction = 0.8f
 
-internal fun programCountLabel(count: Int): String = when (count) {
-    0 -> "Aucun programme publié"
-    1 -> "1 programme publié"
-    else -> "$count programmes publiés"
-}
+@Composable
+internal fun programCountLabel(count: Int): String =
+    if (count == 0) stringResource(R.string.sources_program_none) else pluralStringResource(R.plurals.sources_program_count, count, count)
 
 internal suspend fun FocusTargets.revealRow(list: LazyListState, key: String, position: Int): Boolean =
     position >= 0 && reveal(key) {

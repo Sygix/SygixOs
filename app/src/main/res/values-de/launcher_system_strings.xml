@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_accessibility_label">Home-Taste öffnet SygixOs</string>
+    <string name="home_accessibility_description">Bringt dich bei jedem Druck auf die Home-Taste zu SygixOs statt zum Startbildschirm des Fernsehers. Der Dienst liest nur die Home-Taste, nie Bildschirminhalte, und speichert keine Daten. Er ist optional und lässt sich in diesen Einstellungen deaktivieren; die Home-Taste funktioniert dann wieder wie gewohnt.</string>
+    <string name="launcher_system_group">System-Launcher</string>
+    <string name="launcher_guide_row">SygixOs als Haupt-Launcher einrichten</string>
+</resources>

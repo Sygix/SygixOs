@@ -21,7 +21,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class SettingsHeaderGapTest {
     @get:Rule val compose = createComposeRule()
     private val harness = SettingsHarness()
@@ -54,6 +54,8 @@ class SettingsHeaderGapTest {
         assertEquals(expected, gap(hasText("Choisissez ce qu'affiche l'accueil de SygixOs."), "setting-upnext-visible"), 0.5f)
         press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-TRACKING").assertExists()
+        press(Key.DirectionDown)
+        assertEquals(expected, gap(hasText("Choisissez la langue de SygixOs. Par défaut, il suit la langue de la TV."), "setting-language-system"), 0.5f)
         press(Key.DirectionDown)
         assertEquals(expected, gap(hasText("SygixOs est un logiciel libre", substring = true), "update-check"), 0.5f)
     }

@@ -107,7 +107,7 @@ class HomeGridTest {
     }
 
     @Test
-    @Config(qualifiers = "w960dp-h540dp-xhdpi")
+    @Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
     fun `a deep row with its shelf open stays on screen and the hero never comes back while in the grid`() {
         val apps = (0 until 40).map { app("com.a%02d".format(it), "App $it") }
         val withPosters = listOf("com.a05", "com.a25")
@@ -164,7 +164,7 @@ class HomeGridTest {
     }
 
     @Test
-    @Config(qualifiers = "w960dp-h540dp-xhdpi")
+    @Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
     fun `closing the shelf on the first row brings the grid back to its start without showing the hero`() {
         val apps = (0 until 8).map { app("com.a%02d".format(it), "App $it") }
         compose.mainClock.autoAdvance = false

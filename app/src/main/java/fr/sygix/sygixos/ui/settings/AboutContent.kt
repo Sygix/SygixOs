@@ -128,7 +128,7 @@ internal fun AboutContent(
         }
         item(key = "about-licenses-title") {
             Text(
-                "Licences open source",
+                stringResource(R.string.about_licenses_title),
                 style = MaterialTheme.typography.titleMedium,
                 color = Color.White,
                 modifier = Modifier.testTag("about-licenses"),
@@ -194,14 +194,13 @@ private fun AboutHeader(version: String) {
             modifier = Modifier.testTag("about-version"),
         )
         Text(
-            "Version $version",
+            stringResource(R.string.about_version, version),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.6f),
         )
         Spacer(Modifier.height(12.dp))
         Text(
-            "SygixOs est un logiciel libre distribué sous licence GNU AGPL-3.0. " +
-                "Le code source est disponible sur github.com/Sygix/SygixOs.",
+            stringResource(R.string.about_license_notice),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White.copy(alpha = 0.7f),
         )
@@ -286,7 +285,7 @@ private fun LicenseRow(
             color = colors.content,
         )
         Text(
-            licenses.ifEmpty { "Licence non renseignée" },
+            licenses.ifEmpty { stringResource(R.string.about_license_unknown) },
             style = TextStyles.RowSecondary,
             color = colors.secondary,
         )

@@ -46,7 +46,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class SettingsNavigationTest {
 
     @get:Rule
@@ -109,7 +109,7 @@ class SettingsNavigationTest {
     }
 
     private fun openAboutAndWaitForLicenses() {
-        repeat(4) { press(Key.DirectionDown) }
+        repeat(5) { press(Key.DirectionDown) }
         compose.waitUntil(10_000) { compose.onAllNodes(licenseRow).fetchSemanticsNodes().isNotEmpty() }
     }
 
@@ -144,7 +144,11 @@ class SettingsNavigationTest {
         press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-TRACKING").assertIsFocused()
         press(Key.DirectionDown)
+        compose.onNodeWithTag("settings-category-LANGUAGE").assertIsFocused()
+        press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("settings-category-LANGUAGE").assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-category-TRACKING").assertIsFocused()
         press(Key.DirectionUp)
@@ -158,7 +162,7 @@ class SettingsNavigationTest {
         setState()
         press(Key.DirectionUp)
         compose.onNodeWithTag("settings-category-SOURCES").assertIsFocused()
-        repeat(4) { press(Key.DirectionDown) }
+        repeat(5) { press(Key.DirectionDown) }
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
         press(Key.DirectionDown)
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()

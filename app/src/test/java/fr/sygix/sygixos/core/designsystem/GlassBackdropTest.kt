@@ -39,7 +39,7 @@ import org.robolectric.annotation.GraphicsMode
 import kotlin.math.roundToInt
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class GlassBackdropTest {
 

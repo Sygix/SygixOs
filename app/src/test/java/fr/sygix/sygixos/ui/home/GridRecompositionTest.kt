@@ -52,7 +52,7 @@ private class CountingArtworkSource(context: Context) : AppArtworkSource(context
 }
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class GridRecompositionTest {
 
     @get:Rule

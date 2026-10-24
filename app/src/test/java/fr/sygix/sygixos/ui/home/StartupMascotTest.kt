@@ -32,7 +32,7 @@ private class PendingMascotSource : MascotAnimationSource {
 }
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class StartupMascotTest : StartupHostTest(motionScale = 1f) {
 
     @Test

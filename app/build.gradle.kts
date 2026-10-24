@@ -74,6 +74,10 @@ android {
         compose = true
         aidl = true
     }
+    androidResources {
+        generateLocaleConfig = true
+        localeFilters += listOf("en", "de", "es", "fr", "it")
+    }
     testOptions { unitTests { isIncludeAndroidResources = true } }
 }
 

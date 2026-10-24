@@ -14,11 +14,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import fr.sygix.sygixos.SygixOsApp
+import fr.sygix.sygixos.data.AndroidAppLanguageGateway
 import fr.sygix.sygixos.data.AppCatalogRepository
+import fr.sygix.sygixos.data.AppLanguageGateway
 import fr.sygix.sygixos.data.AppIconCache
 import fr.sygix.sygixos.data.UpdateController
+import fr.sygix.sygixos.domain.AppLanguage
 import fr.sygix.sygixos.domain.HiddenGroup
 import fr.sygix.sygixos.domain.HiddenPaneLayout
+import fr.sygix.sygixos.domain.LanguageState
 import fr.sygix.sygixos.domain.SettingsOrdering
 import fr.sygix.sygixos.domain.UpNextContentKey
 import fr.sygix.sygixos.model.TvApp
@@ -101,6 +105,7 @@ data class SettingsState(
     val hiddenContents: List<HiddenContentRow> = emptyList(),
     val hiddenExpanded: Set<HiddenGroup> = emptySet(),
     val hiddenRefocus: HiddenRefocus? = null,
+    val language: LanguageState = LanguageState(),
 ) {
     val hiddenEntries: List<HiddenEntry> by lazy { buildHiddenEntries(hiddenRows, hiddenContents, hiddenExpanded) }
 
@@ -111,7 +116,7 @@ data class SettingsState(
     fun canEnter(category: SettingsCategory): Boolean = when (category) {
         SettingsCategory.SOURCES -> sources.isNotEmpty()
         SettingsCategory.HIDDEN -> hiddenRows.isNotEmpty() || hiddenContents.isNotEmpty()
-        SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING -> true
+        SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING, SettingsCategory.LANGUAGE -> true
     }
 }
 
@@ -121,6 +126,7 @@ class SettingsViewModel(
     private val pm: PackageManager,
     private val selfPackage: String,
     private val updates: UpdateController,
+    private val languages: AppLanguageGateway,
     private val labelOf: (String) -> String? = { pkg ->
         runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
     },
@@ -168,6 +174,8 @@ class SettingsViewModel(
         }
     }
 
+    private val language = MutableStateFlow(languages.current())
+
     private val updateMapper = AboutUpdateMapper()
 
     private val aboutUpdate = combine(updates.status, updates.systemScreenReturns) { status, returns -> updateMapper.map(status, returns) }
@@ -196,7 +204,8 @@ class SettingsViewModel(
         state.copy(upNextVisible = preferences.first, upNextPosition = preferences.second, visualMotion = preferences.third)
     }.combine(combine(hiddenContents, hiddenExpanded) { contents, expanded -> contents to expanded }) { state, hidden ->
         state.copy(hiddenContents = hidden.first, hiddenExpanded = hidden.second)
-    }.combine(hiddenVisit) { state, visit -> withHiddenRefocus(state, visit) }
+    }.combine(language) { state, language -> state.copy(language = language) }
+        .combine(hiddenVisit) { state, visit -> withHiddenRefocus(state, visit) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     init {
@@ -207,6 +216,7 @@ class SettingsViewModel(
     }
 
     fun enterCategory(category: SettingsCategory) {
+        language.value = languages.current()
         when (category) {
             SettingsCategory.SOURCES -> sourceCounts.value = counts.value
             SettingsCategory.HIDDEN -> {
@@ -216,7 +226,7 @@ class SettingsViewModel(
                 hiddenFocusedIndex = 0
                 hiddenVisit.update { it + 1 }
             }
-            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING -> Unit
+            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING, SettingsCategory.LANGUAGE -> Unit
         }
     }
 
@@ -232,6 +242,7 @@ class SettingsViewModel(
         onExpandHidden = ::expandHidden,
         onHiddenFocused = ::onHiddenFocused,
         onCategoryEntered = ::enterCategory,
+        onSelectLanguage = ::selectLanguage,
         update = UpdateActions(updates::check, updates::startUpdate, updates::togglePrereleases),
         homeScreen = HomeScreenActions(
             onToggleUpNext = { viewModelScope.launch { apps.setUpNextVisible(!state.value.upNextVisible) } },
@@ -265,6 +276,12 @@ class SettingsViewModel(
         hiddenExpanded.update { it + group }
     }
 
+    fun selectLanguage(selected: AppLanguage?) {
+        if (selected == language.value.selected) return
+        language.update { it.copy(selected = selected) }
+        languages.select(selected)
+    }
+
     fun restoreUpNext(key: UpNextContentKey) {
         viewModelScope.launch { apps.restoreUpNext(key) }
     }
@@ -294,6 +311,7 @@ class SettingsViewModel(
                 pm = app.packageManager,
                 selfPackage = app.packageName,
                 updates = app.updateRepository,
+                languages = AndroidAppLanguageGateway(app),
             ) as T
         }
     }

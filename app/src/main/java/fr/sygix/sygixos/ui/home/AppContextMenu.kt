@@ -73,12 +73,12 @@ internal fun AppContextMenu(
     ContextMenuPanel(modifier.testTag("app-menu")) {
         MenuHeader(app)
         MenuAction(
-            text = if (pinState == PinState.PINNED) "Retirer du dock" else "Épingler au dock",
+            text = stringResource(if (pinState == PinState.PINNED) R.string.menu_unpin else R.string.menu_pin),
             action = "pin", onClick = onTogglePin, focusRequester = firstFocus,
             unavailable = if (pinState == PinState.DOCK_FULL) stringResource(R.string.menu_dock_full, AppCatalog.MAX_DOCK) else null,
         )
-        if (onMove != null) MenuAction(text = "Déplacer", action = "move", onClick = onMove)
-        MenuAction(text = "Cacher", action = "hide", onClick = onHide)
+        if (onMove != null) MenuAction(text = stringResource(R.string.menu_move), action = "move", onClick = onMove)
+        MenuAction(text = stringResource(R.string.menu_hide), action = "hide", onClick = onHide)
     }
 }
 

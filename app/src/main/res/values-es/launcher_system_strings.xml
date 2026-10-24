@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_accessibility_label">Volver a SygixOs con Inicio</string>
+    <string name="home_accessibility_description">Abre SygixOs cada vez que pulsas el botón de inicio, en lugar de la pantalla de inicio de la TV. El servicio solo lee el botón de inicio, nunca el contenido de la pantalla, y no guarda ningún dato. Es opcional y puedes desactivarlo en estos ajustes; el botón de inicio vuelve entonces a su comportamiento habitual.</string>
+    <string name="launcher_system_group">Launcher del sistema</string>
+    <string name="launcher_guide_row">Configurar SygixOs como launcher principal</string>
+</resources>

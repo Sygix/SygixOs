@@ -5,6 +5,8 @@
 
 package fr.sygix.sygixos.ui.home
 
+import androidx.compose.ui.res.stringResource
+import fr.sygix.sygixos.R
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -69,7 +71,7 @@ internal fun Dock(
         ) {
             if (apps.isEmpty()) {
                 Text(
-                    "Épinglez des apps depuis la grille (appui long)",
+                    stringResource(R.string.dock_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = SygixColors.OnDarkSecondary,
                     modifier = Modifier.padding(horizontal = 28.dp, vertical = 36.dp),

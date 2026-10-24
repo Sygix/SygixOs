@@ -30,7 +30,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class HomeScreenPaneTest {
     @get:Rule val compose = createComposeRule()
     private val harness = SettingsHarness()

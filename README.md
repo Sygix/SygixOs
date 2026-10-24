@@ -26,10 +26,11 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Dark glass**: translucent glass with live blur on the dock, capsule, context menu and move-mode banner.
 - **Top Shelf preview**: artwork appears above an app tile after a short hover and pans once.
 - **Clock and settings capsule**: time and settings gear in a small glass capsule at the top right of the hero.
-- **Settings**: choose source apps, hide and restore apps, manage removed content, show and place À suivre, turn off the slow zoom of the hero and Top Shelf visuals (“Mouvement des visuels”) for a still home screen on modest TVs, version and licenses, check for updates.
+- **Settings**: choose source apps, hide and restore apps, manage removed content, show and place À suivre, turn off the slow zoom of the hero and Top Shelf visuals (“Mouvement des visuels”) for a still home screen on modest TVs, choose the interface language, version and licenses, check for updates.
 - **System launcher**: guided setup to make SygixOs your home screen, automatic or by permissions, with restore before uninstall.
 - **Self-update**: daily background check, signaled by a blue dot; nothing downloads without your consent.
 - **Never a black screen**: falls back to nature clips, then a settling gradient.
+- **Five languages**: English, French, German, Italian and Spanish. SygixOs follows the TV's language by default (English when it isn't translated), and Settings › Language sets another one for SygixOs only.
 - **Fully local**: no backend, no telemetry, no hard-coded app list.
 
 ## Roadmap
@@ -39,7 +40,8 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Launcher core** — app grid, dock, dark glass design system, tvOS-inspired focus and animations
 - **Home hero** — full-screen slideshow of the content published by your apps, with preview video, source attribution and progress
 - **À suivre** — unified Up Next row across all apps, with opened-first ordering and removal
-- **Settings** — source apps, hidden apps, about, updates
+- **Settings** — source apps, hidden apps, language, about, updates
+- **Languages** — English, French, German, Italian and Spanish, following the TV's language by default
 - **Startup splash** — animated mascot on cold start
 - **Built-in updates** — check, download and install new versions from GitHub
 - **System launcher setup** — guided setup to make SygixOs your home screen, automatic or by permissions
@@ -51,7 +53,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Search**
 - **Remote button remapping**
 
-Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Follow-ups deferred after v0.0.1, not specified yet, are tracked in [`openspec/backlog.md`](openspec/backlog.md). Specs and the user interface are written in French.
+Detailed requirements for each feature live in [`openspec/specs/`](openspec/specs), and ongoing changes in [`openspec/changes/`](openspec/changes). Follow-ups deferred after v0.0.1, not specified yet, are tracked in [`openspec/backlog.md`](openspec/backlog.md). Specs are written in French; the interface is available in English, French, German, Italian and Spanish.
 
 ## Requirements
 

@@ -62,7 +62,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
-@Config(qualifiers = "w960dp-h540dp-xhdpi")
+@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
 class UpNextCardsTest {
     @Test fun `same title movies without published identities keep distinct card slots`() {
         val first = movie(1).copy(title = "Same fiction", imageUrl = "https://example.invalid/first.jpg", posterUrl = "https://example.invalid/first.jpg")

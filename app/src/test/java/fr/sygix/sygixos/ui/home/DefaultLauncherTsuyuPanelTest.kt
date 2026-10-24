@@ -27,7 +27,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], qualifiers = "w960dp-h540dp-xhdpi")
+@Config(sdk = [34], qualifiers = "fr-w960dp-h540dp-xhdpi")
 class DefaultLauncherTsuyuPanelTest {
     @get:Rule val compose = createComposeRule()
     private val release = TsuyuRelease("v1.0.0", false, "https://example.invalid/tsuyu.apk", 10, "a".repeat(64))
