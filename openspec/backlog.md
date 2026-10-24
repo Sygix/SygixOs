@@ -26,3 +26,9 @@ Dernière revue : **24 octobre 2026**, après v0.4.0 (retours du propriétaire s
 **Constat** : le menu d'une carte BetaSeries (appui long) ne reprend pas l'en-tête du menu d'un contenu d'app : il affiche le titre seul, sans la petite affiche. Ces menus saccadent un peu à l'ouverture.
 
 **Piste** : un seul en-tête de menu pour tous les contenus (vignette + titre). Pour la fluidité, garder le flou du verre en arrière-plan ; mesurer l'animation d'ouverture (ombre portée animée en même temps que le flou) et alléger l'ombre ou la précalculer pendant l'animation.
+
+## 21. QR code de connexion BetaSeries de moindre qualité
+
+**Constat** : le QR code d'association de la TV à BetaSeries affiche de petits traits blancs entre les modules, contrairement au QR code des notes de version dans À propos, qui est net.
+
+**Piste** : les deux QR codes sont dessinés par deux composants différents (`TrackingQr` en blanc et noir purs, module à taille fractionnaire ; `ReleaseNotesQr` avec les couleurs `QrLight` / `QrDark` et les coins arrondis). Un seul composant de QR code pour les deux, aligné sur celui des notes de version ; dessiner les modules sur des pixels entiers (ou en un seul tracé) pour supprimer les jointures, puis vérifier sur la TV.
