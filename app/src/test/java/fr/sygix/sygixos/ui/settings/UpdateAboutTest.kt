@@ -78,7 +78,7 @@ class UpdateAboutTest {
             }
         }
         compose.waitForIdle()
-        repeat(3) { press(Key.DirectionDown) }
+        repeat(4) { press(Key.DirectionDown) }
         compose.onNodeWithTag("settings-category-ABOUT").assertIsFocused()
     }
 

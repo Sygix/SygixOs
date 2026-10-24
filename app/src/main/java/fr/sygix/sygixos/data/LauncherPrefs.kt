@@ -82,6 +82,18 @@ class LauncherPrefs(
         store.edit { prefs -> writeRemoved(prefs, readRemoved(prefs).filterNot { it.key == key }) }
     }
 
+    override suspend fun enrich(links: List<fr.sygix.sygixos.domain.UpNextIdentityLink>) {
+        if (links.isEmpty()) return
+        store.edit { prefs ->
+            val opened = readOpened(prefs)
+            val removed = readRemoved(prefs)
+            val nextOpened = fr.sygix.sygixos.domain.UpNextIdentityMigration.opened(opened, links)
+            val nextRemoved = fr.sygix.sygixos.domain.UpNextIdentityMigration.removed(removed, links)
+            if (opened != nextOpened) writeOpened(prefs, nextOpened)
+            if (removed != nextRemoved) writeRemoved(prefs, nextRemoved)
+        }
+    }
+
     private fun readOpened(prefs: Preferences): Map<UpNextContentKey, Long> =
         prefs[upNextOpenedKey]?.split(LINE).orEmpty().mapNotNull { line ->
             val parts = line.split(FIELD)

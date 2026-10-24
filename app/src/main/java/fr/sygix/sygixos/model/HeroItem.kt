@@ -29,8 +29,16 @@ data class HeroItem(
     val episodeArtwork: Boolean = season != null || episode != null,
     val seriesId: String? = null,
     val artworkFailed: Boolean = false,
+    val tracking: fr.sygix.sygixos.tracking.TrackingContent? = null,
+    val playbackTargets: List<fr.sygix.sygixos.tracking.PlaybackTarget> = emptyList(),
+    val artworkOverride: ProgramArtwork? = null,
 ) {
-    val artwork: ProgramArtwork get() = ProgramArtwork(
+    val artwork: ProgramArtwork get() = artworkOverride ?: tracking?.let { content -> ProgramArtwork(
+        content.identity.provider, listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
+        listOf(content.identity, title, season, episode, imageUrl, thumbnailUrl, posterUrl).joinToString("\u0000"),
+        publicationId = "tracking-hero-${content.identity.type}-${content.identity.id}",
+        sharedIdentity = "${content.parent.provider}:${content.parent.type}:${content.parent.id}",
+    ) } ?: ProgramArtwork(
         sourcePackage.orEmpty(), listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
         listOf(sourcePackage, id.substringBefore('-'), title, launchUri, internalProviderId, contentId, releaseDate, season, episode, seriesId, episodeArtwork, posterUrl ?: imageUrl, thumbnailUrl, videoUrl.takeIf { sourcePackage == null }).joinToString("\u0000"),
         publicationId = id,

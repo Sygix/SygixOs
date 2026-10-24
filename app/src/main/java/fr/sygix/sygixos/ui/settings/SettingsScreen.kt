@@ -62,6 +62,7 @@ enum class SettingsCategory(@StringRes val label: Int) {
     SOURCES(R.string.settings_category_sources),
     HIDDEN(R.string.settings_category_hidden),
     HOME_SCREEN(R.string.settings_category_home_screen),
+    TRACKING(R.string.tracking_title),
     ABOUT(R.string.settings_category_about),
     ;
 
@@ -91,6 +92,7 @@ fun SettingsScreen(
     onBack: () -> Unit = {},
     homeHandlesBack: Boolean = true,
     homeScreenRows: @Composable ColumnScope.(Boolean) -> Unit = {},
+    trackingContent: @Composable (Boolean, FocusRequester) -> Unit = { _, _ -> },
 ) {
     var categoryIndex by rememberSaveable { mutableIntStateOf(SettingsCategory.Initial.ordinal) }
     var pane by rememberSaveable { mutableStateOf(SettingsPane.CATEGORIES) }
@@ -177,6 +179,7 @@ fun SettingsScreen(
             }
             Box(Modifier.weight(1f).fillMaxHeight().padding(start = PaneGap, end = ContentEnd, top = PaneTop)) {
                 when (category) {
+                    SettingsCategory.TRACKING -> trackingContent(pane == SettingsPane.CONTENT, contentFocus)
                     SettingsCategory.SOURCES -> SourcesContent(
                         rows = state.sources,
                         counts = counts,

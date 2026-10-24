@@ -35,6 +35,8 @@
         <intent><action android:name="android.settings.HOME_SETTINGS" /></intent>
         <intent><action android:name="android.settings.MANAGE_DEFAULT_APPS_SETTINGS" /></intent>
         <intent><action android:name="android.settings.ACCESSIBILITY_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.NOTIFICATION_LISTENER_SETTINGS" /></intent>
+        <intent><action android:name="android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS" /></intent>
         <intent><action android:name="android.settings.action.MANAGE_OVERLAY_PERMISSION" /></intent>
     </queries>
 

@@ -82,6 +82,8 @@ internal fun TestHome(
     onMoveInGrid: (TvApp, Int) -> Unit = { _, _ -> },
     upNext: UpNextState? = null,
     settingsActions: SettingsActions = SettingsActions(),
+    trackingViewModel: fr.sygix.sygixos.tracking.TrackingViewModel? = null,
+    trackingUi: fr.sygix.sygixos.tracking.TrackingUiState? = null,
 ) {
     val packageManager = LocalContext.current.packageManager
     val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
@@ -108,6 +110,8 @@ internal fun TestHome(
                 onMoveInGrid = onMoveInGrid,
                 upNext = upNext,
                 settingsActions = settingsActions,
+                trackingViewModel = trackingViewModel,
+                trackingUi = trackingUi,
             )
         }
     }

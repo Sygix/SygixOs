@@ -101,6 +101,7 @@ class HomeViewModel(
     private val onArtworkBackground: () -> Unit = {},
     private val order: fr.sygix.sygixos.domain.HeroOrder = HeroSessionOrder(),
     private val programClock: () -> Long = System::currentTimeMillis,
+    val tracking: fr.sygix.sygixos.tracking.TrackingRuntime? = null,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -112,6 +113,7 @@ class HomeViewModel(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), updates.status.value.badge)
 
     private val rawFeed = MutableStateFlow(HeroFeed.Empty)
+    private var projectedPublications = emptyList<HeroItem>()
     private var fallbackItems: List<HeroItem> = emptyList()
     private val validated = MutableStateFlow<Map<String, String>>(emptyMap())
     private val retainedHero = MutableStateFlow<Map<String, HeroItem>>(emptyMap())
@@ -143,7 +145,9 @@ class HomeViewModel(
     private val validationBatches = java.util.concurrent.ConcurrentHashMap<Job, Boolean>()
 
     private val upNext = upNextSource?.let {
-        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory)
+        UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory,
+            tracking = tracking?.state ?: MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()), enrichment = tracking?.enrichment?.contents ?: MutableStateFlow(emptyMap()),
+            readers = tracking?.readers ?: MutableStateFlow(emptyMap()))
     }
 
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
@@ -151,9 +155,20 @@ class HomeViewModel(
     val heroUpdates: Flow<Unit> = merge(hero.changes(), artwork.changes.drop(1).map { Unit }, flow { while (true) { delay(HERO_TTL_MS); emit(Unit) } })
         .onEach { refreshHero(); refreshUpNext() }
 
+    private val visibleFeed = combine(rawFeed, tracking?.state ?: MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()),
+        tracking?.enrichment?.contents ?: MutableStateFlow(emptyMap()), upNextMemory.removed, apps.disabledSources) { feed, session, _, removed, disabled ->
+        val visible = if (tracking == null) feed else {
+            val projected = fr.sygix.sygixos.tracking.TrackingHeroSource.project(fr.sygix.sygixos.domain.HeroRead(feed.items, shelfItems = feed.shelfItems), session,
+                removed.map { it.key }, tracking.enrichment.items(), disabled)
+            feed.copy(items = projected.items, fromApps = feed.fromApps || projected.items.any { it.tracking != null }, shelfItems = projected.shelfItems)
+        }
+        projectedPublications = visible.publications
+        visible.copy(items = order.arrange(visible.items))
+    }
+
     val state: StateFlow<HomeState> = combine(
         apps.catalog,
-        rawFeed,
+        visibleFeed,
         apps.disabledSources,
         heroVisuals,
         checked,
@@ -165,14 +180,14 @@ class HomeViewModel(
             (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in failed)).copy(expiresAt = Long.MAX_VALUE)
         }
         val hero = HeroState(items.ifEmpty { fallbackItems }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
-            shelfItems = shown.items, generations = generations.filterKeys { id -> items.any { it.id == id } })
+            shelfItems = shown.shelfItems ?: shown.items.filter { it.tracking == null }, generations = generations.filterKeys { id -> items.any { it.id == id } })
         val heroItems = shown.items.asSequence()
             .take(VisualQuality.HERO_VALIDATED)
             .toList()
         launchHeroValidationIfNeeded(heroItems)
-        if (shown.items != lastItems) {
-            lastItems = shown.items
-            lastShelfPackage?.let { requestShelf(it, shown.items) }
+        if (shown.publications != lastItems) {
+            lastItems = shown.publications
+            lastShelfPackage?.let { requestShelf(it, hero.shelfItems.orEmpty()) }
         }
         HomeState.Ready(catalog, hero)
     }.combine(shelfVisuals) { ready, visualState ->
@@ -202,6 +217,12 @@ class HomeViewModel(
     val startup: StateFlow<StartupPhase> = startupController.phase
 
     init {
+        tracking?.let { runtime ->
+            runtime.controller.restore()
+            viewModelScope.launch { runtime.opened.collect { request ->
+                if (request.origin == fr.sygix.sygixos.tracking.PlaybackOrigin.UP_NEXT) upNext?.opened(fr.sygix.sygixos.tracking.TrackingProjection.card(request.content))
+            } }
+        }
         viewModelScope.launch { artwork.changes.collect { apps.refreshApps() } }
         viewModelScope.launch(startupDispatcher) {
             startup.first { it == StartupPhase.Done }
@@ -233,23 +254,33 @@ class HomeViewModel(
     }
 
     private fun validateHero() {
-        heroValidationJob = launchValidation(rawFeed.value.items.filter { it.sourcePackage !in disabledHeroSources }.take(VisualQuality.HERO_VALIDATED), holdAfterFirstDuringStartup = true)
+        heroValidationJob = launchValidation(lastHeroItems.filter { it.tracking != null || it.sourcePackage !in disabledHeroSources }.take(VisualQuality.HERO_VALIDATED), holdAfterFirstDuringStartup = true)
     }
 
     fun refreshUpNext() { upNext?.refresh() }
 
     fun openUpNext(item: UpNextItem, source: UpNextSourceEntry? = null) {
+        if (item.tracking?.membership == fr.sygix.sygixos.tracking.AccountMembership.PRESENT && tracking != null) {
+            tracking.playback.open(fr.sygix.sygixos.tracking.PlaybackRequest(item.tracking, fr.sygix.sygixos.tracking.PlaybackOrigin.UP_NEXT,
+                item.sources.mapNotNull { entry -> entry.targetIdentity?.let { target -> fr.sygix.sygixos.tracking.PlaybackTarget(entry.packageName, target, entry.intentUri) } }))
+            return
+        }
         if (upNextOpener.open(item, source)) upNext?.opened(item)
+    }
+
+    fun openHero(item: HeroItem, local: () -> Unit) {
+        if (item.tracking != null && tracking != null) tracking.playback.open(fr.sygix.sygixos.tracking.PlaybackRequest(item.tracking, fr.sygix.sygixos.tracking.PlaybackOrigin.HERO, item.playbackTargets)) else local()
     }
 
     fun removeUpNext(item: UpNextItem) { upNext?.remove(item) }
 
     fun onUpNextReturnHandled(id: Long) { upNext?.returnHandled(id) }
 
-    fun onForeground() { foreground = true; expirePrograms(); onArtworkForeground(); updates.onForeground() }
+    fun onForeground() { foreground = true; tracking?.onForeground(); expirePrograms(); onArtworkForeground(); updates.onForeground() }
 
     fun onBackground() {
         foreground = false
+        tracking?.onBackground()
         onArtworkBackground()
         validationBatches.keys.forEach { it.cancel() }
     }
@@ -264,13 +295,13 @@ class HomeViewModel(
         heroRefreshJob = viewModelScope.launch {
             fallbackItems = hero.fallbackItems()
             val feed = hero.load()
-            val previous = rawFeed.value.items.associateBy { it.artwork.identity }
+            val previous = rawFeed.value.publications.associateBy { it.artwork.identity }
             val checkedHero = heroChecks.values.map { it.identity }.toSet()
             val checkedShelf = shelfChecks.values.map { it.identity }.toSet()
-            val retryHero = rawFeed.value.items.filter { it.id in retryable.value }.map { it.artwork.identity }.toSet()
-            val retryShelf = rawFeed.value.items.filter { it.id in shelfRetryable.value }.map { it.artwork.identity }.toSet()
-            val previousByContent = rawFeed.value.items.associateBy(::contentIdentity)
-            fun retained(previousImages: Map<String, String>, alreadyRetained: Map<String, HeroItem>): Map<String, HeroItem> = feed.items.mapNotNull { item ->
+            val retryHero = rawFeed.value.publications.filter { it.id in retryable.value }.map { it.artwork.identity }.toSet()
+            val retryShelf = rawFeed.value.publications.filter { it.id in shelfRetryable.value }.map { it.artwork.identity }.toSet()
+            val previousByContent = rawFeed.value.publications.associateBy(::contentIdentity)
+            fun retained(previousImages: Map<String, String>, alreadyRetained: Map<String, HeroItem>): Map<String, HeroItem> = feed.publications.mapNotNull { item ->
                 val old = previousByContent[contentIdentity(item)]
                 val held = alreadyRetained.values.firstOrNull { contentIdentity(it) == contentIdentity(item) }
                 val retained = held ?: old?.takeIf { it.artwork.identity != item.artwork.identity }?.let { oldItem -> previousImages[oldItem.id]?.let { oldItem.copy(imageUrl = it) } }
@@ -278,15 +309,15 @@ class HomeViewModel(
             }.toMap()
             retainedHero.value = retained(validated.value, retainedHero.value)
             retainedShelf.value = retained(shelfResults.value, retainedShelf.value)
-            val previousValidated = rawFeed.value.items.mapNotNull { old -> validated.value[old.id]?.let { old.artwork.identity to it } }.toMap()
-            val previousShelf = rawFeed.value.items.mapNotNull { old -> shelfResults.value[old.id]?.let { old.artwork.identity to it } }.toMap()
-            val ids = feed.items.map { it.id }.toSet()
+            val previousValidated = rawFeed.value.publications.mapNotNull { old -> validated.value[old.id]?.let { old.artwork.identity to it } }.toMap()
+            val previousShelf = rawFeed.value.publications.mapNotNull { old -> shelfResults.value[old.id]?.let { old.artwork.identity to it } }.toMap()
+            val ids = feed.publications.map { it.id }.toSet()
             generations.keys.retainAll(ids)
             heroChecks.keys.retainAll(ids)
             shelfChecks.keys.retainAll(ids)
             retryable.update { it intersect ids }
             shelfRetryable.update { it intersect ids }
-            feed.items.forEach { item ->
+            feed.publications.forEach { item ->
                 if (item.artwork.identity in checkedHero) heroChecks[item.id] = item.artwork
                 if (item.artwork.identity in checkedShelf) shelfChecks[item.id] = item.artwork
                 if (item.artwork.identity in retryHero) retryable.update { it + item.id }
@@ -297,10 +328,10 @@ class HomeViewModel(
                     shelfChecks.remove(item.id)
                 }
             }
-            validated.value = feed.items.mapNotNull { item -> previousValidated[item.artwork.identity]?.let { item.id to it } }.toMap()
-            shelfResults.value = feed.items.mapNotNull { item -> previousShelf[item.artwork.identity]?.let { item.id to it } }.toMap()
-            rawFeed.value = feed.copy(items = order.arrange(feed.items))
-            val kept = feed.items.flatMap { it.artwork.candidates }.toSet() + validated.value.values
+            validated.value = feed.publications.mapNotNull { item -> previousValidated[item.artwork.identity]?.let { item.id to it } }.toMap()
+            shelfResults.value = feed.publications.mapNotNull { item -> previousShelf[item.artwork.identity]?.let { item.id to it } }.toMap()
+            rawFeed.value = feed
+            val kept = feed.publications.flatMap { it.artwork.candidates }.toSet() + validated.value.values
             checked.update { it intersect kept }
             shelfChecked.update { it intersect (kept + shelfResults.value.values) }
             if (heroValidationJob?.isActive != true) validateHero()
@@ -310,8 +341,8 @@ class HomeViewModel(
 
     private fun expirePrograms() {
         val now = programClock()
-        rawFeed.update { it.copy(items = order.arrange(it.items.filter { item -> item.expiresAt > now })) }
-        val live = rawFeed.value.items.map { it.id }.toSet()
+        rawFeed.update { it.copy(items = it.items.filter { item -> item.expiresAt > now }, shelfItems = it.shelfItems?.filter { item -> item.expiresAt > now }) }
+        val live = rawFeed.value.publications.map { it.id }.toSet()
         generations.keys.retainAll(live)
         heroChecks.keys.retainAll(live)
         shelfChecks.keys.retainAll(live)
@@ -325,7 +356,7 @@ class HomeViewModel(
 
     private fun scheduleProgramExpiry() {
         programExpiry?.cancel()
-        val deadline = rawFeed.value.items.minOfOrNull { it.expiresAt } ?: return
+        val deadline = rawFeed.value.publications.minOfOrNull { it.expiresAt } ?: return
         if (deadline == Long.MAX_VALUE) return
         programExpiry = viewModelScope.launch {
             delay((deadline - programClock()).coerceAtLeast(1))
@@ -340,7 +371,7 @@ class HomeViewModel(
     }
 
     private fun requestShelf(packageName: String, items: List<HeroItem>) {
-        val candidates = rawFeed.value.items.filter { it.sourcePackage == packageName && items.any { visible -> visible.sourcePackage == packageName } }.take(VisualQuality.SHELF_VALIDATED_PER_APP)
+        val candidates = (rawFeed.value.shelfItems ?: rawFeed.value.items).filter { it.tracking == null && it.sourcePackage == packageName && items.any { visible -> visible.sourcePackage == packageName } }.take(VisualQuality.SHELF_VALIDATED_PER_APP)
         val uris = candidates.map { it.id + it.artwork.toString() + generations[it.id] }
         if (uris == shelfValidationUris && shelfValidationJob?.isActive == true) return
         if (shelfValidationPackage != packageName) validationBatches.filterValues { it }.keys.forEach { it.cancel() }
@@ -361,10 +392,10 @@ class HomeViewModel(
         val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             try { kotlinx.coroutines.coroutineScope { pending.groupBy { it.sourcePackage }.values.forEach { group -> launch {
                 group.forEach { item ->
-                    if (rawFeed.value.items.none { it.artwork.identity == item.artwork.identity }) return@forEach
+                    if (projectedPublications.none { it.artwork.identity == item.artwork.identity }) return@forEach
                     val policy = if (shelf) ArtworkPolicy.Shelf(shelfWidth) else ArtworkPolicy.Hero
                     val check = if (shelf) validator.prepare(item.artwork, shelfWidth) else validator.validate(item.artwork, policy)
-                    val current = rawFeed.value.items.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
+                    val current = projectedPublications.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
                     checks[current.id] = current.artwork
                     retries.update { if (check.retryable) it + current.id else it - current.id }
                     checked.update { it + item.artwork.candidates + listOfNotNull(check.visual) }
@@ -404,7 +435,7 @@ class HomeViewModel(
     internal fun observeArtwork(events: Flow<fr.sygix.sygixos.data.ArtworkEvent>) = viewModelScope.launch {
         events.collect { event ->
             if (event is fr.sygix.sygixos.data.ArtworkEvent.ProgramsChanged) return@collect
-            val affected = rawFeed.value.items.filter { item -> event.uri in item.artwork.candidates.flatMap { fr.sygix.sygixos.data.visualCandidates(it) } }
+            val affected = rawFeed.value.publications.filter { item -> event.uri in item.artwork.candidates.flatMap { fr.sygix.sygixos.data.visualCandidates(it) } }
             val heroAffected = affected.filter { validated.value[it.id].let { chosen -> chosen == null || chosen == event.uri } }
             val shelfAffected = affected.filter { shelfResults.value[it.id].let { chosen -> chosen == null || chosen == event.uri } }
             heroAffected.forEach { item ->
@@ -434,7 +465,7 @@ class HomeViewModel(
             val app = context.applicationContext as SygixOsApp
             return HomeViewModel(
                 apps = app.appCatalogRepository,
-                hero = HeroRepository(app.tvProviderHeroSource, NatureFallbackProvider()),
+                hero = HeroRepository(fr.sygix.sygixos.tracking.TrackingHeroSource(app.tvProviderHeroSource), NatureFallbackProvider()),
                 artwork = app.appArtwork,
                 validator = VisualValidator(app).also { it.repository = app.programArtwork },
                 clockSource = SystemClockSource(app),
@@ -442,11 +473,12 @@ class HomeViewModel(
                 session = app.startupSession,
                 motion = SettingsMotionSource(app.contentResolver),
                 mascot = app.mascotAnimation,
-                upNextSource = TvProviderUpNextSource(app, onSnapshot = { items -> app.programArtwork.confirm("watchnext", items.map { it.artwork to it.toString() }) }),
+                upNextSource = TvProviderUpNextSource(app, onSnapshot = { items -> app.tracking.enrichment.local(items); app.programArtwork.confirm("watchnext", items.map { it.artwork to it.toString() }) }),
                 upNextMemory = app.launcherPrefs,
                 onArtworkForeground = app.programArtwork::onForeground,
                 onArtworkBackground = app.programArtwork::onBackground,
                 order = app.heroOrder,
+                tracking = app.tracking,
                 upNextOpener = UpNextOpener { item, source ->
                     if (source == null) AppLauncher.open(app, item) else AppLauncher.openWith(app, item, source)
                 },

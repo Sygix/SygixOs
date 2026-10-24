@@ -100,6 +100,7 @@ internal fun HomeGrid(
     onUpNextMenu: (UpNextItem) -> Unit = {},
     onRetryUpNext: () -> Unit = {},
     onUpNextReturnHandled: (Long) -> Unit = {},
+    trackingStatus: @Composable () -> Unit = {},
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
     val appPackages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
@@ -239,7 +240,10 @@ internal fun HomeGrid(
         @Composable fun UpNextSection() {
             if (upNextRow == null) return
             Column {
-                SectionTitle(R.string.upnext_title, "section-title-upnext", padded = true, onHeight = { titleHeight = it })
+                Box(Modifier.fillMaxWidth().padding(end = Dimens.ScreenMarginH)) {
+                    SectionTitle(R.string.upnext_title, "section-title-upnext", padded = true, onHeight = { titleHeight = it })
+                    Box(Modifier.align(Alignment.CenterEnd).padding(bottom = Dimens.SectionTitleGap)) { trackingStatus() }
+                }
                 UpNextRow(upNextRow.content, upWidth, focus, entryApp, focusRequester, focusEnabled,
                     onFocused = { itemKey, index ->
                         if (enabled) {

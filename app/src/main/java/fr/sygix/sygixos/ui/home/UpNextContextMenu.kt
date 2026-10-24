@@ -32,14 +32,14 @@ import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
 
 @Composable
-internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier) {
+internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> Unit, onRemove: () -> Unit, modifier: Modifier = Modifier, onAddToTracking: (() -> Unit)? = null) {
     val first = remember { FocusRequester() }
     LaunchedEffect(item.key) { withFrameNanos { }; first.tryRequestFocus() }
     ContextMenuPanel(modifier.testTag("upnext-menu")) {
         ContextMenuHeader(item.displayTitle, stringResource(R.string.upnext_open_with), "upnext-menu") {
             UpNextArtwork(item, Modifier.aspectRatio(16f / 9f).clip(RoundedCornerShape(Dimens.MenuThumbnailCorner)).testTag("upnext-menu-thumbnail"))
         }
-        item.sources.forEachIndexed { index, entry ->
+        item.sources.distinctBy { it.packageName }.forEachIndexed { index, entry ->
             key(entry.packageName) {
                 MenuEntry("upnext-menu-entry-${entry.packageName}", entry.label, { onOpen(entry) }, if (index == 0) first else null) {
                     entry.icon?.let { icon ->
@@ -49,6 +49,7 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
                 }
             }
         }
+        if (onAddToTracking != null) MenuEntry("tracking-action-add", stringResource(R.string.tracking_add), onAddToTracking) { }
         MenuEntry("upnext-menu-remove", stringResource(R.string.upnext_remove), onRemove) { color ->
             HiddenEyeGlyph(color, Modifier.size(Dimens.MenuEntryIcon).testTag("upnext-menu-remove-icon"))
         }
