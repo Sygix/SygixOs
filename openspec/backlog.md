@@ -20,3 +20,9 @@ Dernière revue : **24 octobre 2026**, après v0.4.0 (retours du propriétaire s
 
 **Piste** : un seul tri pour séries et films ; les contenus publiés par les apps (en cours, épisode suivant) passent avant les contenus apportés seulement par le compte, dans la limite de 20 cartes ; mettre à jour l'exigence d'ordre d'up-next et ajouter un test.
 
+
+## 20. Menu des contenus suivis différent de celui des apps, et saccades à l'ouverture
+
+**Constat** : le menu d'une carte BetaSeries (appui long) ne reprend pas l'en-tête du menu d'un contenu d'app : il affiche le titre seul, sans la petite affiche. Ces menus saccadent un peu à l'ouverture.
+
+**Piste** : un seul en-tête de menu pour tous les contenus (vignette + titre). Pour la fluidité, garder le flou du verre en arrière-plan ; mesurer l'animation d'ouverture (ombre portée animée en même temps que le flou) et alléger l'ombre ou la précalculer pendant l'animation.
