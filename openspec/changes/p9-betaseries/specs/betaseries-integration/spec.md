@@ -29,6 +29,10 @@ L'authentification SHALL se faire par association OAuth BetaSeries pour appareil
 - **WHEN** la configuration ou l'association est absente, refusée, en erreur réseau, limitée par le serveur ou renvoie une réponse non JSON
 - **THEN** un état distinct et réessayable est affiché sans crash ni boucle rapide ; aucun secret n'apparaît dans l'erreur et le launcher reste utilisable
 
+#### Scenario: réponse transitoire pendant l'attente
+- **WHEN** une interrogation de l'attente reçoit une réponse non JSON ou subit une coupure réseau ponctuelle
+- **THEN** l'état reste en attente et l'interrogation continue à l'intervalle serveur jusqu'à l'expiration ; seul un refus définitif termine l'association en erreur
+
 #### Scenario: reprise au premier plan
 - **WHEN** la TV revient au premier plan sur l'association
 - **THEN** son expiration est vérifiée avant reprise ; un code expiré n'est pas réutilisé et aucun second polling concurrent n'est créé
@@ -79,11 +83,11 @@ Le fournisseur SHALL charger les films à voir et le prochain épisode diffusé 
 
 #### Scenario: rafraîchissement
 - **WHEN** le launcher revient au premier plan
-- **THEN** la lecture complète n'est relancée qu'à la connexion ou si le dernier instantané réussi date de plus de 15 minutes ; aucune boucle de synchronisation ne tourne au repos ; aucune réponse d'une ancienne session ne remplace le compte courant
+- **THEN** la lecture complète n'est relancée qu'à la connexion ou si la dernière lecture, réussie, partielle ou en échec, date de plus de 15 minutes ; une session déjà chargée n'est pas relue par la recréation de l'accueil avant cette échéance ; aucune boucle de synchronisation ne tourne au repos ; aucune réponse d'une ancienne session ne remplace le compte courant
 
 #### Scenario: mutation confirmée
 - **WHEN** une mutation est confirmée sur un épisode, un film ou une série
-- **THEN** seul le statut de ce contenu est relu et son objet de cache remplacé, avec données, date et validité ; après un épisode vu, le prochain candidat de sa seule série peut être demandé séparément, y compris dans une autre saison ; aucune lecture complète, invalidation globale ou réidentification des autres contenus n'est déclenchée
+- **THEN** seul le statut de ce contenu est relu et son entrée remplacée dans la liste du compte ; après un épisode vu, le prochain candidat de sa seule série peut être demandé séparément, y compris dans une autre saison ; aucune lecture complète, invalidation globale ou réidentification des autres contenus n'est déclenchée
 
 #### Scenario: appartenance à la demande
 - **WHEN** l'appartenance d'un contenu local identifié doit être établie
@@ -91,7 +95,7 @@ Le fournisseur SHALL charger les films à voir et le prochain épisode diffusé 
 
 #### Scenario: élément ou page incomplets
 - **WHEN** une fiche est incohérente ou qu'une page échoue, notamment par dépassement de corps
-- **THEN** les autres contenus valides restent utilisables ; les entrées incohérentes restent individuellement incomplètes, une liste partielle n'est jamais déclarée complète et aucune purge ne se fonde sur ses absences
+- **THEN** les autres contenus valides restent utilisables ; les entrées incohérentes restent individuellement incomplètes, une liste partielle n'est jamais déclarée complète et aucune purge ne se fonde sur ses absences ; l'indicateur reste visible mais l'enrichissement des contenus locaux continue avec le cache d'identités
 
 #### Scenario: volume des épisodes
 - **WHEN** les prochains épisodes sont chargés
@@ -125,18 +129,18 @@ La déconnexion SHALL supprimer immédiatement le jeton et les données de compt
 
 #### Scenario: stockage indisponible
 - **WHEN** le stockage protégé ne peut pas être lu ou déchiffré
-- **THEN** le fichier est conservé et relu au prochain retour au premier plan, sauf erreur définitive de déchiffrement ; seule cette dernière permet sa suppression et une nouvelle association ; aucune donnée secrète n'est exposée
+- **THEN** le fichier est conservé et relu au prochain retour au premier plan, sauf erreur définitive de déchiffrement ou clé Keystore absente ; seuls ces cas permettent sa suppression et une nouvelle association ; aucune donnée secrète n'est exposée
 
 #### Scenario: remplacement de session
 - **WHEN** un nouveau jeton est reçu pendant une association
-- **THEN** il est validé avant remplacement atomique de la session ; fermeture du panneau et annulation de l'appelant ne laissent ni session bloquée ni jeton orphelin ; stockage et révocation terminent leur séquence malgré cette annulation
+- **THEN** il est validé avant remplacement atomique de la session ; un jeton refusé à la validation est révoqué au mieux sans afficher « Révocation distante non confirmée » ; fermeture du panneau et annulation de l'appelant ne laissent ni session bloquée ni jeton orphelin ; stockage et révocation terminent leur séquence malgré cette annulation
 
 ### Requirement: Bornes réseau et délais
 Les appels BetaSeries SHALL avoir des bornes fixes et annuler leurs ressources au dépassement. Les lectures idempotentes SHALL autoriser au plus deux reprises ; aucune mutation ne SHALL être rejouée automatiquement.
 
 #### Scenario: budgets
 - **WHEN** un appel réseau s'exécute
-- **THEN** les bornes sont connexion 5 s, lecture 10 s, tentative 15 s, lecture avec reprises 60 s, corps API 2 Mio, compte et mutation avec relecture 90 s, identification locale 30 s ; 502/503/504, panne et non-JSON transitoire autorisent des reprises croissantes et Retry-After dans le budget restant ; 401/403 même non JSON expose l'accès refusé
+- **THEN** les bornes sont connexion 5 s, lecture 10 s, tentative 15 s, lecture avec reprises 60 s, corps API 2 Mio, compte et mutation avec relecture 90 s, identification locale 30 s ; 502/503/504, panne et non-JSON transitoire autorisent des reprises croissantes et Retry-After dans le budget restant, un délai serveur supérieur à ce reste échouant aussitôt ; 401/403 même non JSON expose l'accès refusé ; un JSON invalide est une erreur de protocole
 
 #### Scenario: révocation au mieux
 - **WHEN** la déconnexion révoque le jeton

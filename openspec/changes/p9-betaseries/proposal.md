@@ -14,7 +14,7 @@ Le TV Provider ne représente qu'une partie des séries et films à regarder et 
 - Présenter honnêtement les offres dont la disponibilité régionale n'est pas confirmée ; choisir et confirmer le pays dans les réglages, sans déduire une disponibilité d'une app installée.
 - Ajouter vu/non vu, annulation non bloquante, choix d'un épisode diffusé, ajout au compte depuis un contenu existant, retrait/archivage et masquage local.
 - Proposer uniquement la confirmation manuelle « Terminé ? » au retour d'un lecteur, sans accès aux notifications ni sessions média.
-- Conserver chaque contenu avec sa validité ; relire uniquement le contenu muté. Une lecture complète intervient à la connexion ou au retour au premier plan après 15 minutes, sans minuterie de synchronisation.
+- Conserver la liste du compte 15 minutes et patcher uniquement le contenu muté après l'avoir relu ; mettre en cache l'identité de chaque contenu local. Une lecture complète intervient à la connexion ou au retour au premier plan après 15 minutes, sans minuterie de synchronisation.
 - En cas de page ou fiche en échec, conserver les autres contenus valides ; retirer l'apport du compte si l'accès est refusé. Détail et réessai restent accessibles ; aucune file hors ligne.
 - Conserver les parcours et états de la passe Penpot ainsi que les décisions visuelles confirmées dans le design et les scénarios ; les planches ne valent ni implémentation ni validation sur TV.
 

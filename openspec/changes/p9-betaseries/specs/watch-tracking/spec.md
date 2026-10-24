@@ -53,7 +53,7 @@ Le premier lancement d'un contenu suivi SHALL demander son application de lectur
 
 #### Scenario: premier choix
 - **WHEN** l'utilisateur ouvre un contenu sans préférence
-- **THEN** les applications vidéo reconnues sont proposées avec « Autre application » pour accéder aux autres apps lançables ; seules les offres régionales prouvées sont présentées comme confirmées
+- **THEN** les applications vidéo reconnues sont proposées dans cet ordre : apps qui publient ce contenu localement, apps installées correspondant aux services confirmés pour le pays, apps installées correspondant aux services mentionnés non confirmés, puis les autres apps vidéo par ordre alphabétique, enfin « Autre application » pour accéder aux autres apps lançables ; la première a le focus ; cet ordre ne prouve ni abonnement ni disponibilité et seules les offres régionales prouvées sont présentées comme confirmées
 
 #### Scenario: préférence partagée
 - **WHEN** une application a été choisie depuis une carte puis que la série ou le film est ouvert depuis le héro, ou inversement
@@ -107,7 +107,7 @@ Sélecteur, menu et liste d'épisodes SHALL être navigables au D-pad, avec focu
 
 #### Scenario: retour d'une application
 - **WHEN** une application ouverte par le parcours commun rend la main au launcher
-- **THEN** le retour conserve son origine : restauration de la grille et du contenu pour À suivre, du héro pour le héro ; une proposition de suivi ne vole pas ce focus
+- **THEN** le retour conserve son origine : restauration de la grille et du contenu pour À suivre, du héro pour le héro ; la carte d'origine retrouve le focus même si celui-ci s'était déplacé sur une voisine à la fermeture du sélecteur ; une proposition de suivi ne vole pas ce focus
 
 ### Requirement: Actions sur le compte
 Un contenu identifié SHALL proposer les actions applicables : ajouter au suivi depuis un contenu existant, vu/non vu, retirer et, pour une série, archiver. Marquer un épisode SHALL ne modifier que cet épisode ; le masquage local SHALL rester distinct de toute action sur le compte.
@@ -126,7 +126,7 @@ Un contenu identifié SHALL proposer les actions applicables : ajouter au suivi 
 
 #### Scenario: opération en cours ou refusée
 - **WHEN** une mutation charge, échoue, dépasse son délai ou perd son autorisation
-- **THEN** l'action concernée expose son état et empêche un double envoi ; aucun succès n'est annoncé sans confirmation et le réessai ou la reconnexion est proposé
+- **THEN** l'action concernée expose son état et empêche un double envoi ; aucun succès n'est annoncé sans confirmation et le réessai ou la reconnexion est proposé ; un échec ne retire ni la carte ni le héro, le contenu garde son état précédent et l'erreur reste portée par la notice, y compris après sa fermeture
 
 #### Scenario: résultat réseau incertain
 - **WHEN** une réponse est perdue après l'envoi d'une mutation
@@ -145,7 +145,7 @@ Un marquage vu/non vu ou archivage SHALL proposer une annulation non bloquante d
 
 #### Scenario: durée de la fenêtre
 - **WHEN** une annulation devient disponible
-- **THEN** sa fenêtre dure 10 secondes actives ; focus et arrière-plan suspendent le décompte, repris avec le temps restant ; aucun retrait distant ne part avant cette échéance ; une nouvelle action refusée conserve Annuler et explique le refus ; la fin du processus abandonne le retrait
+- **THEN** sa fenêtre dure 10 secondes actives ; focus, arrière-plan et réglages ouverts suspendent le décompte, repris avec le temps restant ; aucun retrait distant ne part avant cette échéance ; une nouvelle action refusée conserve Annuler et explique le refus ; la fin du processus abandonne le retrait
 
 #### Scenario: annuler un archivage
 - **WHEN** l'utilisateur annule un archivage confirmé
@@ -169,6 +169,14 @@ Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur 
 #### Scenario: confirmation au retour
 - **WHEN** l'utilisateur revient après un lancement effectif de contenu suivi
 - **THEN** « Terminé ? » concerne le contenu demandé, pas l'épisode affiché après rafraîchissement ; sans réponse rien ne change ; la proposition reste sans échéance jusqu'à OK, Retour sur le composant, nouveau lancement suivi, déconnexion ou relecture montrant le contenu déjà vu
+
+#### Scenario: départ vers le lecteur
+- **WHEN** un lancement réussit
+- **THEN** le départ est confirmé dès la pause ou l'arrêt du launcher dans les 15 secondes ; le lancement en attente n'est oublié que sur échec explicite du lancement ou après 15 secondes sans quitter le launcher
+
+#### Scenario: notice Annuler encore affichée
+- **WHEN** le retour effectif survient alors qu'une notice Annuler ou d'erreur est encore présente
+- **THEN** « Terminé ? » n'est jamais perdu : une notice de marquage terminé est remplacée par la proposition ; un retrait encore annulable, une opération en cours ou une erreur se terminent d'abord, par échéance, Annuler, succès ou fermeture, puis la proposition s'affiche
 
 #### Scenario: compte ou contenu changé
 - **WHEN** un retour concerne une ancienne session ou un lancement qui n'a pas quitté le launcher
