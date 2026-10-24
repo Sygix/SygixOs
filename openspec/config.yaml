@@ -9,7 +9,7 @@ context: |
   Priorités : 1) design fidèle à tvOS (Liquid Glass, focus, animations) ; 2) zéro bug : états loading/empty/error partout, pas de crash silencieux.
 
   Stack : Kotlin 2.4, Jetpack Compose (BOM 2026.09), Haze 2 (Liquid Glass), Coil, DataStore, media3 (ExoPlayer).
-  Aucun backend, tout en local. Namespace fr.sygix.sygixos, minSdk 34, compileSdk 37. Langue UI : français uniquement (architecture i18n prête).
+  Aucun backend, tout en local. Namespace fr.sygix.sygixos, minSdk 34, compileSdk 37. Langues UI : anglais (repli), français (référence des textes cités par les specs), allemand, espagnol, italien ; la langue suit la TV par défaut et se règle dans Réglages › Langue.
   Dépendances externes : uniquement des libs éprouvées et maintenues.
 
   Architecture : SOLID/KISS/DRY, interfaces aux frontières (repos, sources de données), aucune logique dans les composables.
@@ -48,8 +48,8 @@ rules:
     - "UI : réutiliser le design system (tvFocus/tvClickable, Motion, Dimens, GlassSurface) et nommer les testTags."
   tasks:
     - "Si une donnée n'est pas vérifiée, la 1re tâche est un test sur l'appareil (dump des colonnes, test d'intent) avant tout code."
-    - "Inclure les tests : JUnit pour la logique pure, tests Compose de navigation D-pad avec @Config(qualifiers = \"w960dp-h540dp-xhdpi\") (taille TV), jamais la taille Robolectric par défaut."
-    - "Inclure : chaînes FR en ressources, testTags, mise à jour du README si le comportement visible change, validation sur la TV réelle en assembleRelease, openspec archive."
+    - "Inclure les tests : JUnit pour la logique pure, tests Compose de navigation D-pad avec @Config(qualifiers = \"fr-w960dp-h540dp-xhdpi\") (taille TV, textes français), jamais la taille Robolectric par défaut."
+    - "Inclure : chaînes en ressources dans chaque langue (anglais, français, allemand, espagnol, italien), testTags, mise à jour du README si le comportement visible change, validation sur la TV réelle en assembleRelease, openspec archive."
     - "Aucun chemin, variable ou configuration propre à une machine (JAVA_HOME, ~/android-sdk…) : uniquement ./gradlew <tâche>."
     - "Chaque tâche a un critère de fin vérifiable ; pas de tâche « étudier » ou « envisager » : trancher dans design ou la mettre en Questions ouvertes."
 
