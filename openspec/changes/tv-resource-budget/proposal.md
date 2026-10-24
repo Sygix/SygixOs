@@ -42,10 +42,11 @@ Le launcher est visible des heures par jour. Le premier poste de consommation es
 
 ### Modified Capabilities
 
-- `settings` : catégorie « Écran d'accueil » et navigation de « Position d'À suivre » ; nouveau réglage « Mouvement des visuels ».
-- `launcher-shell` : « Diaporama héro » et « Contenu du panneau » suivent le réglage ; « Préchargement et mémoire » précise l'écran au repos, le cache des affiches, les relectures au retour, l'audio de l'aperçu et le décodage des affiches du Top Shelf.
+- `settings` : catégorie « Écran d'accueil » et navigation de « Position d'À suivre » ; nouveau réglage « Mouvement des visuels » ; « Apps sources » ne compte les programmes que réglages ouverts.
+- `launcher-shell` : « Diaporama héro » et « Contenu du panneau » suivent le réglage ; « Préchargement et mémoire » précise l'écran au repos, le cache des affiches, les relectures au retour, l'audio de l'aperçu et le décodage des affiches du Top Shelf ; « Contenu héro TV Provider » ne relit le provider au retour qu'après un changement ou l'échéance de 15 minutes.
+- `up-next` : « Rafraîchissement » ne recharge la rangée au retour qu'après un changement, l'échéance de la périodicité ou une ouverture depuis la rangée.
 
-`ui-testing` et `up-next` sont examinées : aucune exigence ne change, les tests ajoutés suivent les règles existantes.
+`ui-testing` est examinée : aucune exigence ne change, les tests ajoutés suivent les règles existantes.
 
 ## Impact
 
@@ -53,7 +54,7 @@ Le launcher est visible des heures par jour. Le premier poste de consommation es
 
 ## Dependencies
 
-Part de `main` après le merge de P9 (`p9-betaseries`). Aucune exigence modifiée ici n'est modifiée par P9.
+Part de `main` après le merge de P9 (`p9-betaseries`). « Contenu héro TV Provider » est repris dans sa version de P9 ; aucune autre exigence modifiée ici n'est modifiée par P9.
 
 ## Non-goals
 
