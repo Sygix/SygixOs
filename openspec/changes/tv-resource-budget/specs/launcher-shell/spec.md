@@ -140,6 +140,47 @@ Le panneau SHALL n'afficher que des visuels validés, chargés et non expirés d
 - **WHEN** une image a échoué temporairement et que l'app reçoit de nouveau un focus prolongé après la temporisation de reprise
 - **THEN** sa récupération est réessayée par le parcours partagé, sans blacklist locale ni doublon avec une demande du héro ou d'À suivre
 
+### Requirement: Contenu héro TV Provider
+Le héro SHALL conserver les programmes watch next et preview encore publiés des apps installées sous READ_TV_LISTINGS, avec leurs champs facultatifs et empreintes indépendantes de ligne/progression. L'apport du compte SHALL suivre « Héro du suivi », indépendant de cette permission ; le fallback SHALL s'appliquer seulement sans candidat admissible de l'une ou l'autre source.
+
+#### Scenario: permission
+- **WHEN** le launcher démarre sans READ_TV_LISTINGS
+- **THEN** la demande système existante s'affiche ; son octroi recharge les programmes sans redémarrage et son refus laisse fonctionner l'apport du compte, sinon le fallback
+
+#### Scenario: programmes disponibles
+- **WHEN** des apps publient des programmes
+- **THEN** vidéo puis images selon les contrats partagés, titre, source, type, saison, épisode, durée et progression disponibles sont conservés, sans liste d'apps codée en dur ; le type affiché provient de `watch_next_type` pour Watch Next, du type preview sinon, et les numéros de `season_display_number` / `episode_display_number` ; les requêtes sans clause de sélection sont filtrées côté launcher et l'ordre suit Ordre aléatoire du héro
+
+#### Scenario: fallback
+- **WHEN** aucune app ne publie de programme et qu'aucun contenu de suivi admissible n'existe
+- **THEN** le fond nature puis neutre assure le repli sans écran vide
+
+#### Scenario: colonnes facultatives
+- **WHEN** type, saison, épisode, durée ou position ne sont pas publiés
+- **THEN** seuls ces éléments manquent, selon Diaporama héro
+
+#### Scenario: rafraîchissement automatique
+- **WHEN** un changement du TV Provider est signalé au premier plan ou que sa relecture périodique est due
+- **THEN** le provider est relu au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; le retour ne déclenche une relecture que si un changement a été signalé pendant l'arrêt ou si la relecture périodique est due (« Préchargement et mémoire », scénario « relecture au retour au premier plan ») ; le compte suit sa propre source partagée
+
+#### Scenario: programme retiré
+- **WHEN** une app retire un programme
+- **THEN** il quitte héro et Top Shelf à la prochaine lecture ; s'il était affiché, média et textes changent par le fondu existant et ses visuels quittent l'ensemble vérifié
+
+#### Scenario: programme modifié
+- **WHEN** titre ou visuel d'un programme change
+- **THEN** la nouvelle version est reflétée dans le héro et le Top Shelf à la prochaine lecture ; seule son image nouvelle est vérifiée et récupérée
+
+#### Scenario: programme republié ou progression mise à jour
+- **WHEN** seule la ligne, la progression, l'activité ou la durée change
+- **THEN** place, image et état sont conservés sans récupération ni revalidation ; seuls les textes concernés évoluent
+
+#### Scenario: source en erreur ou absente
+- **WHEN** une table du provider échoue, manque ou dépasse son délai
+- **THEN** erreur et vide restent distincts ; seuls ses anciens programmes encore valides restent affichables ; le compte et les autres tables continuent, sinon les replis existants s'appliquent
+
+**Détails.** — Les colonnes facultatives ne sont pas inventées ; leur remplissage réel reste vérifiable sur appareil. Le héro et le Top Shelf conservent le contrat de Validité des programmes publiés pour les tables Android. Un succès inchangé renouvelle leur confirmation sans republication ; un échec ne vaut pas liste vide. Le compte possède un état et une validité propres et ne fournit aucun contenu au Top Shelf.
+
 ### Requirement: Préchargement et mémoire
 Le launcher SHALL borner la validation : premiers visuels du héro au chargement, affiches d'une app au focus posé. Il SHALL décoder à la destination, jamais à la dalle, et garder « Fluidité de release »/« Fenêtre de composition de la grille ». Récupérations, dimensions et échéances SHALL être partagées entre les trois zones selon « Chargement partagé des images » et « Cache borné et fraîcheur des images ».
 
