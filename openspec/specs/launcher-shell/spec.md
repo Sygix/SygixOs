@@ -6,49 +6,49 @@
 ## Requirements
 
 ### Requirement: Grille d'apps
-Le launcher SHALL auto-détecter toutes les apps TV installées et les afficher en grille, avec les sections « À suivre » et « Applications » dans l'ordre de « Position d'À suivre » de settings. Chaque section SHALL avoir un titre non focusable aligné sur sa première carte, masqué avec la section vide ; le titre « À suivre » reste en erreur. Le haut de la zone grille SHALL être le haut du titre de sa première section. Style et espacements SHALL suivre les scénarios ci-dessous.
+Le launcher SHALL auto-détecter les apps TV et conserver la grille, les titres non focusables et l'ordre des sections de settings. Le titre À suivre SHALL rester visible en erreur ; son masquage SHALL dépendre de toutes ses sources selon up-next, pas de la seule permission TV Provider. Style et espacements existants SHALL être conservés.
 
 #### Scenario: affichage
 - **WHEN** le home s'ouvre
-- **THEN** toutes les apps TV installées apparaissent en grille 5 colonnes, tuiles 16:9 remplies par la bannière Android TV de l'app (`android:banner`), repli sur l'icône entière centrée sur fond sombre ; ordre et épinglage persistés (DataStore)
+- **THEN** les apps TV apparaissent en cinq colonnes, tuiles 16:9 avec bannière sinon icône entière centrée ; ordre et épinglage restent persistés
 
 #### Scenario: menu contextuel
-- **WHEN** appui long sur OK sur une tuile
-- **THEN** menu en overlay : épingler / retirer du dock, déplacer (grille) ; OK valide l'action focusée, Retour ferme ; un appui court ouvre l'app
+- **WHEN** OK est maintenu sur une tuile
+- **THEN** le menu propose les actions existantes d'épinglage, déplacement dans la grille et masquage ; OK valide, Retour ferme, un appui court ouvre l'app
 
 #### Scenario: lisibilité du menu contextuel
-- **WHEN** le menu contextuel est ouvert au-dessus de tuiles claires ou sombres
-- **THEN** la grille derrière est assombrie par un voile sombre et le menu est un panneau en verre sombre (« Thème », scénario « surfaces verre ») sur lequel le texte blanc reste lisible quelles que soient les tuiles derrière ; le nom et le package de l'app sont en tête, les actions sont listées verticalement en dessous ; l'action focusée est une pilule claire à texte sombre, sans zoom ni halo, les autres actions n'ont pas de fond
+- **WHEN** le menu s'ouvre sur des tuiles claires ou sombres
+- **THEN** le voile sombre et le verre du menu rendent le texte lisible ; nom et package précèdent les actions verticales, la pilule claire focusée n'a ni zoom ni halo et les actions non focusées n'ont pas de fond
 
 #### Scenario: navigation dans le menu
-- **WHEN** le menu contextuel s'ouvre
-- **THEN** la première action (épingler ou retirer du dock) a le focus ; haut et bas parcourent les actions dans l'ordre affiché, sans boucle aux bords ; gauche et droite ne déplacent pas le focus hors du menu ; Retour ferme le menu et rend le focus à la tuile d'origine
+- **WHEN** le menu d'une tuile s'ouvre
+- **THEN** la première action, Épingler ou Retirer du dock selon l'état, a le focus ; haut/bas parcourent les actions sans boucle, gauche/droite ne sortent pas du menu, Retour rend le focus à la tuile
 
 #### Scenario: titres de section
-- **WHEN** la zone grille est affichée avec la rangée Up Next et le réglage « Position d'À suivre » vaut « Avant les applications »
-- **THEN** le titre « À suivre » est au-dessus de la rangée Up Next, puis le titre « Applications » est au-dessus de la première rangée d'apps ; avec « Après les applications », le titre « Applications » vient en premier et le titre « À suivre » est sous la dernière rangée d'apps, au-dessus de la rangée Up Next
+- **WHEN** À suivre est réglé avant les applications
+- **THEN** son titre précède sa rangée puis Applications et sa première rangée ; l'ordre inverse est utilisé avec le réglage après les applications
 
 #### Scenario: titres jamais focusables
-- **WHEN** l'utilisateur passe au D-pad d'une section à l'autre (bas depuis la rangée Up Next, haut depuis la première rangée d'apps, ou l'inverse avec « Après les applications »)
-- **THEN** le focus passe directement d'une ligne à l'autre sans jamais se poser sur un titre ; le titre de la section d'arrivée est entièrement visible au-dessus de sa première ligne
+- **WHEN** le D-pad passe d'une section à l'autre
+- **THEN** il saute les titres et garde le titre de la section d'arrivée entièrement visible au-dessus de sa première ligne
 
 #### Scenario: section Up Next masquée
-- **WHEN** la rangée Up Next est masquée (réglage « Afficher À suivre » désactivé, aucun contenu ou permission refusée)
-- **THEN** le titre « À suivre » n'est pas affiché et aucune place ne lui est réservée ; « Applications » est le seul titre de la zone grille et son haut est le haut de la zone grille
+- **WHEN** la rangée est désactivée ou qu'aucune source ne fournit de contenu affichable selon up-next
+- **THEN** son titre et sa place sont supprimés ; Applications devient le seul titre s'il existe des apps ; un indicateur de suivi en erreur reste accessible selon son propre contrat
 
 #### Scenario: aucune app TV détectée
-- **WHEN** aucune app TV n'est installée (maquette Penpot 4.4)
-- **THEN** la section « Applications » n'a pas de titre : seul le message « Aucune app TV détectée » est affiché, centré dans l'espace des rangées d'apps ; la section « À suivre » suit ses propres règles d'affichage
+- **WHEN** aucune app TV n'est détectée
+- **THEN** seul « Aucune app TV détectée » occupe l'espace des apps sans titre Applications ; À suivre suit ses propres sources
 
 #### Scenario: titre au-dessus de la carte d'erreur
-- **WHEN** la rangée Up Next est en erreur au premier chargement et que la carte d'erreur remplace son contenu
-- **THEN** le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée, et fait partie du bloc focusé quand la carte a le focus
+- **WHEN** la carte d'erreur locale remplace le contenu de la rangée
+- **THEN** le titre À suivre reste au-dessus et appartient au bloc focusé
 
 #### Scenario: style des titres
-- **WHEN** les deux titres de section sont affichés
-- **THEN** ils sont en `SygixTypography.titleLarge` et `SygixColors.OnDarkSecondary`, chacun aligné à gauche sur la première carte ou tuile de sa section, à `Dimens.SectionTitleGap` au-dessus de sa première ligne ; le second titre est à `Dimens.GridRowSpacing` sous la dernière ligne de la section précédente
+- **WHEN** une section est affichée
+- **THEN** son titre utilise `SygixTypography.titleLarge` et `SygixColors.OnDarkSecondary`, aligné sur la première carte, séparé par `Dimens.SectionTitleGap` ; le second titre suit l'espacement `Dimens.GridRowSpacing`
 
-**Détails.** — Détection des apps : Le launcher SHALL lister les activités des catégories `LEANBACK_LAUNCHER` et `LAUNCHER` installées sur la TV. — Sections de la grille : La grille SHALL afficher « À suivre » au-dessus d'Up Next et « Applications » au-dessus des apps, sur le même fond. L'ordre SHALL suivre « Position d'À suivre » de settings : avant les applications par défaut, après quand choisi. Les titres SHALL être alignés sur la première carte ou tuile (`Dimens.ScreenMarginH`) et ne jamais prendre le focus. Cas « ordre des sections » : quand la position d'À suivre change, ses cartes et son titre changent de place ensemble, selon les scénarios « titres de section » de « Grille d'apps ». — Style des titres de section : Les titres SHALL suivre « SygixOs Maquette », page TV, écrans 4.1, 7.1, 7.2 et 7.5 et composant « Titre de section » : `SygixTypography.titleLarge`, `SygixColors.OnDarkSecondary`, premier titre à `Dimens.GridTopMargin`, écart à la première ligne `Dimens.SectionTitleGap` et à la section précédente `Dimens.GridRowSpacing`. Cas « géométrie du titre » : quand une section est affichée, son titre respecte le scénario « style des titres » de « Grille d'apps » et défile avec sa section. — Visibilité des sections : Le titre SHALL défiler avec sa section. Une rangée Up Next masquée SHALL masquer « À suivre » sans place réservée. En erreur, la carte d'état remplace le contenu et le titre SHALL rester au-dessus (« États de la rangée » de up-next). Cas « erreur ou masquage » : quand Up Next devient vide, masqué ou en erreur, le titre suit respectivement les scénarios « section Up Next masquée » et « titre au-dessus de la carte d'erreur » de « Grille d'apps ».
+**Détails.** — Détection : catégories LEANBACK_LAUNCHER et LAUNCHER. Les titres partagent le fond de la grille, défilent avec leur section et restent alignés à `Dimens.ScreenMarginH`, premier titre à `Dimens.GridTopMargin`, conformément aux maquettes 4.1/7.1/7.2/7.5 et au composant Titre de section. Les groupes vides et titres correspondants sont absents ; une erreur avec carte garde son titre. Le haut de la zone grille reste le haut du titre de sa première section.
 
 ### Requirement: Focus tvOS
 Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et de toute carte dont la spec renvoie à cette exigence, à la tvOS : la tuile focusée se soulève (zoom, légère montée, ombre portée douce, reflet blanc en diagonale), sans halo ni liseré, de façon à ce que la tuile active soit identifiable d'un coup d'œil. La tuile agrandie SHALL ne recouvrir aucune tuile voisine et SHALL n'être coupée par aucun conteneur.
@@ -66,19 +66,19 @@ Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et 
 - **THEN** aucun nom d'app n'est écrit sur la tuile ni sous elle ; une app sans bannière garde le repli de « Grille d'apps » (icône entière centrée sur fond sombre)
 
 ### Requirement: Rangée Up Next
-Le home SHALL afficher une rangée Up Next dans la zone grille, sous le titre de section « À suivre » (« Grille d'apps »), première ligne par défaut, dernière ligne si le réglage « Position d'À suivre » vaut « Après les applications », alimentée par le TV Provider Android, tant que le réglage « Afficher À suivre » de `settings` est activé ; son contenu, son dédoublonnage, ses cartes, ses états et l'ouverture des items sont spécifiés par la capability up-next.
+Le home SHALL afficher À suivre dans la zone grille si son réglage est actif et que ses sources indépendantes fournissent un état affichable. Sa position SHALL suivre settings ; contenu, fusion, cartes, états et ouverture SHALL suivre up-next, y compris l'apport du compte sans permission TV Provider.
 
 #### Scenario: contenu
-- **WHEN** des programmes watch next sont publiés dans le TV Provider et que « Afficher À suivre » est activé
-- **THEN** la rangée est affichée dans la zone grille, sous son titre « À suivre », sur le fond de la zone grille, avec ses cartes et barres de progression (« Carte Up Next » de up-next)
+- **WHEN** des programmes locaux ou contenus du compte sont affichables et que le réglage est actif
+- **THEN** la rangée et son titre sont affichés à la position réglée sur le fond de la grille
 
 #### Scenario: sans contenu
-- **WHEN** aucun programme n'est visible dans le TV Provider, ou que la permission est refusée
-- **THEN** la rangée et son titre sont masqués et la navigation de la zone grille commence directement par les rangées d'apps
+- **WHEN** aucune source ne fournit de contenu affichable ni de carte d'erreur selon up-next
+- **THEN** rangée et titre sont masqués ; le refus de READ_TV_LISTINGS seul ne masque pas les contenus du compte
 
 #### Scenario: réglage désactivé
-- **WHEN** « Afficher À suivre » est désactivé alors que des programmes watch next sont publiés
-- **THEN** ni la rangée ni son titre ne sont affichés, aucune place ne leur est réservée, la navigation de la zone grille ne passe que par les rangées d'apps ; réactiver le réglage réaffiche la rangée à la position réglée, sans redémarrage
+- **WHEN** Afficher À suivre est désactivé
+- **THEN** rangée et titre quittent la navigation sans place réservée ; réactiver réaffiche le contenu à sa position sans redémarrage
 
 ### Requirement: Thème
 L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtree (SIL OFL, listée dans À propos). Le relief SHALL venir d'ombres douces et de reflets clairs, jamais d'un halo coloré. Les surfaces verre (dock, capsule, menu, bandeau) SHALL seules être floutées, avec une teinte sombre translucide, une bordure claire et des reflets ; les rayons et coins concentriques SHALL suivre le design system. Les scénarios ci-dessous SHALL préciser les valeurs et couples imbriqués.
@@ -131,92 +131,104 @@ Le launcher SHALL être navigable au DPAD uniquement.
 - **THEN** les exigences listées ci-dessus s'appliquent
 
 ### Requirement: Écran initial du home
-Le home SHALL s'ouvrir sur un héro plein écran sans cadre : visuel d'un programme publié par les apps installées ou, à défaut, vidéo nature en boucle, avec le dock en overlay bas. Au démarrage à froid, le héro SHALL apparaître à la fin de l'écran de démarrage, par le fondu qui le termine (« Écran de démarrage »).
+Le home SHALL s'ouvrir sur un héro plein écran sans cadre, avec les programmes locaux et contenus de suivi admissibles, sinon le repli nature, et le dock en overlay bas. Au démarrage à froid, le fondu de l'écran de démarrage SHALL révéler le héro sans attendre une connexion BetaSeries.
 
 #### Scenario: état initial
 - **WHEN** le launcher démarre
-- **THEN** le héro occupe tout l'écran (aucune carte, aucun aperçu du suivant), il détient le focus dès son affichage, et le dock est visible en overlay bas semi-transparent ; au démarrage à froid, cet affichage suit l'écran de démarrage et le focus est donné au héro dès le début du fondu
+- **THEN** le héro occupe tout l'écran sans aperçu du suivant, prend le focus dès le début du fondu de sortie du démarrage et porte le dock semi-transparent en overlay bas
 
 #### Scenario: fallback sans contenu
-- **WHEN** aucune app ne publie de programme, ou la permission est refusée
-- **THEN** le héro joue les vidéos nature en boucle ; tant qu'aucune vidéo ne joue, un dégradé sombre animé est affiché (un seul passage lent, puis figé sur sa dernière position, comme le Ken Burns), jamais d'écran noir ni de crash
+- **WHEN** aucune source ne fournit de programme admissible
+- **THEN** les vidéos nature bouclent, précédées du dégradé sombre qui effectue un passage lent puis reste immobile à sa dernière position tant qu'elles ne jouent pas, sans écran noir ni crash ; une permission TV refusée n'écarte pas les contenus BetaSeries accessibles
 
 ### Requirement: Navigation 3 paliers
-Le DPAD SHALL naviguer héro → dock → grille et inversement ; seule la zone active est focusable. À suivre SHALL rester une ligne de la grille, pas un palier, sautée avec son titre quand elle est masquée. La page SHALL défiler d'un seul tenant, sans fondu ni saut, et restaurer à la grille sa position et son focus ; une carte Up Next disparue SHALL passer le focus à sa voisine. Les scénarios ci-dessous SHALL préciser les cas.
+Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seule zone active. À suivre SHALL rester une ligne de grille. Parcours et actions de suivi SHALL restaurer leur origine sans créer de palier ; les messages non bloquants ne SHALL pas voler le focus. Défilement, positions et replis existants SHALL être conservés.
 
 #### Scenario: descente depuis le héro
-- **WHEN** l'utilisateur presse bas depuis le héro
-- **THEN** le premier élément du dock prend le focus, ou la zone grille si le dock est vide (dans ce cas la page défile comme au scénario « traversée du dock »)
+- **WHEN** bas est pressé depuis le héro
+- **THEN** le premier élément du dock prend le focus, sinon la grille avec son défilement existant
 
 #### Scenario: traversée du dock
-- **WHEN** l'utilisateur descend depuis le dock
-- **THEN** la page défile en une seule animation continue : le héro, le dock et la capsule heure et réglages (« Capsule heure et réglages » de `settings`) sortent par le haut pendant que la zone grille remonte jusqu'à occuper tout l'écran, d'environ un écran à la première entrée, jusqu'à la position de la zone grille laissée à la sortie sinon (« Panneau Top Shelf au focus », scénario « sortie et retour dans la grille ») ; la zone grille prend le focus (dernière carte Up Next ou tuile visitée, sinon le premier élément de sa première ligne) ; la lecture du héro est mise en pause
+- **WHEN** l'utilisateur descend du dock
+- **THEN** héro, dock et capsule sortent ensemble par le haut pendant que la grille remonte en une animation continue ; elle retrouve sa position et son dernier élément, sinon le premier de sa première ligne ; la lecture du héro est en pause
 
 #### Scenario: rangée Up Next affichée en tête
-- **WHEN** l'utilisateur descend depuis le dock pour la première fois (aucune carte ni tuile de la zone grille encore visitée), le réglage vaut « Avant les applications » et la rangée Up Next est affichée
-- **THEN** le titre « À suivre » arrive en haut de la zone grille, la rangée Up Next juste en dessous, et sa première carte prend le focus ; un bas de plus passe à la première rangée d'apps, sous le titre « Applications », sans changement de fond
+- **WHEN** l'utilisateur descend pour la première fois avec À suivre avant les applications
+- **THEN** son titre arrive en haut, sa première carte prend le focus et bas mène aux apps sans changement de fond
 
 #### Scenario: rangée masquée
-- **WHEN** l'utilisateur descend depuis le dock et que la rangée Up Next est masquée
-- **THEN** la rangée et son titre sont sautés, sans place réservée : à la première entrée, le titre « Applications » est en haut de la zone grille et la première tuile de la première rangée d'apps prend le focus ; sinon le scénario « traversée du dock » s'applique aux rangées d'apps
+- **WHEN** la rangée est masquée
+- **THEN** titre et rangée sont sautés sans place réservée ; la grille restaure les apps selon ses règles habituelles
 
 #### Scenario: déplacements dans la rangée Up Next
-- **WHEN** l'utilisateur presse gauche ou droite alors que le focus est sur la rangée Up Next
-- **THEN** le focus reste dans la rangée, sans boucle aux bords
+- **WHEN** gauche ou droite est pressé sur À suivre
+- **THEN** le focus reste dans la rangée sans boucle aux bords
 
 #### Scenario: retour dans la grille à la position laissée
-- **WHEN** l'utilisateur a parcouru la zone grille jusqu'à un élément qui n'est pas son premier élément, carte de la rangée Up Next ou tuile d'une rangée d'apps, la quitte (Retour, ou remontée vers le dock ou le héro), puis y redescend
-- **THEN** la page redescend en une seule animation continue jusqu'à la position de la zone grille laissée à la sortie, et non d'un écran exactement : cet élément reprend le focus à la même place à l'écran qu'au moment de la sortie, qu'il soit dans la rangée Up Next ou dans les rangées d'apps
+- **WHEN** la grille est quittée puis réouverte
+- **THEN** elle retrouve sa position de défilement et son dernier élément à la même place à l'écran, sans descente forcée d'un écran
 
 #### Scenario: carte laissée disparue avant le retour
-- **WHEN** la dernière carte Up Next visitée a disparu de la rangée pendant que l'utilisateur était hors de la zone grille, puis il y redescend
-- **THEN** la carte qui occupe désormais sa position dans la rangée prend le focus, ou la précédente si la carte disparue était la dernière ; si la rangée est devenue vide ou masquée, le scénario « rangée devenue vide » s'applique
+- **WHEN** la dernière carte visitée n'existe plus au retour
+- **THEN** sa suivante, sinon précédente prend le focus ; si la rangée est vide le repli de rangée vide s'applique
 
 #### Scenario: dock jamais visible en vue grille
-- **WHEN** la zone grille est active, pendant ou après le défilement
-- **THEN** le dock n'est visible à aucun moment au-dessus ou en travers de la grille : il quitte l'écran avec le héro et ne réapparaît qu'avec lui ; aucune position intermédiaire ne montre le dock sur la grille
+- **WHEN** la grille est active, pendant ou après défilement
+- **THEN** le dock ne recouvre jamais la grille et ne réapparaît qu'avec le héro
 
 #### Scenario: remontée
-- **WHEN** l'utilisateur presse haut depuis la première ligne de la zone grille (la rangée Up Next si elle est affichée en tête, sinon la première rangée d'apps)
-- **THEN** la page défile en sens inverse avec la même animation continue : la zone grille redescend pendant que le héro, le dock et la capsule reviennent par le haut ; le dock reprend le focus (ou le héro si le dock est vide) ; haut depuis le dock rend le focus au héro et relance sa lecture
+- **WHEN** haut est pressé sur la première ligne de grille
+- **THEN** le défilement inverse restaure le dock, sinon le héro ; haut depuis le dock rend le focus au héro et relance sa lecture
 
 #### Scenario: remontée depuis les apps
-- **WHEN** l'utilisateur presse haut depuis la première rangée d'apps
-- **THEN** la rangée Up Next prend le focus si elle est affichée en tête (dernière carte visitée, sinon la première), sans défilement vers le héro ; sinon le scénario « remontée » s'applique
+- **WHEN** haut est pressé sur la première rangée d'apps
+- **THEN** si À suivre est placé avant, sa dernière carte visitée, sinon sa première carte prend le focus sans défilement vers le héro ; sinon la remontée vers le dock s'applique
 
 #### Scenario: position après les applications
-- **WHEN** le réglage « Position d'À suivre » vaut « Après les applications » et que la rangée est affichée
-- **THEN** la rangée Up Next est la dernière ligne de la zone grille, sous son titre « À suivre » : bas depuis la dernière rangée d'apps lui donne le focus, bas depuis la rangée ne fait rien, haut depuis la rangée revient à la dernière rangée d'apps, et la première ligne de la zone grille est la première rangée d'apps, sous le titre « Applications »
+- **WHEN** À suivre est placé après les apps
+- **THEN** bas depuis leur dernière rangée atteint À suivre, bas à son bord ne fait rien, haut revient à la dernière rangée d'apps
 
 #### Scenario: carte focusée disparue
-- **WHEN** la carte Up Next qui a le focus disparaît de la rangée (rechargement du TV Provider, app source désactivée) et qu'il reste au moins une carte
-- **THEN** la carte qui prend sa position dans la rangée (la suivante) reçoit le focus, ou la précédente si la carte disparue était la dernière ; le focus ne quitte pas la rangée et la position verticale de la page ne change pas
+- **WHEN** une carte disparaît, notamment par synchronisation du compte, panne, déconnexion ou retrait local
+- **THEN** sa suivante, sinon précédente prend le focus sans changer la position verticale ; les sources restantes ne provoquent pas de retour forcé au héro
 
 #### Scenario: rangée devenue vide
-- **WHEN** la rangée Up Next devient vide ou masquée (dernière carte disparue, réglage « Afficher À suivre » désactivé, permission retirée) alors qu'elle a le focus, ou qu'elle porte la dernière carte visitée et que l'utilisateur revient dans la zone grille ou au launcher
-- **THEN** la rangée et son titre sont masqués et le repli de « Focus d'une app disparue » s'applique à la zone grille : la première tuile de la première rangée d'apps prend le focus si la rangée était avant les applications, la dernière tuile de la dernière rangée d'apps si elle était après ; si la zone grille ne contient aucune app, le héro reprend le focus
+- **WHEN** la rangée devenue vide ou masquée portait le focus ou la dernière carte visitée
+- **THEN** la première tuile d'app si elle était avant les apps, la dernière si elle était après reçoit le focus ; sans app le héro reprend le focus
 
 #### Scenario: retour depuis une app
-- **WHEN** l'utilisateur revient au launcher après avoir ouvert une app depuis la rangée Up Next (carte ou menu « Ouvrir avec… »)
-- **THEN** la position verticale précédente dans la zone grille est restaurée ; le contenu ouvert est en première place de la rangée (« Contenus ouverts depuis SygixOs » de up-next), sa carte, retrouvée par la clé de contenu même si l'app publie désormais un autre épisode de la série, reçoit le focus et la rangée est ramenée à son début, sa première carte sur la marge gauche ; si ce contenu n'est plus publié, les scénarios « carte focusée disparue » (à partir de la position de la carte à l'ouverture) et « rangée devenue vide » s'appliquent ; le repli des apps disparues du dock et des rangées d'apps reste celui de « Focus d'une app disparue »
+- **WHEN** l'utilisateur revient après ouverture depuis À suivre, carte ou menu
+- **THEN** la position verticale de grille est restaurée et le contenu ouvert revient premier et focusé selon sa clé, même avec un autre épisode ; s'il a disparu le repli part de sa position à l'ouverture ; la rangée revient à son début pour un contenu retrouvé
 
 #### Scenario: retour depuis la grille
-- **WHEN** l'utilisateur presse Retour depuis la zone grille, quelle que soit la ligne focusée (rangée Up Next ou rangée d'apps)
-- **THEN** la page défile jusqu'au héro avec la même animation continue (une seule animation, même si la grille avait été parcourue en profondeur), le héro reprend le focus et sa lecture
+- **WHEN** Retour est pressé dans la grille
+- **THEN** la page revient au héro en une seule animation continue et le héro reprend focus et lecture
 
 #### Scenario: continuité de l'animation
-- **WHEN** un défilement héro ↔ grille est en cours et l'utilisateur presse à nouveau haut, bas ou Retour
-- **THEN** la page repart de sa position courante vers la nouvelle cible sans saut ni retour à une position de départ
+- **WHEN** haut, bas ou Retour est pressé pendant un défilement
+- **THEN** l'animation repart de sa position courante vers la nouvelle cible sans saut
 
 #### Scenario: cohabitation avec la Top Shelf
-- **WHEN** le focus est sur la rangée Up Next
-- **THEN** aucun panneau Top Shelf n'est ouvert ; le panneau reste lié au focus des tuiles d'apps
+- **WHEN** À suivre a le focus
+- **THEN** aucun Top Shelf n'est ouvert ; il reste lié aux apps
 
 #### Scenario: couches inactives
-- **WHEN** une zone n'est pas active
-- **THEN** aucun de ses éléments ne peut prendre le focus ; gauche et droite restent dans la zone active
+- **WHEN** une zone ou un contexte est inactif
+- **THEN** ses éléments ne prennent pas le focus ; gauche/droite restent dans la zone active et une surcouche de suivi active isole son propre focus selon watch-tracking
 
-**Détails.** — Défilement de l'accueil : L'accueil SHALL être une page verticale continue : héro avec dock en overlay sur le premier écran, grille dessous. Les passages dock/grille SHALL défiler sans fondu ni saut avec durée/courbe de « Focus tvOS ». À la première entrée, la page SHALL descendre d'un écran au début de la grille, titre de sa première section en haut et première ligne dessous. Cas « première entrée ou traversée » : quand le focus passe du dock à la grille ou revient, « continuité de l'animation » et les scénarios de première descente de « Navigation 3 paliers » s'appliquent. — Restauration de la grille : Au retour dans la grille, la page SHALL retrouver sa position laissée, pas descendre d'un écran exactement, et la carte ou tuile laissée SHALL reprendre le focus. La disparition de cette carte SHALL suivre « Repli du focus des cartes ». Cas « retour dans la grille » : quand la grille redevient active après une sortie, « retour dans la grille à la position laissée » et « carte laissée disparue avant le retour » de « Navigation 3 paliers » restent applicables.
+#### Scenario: retour depuis le héro
+- **WHEN** une app ouverte par le parcours de suivi depuis le héro rend la main
+- **THEN** le héro retrouve son contexte et le programme encore admissible, sinon son voisin ou le fallback ; aucune restauration ne force la grille
+
+#### Scenario: proposition non bloquante
+- **WHEN** Terminé ou Annuler est proposé au retour
+- **THEN** l'origine conserve son focus ; Haut (engrenage) puis Droite depuis le héro, ou Retour, Haut puis Droite depuis la grille atteignent le composant ; OK valide son action, Gauche, Haut ou Retour rendent l'engrenage, Droite et Bas ne font rien ; aucun quatrième palier n'est créé ; le composant reste compact en bas à droite dans la zone sûre, adapté au contenu, avec fond et bordure transparents floutés du composant de modale existant
+
+#### Scenario: taille des modales du suivi
+- **WHEN** le suivi ouvre une modale, notamment un état vide ou indisponible
+- **THEN** elle réutilise le composant de modale existant et sa matière glass transparente floutée ; sa taille épouse le contenu et les actions avec les retraits du composant, sans grande réserve vide ni panneau opaque de substitution
+
+**Détails.** — Le home reste une page continue, héro/dock puis grille, sans fondu ni saut dans la traversée, avec durée/courbe de Focus tvOS. Première entrée : titre de la première section en haut et première ligne dessous. Retour : position et élément laissés, pas une descente d'un écran imposée. La disparition d'un élément suit Repli du focus des cartes. Les contrôles du suivi n'annulent ni ces positions ni l'isolation des zones inactives.
 
 ### Requirement: Dock d'apps épinglées
 Le home SHALL afficher un dock en verre sombre (« Thème », rail overlay bas) contenant au plus 6 apps épinglées qui restent dans la grille. Il SHALL se déplacer avec le héro et n'être visible qu'avec lui. Le verre SHALL rester actif pendant le défilement jusqu'à la sortie complète du héro, sans changement d'aspect au début de la descente ni recréation du contenu lors de sa bascule.
@@ -265,56 +277,60 @@ L'ordre des apps et les épinglages SHALL être persistés localement (DataStore
 - **THEN** l'ordre d'avant le déplacement est restauré
 
 ### Requirement: Contenu héro TV Provider
-Le héro SHALL afficher les programmes watch next et preview des apps installées, avec la seule permission `READ_TV_LISTINGS` ; une colonne absente ou vide ne retire que son élément. Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, relus selon « rafraîchissement automatique ». Un programme SHALL être reconnu par son empreinte de contenu, indépendante de son identifiant de ligne et de sa progression. Le héro n'enchaîne que les programmes admis par « Diaporama héro ».
+Le héro SHALL conserver les programmes watch next et preview encore publiés des apps installées sous READ_TV_LISTINGS, avec leurs champs facultatifs et empreintes indépendantes de ligne/progression. L'apport du compte SHALL suivre « Héro du suivi », indépendant de cette permission ; le fallback SHALL s'appliquer seulement sans candidat admissible de l'une ou l'autre source.
 
 #### Scenario: permission
-- **WHEN** le launcher démarre sans `android.permission.READ_TV_LISTINGS`
-- **THEN** la demande système s'affiche ; dès l'octroi le héro se recharge sans redémarrage ; en cas de refus le héro reste sur le fallback sans erreur visible
+- **WHEN** le launcher démarre sans READ_TV_LISTINGS
+- **THEN** la demande système existante s'affiche ; son octroi recharge les programmes sans redémarrage et son refus laisse fonctionner l'apport du compte, sinon le fallback
 
 #### Scenario: programmes disponibles
-- **WHEN** une ou plusieurs apps installées publient des programmes dans le TV Provider
-- **THEN** le héro les affiche : vidéo d'aperçu prioritaire, sinon candidates affiche et miniature selon « Chargement partagé des images » et « Qualité des visuels », puis repli du « Diaporama héro » ; titre, app source, type du programme (`watch_next_type` d'un watch next ; preview program sinon), numéros de saison et d'épisode affichés (`season_display_number`, `episode_display_number`), durée et progression quand disponibles ; ordre mélangé au hasard une fois par lancement de SygixOs (« Ordre aléatoire du héro »), toutes apps confondues, sans liste d'apps codée en dur ; les requêtes au provider ne portent aucune clause de sélection, le filtrage par app est fait côté launcher
+- **WHEN** des apps publient des programmes
+- **THEN** vidéo puis images selon les contrats partagés, titre, source, type, saison, épisode, durée et progression disponibles sont conservés, sans liste d'apps codée en dur ; le type affiché provient de `watch_next_type` pour Watch Next, du type preview sinon, et les numéros de `season_display_number` / `episode_display_number` ; les requêtes sans clause de sélection sont filtrées côté launcher et l'ordre suit Ordre aléatoire du héro
 
 #### Scenario: fallback
-- **WHEN** aucune app ne publie de programme dans le TV Provider
-- **THEN** le héro utilise le fond vidéo de secours, puis le fond neutre si les clips sont illisibles, sans crash ni écran vide
+- **WHEN** aucune app ne publie de programme et qu'aucun contenu de suivi admissible n'existe
+- **THEN** le fond nature puis neutre assure le repli sans écran vide
 
 #### Scenario: colonnes facultatives
-- **WHEN** un programme ne publie pas son type, sa saison, son épisode, sa durée ou sa position
-- **THEN** il reste affiché ; seuls les éléments correspondants manquent, selon « Diaporama héro »
+- **WHEN** type, saison, épisode, durée ou position ne sont pas publiés
+- **THEN** seuls ces éléments manquent, selon Diaporama héro
 
 #### Scenario: rafraîchissement automatique
-- **WHEN** l'accueil est au premier plan et que le TV Provider signale un changement, ou que 15 minutes se sont écoulées depuis la dernière relecture
-- **THEN** le héro relit le provider ; aucune relecture n'a lieu tant que le launcher est en arrière-plan, et le retour au premier plan en déclenche une
+- **WHEN** un changement du TV Provider est signalé au premier plan ou que sa relecture périodique est due
+- **THEN** le provider est relu au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; le retour déclenche une relecture et le compte suit sa propre source partagée
 
 #### Scenario: programme retiré
-- **WHEN** une app retire un programme publié pendant que l'accueil est affiché
-- **THEN** il disparaît du héro et du Top Shelf à la relecture suivante, sans redémarrage ; s'il était affiché dans le héro, le héro passe par fondu au programme qui prend sa place, ses textes ne changeant qu'avec le visuel (« Diaporama héro ») ; ses visuels sortent des ensembles de visuels vérifiés
+- **WHEN** une app retire un programme
+- **THEN** il quitte héro et Top Shelf à la prochaine lecture ; s'il était affiché, média et textes changent par le fondu existant et ses visuels quittent l'ensemble vérifié
 
 #### Scenario: programme modifié
-- **WHEN** une app modifie le titre ou le visuel d'un programme publié
-- **THEN** le héro et le Top Shelf montrent le nouveau titre et le nouveau visuel à la relecture suivante ; un nouveau visuel est vérifié comme un visuel inconnu (« Qualité des visuels ») et seule l'image de ce programme est récupérée
+- **WHEN** titre ou visuel d'un programme change
+- **THEN** la nouvelle version est reflétée dans le héro et le Top Shelf à la prochaine lecture ; seule son image nouvelle est vérifiée et récupérée
 
 #### Scenario: programme republié ou progression mise à jour
-- **WHEN** une app supprime puis republie un programme identique sous un nouvel identifiant de ligne, ou ne change que sa position de lecture, son activité ou sa durée
-- **THEN** le programme garde son image, sa place dans l'ordre du héro et son état ; aucune image n'est récupérée, revalidée ni redessinée, seuls les textes de progression changent
+- **WHEN** seule la ligne, la progression, l'activité ou la durée change
+- **THEN** place, image et état sont conservés sans récupération ni revalidation ; seuls les textes concernés évoluent
 
 #### Scenario: source en erreur ou absente
-- **WHEN** une table du provider est absente, échoue ou ne répond pas dans son délai
-- **THEN** l'erreur reste distincte d'une liste vide réussie ; seuls les anciens programmes encore valides de cette table sont conservés, sinon le héro montre son repli et le Top Shelf ne montre aucun ancien programme de cette table
+- **WHEN** une table du provider échoue, manque ou dépasse son délai
+- **THEN** erreur et vide restent distincts ; seuls ses anciens programmes encore valides restent affichables ; le compte et les autres tables continuent, sinon les replis existants s'appliquent
 
-**Détails.** — Données facultatives du héro : Hors identifiant et package, les colonnes du TV Provider SHALL être facultatives : absentes ou vides, elles retirent seulement l'élément alimenté. Le remplissage réel du type, de la saison, de l'épisode et de la durée sur la TV de référence reste une hypothèse à vérifier sur l'appareil. Cas « métadonnées partielles » : quand une colonne facultative n'est pas publiée, « colonnes facultatives » de « Contenu héro TV Provider » s'applique sans inventer la valeur manquante. — Relecture des programmes du héro : Le héro et le Top Shelf SHALL ne montrer que des programmes encore publiés, de « Validité des programmes publiés ». Le launcher SHALL relire le provider sur signal de changement et au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; un succès inchangé ne SHALL rien republier mais renouvelle sa confirmation, et un échec ne SHALL pas être assimilé à une liste vide. Cas « modification de publication » : quand une app retire ou modifie un programme, les scénarios « rafraîchissement automatique », « programme retiré », « programme modifié » et « source en erreur ou absente » de « Contenu héro TV Provider » s'appliquent avec les échéances de « Validité des programmes publiés ».
+**Détails.** — Les colonnes facultatives ne sont pas inventées ; leur remplissage réel reste vérifiable sur appareil. Le héro et le Top Shelf conservent le contrat de Validité des programmes publiés pour les tables Android. Un succès inchangé renouvelle leur confirmation sans republication ; un échec ne vaut pas liste vide. Le compte possède un état et une validité propres et ne fournit aucun contenu au Top Shelf.
 
 ### Requirement: Clic programme publié
-Le clic sur un poster du TV Provider SHALL ouvrir le contenu via l'intent publié par l'app source.
+Un programme local non associé au suivi SHALL conserver l'ouverture par intent publié, sinon app source. Un contenu associé au suivi SHALL utiliser le même parcours de lecteur que À suivre, avec préférences partagées et restauration depuis le héro.
 
 #### Scenario: ouverture
-- **WHEN** l'utilisateur clique sur un poster héro issu du TV Provider
-- **THEN** l'app source s'ouvre sur la fiche du contenu (intent du programme), fallback : lancement simple de l'app si l'intent échoue
+- **WHEN** un programme local non associé est ouvert depuis le héro
+- **THEN** son intent ouvre la fiche ou le contenu selon l'app, sinon l'app est lancée
 
 #### Scenario: progression
-- **WHEN** le programme expose une position de lecture (watch next)
-- **THEN** une barre de progression est visible sur le poster héro
+- **WHEN** une position de lecture locale est connue
+- **THEN** le héro conserve sa barre de progression ; un statut BetaSeries seul ne crée aucune position
+
+#### Scenario: ouverture suivie
+- **WHEN** un contenu associé au suivi est ouvert depuis le héro
+- **THEN** choix du lecteur, replis et observation suivent watch-tracking, avec les mêmes préférences que sa carte ; l'origine héro reste conservée
 
 ### Requirement: Panneau Top Shelf au focus
 Le panneau SHALL s'ouvrir à la demande au-dessus de la rangée focusée, se fermer si son app n'a rien à montrer et ne réserver aucune place fermé. Le bloc focusé et son défilement SHALL suivre « Bloc focusé de la grille » et « Placement du bloc focusé », sans révéler le héro tant que la grille est active. Les images SHALL être prêtes et valides selon « Contenu du panneau ».
@@ -1539,3 +1555,53 @@ Les vidéos du héro (clips nature et vidéos d'aperçu) SHALL être conservées
 #### Scenario: cache plein
 - **WHEN** l'ajout d'une vidéo dépasse la taille du cache
 - **THEN** les vidéos les moins récemment lues sont évincées ; la lecture en cours n'est pas interrompue
+
+### Requirement: Héro du suivi
+Le héro SHALL recevoir tous les contenus à regarder admissibles du fournisseur, pas seulement les 20 cartes retenues dans À suivre. Identité, épisode retenu et lecteur SHALL être partagés ; ordre, qualité d'image, préchargement, fondu et fallback SHALL suivre les contrats du héro existants.
+
+#### Scenario: compte plus grand que la rangée
+- **WHEN** le compte contient plus de 20 contenus admissibles
+- **THEN** tous sont candidats au héro, chargés par pages et préparés selon les bornes existantes, sans décoder toutes leurs images à l'avance
+
+#### Scenario: présentation et ouverture
+- **WHEN** un contenu de suivi est affiché
+- **THEN** les textes habituels du héro sont utilisés avec métadonnées connues ; l'en-tête identifie l'app choisie, sinon BetaSeries ; son bouton utilise le parcours commun sans prétendre qu'une offre non confirmée est disponible
+
+#### Scenario: masquage local
+- **WHEN** une série ou un film est retiré localement d'À suivre
+- **THEN** les candidats BetaSeries de ce contenu quittent aussi le héro ; les programmes locaux non issus du suivi gardent leurs règles existantes
+
+#### Scenario: source en attente ou vide
+- **WHEN** le compte charge ou réussit sans contenu admissible
+- **THEN** les programmes locaux restent utilisables ; sans candidat local, le fallback existe sans prolonger le démarrage pour attendre le compte
+
+#### Scenario: panne ou déconnexion
+- **WHEN** le compte devient indisponible ou est déconnecté
+- **THEN** ses candidats sont retirés sans réapparition depuis le cache d'images ; le programme local correspondant peut rester, sinon le héro passe au candidat suivant ou au fallback
+
+#### Scenario: retour et ordre
+- **WHEN** le compte se rafraîchit au retour au premier plan
+- **THEN** les candidats conservés ne sont pas remélangés ; ajouts et retraits suivent Ordre aléatoire du héro et l'identité stable évite un doublon du même contenu identifié
+
+### Requirement: Indicateur d'indisponibilité du suivi
+Une panne du fournisseur connecté SHALL avoir un indicateur sans vol de focus ni notification répétée, avec cause et Réessayer ou Reconnecter. Le détail SHALL rester accessible même sans carte À suivre et disparaître après rétablissement confirmé ou déconnexion.
+
+#### Scenario: panne partielle
+- **WHEN** le compte échoue et que les programmes locaux restent disponibles
+- **THEN** ils restent utilisables ; l'indicateur ne prend ni carte ni focus, utilise TextStyles.RowSecondary sans dépasser la hauteur du titre, aligné à droite sans suffixe « · Réglages » ; seul le trajet depuis l'engrenage donne accès au détail
+
+#### Scenario: accès sans carte depuis le héro
+- **WHEN** aucune notification de suivi n'est affichée, le compte est en panne et le focus est sur l'engrenage
+- **THEN** Droite ouvre le détail (cause, Réessayer sinon Reconnecter) ; fermer rend l'engrenage ; ce trajet reste identique quand À suivre est masqué
+
+#### Scenario: synchronisation en cours
+- **WHEN** une synchronisation affiche un statut dans l'en-tête d'À suivre
+- **THEN** ce statut reprend le placement discret à droite et n'agrandit pas l'en-tête ni ne prend la place des cartes
+
+#### Scenario: aucune carte restante
+- **WHEN** la panne retire les dernières cartes du suivi
+- **THEN** le repli de focus de rangée vide s'applique et la cause/réessai restent accessibles depuis les réglages de suivi, sans dépendre d'une carte disparue
+
+#### Scenario: détail et fermeture
+- **WHEN** le détail est ouvert
+- **THEN** Réessayer, sinon Reconnecter a le focus ; haut/bas parcourent ses actions sans boucle, gauche/droite restent dans le panneau, Retour restitue l'origine ou son repli ; une action disparue au rétablissement restitue le contexte sans focus perdu

@@ -6,38 +6,42 @@ Rangée Up Next de l'écran d'accueil : agrégation des programmes watch next pu
 ## Requirements
 
 ### Requirement: Source multi-apps
-La rangée SHALL agréger les `WatchNextPrograms` de toutes les apps visibles du TV Provider sous `READ_TV_LISTINGS`, filtrés sur `COLUMN_BROWSABLE`, sans app privilégiée ni lecture de `PreviewPrograms`. Les filtres SHALL suivre settings (« Apps sources », « Cacher une application ») et launcher-shell (« Sélection des apps sources »).
+La rangée SHALL agréger les `WatchNextPrograms` visibles du TV Provider sous `READ_TV_LISTINGS`, filtrés sur `COLUMN_BROWSABLE`, sans app privilégiée ni lecture de `PreviewPrograms`, et l'apport du fournisseur de suivi connecté. Les filtres d'apps SHALL suivre settings et launcher-shell ; chaque source SHALL fonctionner indépendamment des permissions et pannes des autres.
 
 #### Scenario: agrégation
 - **WHEN** plusieurs apps publient des programmes watch next
-- **THEN** la rangée affiche les items de toutes les sources visibles, chaque carte portant l'app qui a publié le programme retenu
+- **THEN** la rangée affiche les items de toutes les sources visibles, chaque carte locale portant l'app du programme retenu ; les cartes associées au suivi suivent le badge de « Carte Up Next »
 
 #### Scenario: accès aux données
 - **WHEN** la rangée est chargée
-- **THEN** la requête `ContentResolver` s'exécute hors du thread principal avec un timeout borné, et la source renvoie un résultat qui distingue une erreur d'un résultat vide
+- **THEN** la requête `ContentResolver` s'exécute hors du thread principal avec un timeout borné, et chaque source renvoie un résultat distinguant erreur et vide
 
 #### Scenario: filtres des réglages
 - **WHEN** une app est désactivée dans « Apps sources » ou cachée de la grille
-- **THEN** la rangée applique les exigences « Apps sources » et « Cacher une application » de la capability settings, avant le dédoublonnage, sans redémarrage
+- **THEN** sa contribution suit les exigences « Apps sources » et « Cacher une application » de settings avant dédoublonnage ; cela ne déconnecte pas le fournisseur de suivi et ne retire pas ses contenus propres
 
 #### Scenario: types non pris en charge
 - **WHEN** un programme publie un `COLUMN_TYPE` qui n'est ni un épisode ni un film (clip, extrait, autre)
-- **THEN** il est exclu de la rangée ; un programme sans `COLUMN_TYPE` n'est pas concerné et suit l'exigence « Champs facultatifs »
+- **THEN** il est exclu ; un programme sans `COLUMN_TYPE` suit « Champs facultatifs »
+
+#### Scenario: apport du compte
+- **WHEN** le fournisseur de suivi renvoie des contenus à regarder absents des programmes locaux
+- **THEN** ils rejoignent la même rangée, selon `watch-tracking` et le contrat du fournisseur, sans nécessiter `READ_TV_LISTINGS` ni une offre de lecture connue
 
 ### Requirement: Modèle canonique
-La rangée SHALL manipuler un modèle canonique `UpNextItem` indépendant de l'app d'origine, avec un champ `externalIds` facultatif et la liste des sources du contenu. Le modèle SHALL conserver les candidates affiche et miniature publiées, sans perdre l'alternative lors du choix d'une image.
+La rangée SHALL manipuler un contenu canonique indépendant de l'app, avec identifiants externes facultatifs et sources conservées. Origine du suivi, identité de série ou film, épisode retenu et application de lecture SHALL être distincts ; les candidates affiche et miniature SHALL être conservées sans perdre l'alternative.
 
 #### Scenario: constitution
-- **WHEN** un programme watch next est converti en item de la rangée
-- **THEN** l'item expose le package source, le type (épisode ou film, publié ou inféré selon « Champs facultatifs »), le titre de série, la saison, l'épisode, le titre d'affichage, les candidates affiche et miniature, la progression optionnelle, le type watch next, le timestamp d'activité, l'intent publié et le nom de l'app source ; le champ `externalIds` est présent mais vide en P6
+- **WHEN** un programme watch next est converti en item
+- **THEN** il conserve package, type publié ou inféré, série, saison, épisode, titre, images candidates, progression optionnelle, type watch next, activité, intent et nom d'app ; les identifiants externes ne sont ajoutés que s'ils sont vérifiés
 
 #### Scenario: sources du contenu
-- **WHEN** des items sont fusionnés par le dédoublonnage
-- **THEN** l'item retenu conserve la liste des sources qui possèdent le contenu (package, nom, icône et intent publié de chacune), après fusion comme avant ; c'est cette liste qu'affiche le menu « Ouvrir avec… »
+- **WHEN** des items sont fusionnés
+- **THEN** toutes les sources locales du contenu sont conservées avec package, nom, icône et intent ; la source de suivi n'est pas présentée comme une application capable de lire la vidéo
 
 #### Scenario: extension ultérieure
-- **WHEN** un change dédié à BetaSeries apporte des identifiants externes (enrichissement) aux items de toutes les sources
-- **THEN** le modèle canonique et la rangée absorbent ces identifiants sans refonte, et le niveau 5 de dédoublonnage s'active quand ils sont connus ; en P6, `externalIds` reste vide et le niveau 5 ne s'applique jamais
+- **WHEN** un fournisseur apporte des identifiants externes vérifiés
+- **THEN** ils enrichissent l'identité et le dédoublonnage sans dépendre d'un package Android fictif ; leur absence laisse les replis locaux utilisables
 
 ### Requirement: Champs facultatifs
 Toute colonne watch next SHALL être facultative : absence/vide dégrade sans rejet, sauf tout titre absent ; `package_name` et `_ID` servent de repli. Un épisode sans `COLUMN_TITLE` mais avec `COLUMN_EPISODE_TITLE` SHALL être conservé. `watch_next_type` absent ou inconnu SHALL rejoindre « à suivre » ; `COLUMN_TYPE` absent SHALL être inféré (épisode si saison et épisode, sinon film). Les scénarios ci-dessous SHALL préciser les cas.
@@ -101,66 +105,82 @@ Toute colonne watch next SHALL être facultative : absence/vide dégrade sans re
 **Détails.** — Titres des items : Un item sans `COLUMN_TITLE` SHALL être rejeté sauf épisode publié/inféré ayant `COLUMN_EPISODE_TITLE` : son titre d'épisode SHALL servir à l'affichage et à la normalisation de dédoublonnage. Ni l'un ni l'autre : rejet. Cette règle conserve la décision du 2026-10-10. Cas « titre d'épisode en repli » : quand le titre principal manque, « titre absent » et « épisode sans titre » de « Champs facultatifs » s'appliquent. — Inférence des types Up Next : Un `watch_next_type` absent ou inconnu hors CONTINUE/NEXT/NEW/WATCHLIST SHALL rejoindre NEXT/NEW, après CONTINUE avant WATCHLIST pour tri et gagnant d'un doublon. Sans `COLUMN_TYPE`, le type SHALL être épisode si saison et épisode présents, film sinon, utilisé comme un type publié pour carte et dédoublonnage. Cas « types manquants » : quand les types publiés sont absents ou inconnus, les scénarios de type de « Champs facultatifs » vérifient ces replis sans écarter l'item.
 
 ### Requirement: Dédoublonnage en niveaux
-La rangée SHALL dédoublonner par 5 niveaux : exact dans une app, une carte par série/app, même épisode inter-apps, même film inter-apps, identifiant externe BetaSeries (prioritaire sur 3/4 si connu, inactif en P6). Aux niveaux 3/4, le type SHALL être `COLUMN_TYPE`, sinon l'inférence de « Champs facultatifs ».
+La rangée SHALL conserver les niveaux exact dans une app, série/app, épisode inter-apps et film inter-apps, et activer l'identité externe vérifiée prioritaire. Pour une série associée au suivi, elle SHALL afficher une seule carte toutes sources confondues, avec la résolution d'épisode de « Gagnant d'un doublon ». Sans identité externe, les règles locales restent applicables.
 
 #### Scenario: doublons dans une app
 - **WHEN** une app publie le même contenu plusieurs fois
-- **THEN** un seul item est retenu, identifié par `package_name` + `internal_provider_id`, sinon `content_id`, sinon `intent_uri`
+- **THEN** un seul item est retenu par package et identifiant fournisseur, sinon contenu, sinon intent
 
 #### Scenario: série dans une app
-- **WHEN** une app publie à la fois l'épisode en cours d'une série et son épisode suivant
-- **THEN** une seule carte est affichée pour la série et l'épisode en cours prime
+- **WHEN** une app publie à la fois l'épisode en cours et le suivant
+- **THEN** une seule carte est affichée pour la série et l'épisode en cours non déjà vu prime
 
 #### Scenario: épisode entre apps
-- **WHEN** deux apps publient le même épisode (titre de série normalisé + saison + épisode), que le type soit publié ou inféré
+- **WHEN** deux apps publient le même épisode (titre de série normalisé + saison + épisode), type publié ou inféré
 - **THEN** une seule carte est retenue
 
 #### Scenario: film entre apps
-- **WHEN** deux apps publient un film de même titre normalisé et de même année, que le type soit publié ou inféré
+- **WHEN** deux apps publient un film de même titre normalisé et même année, type publié ou inféré
 - **THEN** une seule carte est retenue
 
 #### Scenario: remake
-- **WHEN** deux apps publient un film de même titre normalisé et que les deux années sont connues et différentes
-- **THEN** aucune fusion n'a lieu
+- **WHEN** deux films de même titre ont des années connues différentes
+- **THEN** ils ne sont pas fusionnés sur le titre ; des identifiants externes distincts restent distincts
 
 #### Scenario: types différents
-- **WHEN** deux apps publient un même titre normalisé, l'un comme film et l'autre comme épisode (type publié ou inféré)
-- **THEN** aucune fusion n'a lieu
+- **WHEN** un titre est publié comme film et comme épisode
+- **THEN** aucune fusion entre ces types n'a lieu
 
 #### Scenario: année inconnue
-- **WHEN** l'année est connue d'un seul côté et le titre normalisé n'est pas associé à plusieurs années connues distinctes
-- **THEN** la fusion a lieu sur le titre normalisé seul, limite assumée et documentée
+- **WHEN** l'année n'est connue que d'un côté et que le titre normalisé n'est associé qu'à une seule année connue
+- **THEN** la fusion locale a lieu sur le titre seul, limite assumée et documentée
 
 #### Scenario: année inconnue entre plusieurs remakes
-- **WHEN** trois apps publient un film de même titre normalisé, avec les années 1982, inconnue et 2011
-- **THEN** l'item sans année reste séparé des deux remakes ; aucune fusion ne relie les années connues distinctes, quel que soit l'ordre des programmes
+- **WHEN** trois apps publient un même titre avec années 1982, inconnue et 2011
+- **THEN** l'item sans année reste séparé et aucune fusion ne relie les années distinctes, quel que soit l'ordre
 
 #### Scenario: normalisation stricte
-- **WHEN** les titres sont comparés
-- **THEN** la comparaison est une égalité stricte après normalisation (minuscules, diacritiques retirés, ponctuation et « (année) » supprimés, espaces compactés), sans correspondance approximative
+- **WHEN** les titres sont comparés sans identité externe
+- **THEN** l'égalité est stricte après minuscules, retrait des diacritiques, ponctuation et « (année) », puis compactage des espaces, sans rapprochement approximatif
 
 #### Scenario: limite assumée
-- **WHEN** deux apps publient le même contenu sous des titres localisés différents
-- **THEN** les items restent en double jusqu'à l'activation du niveau 5 par un change dédié à BetaSeries, et cette limite est documentée
+- **WHEN** des titres localisés différents ne peuvent pas être associés à une identité externe certaine
+- **THEN** les cartes restent séparées plutôt que fusionnées à tort ; aucun statut n'est écrit sur une identité incertaine
+
+#### Scenario: série identifiée entre fournisseurs
+- **WHEN** plusieurs apps et le compte décrivent des épisodes différents de la même série identifiée
+- **THEN** une seule carte de cette série est retenue et les possibilités d'ouverture sont conservées sans attribuer l'intent d'un épisode à un autre
 
 ### Requirement: Gagnant d'un doublon
-Quand plusieurs items partagent une même clé, la carte retenue SHALL être déterminée dans cet ordre : `CONTINUE` bat le groupe « à suivre » (`NEXT`/`NEW`, et programmes sans `watch_next_type` selon « Champs facultatifs »), qui bat `WATCHLIST` ; ensuite l'engagement le plus récent ; à égalité, l'ordre de préférence des apps (constante, Jellyfin d'abord).
+Une reprise non vue SHALL primer sur le prochain épisode du compte ; une reprise déjà vue SHALL être écartée au profit du prochain non vu diffusé. Entre reprises admissibles, activité récente puis préférence locale existante SHALL trancher. Sans suivi identifié, l'ordre SHALL rester CONTINUE, NEXT/NEW ou absent, WATCHLIST, puis activité et préférence d'app.
 
 #### Scenario: reprise en cours
-- **WHEN** un même contenu existe à la fois comme en cours (`CONTINUE`) et comme à suivre (`NEXT`/`NEW`) ou mis de côté (`WATCHLIST`)
-- **THEN** l'item en cours est retenu, avec sa progression et sa date d'activité
+- **WHEN** un contenu existe en CONTINUE et dans un groupe à suivre ou mis de côté
+- **THEN** la reprise admissible est retenue avec sa progression et sa date d'activité
 
 #### Scenario: à suivre contre mis de côté
-- **WHEN** un même contenu existe à la fois comme à suivre (`NEXT`/`NEW`) et comme mis de côté (`WATCHLIST`)
+- **WHEN** un même contenu existe comme à suivre et WATCHLIST sans reprise
 - **THEN** l'item à suivre est retenu
 
 #### Scenario: engagement le plus récent
-- **WHEN** les items candidats sont tous du même groupe de type watch next
-- **THEN** celui dont le timestamp d'activité est le plus récent est retenu
+- **WHEN** les candidats sont du même groupe admissible
+- **THEN** l'activité la plus récente gagne
 
 #### Scenario: égalité
-- **WHEN** deux candidats ont le même timestamp d'activité
-- **THEN** l'ordre de préférence des apps (constante en P6, Jellyfin d'abord) tranche
+- **WHEN** deux candidats locaux ont le même timestamp d'activité
+- **THEN** la préférence locale existante (Jellyfin d'abord) tranche ; cette règle ne constitue pas une préférence de lecture imposée au premier choix du suivi
+
+#### Scenario: épisode local en avance
+- **WHEN** BetaSeries propose S02E03 et qu'une app propose une reprise non vue de S02E05
+- **THEN** S02E05 est affiché sans marquer S02E03 ou S02E04 comme vus
+
+#### Scenario: reprise ancienne déjà vue
+- **WHEN** l'épisode repris par une app est confirmé vu dans le compte
+- **THEN** cette reprise ne masque pas le prochain non vu ; si aucun épisode diffusé ne reste à regarder, le fournisseur n'apporte pas de carte de série
+
+#### Scenario: statut de reprise inconnu
+- **WHEN** l'identité ou le statut de l'épisode local n'est pas confirmé
+- **THEN** l'absence dans la liste des épisodes à voir ne vaut pas preuve de visionnage ; la reprise locale reste admissible sans mutation automatique du compte
 
 ### Requirement: Tri et limite
 Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts SygixOs par ouverture décroissante, puis CONTINUE, NEXT/NEW (type absent compris), WATCHLIST ; dans chaque groupe, activité décroissante puis `_ID` croissant. La limite SHALL être 20 items. « En cours » SHALL désigner CONTINUE, la progression servant seulement à la barre.
@@ -182,72 +202,72 @@ Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts S
 - **THEN** la rangée commence par le contenu `NEXT` puis le contenu `WATCHLIST`, puis les autres items dans l'ordre des groupes (`CONTINUE`, `NEXT`/`NEW`, `WATCHLIST`)
 
 ### Requirement: Contenus ouverts depuis SygixOs
-DataStore SHALL mémoriser la dernière ouverture locale par clé de contenu (titre de série normalisé, ou titre de film et année), enregistrée depuis une carte ou « Ouvrir avec… », jamais depuis le héro, le Top Shelf ou la grille. L'ordre SHALL rester inchangé jusqu'à l'arrière-plan ; au retour, le contenu ouvert revient premier et focusé, rangée au début. Une entrée n'est supprimée qu'après un chargement réussi où plus aucune app ne publie le contenu.
+La dernière ouverture locale SHALL rester mémorisée par contenu, depuis carte ou menu, pas depuis héro, Top Shelf ou grille. L'identité SHALL survivre à l'enrichissement externe et au changement d'épisode. L'ordre SHALL rester stable jusqu'au retour ; la mémoire SHALL être purgée seulement après absence confirmée dans toutes les sources concernées, jamais sur erreur ou résultat partiel.
 
 #### Scenario: contenu ouvert passé en tête
-- **WHEN** l'utilisateur ouvre depuis la rangée le contenu de la quatrième carte, puis revient dans SygixOs
-- **THEN** ce contenu est la première carte de la rangée, sa carte a le focus, la première carte est alignée sur la marge gauche et la position verticale de la zone grille est celle laissée
+- **WHEN** un contenu est ouvert depuis la quatrième carte puis que l'utilisateur revient
+- **THEN** il est premier, focusé, rangée au début sur la marge gauche et position verticale de grille restaurée
 
 #### Scenario: épisode suivant publié entre-temps
-- **WHEN** l'utilisateur ouvre l'épisode 3 d'une série depuis la rangée et que l'app publie à son retour l'épisode 4 sous un autre programme
-- **THEN** la carte de la série (épisode 4) est en première place et reçoit le focus : la mémoire porte sur la série, pas sur le programme
+- **WHEN** l'épisode 3 est ouvert puis que l'épisode 4 est retenu au retour
+- **THEN** la série garde sa mémoire d'ouverture et sa première place avec le focus
 
 #### Scenario: ouverture depuis le menu
-- **WHEN** l'utilisateur ouvre un contenu par une entrée d'app du menu « Ouvrir avec… », que l'intent publié s'ouvre ou que l'app soit lancée en repli
-- **THEN** l'ouverture est enregistrée comme depuis la carte, et le contenu passe en tête au retour
+- **WHEN** une entrée d'app ouvre un intent ou l'app en repli
+- **THEN** l'ouverture est enregistrée comme depuis la carte
 
 #### Scenario: rien ne s'ouvre
-- **WHEN** ni l'intent publié ni l'app source ne peuvent s'ouvrir
-- **THEN** aucune ouverture n'est enregistrée et l'ordre de la rangée est inchangé
+- **WHEN** ni l'intent ni l'app ne s'ouvrent
+- **THEN** aucune ouverture n'est enregistrée et le tri reste inchangé
 
 #### Scenario: ordre entre contenus ouverts
-- **WHEN** plusieurs contenus de la rangée ont été ouverts depuis SygixOs à des instants différents
-- **THEN** ils sont en tête, du plus récemment ouvert au plus ancien, avant tous les contenus jamais ouverts depuis SygixOs
+- **WHEN** plusieurs contenus ont été ouverts depuis À suivre
+- **THEN** ils restent en tête par ouverture décroissante, avant les contenus jamais ouverts
 
 #### Scenario: chargement et premier lancement
-- **WHEN** la rangée se charge pour la première fois après un redémarrage du launcher, avec une mémoire déjà persistée
-- **THEN** les contenus mémorisés encore publiés sont en tête dès le premier affichage, sans réordonnancement ultérieur ; une mémoire vide ou illisible donne l'ordre des groupes seul, sans erreur
+- **WHEN** le launcher redémarre avec une mémoire persistée
+- **THEN** les contenus déjà chargés et encore présents sont ordonnés avec leur mémoire dès le premier affichage, sans réordonnancement ultérieur dû au chargement tardif de cette mémoire ; une mémoire vide ou illisible donne le tri des groupes sans erreur, sans empêcher l'insertion ultérieure de nouveaux contenus
 
 #### Scenario: purge des contenus disparus
-- **WHEN** un chargement réussit et qu'un contenu mémorisé n'est plus publié par aucune app
-- **THEN** son entrée est supprimée de la mémoire ; s'il est publié de nouveau plus tard, il suit l'ordre des groupes jusqu'à sa prochaine ouverture depuis SygixOs
+- **WHEN** les sources concernées ont été lues entièrement avec succès et qu'aucune ne contient le contenu
+- **THEN** son ouverture est supprimée ; une réapparition suit les groupes jusqu'à sa prochaine ouverture depuis À suivre
 
 #### Scenario: pas de purge sans lecture fiable
-- **WHEN** le chargement échoue, dépasse le timeout ou que `READ_TV_LISTINGS` est refusée, ou que l'app qui publie un contenu mémorisé est désactivée dans « Apps sources »
-- **THEN** la mémoire est conservée intacte
+- **WHEN** une source échoue, dépasse son délai, manque de permission, est désactivée ou n'a pas terminé sa pagination
+- **THEN** aucune absence déduite de ce résultat ne purge la mémoire
 
 #### Scenario: rafraîchissement
-- **WHEN** la rangée se recharge (retour au premier plan, signal du `ContentObserver`)
-- **THEN** l'ordre est recalculé avec la mémoire courante, sans changer le focus d'une carte encore présente, hormis le retour qui suit une ouverture depuis la rangée
+- **WHEN** la rangée se recharge
+- **THEN** le tri est recalculé sans déplacer le focus d'une carte encore présente, sauf retour suivant son ouverture depuis À suivre
 
-**Détails.** — Clé des contenus : La clé de contenu SHALL être indépendante de l'app et de l'épisode : titre de série normalisé pour épisode publié/inféré (clé partagée par toute la série), titre normalisé et année connue pour film ; année inconnue d'un côté correspond à toute année selon le niveau 4. Cas « épisode suivant ou autre app » : quand le même contenu change d'épisode ou de source, « épisode suivant publié entre-temps » de « Contenus ouverts depuis SygixOs » et les scénarios de retrait conservent la même identité. — Enregistrement des ouvertures : L'ouverture SHALL être enregistrée quand une carte ou une entrée d'app de son menu lance l'intent publié ou l'app en repli. Aucune ouverture ne SHALL être enregistrée si rien ne s'ouvre, ni depuis héro, Top Shelf ou grille. Cas « lancement ou échec » : quand une action tente d'ouvrir le contenu, « ouverture depuis le menu » et « rien ne s'ouvre » de « Contenus ouverts depuis SygixOs » déterminent l'enregistrement. — Purge des ouvertures : Après lecture réussie, la mémoire SHALL retirer seulement les contenus plus publiés par aucune app du TV Provider. Erreur, timeout, permission manquante ou désactivation d'une app source ne SHALL supprimer aucune entrée. Cas « lecture fiable ou indisponible » : quand la source est rechargée, « purge des contenus disparus » et « pas de purge sans lecture fiable » de « Contenus ouverts depuis SygixOs » s'appliquent.
+**Détails.** — Les anciennes clés locales restent reconnues : titre normalisé de série, ou titre/année de film avec les règles existantes d'année inconnue. Un identifiant externe confirmé enrichit cette clé sans perdre ouvertures ni retraits. L'enregistrement exige toujours un lancement réussi depuis carte ou menu ; l'ouverture depuis le héro conserve son origine et ne change pas cette règle. La purge exige une lecture fiable de toutes les sources concernées, TV Provider et compte compris ; les erreurs, permissions manquantes, filtres et pannes ne valent pas absence.
 
 ### Requirement: Contenus retirés d'À suivre
-« Retirer d'À suivre » du menu SHALL retirer la clé de contenu : série entière et épisodes présents/futurs, ou film, toutes apps. DataStore SHALL persister titre, type, sources, image et date ; exclusion après dédoublonnage, avant tri/limite. Aucun retrait ne SHALL être purgé automatiquement ; seul « Réafficher » dans Applications cachées de settings permet le retour.
+« Retirer d'À suivre » SHALL masquer localement la série entière ou le film pour toutes les sources de la rangée, sans modifier le compte. Identité, titre, type, sources, image et date SHALL être persistés. Le retrait SHALL aussi exclure les candidats BetaSeries du héro ; seul Réafficher dans settings l'annule, sans purge automatique.
 
 #### Scenario: retrait d'une série
-- **WHEN** l'utilisateur choisit « Retirer d'À suivre » sur la carte d'un épisode publié par deux apps
-- **THEN** la carte disparaît sans confirmation, aucune carte de cette série n'apparaît plus dans la rangée, quelle que soit l'app ou l'épisode publié ensuite, et le retrait est conservé après redémarrage
+- **WHEN** une série présente via deux apps et le suivi est retirée
+- **THEN** ses épisodes présents et futurs disparaissent de la rangée sans confirmation, même après redémarrage, et son apport BetaSeries quitte le héro
 
 #### Scenario: retrait d'un film
-- **WHEN** l'utilisateur retire un film de la rangée
-- **THEN** ce film n'apparaît plus pour aucune app ; un film de même titre dont l'année connue diffère n'est pas retiré
+- **WHEN** un film est retiré
+- **THEN** toutes ses cartes disparaissent ; un autre film de même titre et d'année ou identité distincte n'est pas retiré
 
 #### Scenario: place libérée
-- **WHEN** la rangée comptait 20 cartes et qu'un contenu est retiré
-- **THEN** l'item suivant dans l'ordre de la rangée entre dans la limite au prochain calcul
+- **WHEN** la rangée contient 20 cartes avant retrait
+- **THEN** le contenu suivant du tri commun entre dans la limite au prochain calcul
 
 #### Scenario: focus après retrait
-- **WHEN** le contenu de la carte focusée est retiré
-- **THEN** le menu se ferme et le focus suit « carte focusée disparue » de launcher-shell (la suivante, sinon la précédente) ; si la rangée devient vide, « rangée devenue vide » s'applique
+- **WHEN** la carte focusée est retirée
+- **THEN** le menu se ferme et le focus suit les scénarios de carte disparue ou rangée vide de launcher-shell
 
 #### Scenario: contenu retiré qui n'est plus publié
-- **WHEN** un contenu retiré n'est plus publié par aucune app
-- **THEN** il reste dans l'ensemble des contenus retirés et dans la liste « Retirés d'À suivre » des réglages
+- **WHEN** le contenu n'est plus fourni par aucune source
+- **THEN** le retrait persiste et reste réaffichable dans les réglages
 
 #### Scenario: réaffichage
-- **WHEN** l'utilisateur choisit « Réafficher » pour ce contenu dans « Applications cachées »
-- **THEN** il revient dans la rangée au chargement suivant s'il est encore publié, à la place que lui donne l'ordre de la rangée
+- **WHEN** l'utilisateur choisit Réafficher
+- **THEN** le retrait est supprimé et le contenu revient selon les sources encore valides, le tri et la politique du héro ; aucun statut du compte n'est modifié
 
 ### Requirement: Position de la rangée
 Up Next SHALL être une ligne tvOS de la grille sous « À suivre », avant les apps par défaut ou après selon settings. Elle ne SHALL pas créer de palier ni de changement de fond : la grille masque le héro. Sections et D-pad SHALL suivre « Grille d'apps » et « Navigation 3 paliers » de launcher-shell.
@@ -272,152 +292,164 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-« À suivre » SHALL nommer la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes Penpot 7.1 à 7.5 et Carte Up Next (1920 × 1080 px = dp × 2), « Géométrie des cartes », « Médias des cartes », « Textes des cartes », « Progression et badge des cartes » et « Qualité des cartes ». Le focus SHALL suivre intégralement « Focus tvOS » ; le chargement partagé ne change ni la géométrie ni le comportement de focus.
+« À suivre » SHALL désigner la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes 7.1 à 7.5 et Carte Up Next, avec rendu et qualité décrits ci-dessous et focus intégral selon « Focus tvOS ». Un contenu du compte SHALL montrer le badge du lecteur choisi, sinon du fournisseur ; une carte locale conserve l'icône réelle d'app. La progression SHALL provenir uniquement d'une lecture connue.
 
 #### Scenario: largeur et débordement
-- **WHEN** la rangée est affichée avec au moins cinq cartes sur un écran de 960 dp de large
-- **THEN** quatre cartes de 198 dp de large sont entièrement visibles à partir de la marge gauche, espacées de `Dimens.GridSpacing`, et la cinquième est coupée par le bord droit de l'écran ; aucune marge droite ne la masque
+- **WHEN** au moins cinq cartes sont affichées à 960 dp de large
+- **THEN** quatre cartes de 198 dp sont entières depuis la marge gauche avec `Dimens.GridSpacing`, la cinquième déborde du bord droit sans marge qui la masque
 
 #### Scenario: défilement horizontal
-- **WHEN** le focus passe à une carte partiellement visible ou hors écran
-- **THEN** la rangée défile juste ce qu'il faut pour que la carte focalisée soit entière entre la marge gauche et le bord droit, avec la durée et la courbe de « Focus tvOS » ; au retour sur la rangée, la position de défilement laissée est conservée, sauf au retour d'une app ouverte depuis la rangée (« Contenus ouverts depuis SygixOs » : rangée ramenée à son début)
+- **WHEN** une carte partiellement visible ou hors écran prend le focus
+- **THEN** la rangée défile juste pour la rendre entière entre la marge gauche et le bord droit, avec la durée et la courbe de « Focus tvOS » ; sa position est conservée hors retour suivant une ouverture depuis la rangée
 
 #### Scenario: fin de rangée
-- **WHEN** la rangée compte plus de cartes que la largeur n'en montre et que le focus arrive sur la dernière carte
-- **THEN** la rangée défile jusqu'à sa fin : le bord droit de l'emplacement de la dernière carte est à `Dimens.ScreenMarginH` du bord droit de l'écran, comme le bord gauche de la première carte, au début de la rangée, est à `Dimens.ScreenMarginH` du bord gauche ; seul le zoom de focus dépasse cette marge
+- **WHEN** la rangée dépasse la largeur disponible et que sa dernière carte prend le focus
+- **THEN** son bord droit hors zoom finit à `Dimens.ScreenMarginH` du bord, symétriquement au début ; seul le zoom peut dépasser
 
 #### Scenario: rangée qui tient dans la largeur
-- **WHEN** toutes les cartes tiennent entre les deux marges de la grille
-- **THEN** la rangée ne défile pas, quelle que soit la carte focalisée
+- **WHEN** toutes les cartes tiennent entre les marges
+- **THEN** aucun défilement n'a lieu
 
 #### Scenario: carte épisode
-- **WHEN** l'item est un épisode (type publié ou inféré selon « Champs facultatifs »)
-- **THEN** la carte affiche l'image 16:9 plein cadre (sinon le poster portrait centré sur le fond des tuiles) sous le dégradé, le titre de série en `TextStyles.Row`, une seconde ligne « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` (sans « SxxEyy » si les numéros manquent ; un épisode sans titre ne montre que son titre d'épisode, scénario « épisode sans titre ») et, pour un item en cours, la barre de progression sous les textes
+- **WHEN** un épisode est affiché
+- **THEN** il porte image plein cadre ou portrait centré, dégradé, titre de série et « SxxEyy · titre d'épisode » selon les champs disponibles et « Champs facultatifs » ; une reprise connue porte sa progression
 
 #### Scenario: carte film
-- **WHEN** l'item est un film (type publié ou inféré selon « Champs facultatifs »)
-- **THEN** la carte affiche l'image et le titre du film seul, sans « SxxEyy » ni libellé d'action, et la barre de progression pour un item en cours
+- **WHEN** un film est affiché
+- **THEN** il conserve image et titre seul, sans texte d'action ni SxxEyy ; la progression apparaît seulement pour une reprise connue
 
 #### Scenario: badge et image
 - **WHEN** une carte est affichée
-- **THEN** le badge est l'icône réelle de l'app source obtenue du `PackageManager` (aucun logo embarqué, aucun libellé texte à la place de l'icône), en haut à droite ; sans icône disponible, la carte n'a pas de badge
+- **THEN** une carte locale montre en haut à droite l'icône réelle de son app via PackageManager, sans logo embarqué ; une carte de suivi montre au même emplacement celle du lecteur choisi, sinon le badge BetaSeries ; si le badge applicable est indisponible, il est omis sans libellé texte de substitution
 
 #### Scenario: poster portrait
-- **WHEN** le programme n'a pas d'image 16:9 exploitable mais un poster portrait exploitable
-- **THEN** la carte montre ce poster centré horizontalement à pleine hauteur sur le fond des tuiles (variante « Poster portrait » du composant « Carte Up Next »), avec le dégradé, les textes, la barre de progression éventuelle et le badge des autres cartes
+- **WHEN** seul un poster portrait exploitable existe
+- **THEN** il est centré à pleine hauteur sur le fond existant, sans changer le dégradé, les textes, la progression ou le badge
 
 #### Scenario: placeholder
-- **WHEN** toutes les candidates et copies locales utilisables manquent, échouent, expirent, sont trop petites ou sont des images génériques (« Images génériques des applications » de launcher-shell)
-- **THEN** la carte garde sa taille et ses coins, montre le fond des tuiles avec le pictogramme « image » centré horizontalement dans sa moitié haute, et conserve le dégradé, ses textes, sa barre de progression éventuelle et son badge
+- **WHEN** toutes les candidates et copies utilisables sont absentes ou refusées
+- **THEN** la taille et les coins restent identiques avec le fond et pictogramme existants ; textes, progression connue et badge restent affichés
 
 #### Scenario: image trop petite
-- **WHEN** la largeur réelle de chaque image candidate est inférieure à la largeur affichée de la carte en pixels, hors zoom
-- **THEN** la carte reste dans la rangée avec le placeholder à la place de l'image ; l'item n'est pas écarté
+- **WHEN** toutes les candidates sont plus étroites que la carte affichée en pixels hors zoom
+- **THEN** la carte reste avec son placeholder
 
 #### Scenario: focus
 - **WHEN** une carte prend le focus
-- **THEN** le comportement visuel est celui d'une tuile d'app selon l'exigence « Focus tvOS » de launcher-shell, sans exception, et aucun panneau Top Shelf ne s'ouvre
+- **THEN** « Focus tvOS » s'applique intégralement et aucun Top Shelf ne s'ouvre
 
 #### Scenario: image à la largeur de la carte
-- **WHEN** une candidate décodable de 396 px de large est disponible pour une carte de 396 px, alors qu'elle ne satisfait pas la politique du héro ou du Top Shelf
-- **THEN** elle remplace le placeholder ; le rejet dans une autre zone n'empêche pas son affichage dans À suivre
+- **WHEN** une candidate de 396 px est disponible pour une carte de 396 px mais refusée par une autre zone
+- **THEN** elle est affichée dans cette carte, indépendamment de ce refus
 
 #### Scenario: chargement indépendant des images
-- **WHEN** l'image d'une carte est en attente ou en cours de récupération et que d'autres cartes ont une image prête
-- **THEN** la première montre son placeholder et les autres leur image ; aucune attente collective ne bloque la rangée, et les changements d'image ne modifient ni le focus ni la géométrie
+- **WHEN** certaines images attendent et d'autres sont prêtes
+- **THEN** seules les premières restent en placeholder ; aucun chargement collectif ne bloque la rangée ou ne change focus et géométrie
 
 #### Scenario: image locale pendant une panne
-- **WHEN** le fournisseur est indisponible et qu'une copie locale respecte « Cache borné et fraîcheur des images » de launcher-shell pour un programme toujours valide
-- **THEN** cette copie est affichée sans attendre le fournisseur ; à son expiration, le placeholder la remplace si aucune nouvelle image n'est utilisable
+- **WHEN** une copie reste utilisable selon le contrat d'images et le contenu est encore valide
+- **THEN** elle est affichée sans attendre le fournisseur ; à expiration le placeholder la remplace ; une image en cache ne réintroduit pas un contenu BetaSeries retiré pour panne
 
-**Détails.** — Barre de progression des cartes : CONTINUE avec progression SHALL montrer une barre de `Dimens.ProgressHeight`, piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`, à `Dimens.UpNextTextBottom` du bas ; textes à `Dimens.UpNextTextAboveProgress` au-dessus. Sans barre, textes à `Dimens.UpNextTextBottom`. Cas « barre présente ou absente » : quand une carte avec ou sans progression est affichée, les scénarios « carte épisode » et « carte film » de « Carte Up Next » gardent les retraits de texte correspondants. — Badge des cartes : L'icône réelle PackageManager SHALL être en haut à droite à `Dimens.UpNextBadgeInset`, taille `Dimens.HeroSourceIcon`, coins `Dimens.UpNextBadgeCorner` concentriques avec la carte (« Thème », couple card-badge). Sans icône disponible, aucun badge SHALL être affiché. Cas « app sans icône » : quand PackageManager ne fournit pas d'icône, « badge et image » de « Carte Up Next » omet le badge sans logo embarqué ni texte substitué. — Géométrie des cartes : La rangée horizontale SHALL commencer à `Dimens.ScreenMarginH`, sans marge droite, cartes de largeur (contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4 et même espacement : quatre entières, cinquième coupée. Elle SHALL défiler juste pour garder la carte focusée entière ; en fin, le rectangle sans zoom finit à la marge symétrique `ScreenMarginH`, le zoom pouvant déborder de son demi-agrandissement (7.10). Cas « largeur et défilement » : quand la rangée est parcourue, « largeur et débordement », « défilement horizontal », « fin de rangée » et « rangée qui tient dans la largeur » de « Carte Up Next » s'appliquent. — Médias des cartes : La carte SHALL être 16:9, coins `Dimens.TileCorner`, fond `SygixColors.TileBackground`, image plein cadre sinon portrait centré sinon pictogramme image `Dimens.UpNextPlaceholderIcon` / `SygixColors.PlaceholderGlyph` dans la moitié haute centrée. Dégradé SHALL aller du transparent à `Dimens.CardScrimStart` jusqu'à `SygixColors.CardScrimEnd` en bas ; fond continu avec la grille. Cas « portrait ou absence d'image » : quand le média paysage n'est pas exploitable, « poster portrait » et « placeholder » de « Carte Up Next » gardent le portrait à pleine hauteur centré ou le pictogramme, sans changer taille ni coins. — Textes des cartes : En bas à gauche à `Dimens.UpNextTextInset`, le titre SHALL utiliser `TextStyles.Row` / `SygixColors.OnDark` (série pour épisode, film sinon). L'épisode SHALL ajouter « SxxEyy · titre d'épisode » en `TextStyles.RowSecondary` / `SygixColors.OnDarkDetails`, selon les champs disponibles. Aucun autre texte, action ni nom d'app ne SHALL apparaître. Cas « épisode ou film » : quand une carte est affichée, « carte épisode » et « carte film » de « Carte Up Next » gardent les textes et leurs replis. — Progression et badge des cartes : La progression SHALL suivre « Barre de progression des cartes » et le badge « Badge des cartes », avec les mêmes métadonnées et replis. Cas « données ou icône absentes » : quand progression ou icône manque, « carte épisode », « carte film » et « badge et image » de « Carte Up Next » omettent seulement l'élément absent. — Qualité des cartes : La qualité SHALL être propre aux cartes, sans appliquer le seuil du héro. La largeur réelle de l'image SHALL atteindre au moins la largeur affichée de la carte en pixels hors zoom, portrait accepté. Les dimensions SHALL venir du parcours partagé de launcher-shell sans hériter du verdict d'une autre destination. Sinon les candidates sont essayées puis l'item reste avec placeholder. Cas « qualité insuffisante » : quand l'image est trop petite pour la carte, le scénario « image trop petite » de « Carte Up Next » garde l'item et son placeholder seulement après épuisement des candidates et copies locales utilisables.
+**Détails.** — Barre : CONTINUE avec progression SHALL montrer une barre de hauteur `Dimens.ProgressHeight`, piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`, placée à `Dimens.UpNextTextBottom` du bas ; ses textes sont à `Dimens.UpNextTextAboveProgress` au-dessus. Sans barre, les textes sont à `Dimens.UpNextTextBottom` sans réserve de progression. Badge : en haut à droite à `Dimens.UpNextBadgeInset`, taille `Dimens.HeroSourceIcon`, coins `Dimens.UpNextBadgeCorner` concentriques avec la carte selon « Thème » ; l'exception fournisseur ci-dessus remplace seulement l'obligation d'un package pour un contenu du compte, sans autoriser de logo embarqué à la place de l'icône PackageManager d'une carte locale. Géométrie : largeur (contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4, départ `Dimens.ScreenMarginH`, pas de marge droite, fin symétrique hors zoom ; seul le demi-agrandissement du zoom peut déborder. Médias : 16:9, coins `Dimens.TileCorner`, fond `SygixColors.TileBackground` continu avec la grille, paysage sinon portrait centré à pleine hauteur sinon `Dimens.UpNextPlaceholderIcon` / `SygixColors.PlaceholderGlyph` centré dans la moitié haute ; dégradé transparent à `Dimens.CardScrimStart` jusqu'à `SygixColors.CardScrimEnd` en bas. Textes : en bas à gauche à `Dimens.UpNextTextInset`, `TextStyles.Row` / `SygixColors.OnDark`, détails `TextStyles.RowSecondary` / `SygixColors.OnDarkDetails`, sans texte supplémentaire, action ni nom d'app. Qualité : largeur réelle au moins égale à la carte en pixels hors zoom, portrait accepté, dimensions issues du parcours partagé de launcher-shell sans hériter du verdict d'une autre zone ; essayer alternatives et copies utilisables avant placeholder.
 
 ### Requirement: Ouverture d'un item
-L'appui sur une carte SHALL ouvrir l'intent publié par le programme de la rangée (`COLUMN_INTENT_URI`) ; à défaut, ou en cas d'échec d'ouverture, l'app source SHALL être lancée.
+L'appui sur une carte associée au suivi SHALL utiliser le parcours commun de `watch-tracking`. Une carte locale non associée SHALL conserver l'ouverture de son intent publié, sinon de son app source. L'origine de l'ouverture SHALL déterminer la restauration et la mémoire existantes.
 
 #### Scenario: intent disponible
-- **WHEN** l'utilisateur valide une carte dont le programme publie un intent
-- **THEN** cet intent est ouvert (l'app affiche sa fiche ou reprend selon son propre comportement ; le verbe est « ouvrir », pas « lire ») et l'ouverture est inscrite selon « Contenus ouverts depuis SygixOs »
+- **WHEN** une carte locale non associée publie un intent
+- **THEN** cet intent ouvre le contenu selon le comportement de l'app et l'ouverture réussie est mémorisée ; « ouvrir » ne signifie pas qu'une lecture est prouvée
 
 #### Scenario: intent absent ou en échec
-- **WHEN** le programme ne publie pas d'intent, ou que son ouverture échoue (activity absente, exception de sécurité)
-- **THEN** l'app source est lancée, sans crash
+- **WHEN** une carte locale non associée ne publie pas d'intent ou que son ouverture échoue
+- **THEN** l'app source est lancée sans crash
+
+#### Scenario: contenu suivi
+- **WHEN** une carte identifiée dans le compte est validée
+- **THEN** le choix initial ou mémorisé, les replis, la preuve de lecture et le retour suivent le parcours commun, partagé avec le héro
 
 ### Requirement: Menu « Ouvrir avec… »
-L'appui long SHALL ouvrir « Ouvrir avec… », même pour une seule source, listant les apps via leur intent puis « Retirer d'À suivre ». Aucun choix d'app ne SHALL être persisté ; seule l'ouverture suit sa mémoire. Rendu et entrées SHALL suivre la maquette 7.6, le composant « Menu Ouvrir avec » et la lisibilité du menu de « Grille d'apps ».
+L'appui long SHALL toujours ouvrir le menu. Le menu local conserve sources et retrait local sans préférence de lecteur, mais SHALL proposer Ajouter au suivi si un compte est connecté et le contenu identifié absent de ce compte. Un contenu appartenant au compte SHALL offrir les actions et le lecteur partagé de `watch-tracking`. Identité résolue et appartenance au compte SHALL être distinctes ; retrait local et retrait du compte aussi.
 
 #### Scenario: ouverture du menu
-- **WHEN** l'utilisateur fait un appui long sur une carte
-- **THEN** le menu « Ouvrir avec… » liste les sources du contenu conservées par l'item, dans l'ordre de cette liste, chacune avec son icône et son nom, puis l'entrée « Retirer d'À suivre », sous un en-tête qui montre la vignette du programme, le titre du contenu et le sous-titre « Ouvrir avec… »
+- **WHEN** une carte locale non associée reçoit un appui long
+- **THEN** les sources conservées sont listées dans leur ordre, avec icône et nom, suivies de « Retirer d'À suivre », sous vignette, titre et « Ouvrir avec… » ; si le compte est connecté et le contenu identifié absent de ce compte, Ajouter au suivi est également proposé sans remplacer ces actions locales
+
+#### Scenario: contenu identifié absent du compte
+- **WHEN** une carte locale est identifiée sans ambiguïté mais absente du compte connecté
+- **THEN** son menu propose Ajouter au suivi ; sa simple identification ne déclenche ni préférence persistante ni parcours de lecteur du compte ; après ajout confirmé et appartenance relue, ses prochaines ouvertures suivent le parcours commun
+
+#### Scenario: compte absent ou identité incertaine
+- **WHEN** aucun compte n'est connecté, que la correspondance est ambiguë ou que l'appartenance au compte n'est pas établie
+- **THEN** le menu conserve les ouvertures locales ; aucune action Ajouter n'est proposée sur la base d'une absence supposée et aucun statut du compte n'est modifié
 
 #### Scenario: rendu des entrées
 - **WHEN** le menu est ouvert
-- **THEN** l'entrée focusée est une pilule claire à texte sombre, sans zoom ni halo, les autres entrées n'ont pas de fond, et le panneau est le même verre sombre que le menu contextuel des tuiles, au-dessus d'un voile sur l'accueil
+- **THEN** la pilule focusée est claire avec texte sombre sans zoom ni halo, les autres entrées sans fond ; verre et voile suivent le menu existant
 
 #### Scenario: focus initial dans le menu
-- **WHEN** le menu s'ouvre
-- **THEN** le focus est sur la première entrée d'app, haut et bas parcourent les entrées d'apps puis « Retirer d'À suivre », et les déplacements restent dans le menu sans boucle aux bords
+- **WHEN** un menu local s'ouvre
+- **THEN** la première app est focalisée et haut/bas parcourent les entrées puis le retrait, sans boucle ; pour un menu de suivi, « Navigation des parcours de suivi » s'applique
 
 #### Scenario: choix d'une app
-- **WHEN** l'utilisateur valide une entrée du menu
-- **THEN** l'app choisie est ouverte via l'intent qu'elle publie, le menu se ferme et le focus revient sur la carte
+- **WHEN** une entrée d'app est validée
+- **THEN** l'app est ouverte et le menu fermé ; pour une carte suivie, la préférence commune est mise à jour après succès
 
 #### Scenario: fermeture et focus
-- **WHEN** l'utilisateur presse Retour pendant que le menu est ouvert
-- **THEN** le menu se ferme sans ouvrir d'app et le focus revient sur la carte
+- **WHEN** Retour est pressé dans le menu
+- **THEN** il se ferme sans ouverture et la carte d'origine reprend le focus, sinon son repli de launcher-shell
 
 #### Scenario: source unique
-- **WHEN** une seule app possède le contenu de la carte
-- **THEN** le menu s'ouvre quand même, avec cette seule entrée d'app suivie de « Retirer d'À suivre »
+- **WHEN** une seule source locale existe
+- **THEN** le menu reste disponible avec cette entrée et le retrait ; une carte suivie garde aussi ses actions de compte applicables
 
 #### Scenario: retirer d'À suivre
-- **WHEN** l'utilisateur valide « Retirer d'À suivre »
-- **THEN** le contenu est retiré selon « Contenus retirés d'À suivre », sans confirmation ni toast, le menu se ferme et aucune app n'est ouverte
+- **WHEN** « Retirer d'À suivre » est validé
+- **THEN** le retrait local est appliqué sans confirmation ni toast, le menu ferme sans ouvrir d'app ; aucune mutation BetaSeries n'est envoyée
 
 #### Scenario: intent en échec depuis le menu
-- **WHEN** l'ouverture de l'intent d'une source choisie dans le menu échoue
-- **THEN** l'app source est lancée en repli et un toast « Contenu indisponible, ouverture de <nom de l'app> » en informe l'utilisateur, sans crash
+- **WHEN** l'intent d'une source locale choisie échoue
+- **THEN** l'app est lancée en repli avec un toast « Contenu indisponible, ouverture de <nom de l'app> », sans crash ; un contenu suivi suit les replis du parcours commun
 
-**Détails.** — Rendu du menu des sources : Le menu SHALL être centré sous voile `SygixColors.Scrim`, verre `GlassLook.Menu`, largeur `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`. Son en-tête SHALL montrer vignette 16:9 `Dimens.MenuThumbnailWidth` avec image sinon placeholder, titre `TextStyles.MenuTitle`, sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` / `SygixColors.MenuSubtitle`. Cas « contenu du panneau » : quand le menu est ouvert, « ouverture du menu » et « rendu des entrées » de « Menu « Ouvrir avec… » » s'appliquent avec le verre du menu des tuiles. — Entrées du menu des sources : Les sources SHALL avoir pilule `Dimens.PillCorner`, minimum `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, vraie icône `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom `TextStyles.Row` / `RowFocused` au focus. Retirer SHALL suivre la dernière app sans séparateur, même pilule, œil barré de `Dimens.MenuEntryIcon` dans la couleur du texte. Cas « entrée de retrait et sources » : quand le menu liste ses actions, « rendu des entrées » et « retirer d'À suivre » de « Menu « Ouvrir avec… » » gardent la même présentation que la maquette 7.6.
+**Détails.** — Le menu local SHALL être centré sous voile `SygixColors.Scrim`, verre `GlassLook.Menu`, largeur `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`. Son en-tête garde une vignette 16:9 `Dimens.MenuThumbnailWidth`, image sinon placeholder, titre `TextStyles.MenuTitle`, sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` / `SygixColors.MenuSubtitle`. Les entrées gardent `Dimens.PillCorner`, hauteur minimale `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, vraie icône `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom `TextStyles.Row` au repos et `TextStyles.RowFocused` au focus. Le retrait local suit la dernière app sans séparateur, même pilule et œil barré de `Dimens.MenuEntryIcon` dans la couleur du texte, conformément à 7.6. La passe Penpot complète ce composant pour Ajouter et les actions du compte sans modifier ces règles locales.
 
 ### Requirement: États de la rangée
-La rangée SHALL couvrir les états chargement, erreur, vide et permission refusée, sans jamais avaler une erreur ni bloquer le reste du home. Le comportement du focus quand une carte disparaît ou que la rangée se masque est spécifié par « Navigation 3 paliers » de launcher-shell (scénarios « carte focusée disparue » et « rangée devenue vide »). La conservation d'un ancien résultat SHALL respecter « Validité des programmes publiés » de launcher-shell.
+La rangée SHALL distinguer chargement, vide, erreur et accès refusé par source, sans bloquer le home. Les programmes locaux SHALL garder leur contrat de validité ; l'apport du suivi en échec SHALL être retiré immédiatement avec son indicateur. Focus et disparition SHALL suivre « Navigation 3 paliers ».
 
 #### Scenario: permission refusée
-- **WHEN** `READ_TV_LISTINGS` n'est pas accordée
-- **THEN** la rangée est masquée, sans carte d'erreur et sans invitation à configurer quoi que ce soit
+- **WHEN** READ_TV_LISTINGS n'est pas accordée
+- **THEN** seules les données locales deviennent indisponibles ; les contenus de suivi accessibles restent affichés ; sans eux la rangée est masquée sans invitation à configurer la permission
 
 #### Scenario: erreur
-- **WHEN** la requête vers le TV Provider échoue ou dépasse le timeout au premier chargement
-- **THEN** une seule carte d'état focusable remplace le contenu de la rangée, en première position (maquette Penpot 7.4) : même taille et mêmes coins qu'une carte, fond `SygixColors.TileBackground`, et, centrés, un pictogramme « recharger » de `Dimens.UpNextErrorIcon`, « Impossible de charger » en `TextStyles.Row` et `SygixColors.OnDark`, « OK pour réessayer » en `TextStyles.RowSecondary` et `SygixColors.OnDarkSecondary` ; elle est distincte de l'état vide, sans crash ; la rangée n'est pas masquée : le titre « À suivre » reste affiché au-dessus de la carte, à la position réglée
+- **WHEN** la lecture locale échoue au premier chargement et qu'aucune autre source n'apporte de contenu
+- **THEN** une seule carte d'état focusable remplace le contenu en première position sous le titre À suivre à sa position réglée (maquette 7.4), distincte du vide : même taille et coins qu'une carte, fond `SygixColors.TileBackground`, pictogramme recharger centré de `Dimens.UpNextErrorIcon`, « Impossible de charger » en `TextStyles.Row` / `SygixColors.OnDark`, « OK pour réessayer » en `TextStyles.RowSecondary` / `SygixColors.OnDarkSecondary` ; une erreur du suivi reste aussi consultable via son indicateur
 
 #### Scenario: carte d'erreur
-- **WHEN** la carte d'erreur est focusée
-- **THEN** elle a le focus d'une tuile (« Focus tvOS »), occupe la place de la rangée dans la navigation de la zone grille, sous le titre « À suivre », quelle que soit la position réglée (« Avant les applications » ou « Après les applications »), et OK relance la requête
+- **WHEN** la carte d'erreur locale prend le focus
+- **THEN** le focus d'une tuile selon « Focus tvOS » s'applique ; elle occupe la place de la rangée sous À suivre dans la navigation de grille, avant ou après les applications selon le réglage, et OK relance la requête
 
 #### Scenario: chargement initial
-- **WHEN** le premier chargement dépasse ~300 ms
-- **THEN** un squelette est affiché sous le titre « À suivre » (maquette Penpot 7.3) : cinq cartes de la taille et des coins d'une carte, fond `SygixColors.SkeletonBase`, chacune avec deux barres `SygixColors.SkeletonBar` en bas à gauche (`Dimens.UpNextSkeletonTitle` puis `Dimens.UpNextSkeletonSubtitle`, rayons à mi-hauteur), sans animation imposée et sans élément focusable ; s'il est plus court, aucune étape intermédiaire n'apparaît
+- **WHEN** le premier chargement sans contenu prêt dépasse environ 300 ms
+- **THEN** le squelette sous À suivre (maquette 7.3) montre cinq cartes de la taille et des coins d'une carte, fond `SygixColors.SkeletonBase`, chacune avec deux barres `SygixColors.SkeletonBar` en bas à gauche, `Dimens.UpNextSkeletonTitle` puis `Dimens.UpNextSkeletonSubtitle`, rayons à mi-hauteur, sans animation imposée ni élément focusable ; sous environ 300 ms aucune étape intermédiaire n'apparaît, et un résultat local prêt n'attend pas le compte
 
 #### Scenario: rechargement
-- **WHEN** la rangée se recharge alors qu'un contenu encore valide est déjà affiché
-- **THEN** l'état précédent reste affiché jusqu'au résultat ou à son expiration, sans squelette ; l'attente ne prolonge pas sa validité
+- **WHEN** la rangée se recharge avec du contenu encore valide
+- **THEN** elle conserve ce contenu pendant l'attente sans squelette ni prolongation de validité ; une réponse du suivi en échec retire son apport
 
 #### Scenario: erreur au rechargement
-- **WHEN** un rechargement échoue alors qu'un contenu encore valide est déjà affiché
-- **THEN** le contenu précédent reste affiché jusqu'à son expiration, sans carte d'erreur ni saut de mise en page ; un échec ne renouvelle pas sa confirmation
+- **WHEN** une relecture locale échoue
+- **THEN** ses programmes précédents restent affichés jusqu'à expiration sans carte d'erreur ni saut, sans renouveler leur confirmation ; cette rétention ne s'applique pas à la contribution BetaSeries en échec
 
 #### Scenario: vide
-- **WHEN** aucun item n'est retourné par une lecture réussie
-- **THEN** la rangée est masquée ; les images en cache ne la repeuplent pas
+- **WHEN** toutes les sources accessibles réussissent sans item et qu'aucune autre n'apporte de contenu
+- **THEN** la rangée est masquée et les images en cache ne la repeuplent pas
 
 #### Scenario: non-blocage
-- **WHEN** la rangée est dans n'importe quel état
-- **THEN** la navigation DPAD du home (héro, dock, grille) reste fonctionnelle
+- **WHEN** une source est dans n'importe quel état
+- **THEN** le D-pad du home reste utilisable ; les actions de compte restent tentables pendant une panne et exposent leur propre résultat
 
 #### Scenario: expiration du dernier résultat après une erreur
-- **WHEN** les programmes affichés atteignent le plafond sans confirmation pendant que la source reste en erreur
-- **THEN** les anciennes cartes sont retirées et l'état d'erreur réessayable remplace le résultat expiré ; le focus est restauré selon la navigation existante, sans effacer les contenus retirés ni la mémoire d'ouverture
+- **WHEN** les programmes locaux atteignent leur plafond sans confirmation
+- **THEN** ils sont retirés ; s'il reste des contenus de suivi, ils restent affichés, sinon l'erreur locale réessayable apparaît ; le focus est restauré selon la navigation existante ; aucune mémoire de retrait ou d'ouverture n'est effacée sur cette erreur
 
 ### Requirement: Rafraîchissement
 La rangée SHALL se recharger quand le launcher revient au premier plan, que `READ_TV_LISTINGS` vient d'être accordée ou que le TV Provider signale un changement, ainsi qu'à la périodicité de relecture de « Contenu héro TV Provider » de launcher-shell tant que le launcher est au premier plan. Les résultats SHALL suivre « Validité des programmes publiés ».

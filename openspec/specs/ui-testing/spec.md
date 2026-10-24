@@ -15,11 +15,15 @@ La suite UI SHALL tester l'écran home par assertions sémantiques (Robolectric 
 **Détails.** — Taille des tests TV : Les tests Compose désignés à taille TV dans cette capability SHALL utiliser `@Config(qualifiers = "w960dp-h540dp-xhdpi")`, jamais la taille Robolectric par défaut. Cas « configuration des tests Compose » : quand un scénario de cette capability demande un test à taille TV, ses dimensions et sa densité sont celles du qualifier, y compris pour le démarrage, les mises à jour et la configuration automatique.
 
 ### Requirement: Sélecteurs stables
-Les zones et tuiles de l'écran home SHALL exposer des testTags stables utilisés par les tests à la place de sélecteurs fragiles (texte, position).
+Les zones, tuiles et contrôles SHALL exposer des testTags stables, sans dépendre de leur texte, position ou d'une donnée personnelle. Les contrôles du suivi SHALL ajouter leurs sélecteurs aux sélecteurs existants, sans renommer les éléments locaux.
 
 #### Scenario: sélection par tag
-- **WHEN** un test cible une zone (héro, dock, grille, panneau shelf, rangée Up Next), un titre de section de la zone grille, un menu contextuel ou une de ses entrées (dont « Retirer d'À suivre »), une tuile d'app, une carte Up Next ou un de ses éléments (badge, barre de progression, placeholder), le squelette ou la carte d'erreur de la rangée, le volet ou un contrôle de la catégorie « Écran d'accueil » des réglages
-- **THEN** il le sélectionne par testTag documenté (« zone-hero », « zone-dock », « zone-grid », « shelf-panel », « zone-upnext », « section-title-upnext », « section-title-apps », « app-menu », « upnext-menu », « upnext-menu-remove », « upnext-skeleton », « upnext-error », « settings-home-screen », « setting-upnext-visible », « setting-upnext-position », « setting-upnext-position-list », préfixes « app-tile-<package> », « upnext-card-<key> », « upnext-card-badge-<key> », « upnext-card-progress-<key> », « upnext-card-placeholder-<key> », « upnext-menu-entry-<package> » et « setting-upnext-position-<VALUE> », la catégorie elle-même étant « settings-category-HOME_SCREEN »), sans dépendre du libellé affiché
+- **WHEN** un test cible héro, dock, grille, shelf, À suivre, titres, menus, cartes, badges, progression, placeholder, squelette, erreur ou réglages d'accueil
+- **THEN** il conserve les tags zone-hero, zone-dock, zone-grid, shelf-panel, zone-upnext, section-title-upnext, section-title-apps, app-menu, upnext-menu, upnext-menu-remove, upnext-skeleton, upnext-error, settings-home-screen, setting-upnext-visible, setting-upnext-position, setting-upnext-position-list, settings-category-HOME_SCREEN et les formes `app-tile-<package>`, `upnext-card-<key>`, `upnext-card-badge-<key>`, `upnext-card-progress-<key>`, `upnext-card-placeholder-<key>`, `upnext-menu-entry-<package>`, `setting-upnext-position-<VALUE>`, sans dépendre du libellé affiché
+
+#### Scenario: contrôles du suivi
+- **WHEN** un test cible le suivi
+- **THEN** il utilise tracking-settings, tracking-connect, tracking-disconnect, tracking-sync, tracking-country, tracking-country-list, tracking-device, tracking-device-code, tracking-device-qr, tracking-device-retry, tracking-device-close, tracking-status, tracking-status-detail, tracking-status-retry, tracking-status-close, tracking-player-picker, tracking-player-close, tracking-other-app, tracking-episodes, tracking-episodes-close, tracking-episodes-retry, tracking-episode-actions, tracking-episode-open, tracking-episode-seen, tracking-episode-back, tracking-notification, tracking-return-prompt, tracking-undo et les préfixes tracking-player-, tracking-episode-, tracking-country-, tracking-card-, tracking-hero-, tracking-action-<add|seen|archive|remove|episodes|player>, avec identités fictives
 
 ### Requirement: Couverture dock
 Le dock SHALL être couvert par des tests de rendu et de focus.
@@ -79,87 +83,95 @@ Le héro SHALL être couvert par des tests de rendu du carrousel et de l'état f
 - **THEN** l'écran ne crash pas et le fallback visuel est rendu
 
 ### Requirement: Navigation D-pad des trois zones
-La navigation D-pad entre héro, dock et grille, rangée Up Next et titres de section inclus dans la zone grille, SHALL être couverte par des tests simulant les key events physiques, exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`).
+La navigation héro, dock et grille, À suivre et titres compris, SHALL rester testée par key events physiques en Compose à taille TV. Les sources du compte SHALL être simulées indépendamment du TV Provider ; menus, propositions et retours de suivi SHALL ne pas changer les trois paliers.
 
 #### Scenario: descente
-- **WHEN** l'utilisateur presse bas depuis le héro (dock non vide)
-- **THEN** le focus passe au dock, puis, à la première entrée dans la zone grille, à la première carte de la rangée Up Next (première ligne de la zone grille, « section-title-upnext » au-dessus d'elle), puis à la première rangée d'apps (« section-title-apps » au-dessus d'elle)
+- **WHEN** bas est pressé depuis le héro avec dock et À suivre en tête
+- **THEN** le focus passe au dock, à la première carte sous section-title-upnext puis aux apps sous section-title-apps
 
 #### Scenario: descente sans dock
-- **WHEN** l'utilisateur presse bas depuis le héro alors que le dock est vide
-- **THEN** à la première entrée dans la zone grille, la rangée Up Next prend le focus directement, puis la première rangée d'apps
+- **WHEN** le dock est vide
+- **THEN** bas atteint directement la première carte puis les apps
 
 #### Scenario: descente depuis le dock
-- **WHEN** l'utilisateur presse bas depuis le dock
-- **THEN** à la première entrée dans la zone grille, la rangée Up Next prend le focus, puis la première rangée d'apps
+- **WHEN** bas est pressé depuis le dock
+- **THEN** la première carte de la première entrée en grille reçoit le focus
 
 #### Scenario: descente sans rangée Up Next
-- **WHEN** l'utilisateur descend depuis le dock alors que la rangée Up Next est masquée (réglage désactivé, vide ou permission refusée)
-- **THEN** à la première entrée dans la zone grille, la première rangée d'apps prend le focus directement, « section-title-upnext » est absent et le haut de « section-title-apps » est le haut de la zone grille
+- **WHEN** la rangée est réellement masquée (désactivée ou sans contenu affichable de toutes les sources)
+- **THEN** la première tuile d'app prend le focus, le titre À suivre est absent et Applications est en haut
 
 #### Scenario: titres de section
-- **WHEN** le test compose la zone grille avec la rangée Up Next, pour chaque position réglée, puis parcourt toutes les lignes au D-pad
-- **THEN** « section-title-upnext » est au-dessus de « zone-upnext » et « section-title-apps » au-dessus de la première rangée d'apps, dans l'ordre de la position réglée ; aucun titre ne prend jamais le focus ; à chaque arrivée sur la première ligne d'une section, le titre de cette section est entièrement entre les marges de la grille ; à la première entrée, le haut du titre de la première section est sur la marge haute
+- **WHEN** chaque position de rangée est parcourue au D-pad
+- **THEN** les titres sont dans l'ordre réglé, jamais focusables, entièrement visibles au-dessus de leur première ligne ; le premier titre est aligné en haut de grille
 
 #### Scenario: remontée
-- **WHEN** l'utilisateur presse haut depuis la première rangée d'apps
-- **THEN** la rangée Up Next reprend le focus si elle est affichée en tête, puis le dock puis le héro ; si elle est masquée, le focus revient au dock puis au héro
+- **WHEN** haut est pressé depuis la première rangée d'apps
+- **THEN** À suivre reprend le focus s'il est avant les apps, puis dock et héro ; masqué, il est sauté
 
 #### Scenario: position après les applications
-- **WHEN** le réglage « Position d'À suivre » vaut « Après les applications »
-- **THEN** bas depuis le dock donne le focus à la première rangée d'apps, bas depuis la dernière rangée d'apps donne le focus à la rangée Up Next, bas depuis la rangée ne fait rien, haut depuis la rangée revient à la dernière rangée d'apps
+- **WHEN** À suivre est après les apps
+- **THEN** dock mène aux apps, leur dernière rangée mène à À suivre, son bord bas reste sans boucle et haut revient à la dernière rangée d'apps
 
 #### Scenario: retour au héro
-- **WHEN** l'utilisateur presse Retour depuis la zone grille
+- **WHEN** Retour est pressé depuis la grille
 - **THEN** le héro reprend le focus
 
 #### Scenario: retour dans la grille à la position laissée
-- **WHEN** le test quitte la zone grille depuis une carte Up Next qui n'est pas la première, redescend, puis recommence depuis une tuile d'une rangée d'apps profonde
-- **THEN** à chaque redescente, l'élément laissé (la carte Up Next, puis la tuile) a le focus, à la même position à l'écran qu'avant la sortie
+- **WHEN** le test quitte la grille depuis une carte À suivre non initiale, redescend, puis recommence depuis une tuile d'une rangée d'apps profonde
+- **THEN** à chaque redescente la carte puis la tuile reprend le focus à la même position à l'écran qu'avant la sortie
 
 #### Scenario: carte focusée disparue
-- **WHEN** le test retire du flux de la rangée la carte qui a le focus, d'abord au milieu de la rangée, puis en dernière position
-- **THEN** la carte qui prend sa position a le focus dans le premier cas, la précédente dans le second ; le focus reste dans « zone-upnext »
+- **WHEN** le test retire une carte au milieu puis à la fin
+- **THEN** la suivante puis la précédente reçoit le focus dans zone-upnext
 
 #### Scenario: restauration au retour d'une app
-- **WHEN** le test simule l'ouverture d'une app depuis la quatrième carte Up Next puis le retour au launcher, avec le contenu ouvert toujours publié (même programme, puis un autre épisode de la même série sous une autre clé de carte), puis plus publié
-- **THEN** la position verticale précédente dans la zone grille est restaurée ; dans les deux premiers cas, la carte du contenu ouvert est la première de « zone-upnext », elle a le focus et son rectangle commence à la marge gauche ; dans le dernier, le focus est sur la carte qui a pris la position de la carte ouverte (ou la précédente si elle était la dernière)
+- **WHEN** le test ouvre une quatrième carte puis revient avec le même contenu, un épisode suivant ou son absence
+- **THEN** position verticale conservée ; contenu retrouvé premier, focusé et aligné sur la marge gauche, sinon repli à la position de la carte ouverte ou précédente
 
 #### Scenario: rangée devenue vide
-- **WHEN** le test simule le retour au launcher, ou un rechargement pendant que la rangée a le focus, avec une rangée Up Next devenue vide, pour chaque position réglée
-- **THEN** la rangée et « section-title-upnext » sont absents et le focus est sur la première tuile de la première rangée d'apps (position « Avant les applications ») ou sur la dernière tuile de la dernière rangée d'apps (position « Après les applications ») ; sans aucune app, le héro a le focus
+- **WHEN** un rechargement ou retour vide la rangée pour chaque position réglée
+- **THEN** rangée et titre disparaissent, focus à la première app avant, dernière app après, sinon héro
 
 #### Scenario: états de la rangée
-- **WHEN** la rangée est composée avec chaque état (chargement initial, rechargement, erreur, vide, permission refusée)
-- **THEN** le rendu correspond : squelette au premier chargement seulement, état précédent conservé au rechargement, carte d'erreur « upnext-error » focusable en erreur, sous « section-title-upnext » toujours affiché, rangée et « section-title-upnext » masqués si vide ou permission refusée
+- **WHEN** les états locaux et du compte sont variés indépendamment
+- **THEN** squelette initial, maintien local valide, erreur locale et vide suivent leurs contrats ; refus TV n'efface pas le compte et panne du compte ne masque pas les apps
 
 #### Scenario: structure des cartes
-- **WHEN** le test compose la rangée Up Next à la taille TV avec au moins cinq items (un épisode en cours avec image, un film, un item sans image, un item sans icône d'app)
-- **THEN** chaque « upnext-card-<key> » a une largeur égale à (largeur de contenu − 3 × `Dimens.GridSpacing`) / 4 et un ratio 16:9, les quatre premières sont entières à partir de la marge gauche et le rectangle de la cinquième dépasse le bord droit de l'écran ; « upnext-card-badge-<key> » est présent sauf sans icône, « upnext-card-progress-<key> » n'existe que pour l'item en cours, « upnext-card-placeholder-<key> » n'existe que pour l'item sans image ; l'épisode porte deux nœuds de texte (titre de série, « SxxEyy · titre d'épisode »), le film un seul, aucune carte ne contient de texte d'action ni de nom d'app ; après droite jusqu'à la cinquième carte, son rectangle est entier à l'écran ; après droite jusqu'à la dernière carte d'une rangée de huit cartes, le bord droit du rectangle sans zoom de la dernière carte est à `Dimens.ScreenMarginH` du bord droit de l'écran, comme le bord gauche de la première carte au début de la rangée ; aucune assertion de pixel
+- **WHEN** le test compose les cartes locales à taille TV avec au moins cinq items, dont un épisode CONTINUE avec image, un film, un item sans image et un item sans icône d'app, puis parcourt une rangée de huit cartes
+- **THEN** chaque `upnext-card-<key>` a une largeur (contenu − 3 × `Dimens.GridSpacing`) / 4 et un ratio 16:9, quatre cartes entières depuis la marge gauche et cinquième dépassant le bord droit ; `upnext-card-badge-<key>` est présent sauf sans icône, `upnext-card-progress-<key>` seulement pour l'item en cours, `upnext-card-placeholder-<key>` seulement sans image ; l'épisode porte deux nœuds texte (série et « SxxEyy · titre d'épisode »), le film un seul, sans texte d'action ni nom d'app ; droite jusqu'à la cinquième la rend entière, puis jusqu'à la huitième aligne son bord droit sans zoom à `Dimens.ScreenMarginH`, symétriquement au bord gauche initial ; aucune assertion de pixel
 
 #### Scenario: squelette et carte d'erreur
-- **WHEN** le test compose la rangée en chargement initial puis en erreur
-- **THEN** « upnext-skeleton » contient cinq nœuds de la taille d'une carte, aucun n'est focusable ; en erreur, « upnext-error » est un nœud unique de la taille d'une carte, focusable, portant les textes « Impossible de charger » et « OK pour réessayer », sous « section-title-upnext »
+- **WHEN** la rangée locale passe du chargement à l'erreur sans autre source prête
+- **THEN** `upnext-skeleton` contient cinq nœuds de la taille d'une carte, chacun avec deux barres et aucun focusable ; en erreur `upnext-error` est un nœud unique de la taille d'une carte, focusable, portant « Impossible de charger » et « OK pour réessayer » sous `section-title-upnext`
 
 #### Scenario: menu Ouvrir avec
-- **WHEN** l'appui long est simulé sur une carte Up Next
-- **THEN** le menu « Ouvrir avec… » s'ouvre (testTag « upnext-menu »), y compris avec une seule source, avec son en-tête (vignette, titre du contenu, sous-titre « Ouvrir avec… »), une entrée « upnext-menu-entry-<package> » par source dans l'ordre des sources de l'item, la première ayant le focus, puis « upnext-menu-remove » juste en dessous de la dernière entrée ; bas depuis la dernière entrée d'app donne le focus à « upnext-menu-remove », bas depuis lui ne fait rien ; OK ouvre l'app choisie, Retour ferme le menu et rend le focus à la carte ; OK sur « upnext-menu-remove » ferme le menu, retire la carte de « zone-upnext » (et toute carte de la même série publiée par une autre app), persiste le retrait et donne le focus à la carte suivante, ou à la précédente si c'était la dernière
+- **WHEN** l'appui long est simulé sans compte connecté sur une carte locale, avec une seule source puis plusieurs
+- **THEN** `upnext-menu` montre vignette, titre et « Ouvrir avec… », une entrée `upnext-menu-entry-<package>` par source dans l'ordre, première focusée puis `upnext-menu-remove` juste après la dernière ; Bas depuis la dernière app atteint Retirer et Bas depuis Retirer ne fait rien ; OK ouvre l'app et ferme le menu, Retour ferme et rend la carte ; valider Retirer ferme, persiste le masquage, retire aussi la seconde carte de même série d'une autre app et donne le focus à la suivante sinon précédente
 
 #### Scenario: réglage de position
-- **WHEN** le test ouvre la catégorie « Écran d'accueil » des réglages, presse OK sur « setting-upnext-position », se déplace dans « setting-upnext-position-list » puis valide, et recommence en fermant la liste par Retour
-- **THEN** « settings-home-screen » affiche le titre « Écran d'accueil », sa description, puis « setting-upnext-visible » au-dessus de « setting-upnext-position », cette ligne portant la valeur courante et un chevron ; OK ouvre la liste avec la valeur courante focusée et cochée, « setting-upnext-position-list » contient exactement « setting-upnext-position-<VALUE> » pour les deux valeurs dans l'ordre, la coche n'existe que sur la valeur courante, le rectangle de la liste est sous celui de la ligne et dans le volet droit ; haut et bas changent de valeur sans boucle, gauche et droite ne font rien ; OK sur l'autre valeur ferme la liste, rend le focus à « setting-upnext-position », persiste la valeur et le home recomposé place la rangée et son titre à la position choisie ; Retour liste ouverte ferme la liste sans changer la valeur ni quitter les réglages ; liste ouverte, un passage simulé du launcher en arrière-plan puis au premier plan (cycle de vie arrêté puis repris) la ferme sans changer la valeur et rend le focus à « setting-upnext-position », réglages toujours ouverts ; liste fermée, haut donne le focus à « setting-upnext-visible », gauche au volet des catégories sur « settings-category-HOME_SCREEN », Retour ferme les réglages ; le rectangle de chaque ligne est identique avec et sans le focus ; aucune assertion de pixel
+- **WHEN** le test ouvre Écran d'accueil, ouvre Position d'À suivre, change de valeur et valide, recommence avec Retour puis laisse la liste ouverte pendant un passage en arrière-plan/premier plan
+- **THEN** `settings-home-screen` montre titre « Écran d'accueil », description, `setting-upnext-visible` avant `setting-upnext-position` avec valeur courante et chevron ; la liste contient exactement les deux `setting-upnext-position-<VALUE>` dans l'ordre, valeur courante focusée et seule cochée, rectangle sous le contrôle et dans le volet droit ; Haut/Bas sans boucle, Gauche/Droite sans effet ; OK ferme, restaure le contrôle, persiste et replace titre/rangée au home ; Retour ferme sans modifier ni quitter les réglages, le cycle arrière-plan ferme aussi et restaure le contrôle sans changer la valeur ; liste fermée Haut atteint la visibilité, Gauche `settings-category-HOME_SCREEN`, Retour ferme ; rectangle de chaque ligne identique avec/sans focus, pilule sans zoom et aucune assertion de pixel
 
 #### Scenario: réglage de visibilité
-- **WHEN** le test désactive « Afficher À suivre » (« setting-upnext-visible ») dans « Écran d'accueil » puis revient au home
-- **THEN** la rangée et « section-title-upnext » sont masqués, la navigation les saute, le réglage est conservé après redémarrage, et la rangée réapparaît si le réglage est réactivé ; sur la ligne, bas donne le focus à « setting-upnext-position », qui reste focusable et modifiable (même rectangle et même liste que réglage activé, aucun état grisé), une valeur choisie à ce moment étant appliquée au home dès la réactivation ; haut et droite ne font rien, gauche rend le focus à « settings-category-HOME_SCREEN » et Retour ferme les réglages
+- **WHEN** Afficher À suivre est désactivé puis réactivé
+- **THEN** titre et rangée disparaissent et sont sautés, désactivation conservée après redémarrage ; Bas atteint Position toujours focusable/modifiable, sans état grisé, avec même rectangle et même liste qu'activé ; une position modifiée pendant la désactivation s'applique au titre et à la rangée dès réactivation ; Haut/Droite sur la visibilité ne font rien, Gauche rend `settings-category-HOME_SCREEN` et Retour ferme les réglages
 
 #### Scenario: aucune app TV détectée
-- **WHEN** le test compose l'accueil sans aucune app TV
-- **THEN** « section-title-apps » est absent et le message « Aucune app TV détectée » est affiché, centré dans l'espace des rangées d'apps ; « section-title-upnext » et « zone-upnext » suivent leurs propres règles
+- **WHEN** le catalogue d'apps est vide
+- **THEN** Applications est absent et le message existant est centré ; À suivre dépend de toutes ses sources
 
 #### Scenario: tests existants de la transition héro ↔ grille
-- **WHEN** les tests de « Couverture de la transition héro ↔ grille » s'exécutent
-- **THEN** ils composent l'accueil avec la rangée Up Next masquée (« Afficher À suivre » désactivé), de sorte que « première tuile de la grille » et « première rangée » y désignent la première rangée d'apps ; les cas où la rangée Up Next est affichée sont couverts par les scénarios de cette exigence
+- **WHEN** les tests de transition sans À suivre s'exécutent
+- **THEN** ils gardent Afficher À suivre désactivé, de sorte que leurs premières tuiles désignent toujours les apps
+
+#### Scenario: sources indépendantes et propositions
+- **WHEN** le test refuse READ_TV_LISTINGS avec compte accessible, puis fait échouer le compte avec apps accessibles
+- **THEN** les contenus de la source encore accessible sont navigables ; une proposition ou Annuler ne vole pas leur focus ; Haut puis Droite depuis le héro, ou Retour, Haut puis Droite depuis la grille l'atteignent ; Gauche, Haut ou Retour rendent l'engrenage
+
+#### Scenario: ouverture depuis le héro
+- **WHEN** le test choisit un lecteur depuis le héro puis ouvre la même série depuis À suivre et inversement
+- **THEN** la préférence est commune ; le retour restaure le bon contexte et le signal de lecture vise le contenu demandé, pas un épisode suivant affiché entre-temps
 
 ### Requirement: Épinglage depuis la grille
 L'épinglage depuis la grille SHALL être couvert par le flux complet : appui long, menu contextuel, action d'épinglage.
@@ -808,3 +820,61 @@ Les mises à jour d'images pilotées par le TV Provider et les échéances, les 
 #### Scenario: cache vidéo indisponible
 - **WHEN** le cache vidéo de test est plein, en erreur d'écriture ou impossible à créer faute d'espace
 - **THEN** les vidéos plus anciennes sont évincées dans le premier cas ; dans les autres, la lecture se fait en flux sans erreur visible et le héro reste fonctionnel
+
+### Requirement: Couverture du fournisseur de suivi
+Les contrats de suivi SHALL être testés en JUnit avec transport, stockage, compte, lecteurs et horloges contrôlés, sans réseau, temps ou threads réels. Les tests SHALL vérifier reprises, pagination, isolation et absence de mutation sans confirmation.
+
+#### Scenario: association et configuration
+- **WHEN** le transport simule ressource web changée, attente OAuth, 502 non JSON, expiration, succès puis jeton refusé
+- **THEN** l'extraction échoue proprement ou renouvelle une seule fois, le polling respecte intervalle et expiration, un succès exige un compte confirmé et une ancienne réponse ne reconnecte pas une session fermée
+
+#### Scenario: pagination et fusion
+- **WHEN** plusieurs pages contiennent doublons, reprises, épisodes vus et non vus, films remakes et dates manquantes
+- **THEN** la fusion conserve identités et sources exactes, une seule carte par série identifiée et 20 cartes après tri ; le héro peut recevoir les candidats au-delà de 20 et aucun résultat partiel ne purge la mémoire
+
+#### Scenario: mutations et annulation
+- **WHEN** le test marque S02E05, annule puis retire un contenu avec annulation avant échéance, échec après échéance et réponse perdue
+- **THEN** bulk reste désactivé, les précédents ne changent pas, aucune suppression n'est envoyée avant échéance et une réponse incertaine déclenche une lecture avant réessai ; aucune mutation différée ne traverse une déconnexion
+
+#### Scenario: retour manuel
+- **WHEN** le test revient d'un lecteur, ignore puis confirme « Terminé ? », et répète après changement de compte
+- **THEN** seule la confirmation du compte courant marque le contenu demandé ; aucune autre action ni temps écoulé ne marque vu
+
+#### Scenario: relectures ciblées
+- **WHEN** le test revient avant TTL, effectue une mutation, revient après TTL puis émet un état de suivi
+- **THEN** il compte respectivement zéro lecture de liste, une relecture ciblée, une lecture complète et zéro requête au TV Provider
+
+### Requirement: Couverture des parcours de suivi TV
+Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key events physiques et données fictives : connexion, pays, sélecteur, épisodes, actions et erreur. Rendu et navigation SHALL suivre les parcours fonctionnels et la passe Penpot validée, sans capture comparative.
+
+#### Scenario: association
+- **WHEN** le test ouvre puis ferme une association, laisse expirer son code et demande un nouveau code
+- **THEN** adresse/code/QR appartiennent à la même tentative, l'adresse visible conserve le chemin complet de `verification_url` et le QR encode la même URL précise plutôt que le domaine ; le QR n'est pas focusable, les actions ont un focus initial et Retour restaure Connecter sans poller une ancienne tentative
+
+#### Scenario: pays en liste déroulante
+- **WHEN** le test ouvre le pays, parcourt ses options, valide puis rouvre et annule
+- **THEN** la liste reste ancrée dans les réglages sans modale, le focus et les bords suivent settings, seule la validation modifie la valeur et le libellé n'ajoute pas « · confirmé »
+
+#### Scenario: composants du suivi
+- **WHEN** le test présente synchronisation, indisponibilité, modales de contenu et retours transitoires
+- **THEN** l'indicateur reste discret à droite sans suffixe « · Réglages », les modales réutilisent le composant existant dimensionné au contenu et les retours partagent le composant compact en bas à droite ; rendu glass, bordure et flou sont vérifiés sur TV, sans remplacer ces surfaces par des panneaux opaques
+
+#### Scenario: échéance d'annulation
+- **WHEN** une horloge contrôlée avance pendant une fenêtre Annuler, avec puis sans interaction
+- **THEN** le retrait distant attend 10 secondes actives, le focus suspend le décompte sans le réinitialiser et la sortie reprend le temps restant ; annuler avant échéance n'envoie aucun retrait et l'expiration ne marque jamais vu
+
+#### Scenario: sélecteur et épisodes
+- **WHEN** le test parcourt les lecteurs et Autre application, puis les épisodes vus et non vus, annule et simule la disparition de l'entrée focusée
+- **THEN** les bords ne bouclent pas, l'origine est restaurée, consulter ne modifie rien et le repli suivant/précédent reste utilisable ; chargement, vide, erreur et reconnexion sont distincts
+
+#### Scenario: saisons à la demande
+- **WHEN** la saison courante s'affiche puis qu'Autres saisons est ouvert et qu'une autre saison est validée
+- **THEN** aucun épisode des autres saisons n'est chargé avant cette validation ; seuls les appels avec season explicite sont utilisés ; les tags tracking-seasons, tracking-season-picker, tracking-season-<number>, tracking-seasons-retry et tracking-season-back identifient le parcours sans texte ni donnée personnelle
+
+#### Scenario: badge et masquage
+- **WHEN** une carte de suivi n'a pas de lecteur choisi puis en reçoit un et est masquée/réaffichée
+- **THEN** son badge passe du fournisseur à l'app ; le masquage persiste pour la série toutes sources et les candidats BetaSeries du héro, sans mutation du compte ; Réafficher restaure l'éligibilité
+
+#### Scenario: ajout au compte depuis une carte locale
+- **WHEN** le test ouvre le menu d'un contenu local identifié absent du compte connecté, puis répète sans compte, avec identité ambiguë et avec appartenance inconnue
+- **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement utilise le parcours commun, avec confirmation du premier lecteur si aucune préférence n'existe ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive

@@ -10,7 +10,7 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
 - P6 — Rangée Up Next : livrée (v0.1.0-rc.2), archivée avec `jellyfin-tvprovider-only` (`archive/2026-10-11-up-next`, `archive/2026-10-11-jellyfin-tvprovider-only`)
 - P7 — Écran d'accueil par défaut : configuration automatique par l'ADB local de la TV (démarrage du constructeur, écran d'accueil, désactivation de l'accueil d'origine si nécessaire) ou par autorisations ; livré et archivé (`archive/2026-10-17-p7-default-launcher`) ; suite : parcours simplifié, troisième façon par Tsuyu installé depuis la TV, réparation automatique, livrée dans v0.3.0-rc.1 et archivée (`archive/2026-10-18-tsuyu-home-setup`) ; validés sur la TV de référence
 - P8 — Recherche : planifié
-- P9 — BetaSeries (OAuth) : planifié
+- P9 — Suivi de visionnage BetaSeries : livré (v0.4.0), validé sur la TV de référence et archivé (`archive/2026-10-24-p9-betaseries`)
 - P10 — Remappage des boutons de la télécommande : à spécifier
 Les archives historiques (`openspec/changes/archive/`) conservent leur numérotation d'époque : ne pas les renuméroter.
 

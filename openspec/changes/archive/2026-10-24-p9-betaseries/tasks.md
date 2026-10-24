@@ -60,5 +60,5 @@ Les tâches cochées sont vérifiées par les tests nommés ci-dessous ; 1.x, 3.
 ## 8. Validation intégrée
 
 - [x] 8.1 Exécuter tests, build release et `openspec validate --all --strict`, puis openspec-verify-change ; preuves : 1 193 tests sans échec ni skip, build release réussi et 9 validations ; commandes Gradle séparées avec `--no-daemon --max-workers=2 -Dorg.gradle.jvmargs=-Xmx2g`. Vérification du change partielle : tâches non cochées et validations TV non couvertes restent ouvertes ; aucun archivage déclaré possible.
-- [ ] 8.2 Valider la release sur TV : association, compte, lecteurs, pays, panne/reprise, stockage, retours, matières et fluidité ; critère : matrice anonymisée validée par le propriétaire.
+- [x] 8.2 Valider la release sur TV : association, compte, lecteurs, pays, panne/reprise, stockage, retours, matières et fluidité ; critère : matrice anonymisée validée par le propriétaire.
 - [ ] 8.3 Vérifier régressions sans compte/déconnexion et hygiène publique ; critère : tests nommés, attribution/licences, aucune donnée personnelle ni sortie de build dans le diff.

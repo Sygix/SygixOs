@@ -37,45 +37,45 @@ Sur le héro en haut à droite, la capsule verre de « Thème » SHALL montrer h
 - **THEN** l'heure affichée redevient l'heure courante dès le retour, sans attendre le changement de minute ; aucune mise à jour n'a lieu tant que le launcher est en arrière-plan
 
 ### Requirement: Page de réglages
-Les réglages SHALL être plein écran tvOS au DPAD : catégories à gauche, contenu à droite, fond de « Fond de la zone grille » de launcher-shell. L'accueil ne SHALL être ni dessiné ni focusable dessous, sans réinitialiser programme/visuel/vidéo du héro ni position grille. Toute ligne focusable SHALL avoir la pilule claire sans zoom ni verre, la catégorie active restant marquée quand le focus est à droite. Navigation et retour SHALL suivre les scénarios ci-dessous.
+Les réglages SHALL conserver deux volets plein écran, leur fond et leurs pilules sans zoom, accueil masqué sans perdre son état. Une catégorie Suivi de visionnage SHALL accueillir le compte et ses réglages. Les panneaux ouverts SHALL recevoir Retour avant la page ; navigation et restauration SHALL conserver les comportements existants.
 
 #### Scenario: structure
-- **WHEN** la page de réglages s'ouvre
-- **THEN** le volet gauche liste les catégories « Apps sources », « Applications cachées », « Écran d'accueil », « À propos », le volet droit affiche le contenu de la catégorie active, la première catégorie porte le focus à l'ouverture
+- **WHEN** les réglages s'ouvrent
+- **THEN** les catégories sont Apps sources, Applications cachées, Écran d'accueil, Suivi de visionnage et À propos ; la première a le focus et son contenu est à droite
 
 #### Scenario: changement de catégorie
-- **WHEN** l'utilisateur presse haut/bas dans le volet gauche
-- **THEN** la catégorie active change et le volet droit affiche son contenu ; droite depuis le volet gauche porte le focus sur le premier élément du volet droit (« Afficher À suivre » pour « Écran d'accueil »), sauf pour « Applications cachées » dont le focus initial est la première ligne de la liste (« Applications cachées », scénario « focus initial ») ; gauche depuis le volet droit le rend au volet gauche, sur la catégorie active, sauf quand la liste déroulante de « Position d'À suivre » est ouverte (« Position d'À suivre », scénario « déplacements dans la liste »)
+- **WHEN** haut/bas est pressé à gauche puis droite
+- **THEN** la catégorie active et son contenu changent ; droite atteint le premier contrôle du volet, sauf la règle existante de première ligne d'Applications cachées ; gauche revient à la catégorie sauf panneau ou liste actif
 
 #### Scenario: retour
-- **WHEN** l'utilisateur presse Retour depuis la page de réglages
-- **THEN** le home reprend avec le héro affiché et focusé (comportement standard), la lecture du héro reprend là où elle s'était arrêtée ; seule exception : quand la liste déroulante de « Position d'À suivre » est ouverte, Retour la ferme d'abord, sans quitter les réglages (« Position d'À suivre », scénario « fermeture sans changement »)
+- **WHEN** Retour est pressé
+- **THEN** une liste ou un panneau actif se ferme d'abord avec restauration de son contrôle ; sinon les réglages ferment sur le héro focusé et sa lecture reprend à la position conservée
 
 #### Scenario: accueil masqué
-- **WHEN** la page de réglages est affichée
-- **THEN** aucun élément de l'accueil (héro, capsule, dock, grille) n'est dessiné sous la page ni ne peut prendre le focus au DPAD ; le panneau du launcher système ouvert depuis les réglages reste affiché au-dessus d'eux ; son verre, comme celui de la liste déroulante de « Position d'À suivre », floute la page de réglages
+- **WHEN** les réglages sont affichés
+- **THEN** aucun élément du home n'est dessiné ni focusable dessous ; panneaux et listes utilisent les réglages comme arrière-plan, selon leur matériau
 
 #### Scenario: retour immédiat
-- **WHEN** l'utilisateur quitte les réglages par Retour, ou par la touche Home au premier plan (« Touche Home avec SygixOs au premier plan » de `launcher-shell`)
-- **THEN** le visuel, le titre et le bouton du héro affichés avant l'ouverture sont affichés immédiatement, sans mascotte ni écran de démarrage, sans fond noir et sans fondu d'entrée ; une vidéo d'aperçu reprend sans être rechargée ; si le launcher est passé en arrière-plan pendant les réglages, la vidéo, libérée entre-temps, est rechargée selon « Préchargement et mémoire » de `launcher-shell`
+- **WHEN** les réglages sont quittés par Retour ou Home au premier plan
+- **THEN** visuel, titre et bouton du héro reviennent sans mascotte, écran noir ou fondu d'entrée ; sa vidéo reprend sans rechargement sauf libération pendant un passage en arrière-plan
 
 #### Scenario: fond
-- **WHEN** la page de réglages s'ouvre
-- **THEN** son fond est identique à celui de la zone grille de l'accueil
+- **WHEN** les réglages s'ouvrent
+- **THEN** leur fond reste celui de la zone grille
 
 #### Scenario: focus d'une ligne
-- **WHEN** une ligne de la page prend le focus
-- **THEN** elle devient une pilule claire à texte et icônes sombres, à la même taille et à la même place qu'au repos (aucun zoom), sans halo ni verre ; au repos les lignes n'ont pas de fond, sauf « Tout réactiver » qui garde un fond discret
+- **WHEN** une ligne prend le focus
+- **THEN** elle devient une pilule claire à texte et icônes sombres sans zoom, halo ou verre, sans changer son rectangle ; les lignes au repos n'ont pas de fond, sauf Tout réactiver qui garde son fond discret
 
 #### Scenario: catégorie active, focus à droite
-- **WHEN** le focus est dans le volet droit
-- **THEN** la catégorie active est une pilule grise discrète à texte blanc et les autres catégories n'ont pas de fond
+- **WHEN** le focus est à droite
+- **THEN** la catégorie active garde sa pilule grise et son texte blanc, les autres catégories sans fond
 
 #### Scenario: vignette des lignes d'apps
-- **WHEN** une ligne d'app est affichée (« Apps sources », « Applications cachées »)
-- **THEN** l'icône de l'app est présentée dans une vignette 16:9 : la bannière TV de l'app quand elle en a une, sinon son icône entière centrée, comme le repli des tuiles de l'accueil
+- **WHEN** une ligne d'app est affichée
+- **THEN** elle garde la vignette 16:9, bannière sinon icône centrée ; le fournisseur de suivi n'est pas ajouté à la liste des applications
 
-**Détails.** — Focus des réglages : Toute ligne focusable SHALL être une pilule claire à texte/icônes sombres, sans zoom, halo ni verre : catégories, apps, contenus, dépliage, Tout réactiver, visibilité/position et options, À propos. La catégorie active SHALL garder une pilule grise discrète au focus à droite. Cas « focus de ligne et catégorie » : quand le focus change de volet ou de ligne, « focus d'une ligne » et « catégorie active, focus à droite » de « Page de réglages » s'appliquent à tous les contrôles listés.
+**Détails.** — Le focus des catégories, lignes, contenus, dépliages, contrôles et actions reprend la pilule claire sans zoom, halo ou verre, et l'état marqué de la catégorie active. Les parcours de connexion et pays respectent cette base et leur navigation propre ; les autres catégories ne changent pas de règles.
 
 ### Requirement: Apps sources
 « Apps sources » SHALL lister toutes les apps TV installées avec un switch Apple activé par défaut pour leur contribution au héro, Top Shelf et Up Next, description « Choisissez les applications qui alimentent le héro, le Top Shelf et À suivre. ». Seules les apps y figurent. Les compteurs SHALL couvrir tous leurs programmes du TV Provider, avec une seule observation dès l'accueil, en pause hors premier plan et recomptage au retour ; tri, focus et comptage SHALL suivre les scénarios ci-dessous.
@@ -154,93 +154,93 @@ Le menu contextuel d'une tuile SHALL offrir une option « Cacher » en plus des 
 - **THEN** ces apps restent cachées (grille et dock), sont listées dans « Applications cachées » sans date, et aucune donnée n'est perdue ni réécrite au démarrage
 
 ### Requirement: Applications cachées
-Le volet SHALL afficher sans sous-écran une liste défilante : « Tout réactiver » puis apps cachées avec switch cachée/visible, puis « Retirés d'À suivre » non focusable et contenus (7.9). Un groupe vide et son en-tête/bouton SHALL être absents. Tri, dépliage à 3 lignes, réactivation, réaffichage et focus SHALL suivre les scénarios ci-dessous.
+Le volet SHALL conserver sa liste directe d'apps cachées puis Retirés d'À suivre, son tri, son dépliage à trois lignes et sa navigation. Les retraits de contenus SHALL accepter aussi les identités et sources du suivi ; Réafficher SHALL supprimer le masquage local pour les sources de la rangée et les candidats BetaSeries du héro, sans modifier le compte.
 
 #### Scenario: sous-écran
-- **WHEN** l'utilisateur sélectionne ou valide « Applications cachées » dans le volet gauche
-- **THEN** aucun sous-écran ne s'ouvre : le volet droit affiche le bouton « Tout réactiver » puis, en dessous, une ligne par app cachée (icône, nom, switch en position « cachée »), puis, s'il y a des contenus retirés, l'intertitre « Retirés d'À suivre » et leurs lignes ; aucun sous-écran ni palier supplémentaire n'est ouvert
+- **WHEN** Applications cachées est sélectionné
+- **THEN** le volet affiche directement Tout réactiver, apps cachées, puis intertitre et contenus retirés, en omettant les groupes vides, sans sous-écran supplémentaire
 
 #### Scenario: focus initial
-- **WHEN** l'utilisateur presse droite depuis la catégorie « Applications cachées » alors que la liste contient au moins une app
-- **THEN** la première ligne d'app prend le focus, pas le bouton « Tout réactiver » ; haut depuis cette ligne porte le focus sur le bouton ; sans app cachée mais avec des contenus retirés, la première ligne de contenu prend le focus
+- **WHEN** droite entre dans le volet avec des apps cachées
+- **THEN** la première app a le focus et haut atteint Tout réactiver ; sans app la première ligne de contenu est initiale
 
 #### Scenario: tri des apps cachées
-- **WHEN** des apps ont été cachées à des dates différentes et d'autres sans date (masquées avant ce change)
-- **THEN** les apps datées viennent en premier, de la plus récente à la plus ancienne, puis les apps sans date par ordre alphabétique
+- **WHEN** des apps ont des dates de masquage et d'autres non
+- **THEN** les datées sont triées par date décroissante puis les sans date par nom en ordre alphabétique sans casse
 
 #### Scenario: réactivation
-- **WHEN** l'utilisateur presse OK sur la ligne d'une app cachée
-- **THEN** le switch passe en position « visible » avec l'animation Apple, l'app réapparaît immédiatement dans la grille (ordre alphabétique par défaut si l'ordre précédent n'existe plus), l'état est persisté, la ligne reste affichée à sa place et garde le focus
+- **WHEN** OK est pressé sur une app cachée
+- **THEN** son switch devient visible avec animation Apple, elle revient immédiatement dans la grille à son ancienne place si elle existe encore, sinon selon l'ordre alphabétique ; l'état est persisté et sa ligne reste focusée à sa place dans les réglages
 
 #### Scenario: recacher avant le recalcul
-- **WHEN** l'utilisateur presse à nouveau OK sur une ligne dont le switch est en position « visible » (app réactivée par erreur), sans avoir quitté la catégorie
-- **THEN** l'app est cachée à nouveau (avec une nouvelle date de masquage), disparaît de la grille et du dock, le switch repasse en position « cachée », la ligne garde sa place et le focus
+- **WHEN** OK est pressé à nouveau sur cette ligne sans quitter la catégorie
+- **THEN** l'app est recachée avec nouvelle date et sa ligne conserve place et focus
 
 #### Scenario: tout réactiver
-- **WHEN** l'utilisateur presse OK sur « Tout réactiver »
-- **THEN** sans confirmation, toutes les apps de la liste réapparaissent dans la grille, l'état est persisté, toutes les lignes restent affichées avec leur switch en position « visible », le focus reste sur le bouton ; chaque ligne peut ensuite être recachée individuellement comme au scénario « recacher avant le recalcul »
+- **WHEN** Tout réactiver est validé
+- **THEN** toutes les apps de la liste redeviennent visibles sans confirmation ; leurs lignes restent présentes avec switch visible, focus sur le bouton, et peuvent être recachées
 
 #### Scenario: tout réactiver avec une app cachée désinstallée
-- **WHEN** une app a été cachée puis désinstallée (elle n'apparaît donc pas dans la liste), et l'utilisateur presse OK sur « Tout réactiver »
-- **THEN** seules les apps de la liste affichée sont réactivées ; l'app désinstallée reste cachée dans l'état persisté et, si elle est réinstallée, elle n'apparaît ni dans la grille ni dans le dock et figure de nouveau dans « Applications cachées » (scénario « réinstallation » de « Cacher une application »)
+- **WHEN** une app cachée désinstallée n'est pas dans la liste et Tout réactiver est validé
+- **THEN** seules les apps listées sont réactivées ; la désinstallée reste cachée en cas de réinstallation
 
 #### Scenario: recalcul au retour dans la catégorie
-- **WHEN** l'utilisateur a réactivé une ou plusieurs apps, quitte la catégorie (haut ou bas vers une autre catégorie dans le volet gauche, ou Retour qui ferme les réglages), puis revient sur « Applications cachées »
-- **THEN** dès la première image du volet, les apps réactivées n'y figurent plus, les apps cachées entre-temps y figurent, l'ordre suit « tri des apps cachées », et si la liste est vide l'état vide s'affiche
+- **WHEN** la catégorie est quittée puis rouverte
+- **THEN** la liste est recalculée avant sa première image, sans apps réactivées, avec nouveaux masquages, tri et état vide éventuel
 
 #### Scenario: pas de recalcul sans changer de catégorie
-- **WHEN** l'utilisateur a réactivé une app puis presse gauche (focus sur la catégorie « Applications cachées » dans le volet gauche) et revient par droite
-- **THEN** la liste n'est pas recalculée : la ligne de l'app réactivée est toujours affichée, switch en position « visible »
+- **WHEN** le focus passe à gauche puis à droite sans changer de catégorie
+- **THEN** lignes, switches et dépliage sont conservés
 
 #### Scenario: aucune app cachée
-- **WHEN** aucune app n'est cachée et aucun contenu n'est retiré d'À suivre au moment où la catégorie est affichée
-- **THEN** le volet droit affiche uniquement un message d'état vide centré (aucune ligne, aucun bouton « Tout réactiver » rendu, aucun crash) ; droite depuis le volet gauche laisse le focus sur la catégorie, Retour ferme les réglages comme depuis toute la page
+- **WHEN** aucun groupe ne contient d'élément
+- **THEN** seul l'état vide centré est affiché, sans Tout réactiver ; droite reste sur la catégorie et Retour ferme les réglages
 
 #### Scenario: navigation D-pad dans le volet
-- **WHEN** le focus est dans le volet « Applications cachées »
-- **THEN** haut et bas parcourent le bouton puis les lignes et les lignes « Afficher les N autres » dans l'ordre affiché, en sautant l'intertitre « Retirés d'À suivre », sans boucle aux bords (haut depuis le premier élément et bas depuis le dernier ne font rien) ; la liste défile pour garder l'élément focusé entièrement visible ; gauche rend le focus au volet gauche sur la catégorie « Applications cachées » ; Retour ferme les réglages (« Page de réglages », scénario « retour ») ; OK bascule l'élément focusé (switch d'app), réaffiche le contenu de la ligne ou déplie le groupe ; le focus initial en entrant dans le volet est la première ligne (scénario « focus initial »)
+- **WHEN** le focus parcourt le volet
+- **THEN** haut/bas suivent bouton, lignes et dépliages sans boucle, en sautant l'intertitre ; le défilement garde la ligne focusée entièrement visible, gauche rend la catégorie, Retour ferme la page, OK bascule, réaffiche ou déplie selon l'élément
 
 #### Scenario: app de la ligne focalisée désinstallée
-- **WHEN** l'app de la ligne qui a le focus est désinstallée pendant que le volet est affiché, et qu'il reste au moins une ligne
-- **THEN** sa ligne disparaît et le focus passe à la ligne qui occupe désormais sa position (la nouvelle dernière ligne si la ligne disparue était la dernière) ; haut, bas, gauche et Retour fonctionnent comme au scénario « navigation D-pad dans le volet »
+- **WHEN** l'app focusée est désinstallée et des lignes restent
+- **THEN** la suivante à sa position, sinon la dernière reprend le focus
 
 #### Scenario: liste vidée pendant l'affichage
-- **WHEN** la dernière app de la liste est désinstallée pendant que le volet a le focus
-- **THEN** l'état vide s'affiche et le focus revient sur la catégorie « Applications cachées » du volet gauche ; gauche y laisse le focus, haut et bas changent de catégorie et Retour ferme les réglages
+- **WHEN** la dernière app est désinstallée sans contenu restant
+- **THEN** l'état vide apparaît et le focus revient à la catégorie ; gauche y reste, haut/bas changent de catégorie et Retour ferme
 
 #### Scenario: autre app désinstallée
-- **WHEN** l'app d'une ligne qui n'a pas le focus est désinstallée pendant l'affichage (focus sur une autre ligne ou sur « Tout réactiver »)
-- **THEN** sa ligne disparaît et le focus ne bouge pas
+- **WHEN** une ligne autre que celle focusée disparaît
+- **THEN** le focus courant reste inchangé, y compris sur Tout réactiver
 
 #### Scenario: retour dans le volet
-- **WHEN** l'utilisateur revient dans le volet depuis le volet gauche sans avoir changé de catégorie
-- **THEN** l'ordre, les états des switches et les groupes dépliés sont ceux laissés à la sortie, et le focus va à la première ligne (scénario « focus initial »)
+- **WHEN** droite revient sans changement de catégorie
+- **THEN** l'ordre, les états et le dépliage restent conservés et le focus initial est de nouveau appliqué
 
 #### Scenario: contenus retirés
-- **WHEN** la catégorie est affichée alors que des contenus ont été retirés d'À suivre
-- **THEN** sous les apps cachées, l'intertitre « Retirés d'À suivre » précède une ligne par contenu, du plus récemment retiré au plus ancien, chacune avec sa vignette, son titre et « Série · <apps> » ou « Film · <apps> » ; l'action « Réafficher » n'apparaît que sur la ligne focusée
+- **WHEN** des contenus locaux ou de suivi sont retirés
+- **THEN** Retirés d'À suivre précède leurs lignes par retrait décroissant, vignette 16:9 avec image persistée sinon placeholder, titre puis « Série · … » ou « Film · … » avec sources affichables, ou le type seul sans source ; Réafficher apparaît à droite seulement sur la ligne focusée, sans package fictif pour BetaSeries
 
 #### Scenario: réafficher un contenu
-- **WHEN** l'utilisateur presse OK sur la ligne d'un contenu retiré
-- **THEN** le contenu quitte l'ensemble persisté des contenus retirés, sa ligne disparaît, le focus passe à l'élément qui occupe sa position (sinon au dernier élément, sinon à la catégorie si le volet est vide), et le contenu revient dans la rangée Up Next au chargement suivant s'il est encore publié
+- **WHEN** OK est pressé sur un contenu retiré
+- **THEN** le retrait et sa ligne sont supprimés ; focus à la suivante, sinon précédente, sinon catégorie ; le contenu revient selon ses sources valides et l'éligibilité du héro, sans exiger une publication TV si le compte le fournit
 
 #### Scenario: groupe limité à 3 lignes
-- **WHEN** 5 apps sont cachées et 2 contenus retirés
-- **THEN** le groupe des apps montre ses 3 premières lignes puis « Afficher les 2 autres », le groupe des contenus montre ses 2 lignes sans ligne de dépliage ; « Tout réactiver » réactive les 5 apps
+- **WHEN** cinq apps et deux contenus sont masqués
+- **THEN** trois apps puis Afficher les 2 autres sont rendus, les deux contenus sont entiers et Tout réactiver vise les cinq apps
 
 #### Scenario: dépliage d'un groupe
-- **WHEN** l'utilisateur presse OK sur « Afficher les N autres »
-- **THEN** toutes les lignes du groupe s'affichent à leur place dans l'ordre du tri, la ligne « Afficher les N autres » disparaît et le focus est sur la 4e ligne du groupe ; à la prochaine entrée dans la catégorie, le groupe est de nouveau replié
+- **WHEN** Afficher les N autres est validé
+- **THEN** toutes les lignes du groupe apparaissent, le contrôle disparaît, la quatrième ligne reçoit le focus et le groupe redevient replié à la prochaine entrée dans la catégorie
 
 #### Scenario: un seul élément masqué
-- **WHEN** un groupe compte exactement 4 lignes
-- **THEN** ses 3 premières lignes sont suivies de « Afficher l'autre »
+- **WHEN** un groupe contient quatre éléments
+- **THEN** ses trois premières lignes sont suivies d'Afficher l'autre
 
 #### Scenario: groupe des apps vide
-- **WHEN** aucune app n'est cachée mais des contenus sont retirés
-- **THEN** ni « Tout réactiver » ni ligne d'app n'est affiché ; l'intertitre « Retirés d'À suivre » et ses lignes forment tout le volet
+- **WHEN** seuls des contenus sont retirés
+- **THEN** aucun bouton Tout réactiver ni app n'est affiché ; l'intertitre et les contenus forment le volet
 
-**Détails.** — Lignes des contenus retirés : Les contenus SHALL être triés par retrait décroissant, avec vignette 16:9/image persistée sinon placeholder, titre et « Série · <apps> » ou « Film · <apps> » (sources persistées encore installées séparées par virgules, type seul sinon). Seul le focus SHALL montrer « Réafficher » à droite. OK SHALL supprimer le retrait persisté et sa ligne ; retour en rangée au prochain chargement si encore publié. Cas « retrait réaffiché » : quand un contenu est réaffiché, « contenus retirés » et « réafficher un contenu » de « Applications cachées » s'appliquent sans action sur les switches d'apps. — Groupes repliés : Chaque groupe SHALL montrer au plus 3 lignes, puis « Afficher les N autres » pour N masquées ou « Afficher l'autre ». OK SHALL afficher tout dans l'ordre, supprimer cette ligne et focaliser la 4e. Le dépliage ne SHALL pas être persisté et revient replié à chaque entrée de catégorie. Cas « dépliage et retour » : quand un groupe dépasse trois éléments, « groupe limité à 3 lignes », « dépliage d'un groupe » et « retour dans le volet » de « Applications cachées » s'appliquent. — Liste des apps cachées : Les apps SHALL être triées par masquage décroissant, sans date en fin par nom sans casse. La liste SHALL être reconstruite depuis l'état persisté à chaque entrée de catégorie, avant la première image, jamais pour un aller-retour entre volets sans changer de catégorie. Cas « entrée et changement de volet » : quand les apps ont été réactivées ou recachées, « recalcul au retour dans la catégorie » et « pas de recalcul sans changer de catégorie » de « Applications cachées » préservent l'état attendu sans image d'une ancienne liste. — Réactivation des apps cachées : Réactiver par switch ou Tout réactiver SHALL agir et persister immédiatement sur grille/dock, en gardant la ligne visible et son switch visible tant que catégorie active. Tout réactiver SHALL viser seulement les apps de la liste, repliées comprises, sans réafficher les contenus ; une cachée désinstallée non listée reste cachée, même réinstallée. Cas « réactivation et annulation locale » : quand une app ou la liste est réactivée, « réactivation », « recacher avant le recalcul », « tout réactiver » et « tout réactiver avec une app cachée désinstallée » de « Applications cachées » s'appliquent sans recalcul prématuré. — Focus des éléments cachés : L'ordre SHALL être Tout réactiver, apps, dépliage apps, contenus, dépliage contenus, sans intertitre focusable. Initialement première ligne du premier groupe non vide, Haut atteignant Tout réactiver. Une ligne désinstallée/réaffichée SHALL disparaître ; si focusée, focus au successeur de sa position sinon dernier, puis catégorie si vide. Cas « disparition ou volet vide » : quand une ligne disparaît pendant l'affichage, les scénarios « app de la ligne focalisée désinstallée », « liste vidée pendant l'affichage » et « autre app désinstallée » de « Applications cachées » gardent la navigation sans boucler.
+**Détails.** — Les contenus retirés gardent une vignette 16:9, image persistée sinon placeholder, tri par retrait décroissant, titre et libellés « Série · … » ou « Film · … » avec sources persistées ; les apps sources encore installées sont séparées par virgules, le fournisseur peut être nommé sans paquet d'app fictif, et le type seul est affiché sans source disponible. Réafficher est à droite uniquement au focus et ne modifie pas le compte. Dépliage non persisté, trois lignes par groupe puis Afficher les N autres ou Afficher l'autre, quatrième focusée au dépliage. Le recalcul a lieu uniquement à l'entrée de catégorie, pas entre volets. Les switches et Tout réactiver agissent immédiatement sur grille/dock avec animation Apple en gardant les lignes pendant la visite ; ils n'annulent jamais les retraits de contenus. Une app réactivée retrouve son ancien ordre de grille s'il existe encore, sinon son ordre alphabétique.
 
 ### Requirement: À propos
 La catégorie « À propos » SHALL afficher la version du launcher et les licences des bibliothèques open source utilisées. Elle SHALL aussi contenir les lignes de mise à jour du launcher, décrites par `self-update` (« Lignes de mise à jour dans À propos »), qui fixe leur contenu, leur place et leur navigation D-pad.
@@ -265,31 +265,31 @@ Avant À propos, `SettingsCategory.HOME_SCREEN` SHALL suivre 7.7 : titre « Écr
 - **THEN** son rectangle a la même hauteur minimale et les mêmes retraits que les lignes d'« Apps sources », et son libellé est en `TextStyles.Row` au repos et `TextStyles.RowFocused` au focus
 
 ### Requirement: Afficher À suivre
-« Afficher À suivre » SHALL être le premier contrôle : switch Apple identique aux préversions, libellé gauche/switch droite (7.7), activé par défaut, persisté DataStore. Il autorise sans forcer : contenu affichable et permission restent requis. Désactivé, rangée/titre SHALL disparaître de la navigation sans modifier programmes ni filtres. Gauche SHALL rendre les catégories, Retour fermer, haut/bas parcourir les contrôles selon « Page de réglages ».
+Afficher À suivre SHALL rester le premier contrôle, avec libellé à gauche et switch Apple à droite, activé par défaut et persisté. Il autorise les contenus affichables de toutes les sources sans imposer READ_TV_LISTINGS au compte. Désactiver SHALL retirer rangée et titre sans modifier programmes, compte, filtres ni apport du compte au héro.
 
 #### Scenario: réglage activé
-- **WHEN** « Afficher À suivre » est activé
-- **THEN** la rangée est présentée selon son réglage de position et les programmes publiés par les apps sources actives
+- **WHEN** le réglage est activé
+- **THEN** la rangée suit sa position et les sources affichables locales ou de suivi
 
 #### Scenario: réglage désactivé
-- **WHEN** « Afficher À suivre » est désactivé
-- **THEN** la rangée et son titre « À suivre » sont masqués et la navigation de la zone grille les saute ; le réglage reste conservé après redémarrage
+- **WHEN** le réglage est désactivé
+- **THEN** rangée et titre sont masqués, sautés dans la navigation et le réglage reste persisté
 
 #### Scenario: rangée indisponible malgré le réglage activé
-- **WHEN** « Afficher À suivre » est activé, mais qu'aucun programme affichable n'est publié ou que la permission est refusée
-- **THEN** la rangée reste masquée conformément à la capability up-next et la navigation de la zone grille la saute jusqu'à ce qu'elle soit effectivement affichée
+- **WHEN** aucune source n'a d'état affichable selon up-next
+- **THEN** la rangée reste masquée ; un refus de la permission TV ne suffit pas si le compte est accessible
 
 #### Scenario: bascule
-- **WHEN** l'utilisateur presse OK sur la ligne « Afficher À suivre »
-- **THEN** le switch bascule avec l'animation Apple, l'état est persisté (DataStore), l'effet sur l'accueil est immédiat, sans redémarrage ; le focus reste sur la ligne
+- **WHEN** OK est pressé sur la ligne
+- **THEN** le switch et la préférence changent avec animation Apple et effet immédiat sans redémarrage, et le focus reste sur la ligne
 
 #### Scenario: navigation D-pad de la ligne
-- **WHEN** le focus est sur « Afficher À suivre »
-- **THEN** bas porte le focus sur « Position d'À suivre » ; haut ne fait rien (première ligne de la catégorie, sans boucle) ; droite ne fait rien ; gauche rend le focus au volet des catégories, sur « Écran d'accueil » (« Page de réglages », scénario « changement de catégorie ») ; Retour ferme les réglages et le home reprend avec le héro focusé (« Page de réglages », scénario « retour »)
+- **WHEN** le focus est sur Afficher À suivre
+- **THEN** bas atteint Position d'À suivre, haut et droite ne font rien, gauche rend la catégorie Écran d'accueil et Retour ferme les réglages sauf panneau actif
 
 #### Scenario: focus initial de la catégorie
-- **WHEN** l'utilisateur presse droite depuis la catégorie « Écran d'accueil » du volet des catégories
-- **THEN** le focus est placé sur le premier contrôle de la catégorie, « Afficher À suivre », qui prend la pilule de focus des lignes (« Page de réglages », scénario « focus d'une ligne ») ; après gauche vers le volet puis droite, le focus revient sur « Afficher À suivre » et les valeurs des deux réglages sont inchangées
+- **WHEN** droite entre dans Écran d'accueil depuis les catégories, y compris après gauche puis droite
+- **THEN** Afficher À suivre reçoit le focus avec les valeurs conservées
 
 ### Requirement: Position d'À suivre
 Sous « Afficher À suivre », « Position d'À suivre » SHALL proposer « Avant les applications » par défaut et « Après les applications », persistés DataStore/restaurés au démarrage. L'effet sur la grille SHALL suivre launcher-shell. Rendu, panneau verre, coche, focus et navigation SHALL suivre les scénarios ci-dessous et le design system, sans animation supplémentaire.
@@ -376,3 +376,34 @@ Après visibilité/position d'À suivre, « Launcher système » non focusable S
 - **THEN** l'écran d'accueil effectif, l'accueil d'origine, le service d'accessibilité, la permission et le rôle HOME sont relus auprès du système et l'état et le détail de la ligne sont recalculés, sans valeur périmée
 
 **Détails.** — État de la ligne launcher : État/détail SHALL être recalculés au retour au premier plan, à la fermeture du panneau et en fin de séquence. Le détail SHALL être « Automatique : <état> · Par autorisations : <état> », états en minuscules. À droite : « Actif » avec point vert si une voie active, sinon « Bloqué » si voie bloquée, sinon « En partie » si partielle, sinon « À configurer ». Cas « libellés des états des voies » : quand la ligne est relue, la voie automatique donne « actif », « à configurer » ou « indisponible sur cette TV », la voie par autorisations « active », « en partie », « bloquée », « non utilisée » ou « à faire », selon launcher-shell ; le premier contrôle reste « Afficher À suivre », et aucune autre ligne rôle HOME, allumage, accessibilité, débogage ou accueil d'origine n'est ajoutée.
+
+### Requirement: Réglages du suivi de visionnage
+La catégorie Suivi de visionnage SHALL exposer BetaSeries, connexion ou déconnexion, état du compte, synchronisation, réessai et pays confirmé. Aucun fournisseur non implémenté SHALL être proposé ; erreurs et révocation distante non confirmée SHALL être distinguées d'un compte vide.
+
+#### Scenario: sans compte
+- **WHEN** la catégorie est ouverte sans compte
+- **THEN** Connecter BetaSeries est son premier contrôle ; OK ouvre l'association, dont Retour restaure ce contrôle sans connexion implicite
+
+#### Scenario: compte connecté
+- **WHEN** la catégorie est ouverte avec un compte
+- **THEN** son identité et son état sont affichés avec Synchroniser, pays et Déconnecter ; aucune donnée d'une session précédente n'est présentée comme courante
+
+#### Scenario: état du chargement
+- **WHEN** une synchronisation charge, est vide, échoue ou n'est plus autorisée
+- **THEN** le contrôle expose respectivement En cours, compte sans contenu, cause avec Réessayer ou Reconnecter, sans empêcher les autres réglages ni présenter un échec comme succès
+
+#### Scenario: navigation
+- **WHEN** droite entre dans le volet
+- **THEN** le premier contrôle utilisable a le focus ; haut/bas parcourent les contrôles sans boucle, gauche retourne à la catégorie et Retour ferme d'abord un panneau actif sinon les réglages ; un contrôle disparu transmet le focus à son voisin sinon à la catégorie
+
+#### Scenario: pays
+- **WHEN** le pays est ouvert puis validé ou annulé
+- **THEN** une liste déroulante ancrée au contrôle reprend le composant de position d'À suivre, sans modale ; le pays proposé depuis la TV reste distingué d'une valeur choisie ; OK valide, persiste et applique la valeur selon watch-tracking puis referme la liste ; Retour referme sans modification ; le contrôle reprend le focus et n'ajoute pas « · confirmé » après le pays
+
+#### Scenario: navigation dans les pays
+- **WHEN** la liste déroulante est ouverte
+- **THEN** le pays choisi sinon proposé, sinon la première option prend le focus ; haut/bas parcourent les pays sans boucle, gauche/droite ne quittent pas la liste et Retour l'annule ; une option disparue transmet le focus à sa suivante sinon précédente, sinon referme la liste sur son contrôle
+
+#### Scenario: attribution
+- **WHEN** le fournisseur est présenté dans les réglages
+- **THEN** BetaSeries est identifié et son adresse officielle est consultable, conformément à l'attribution de la source ; aucun identifiant d'application ni jeton n'est affiché
