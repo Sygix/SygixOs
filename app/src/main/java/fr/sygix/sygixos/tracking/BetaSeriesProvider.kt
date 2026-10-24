@@ -23,7 +23,10 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         }
     }
 
-    suspend fun identify(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity? = null): TrackingContent? {
+    suspend fun identify(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity? = null): TrackingContent? =
+        kotlinx.coroutines.withContext(api.dispatcher) { identifyContent(token, item, known) }
+
+    private suspend fun identifyContent(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity?): TrackingContent? {
         val movie = item.type == fr.sygix.sygixos.model.UpNextContentType.MOVIE
         val title = if (movie) item.displayTitle else seriesTitle(item)
         val candidate = known?.let { CatalogCandidate(it.parent, title, item.year, externalIds = item.externalIds) }
@@ -66,7 +69,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         return RegionalPlatforms(country, ids)
     }
 
-    override suspend fun snapshot(token: String): TrackingSnapshot = kotlinx.coroutines.withTimeoutOrNull(90_000) {
+    override suspend fun snapshot(token: String): TrackingSnapshot = kotlinx.coroutines.withContext(api.dispatcher) { kotlinx.coroutines.withTimeoutOrNull(90_000) {
         var failure: TrackingFailure? = null
         suspend fun pages(path: String, key: String, fields: Map<String, String> = emptyMap()): List<JSONObject> = try { api.pages(path, key, token, fields) }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
@@ -94,11 +97,11 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             episode(show, next)
         } + movies.filter { it.optJSONObject("user")?.optInt("status", -1) == 0 }.map(::movie)
         TrackingSnapshot(contents.distinctBy { it.parent }, failure)
-    } ?: throw TrackingException(TrackingFailure.INCOMPLETE)
+    } ?: throw TrackingException(TrackingFailure.INCOMPLETE) }
 
-    suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> {
+    suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> = kotlinx.coroutines.withContext(api.dispatcher) {
         val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).getJSONObject("show")
-        return showEpisodes(token, content.parent.id, content.season ?: 1).filter { value ->
+        showEpisodes(token, content.parent.id, content.season ?: 1).filter { value ->
             value.text("date")?.let { runCatching { !LocalDate.parse(it.take(10)).isAfter(today()) }.getOrDefault(false) } == true
         }.map { episode(show, it) }
     }

@@ -250,7 +250,7 @@ internal fun HomeGrid(
                             focus.onFocused(itemKey, sections.cardOrderIndex(index), FocusFallback.CardVisit(index, afterApps = !sections.upNextFirst))
                         }
                     },
-                    onOpen = onOpenUpNext, onMenu = onUpNextMenu, onRetry = onRetryUpNext, state = upNextScroll)
+                    onOpen = onOpenUpNext, onMenu = onUpNextMenu, onRetry = onRetryUpNext, state = upNextScroll, returnId = returnFocus?.id)
             }
         }
         if (sections.upNextFirst) UpNextSection()

@@ -106,6 +106,7 @@ object Dimens {
     val TrackingCountryHeight = 240.dp
     val TrackingNotificationMinWidth = 220.dp
     val TrackingNotificationMaxWidth = 340.dp
+    val TrackingNotificationBottom = 24.dp
     val MenuPadding = 14.dp
     val MenuCorner = 26.dp
     val MenuHeaderInsetStart = 6.dp

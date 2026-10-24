@@ -25,6 +25,8 @@ data class UpNextContentKey(val type: UpNextContentType, val title: String, val 
 
     companion object {
         private const val SEPARATOR = "|"
+        private val ProviderPattern = Regex("[a-z][a-z0-9_-]{0,63}")
+        private val IdPattern = Regex("[A-Za-z0-9_-]{1,128}")
 
         fun of(item: UpNextItem): UpNextContentKey = when (item.type) {
             UpNextContentType.EPISODE -> UpNextContentKey(UpNextContentType.EPISODE, UpNextFeed.normalize(item.displayTitle), tracking = item.tracking?.parent)
@@ -38,9 +40,9 @@ data class UpNextContentKey(val type: UpNextContentType, val title: String, val 
             val baseSize = if (type == UpNextContentType.EPISODE) 2 else 3
             val tracking = if (parts.size == baseSize) null else {
                 if (parts.size != baseSize + 4 || parts[baseSize] != "@") return null
-                val provider = parts[baseSize + 1].takeIf { it.matches(Regex("[a-z][a-z0-9_-]{0,63}")) } ?: return null
+                val provider = parts[baseSize + 1].takeIf { it.matches(ProviderPattern) } ?: return null
                 val trackingType = fr.sygix.sygixos.tracking.TrackingType.entries.firstOrNull { it.name == parts[baseSize + 2] } ?: return null
-                val id = parts[baseSize + 3].takeIf { it.matches(Regex("[A-Za-z0-9_-]{1,128}")) } ?: return null
+                val id = parts[baseSize + 3].takeIf { it.matches(IdPattern) } ?: return null
                 fr.sygix.sygixos.tracking.TrackingIdentity(provider, trackingType, id)
             }
             return when (type) {

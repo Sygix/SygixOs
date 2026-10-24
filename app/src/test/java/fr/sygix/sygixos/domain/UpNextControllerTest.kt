@@ -44,6 +44,20 @@ class UpNextControllerTest {
         assertTrue(controller.state.value?.content is UpNextContent.Items)
     }
 
+    @Test fun `row projection runs on the injected projection dispatcher`() = runTest {
+        val projection = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        var dispatched = 0
+        val counting = object : kotlinx.coroutines.CoroutineDispatcher() {
+            override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { dispatched++; projection.dispatch(context, block) }
+        }
+        val controller = UpNextController(Source(Result.success(listOf(item))), MutableStateFlow(true), MutableStateFlow(UpNextPosition.BEFORE_APPS), MutableStateFlow(emptySet()), backgroundScope,
+            projectionDispatcher = counting)
+        controller.refresh()
+        runCurrent()
+        assertTrue(controller.state.value?.content is UpNextContent.Items)
+        assertTrue(dispatched > 0)
+    }
+
     private val item = UpNextItem(1, UpNextSourceEntry("a"), UpNextContentType.MOVIE, "Film")
     private class Source(var result: Result<List<UpNextItem>>) : UpNextSource {
         val signals = MutableSharedFlow<Unit>()

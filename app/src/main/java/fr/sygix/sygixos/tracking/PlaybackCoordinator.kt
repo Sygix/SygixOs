@@ -135,6 +135,7 @@ class PlaybackCoordinator(
         if (generation != tracking.state.value.generation || id != requestId || tracking.state.value.account == null || request.content.sessionGeneration?.let { it != generation } == true) return
         val result = launcher.launch(app, request)
         if (result == null) {
+            departure?.cancel(); pending = null; departed = false
             mutable.value = PlaybackSelection(request, apps.installed(), loading = false, failure = TrackingFailure.PROTOCOL)
             return
         }
@@ -142,7 +143,7 @@ class PlaybackCoordinator(
         departed = false
         actions.dismissReturn()
         departure?.cancel()
-        departure = scope.launch { kotlinx.coroutines.delay(5_000); if (!departed) pending = null }
+        departure = scope.launch { kotlinx.coroutines.delay(15_000); if (!departed) pending = null }
         onOpened(request)
         try { preferences.remember(request.content.parent, app.packageName) }
         catch (cancelled: CancellationException) { throw cancelled }
@@ -153,9 +154,10 @@ class PlaybackCoordinator(
         if (id == requestId) mutable.value = null
     }
 
-    fun onBackground() { departure?.cancel(); if (pending != null) departed = true }
+    fun onDeparture() { departure?.cancel(); if (pending != null) departed = true }
+    fun onBackground() = onDeparture()
     fun onForeground() {
-        if (!departed) { pending = null; return }
+        if (!departed) return
         val returned = pending
         pending = null
         departed = false

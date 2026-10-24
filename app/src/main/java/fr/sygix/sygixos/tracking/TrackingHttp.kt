@@ -75,21 +75,28 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
     }
 }
 
-class BoundedTrackingTransport(private val delegate: TrackingTransport) : TrackingTransport {
+class BoundedTrackingTransport(private val clock: () -> Long, private val delegate: TrackingTransport) : TrackingTransport {
+    constructor(delegate: TrackingTransport) : this({ System.nanoTime() / 1_000_000 }, delegate)
     override suspend fun execute(request: TrackingRequest): TrackingResponse = withTimeoutOrNull(if (request.method == "GET") 60_000 else 15_000) {
+        val deadline = clock() + if (request.method == "GET") 60_000 else 15_000
+        suspend fun waitForRetry(millis: Long) {
+            if (millis > deadline - clock()) throw TrackingException(TrackingFailure.NETWORK)
+            delay(millis.coerceAtLeast(0))
+        }
         var last: TrackingResponse? = null
         repeat(if (request.method == "GET") 3 else 1) { attempt ->
-            try {
-                val response = withTimeoutOrNull(15_000) { delegate.execute(request) } ?: throw TrackingException(TrackingFailure.NETWORK)
-                last = response
-                val nonJson = request.headers["Accept"] == "application/json" && !response.body.trimStart().startsWith("{") && response.status !in setOf(401, 403)
-                if (request.method != "GET" || response.status !in setOf(429, 502, 503, 504) && !nonJson) return@withTimeoutOrNull response
-                if (attempt < 2) delay(response.retryAfterMillis ?: (500L shl attempt))
+            val response = try {
+                withTimeoutOrNull(minOf(15_000, (deadline - clock()).coerceAtLeast(1))) { delegate.execute(request) } ?: throw TrackingException(TrackingFailure.NETWORK)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
                 if (request.method != "GET" || error is TrackingException && error.failure != TrackingFailure.NETWORK || attempt == 2) throw error
-                delay(500L shl attempt)
+                waitForRetry(500L shl attempt)
+                return@repeat
             }
+            last = response
+            val nonJson = request.headers["Accept"] == "application/json" && !response.body.trimStart().startsWith("{") && response.status !in setOf(401, 403)
+            if (request.method != "GET" || response.status !in setOf(429, 502, 503, 504) && !nonJson) return@withTimeoutOrNull response
+            if (attempt < 2) waitForRetry(response.retryAfterMillis ?: (500L shl attempt))
         }
         last ?: throw TrackingException(TrackingFailure.NETWORK)
     } ?: throw TrackingException(TrackingFailure.NETWORK)

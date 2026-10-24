@@ -39,7 +39,7 @@ class TrackingEnrichmentTest {
         assertEquals(1, searches)
     }
 
-    @Test fun accountRefreshDoesNotReidentifyLocalContentAndExpiryOnlyReadsItsCachedIdentity() = runTest {
+    @Test fun partialAccountKeepsEnrichmentAndRefreshOnlyReadsExpiredCachedIdentity() = runTest {
         var searches = 0
         var details = 0
         val api = trackingApi(TrackingTransport { request -> when {
@@ -50,7 +50,7 @@ class TrackingEnrichmentTest {
         } })
         val controller = TrackingController(object : WatchTrackingProvider {
             override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
-            override suspend fun snapshot(token: String) = TrackingSnapshot(emptyList())
+            override suspend fun snapshot(token: String) = TrackingSnapshot(emptyList(), TrackingFailure.INCOMPLETE)
             override suspend fun revoke(token: String) {}
         }, object : TrackingSessionStore {
             override suspend fun read() = "fixture-token"

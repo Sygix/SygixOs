@@ -391,6 +391,7 @@ internal fun LauncherHome(
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(settingsOpen, trackingViewModel) { trackingViewModel?.settingsOpen(settingsOpen) }
     var movingApp by remember { mutableStateOf<String?>(null) }
     var orderBeforeMove by remember { mutableStateOf<List<String>>(emptyList()) }
     val haze = rememberHazeState()
@@ -710,7 +711,7 @@ internal fun LauncherHome(
             fr.sygix.sygixos.ui.settings.TrackingPanels(trackingUi, trackingViewModel)
             if (!settingsOpen && !trackingUi.modal && !launcherOverlay) trackingUi.notice?.let { notice ->
                 fr.sygix.sygixos.ui.settings.TrackingNotification(notice, trackingViewModel, notificationActive, notificationFocus,
-                    Modifier.align(Alignment.BottomEnd).padding(end = Dimens.ScreenMarginH, bottom = 24.dp).zIndex(12f))
+                    Modifier.align(Alignment.BottomEnd).padding(end = Dimens.ScreenMarginH, bottom = Dimens.TrackingNotificationBottom).zIndex(12f))
             }
         }
         if (launcherState.guideShown) CompositionLocalProvider(LocalHazeState provides overlayHaze) { DefaultLauncherPanel(launcherState, launcherActions) }

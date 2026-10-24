@@ -17,6 +17,27 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class BetaSeriesDeviceTest {
+    @Test fun transientHtmlAndNetworkPollsKeepAssociationUntilSuccessOrExpiry() = runTest {
+        for (success in listOf(true, false)) {
+            var polls = 0
+            val api = trackingApi(TrackingTransport { request -> when {
+                request.url.endsWith("/") -> TrackingResponse(200, """{"apiHost":"https://api.betaseries.com","apiKey":"fixture-client"}""")
+                request.url.endsWith("oauth/device") -> TrackingResponse(200, """{"device_code":"fixture-device","user_code":"FIXTURE","verification_url":"https://www.betaseries.com/device","expires_in":8,"interval":1}""")
+                else -> when (++polls) {
+                    1 -> TrackingResponse(200, "<html>Temporary response</html>")
+                    2 -> throw TrackingException(TrackingFailure.NETWORK)
+                    else -> if (success) TrackingResponse(200, """{"access_token":"fixture-token"}""") else throw TrackingException(TrackingFailure.NETWORK)
+                }
+            } })
+            val device = BetaSeriesDevice(api, controller(backgroundScope), backgroundScope) { testScheduler.currentTime }
+            device.open(); runCurrent()
+            repeat(2) { advanceTimeBy(1000); runCurrent(); assertTrue(device.state.value is DeviceAssociationState.Waiting) }
+            advanceTimeBy(6000); runCurrent()
+            assertEquals(if (success) DeviceAssociationState.Connected else DeviceAssociationState.Expired, device.state.value)
+            assertEquals(if (success) 3 else 7, polls)
+        }
+    }
+
     @Test fun pollingWaitsServerIntervalSuspendsInBackgroundAndClosesPermanently() = runTest {
         var polls = 0
         val transport = TrackingTransport { request ->

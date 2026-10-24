@@ -29,12 +29,13 @@ class TrackingEnrichment(private val controller: TrackingController, private val
     val sourcePackages: Set<String> get() = local.map { it.source.packageName }.toSet()
     override fun items(): List<UpNextItem> = local.map { item ->
         val current = controller.state.value
-        val content = mutable.value[item.key]?.takeIf { current.account != null && current.failure == null && it.sessionGeneration == current.generation }?.let { content ->
+        val content = mutable.value[item.key]?.takeIf { current.account != null && current.failure != TrackingFailure.ACCESS && it.sessionGeneration == current.generation }?.let { content ->
             current.contents.firstOrNull { it.identity == content.identity } ?: content
         }
         if (content == null) item else item.copy(tracking = content, externalIds = content.externalIds,
             source = item.source.copy(targetIdentity = content.identity), sources = item.sources.map { it.copy(targetIdentity = content.identity) })
     }
+    fun publishers(parent: TrackingIdentity): Set<String> = items().filter { it.tracking?.parent == parent }.flatMap { item -> item.sources.map { it.packageName } }.toSet()
     private var job: Job? = null
     private var generation = -1L
     private val identified = mutableMapOf<String, Pair<String, Long>>()
@@ -47,7 +48,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
             val connected = generation != state.generation || mutable.value.isEmpty()
             mutable.value = mutable.value.mapValues { (_, content) -> state.contents.firstOrNull { it.identity == content.identity } ?: content }
             generation = state.generation
-            if (connected && state.account != null && !state.loading && state.failure == null && job?.isActive != true) refresh()
+            if (connected && state.account != null && !state.loading && state.failure != TrackingFailure.ACCESS && job?.isActive != true) refresh()
         } }
     }
 
@@ -60,7 +61,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
     fun refresh() {
         job?.cancel()
         val current = controller.state.value
-        if (current.account == null || current.failure != null) return
+        if (current.account == null || current.failure == TrackingFailure.ACCESS) return
         val generation = current.generation
         val items = local
         job = scope.launch {
@@ -75,7 +76,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                         val content = controller.authenticated { token -> provider.identify(token, item, known) }
                         if (content != null) {
                             catalogue?.put(item.key, item.cardIdentity, content)
-                            updated[item.key] = content.copy(sessionGeneration = generation, fetchedAt = clock(), validUntil = clock() + 15 * 60_000)
+                            updated[item.key] = content.copy(sessionGeneration = generation)
                         }
                         identified[item.key] = item.cardIdentity to clock()
                     } catch (cancelled: CancellationException) { throw cancelled }
@@ -83,7 +84,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                     if (generation != controller.state.value.generation) return@withTimeoutOrNull
                 }
             }
-            if (generation == controller.state.value.generation && controller.state.value.failure == null) {
+            if (generation == controller.state.value.generation && controller.state.value.failure != TrackingFailure.ACCESS) {
                 val links = items.mapNotNull { item -> updated[item.key]?.let { content ->
                     fr.sygix.sygixos.domain.UpNextIdentityLink(fr.sygix.sygixos.domain.UpNextContentKey.of(item.copy(tracking = null)), fr.sygix.sygixos.domain.UpNextContentKey.of(item.copy(tracking = content)))
                 } }

@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 private val Context.trackingData by preferencesDataStore(name = "tracking-preferences")
 
@@ -23,7 +24,7 @@ interface TrackingSettingsStore : PlaybackPreferences {
 class TrackingPreferences(context: Context) : TrackingSettingsStore {
     private val data = context.applicationContext.trackingData
     private val countryKey = stringPreferencesKey("country")
-    override val country = data.data.map { it[countryKey] }
+    override val country = data.data.map { it[countryKey] }.distinctUntilChanged()
     override val players = data.data.map { preferences -> preferences.asMap().entries.mapNotNull { (key, value) ->
         (value as? String)?.takeIf { key.name.startsWith("player:") }?.let { key.name to it }
     }.toMap() }

@@ -12,7 +12,7 @@ import org.json.JSONObject
 class BetaSeriesApi(
     private val transport: TrackingTransport,
     private val configuration: BetaSeriesConfigurationSource,
-    private val dispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
+    internal val dispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
 ) {
     suspend fun request(path: String, token: String? = null, method: String = "GET", fields: Map<String, String> = emptyMap()): JSONObject {
         require(path.matches(Regex("[a-z_]+/[a-z_]+")))

@@ -37,7 +37,7 @@ class TrackingController(
         foreground = enabled
         if (!enabled || work?.isActive == true || state.value.failure == TrackingFailure.ACCESS) return
         if (token == null && state.value.failure == TrackingFailure.STORAGE) restore()
-        else if (state.value.snapshotAt?.let { clock() - it > 15 * 60_000 } != false) refresh()
+        else if (snapshotDue()) refresh()
     }
 
     suspend fun <T> authenticated(block: suspend (String) -> T): T {
@@ -56,6 +56,8 @@ class TrackingController(
     }
 
     fun restore() {
+        if (token != null) { if (snapshotDue()) refresh(); return }
+        if (work?.isActive == true) return
         val generation = state.value.generation
         work?.cancel()
         work = scope.launch {
@@ -85,7 +87,7 @@ class TrackingController(
                     token = value
                     mutable.value = TrackingState(previousGeneration + 1, account)
                     refresh()
-                    if (previous != null && previous != value) revoke(previous)
+                    if (previous != null && previous != value) revoke(previous, state.value.generation)
                 }
             }
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -104,7 +106,7 @@ class TrackingController(
 
     fun patch(content: TrackingContent) {
         if (content.sessionGeneration != state.value.generation || state.value.account == null || state.value.failure == TrackingFailure.ACCESS) return
-        val entry = content.copy(fetchedAt = clock(), validUntil = if (content.failure == null) clock() + 15 * 60_000 else 0)
+        val entry = content
         val entries = state.value.contents.filterNot { it.identity == entry.identity || it.parent == entry.parent && it.identity != entry.identity && entry.identity.type == TrackingType.SHOW }
             .map { if (it.parent == entry.parent) it.copy(membership = entry.membership, archived = entry.archived) else it }
         mutable.value = state.value.copy(contents = entries + entry)
@@ -129,23 +131,25 @@ class TrackingController(
             val patched = state.value.contents.filter { previous[it.identity] !== it }
             val now = clock()
             val retained = if (snapshot.failure == null) emptyList() else state.value.contents.filter { old -> snapshot.contents.none { it.parent == old.parent } && patched.none { it.parent == old.parent } }
-            mutable.value = state.value.copy(account = account, loading = false, snapshotAt = if (snapshot.failure == null) now else state.value.snapshotAt, failure = snapshot.failure,
+            mutable.value = state.value.copy(account = account, loading = false, snapshotAt = now, failure = snapshot.failure,
                 contents = snapshot.contents.filterNot { entry -> patched.any { it.parent == entry.parent } }.map {
-                    it.copy(sessionGeneration = generation, fetchedAt = now, validUntil = now + 15 * 60_000)
+                    it.copy(sessionGeneration = generation)
                 } + patched + retained)
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) {
             if (generation == state.value.generation) {
                 val failure = error.trackingFailure()
                 mutable.value = state.value.copy(loading = false, contents = if (failure == TrackingFailure.ACCESS) emptyList() else state.value.contents,
-                    failure = failure)
+                    failure = failure, snapshotAt = clock())
             }
         }
     }
 
-    private suspend fun revoke(value: String) {
+    private fun snapshotDue() = state.value.snapshotAt?.let { clock() - it >= 15 * 60_000 } != false
+
+    private suspend fun revoke(value: String, reportGeneration: Long? = null) {
         try { provider.revoke(value) }
-        catch (_: Exception) { mutable.value = state.value.copy(revocationUnconfirmed = true) }
+        catch (_: Exception) { if (reportGeneration == state.value.generation) mutable.value = state.value.copy(revocationUnconfirmed = true) }
     }
 
     fun disconnect() {
@@ -158,7 +162,7 @@ class TrackingController(
             withContext(NonCancellable) {
                 try { storage.withLock { if (generation == state.value.generation) store.write(null) } }
                 catch (_: Exception) { if (generation == state.value.generation) mutable.value = state.value.copy(failure = TrackingFailure.STORAGE) }
-                if (previous != null) revoke(previous)
+                if (previous != null) revoke(previous, generation)
             }
         }
     }
@@ -166,6 +170,7 @@ class TrackingController(
 
 internal fun Exception.trackingFailure(): TrackingFailure = when (this) {
     is TrackingException -> failure
+    is org.json.JSONException -> TrackingFailure.PROTOCOL
     is BetaSeriesApiException -> when (code) {
         1001 -> TrackingFailure.CONFIGURATION
         1002, 2002, 2003, 2004 -> TrackingFailure.ACCESS

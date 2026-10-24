@@ -84,6 +84,8 @@ internal fun TestHome(
     settingsActions: SettingsActions = SettingsActions(),
     trackingViewModel: fr.sygix.sygixos.tracking.TrackingViewModel? = null,
     trackingUi: fr.sygix.sygixos.tracking.TrackingUiState? = null,
+    onOpenUpNext: (fr.sygix.sygixos.model.UpNextItem) -> Unit = {},
+    onUpNextReturnHandled: (Long) -> Unit = {},
 ) {
     val packageManager = LocalContext.current.packageManager
     val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
@@ -109,6 +111,8 @@ internal fun TestHome(
                 onRestoreOrder = onRestoreOrder,
                 onMoveInGrid = onMoveInGrid,
                 upNext = upNext,
+                onOpenUpNext = onOpenUpNext,
+                onUpNextReturnHandled = onUpNextReturnHandled,
                 settingsActions = settingsActions,
                 trackingViewModel = trackingViewModel,
                 trackingUi = trackingUi,

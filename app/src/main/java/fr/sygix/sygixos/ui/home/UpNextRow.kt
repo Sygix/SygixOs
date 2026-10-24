@@ -82,6 +82,7 @@ internal fun UpNextRow(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     state: LazyListState = rememberLazyListState(),
+    returnId: Long? = null,
 ) {
     val scope = rememberCoroutineScope()
     val cards = (content as? UpNextContent.Items)?.items.orEmpty()
@@ -101,7 +102,7 @@ internal fun UpNextRow(
         val delta = UpNextScroll.revealDelta(offset, anchor.size, layout.viewportEndOffset, inset)
         if (delta != 0) state.animateScrollBy(delta.toFloat(), tween(Motion.FOCUS_MS, easing = AppleEasing))
     }
-    LaunchedEffect(cards.map { it.key }, focusEnabled, content == UpNextContent.Error) {
+    LaunchedEffect(cards.map { it.key }, focusEnabled, content == UpNextContent.Error, returnId) {
         if (!focusEnabled) return@LaunchedEffect
         if (targetIndex >= 0) {
             focus.reveal(cards[targetIndex].key) { show(targetIndex); withFrameNanos { } }

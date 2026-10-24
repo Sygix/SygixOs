@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.stateIn
@@ -38,7 +39,7 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
         if (country != null) emit(try { provider.platforms(country) }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (_: Exception) { null })
-    }.stateIn(scope, SharingStarted.Eagerly, null)
+    }.flowOn(parserDispatcher).stateIn(scope, SharingStarted.Eagerly, null)
     val readers = combine(preferences.players, catalog.allApps) { preferences, installed ->
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val selected = preferences.values.toSet()
@@ -60,6 +61,7 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
             catch (error: TrackingException) { if (error.failure == TrackingFailure.INCOMPLETE) false else throw error } }, clock = nanoTime)
     val opened = MutableSharedFlow<PlaybackRequest>(extraBufferCapacity = 8)
     val playback = PlaybackCoordinator(playbackApps ?: AndroidPlaybackApps(context, catalog, { enrichment.sourcePackages }), playbackLauncher, preferences, controller, actions, scope, onOpened = { opened.tryEmit(it) })
+    private var confirmedArtwork = emptyList<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>()
     val state = combine(controller.state, actions.excluded, preferences.players, readers, region) { current, excluded, players, readers, region ->
         current.copy(contents = TrackingProjection.candidates(current.contents).filter { it.parent !in excluded }.map { content ->
             val reader = readers[players[TrackingPreferences.playerKey(content.parent)]]
@@ -67,15 +69,16 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
         }, pendingRemovals = excluded)
     }.mapLatest { value ->
         try {
-            onArtwork(value.contents.flatMap { content ->
+            val pairs = value.contents.flatMap { content ->
                 val card = TrackingProjection.card(content)
                 val hero = TrackingProjection.hero(content)
                 listOf(card.artwork to card.cardIdentity, hero.artwork to hero.fullFingerprint)
-            })
+            }
+            if (pairs != confirmedArtwork) { onArtwork(pairs); confirmedArtwork = pairs }
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (_: Exception) { return@mapLatest value.copy(contents = emptyList(), failure = TrackingFailure.STORAGE) }
         value
-    }.stateIn(scope, SharingStarted.Eagerly, TrackingState())
+    }.flowOn(parserDispatcher).stateIn(scope, SharingStarted.Eagerly, TrackingState())
 
     fun onForeground() {
         device.setVisible(true)

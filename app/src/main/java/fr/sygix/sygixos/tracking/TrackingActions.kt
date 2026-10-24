@@ -40,13 +40,15 @@ class TrackingActions(
     private var timer: Job? = null
     private var foreground = true
     private var focused = false
+    private var settingsOpen = false
+    private var pendingReturn: TrackingNotice? = null
     private var tickAt = 0L
 
     init {
         scope.launch {
             controller.state.collect { state ->
                 if (mutable.value?.generation?.let { it != state.generation } == true) {
-                    work?.cancel(); timer?.cancel(); mutable.value = null; excludedMutable.value = emptySet()
+                    work?.cancel(); timer?.cancel(); mutable.value = null; pendingReturn = null; excludedMutable.value = emptySet()
                 }
                 if (mutable.value?.returnPrompt == true && state.contents.any { it.identity == mutable.value?.content?.identity && it.seen }) mutable.value = null
             }
@@ -68,6 +70,7 @@ class TrackingActions(
             TrackingAction.REMOVE -> content.membership == AccountMembership.PRESENT
         }
         if (!applicable) return
+        pendingReturn = null
         timer?.cancel()
         val notice = TrackingNotice(content.copy(sessionGeneration = controller.state.value.generation), action, controller.state.value.generation, busy = action != TrackingAction.REMOVE)
         mutable.value = notice
@@ -88,14 +91,13 @@ class TrackingActions(
                 }
                 if (controller.state.value.generation != notice.generation) return@launch
                 excludedMutable.value = excludedMutable.value - notice.content.parent
-                if (operation.undoing || notice.action == TrackingAction.REMOVE || notice.action == TrackingAction.ADD) mutable.value = null
+                if (operation.undoing || notice.action == TrackingAction.REMOVE || notice.action == TrackingAction.ADD || pendingReturn != null) finishNotice()
                 else { mutable.value = operation.copy(busy = false, failure = null); startTimer() }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
                 if (controller.state.value.generation == notice.generation) {
                     excludedMutable.value = excludedMutable.value - notice.content.parent
                     mutable.value = operation.copy(busy = false, failure = error.trackingFailure())
-                    controller.patch(operation.content.copy(failure = error.trackingFailure(), validUntil = 0))
                 }
             }
         }
@@ -114,7 +116,7 @@ class TrackingActions(
         timer?.cancel()
         if (current.action == TrackingAction.REMOVE) {
             excludedMutable.value = excludedMutable.value - current.content.parent
-            mutable.value = null
+            finishNotice()
         } else send(current, inverse = true)
     }
 
@@ -125,15 +127,24 @@ class TrackingActions(
     }
 
     fun returned(content: TrackingContent, generation: Long) {
-        if (generation != controller.state.value.generation || mutable.value != null) return
-        mutable.value = TrackingNotice(content, TrackingAction.SEEN, generation, returnPrompt = true)
+        if (generation != controller.state.value.generation || controller.state.value.account == null) return
+        pendingReturn = TrackingNotice(content, TrackingAction.SEEN, generation, returnPrompt = true)
+        val current = mutable.value
+        if (current?.busy != true && (current == null || current.action != TrackingAction.REMOVE || current.failure != null)) finishNotice()
     }
 
     fun confirmReturn() { val current = mutable.value ?: return; if (current.returnPrompt) { mutable.value = null; perform(current.content, TrackingAction.SEEN) } }
-    fun dismiss() { if (mutable.value?.returnPrompt == true || mutable.value?.failure != null) mutable.value = null }
-    fun dismissReturn() { if (mutable.value?.returnPrompt == true) mutable.value = null }
+    fun dismiss() { if (mutable.value?.returnPrompt == true || mutable.value?.failure != null) finishNotice() }
+    fun dismissReturn() { pendingReturn = null; if (mutable.value?.returnPrompt == true) mutable.value = null }
     fun setForeground(value: Boolean) { accountTime(); foreground = value; startTimer() }
     fun setFocused(value: Boolean) { accountTime(); focused = value; startTimer() }
+    fun setSettingsOpen(value: Boolean) { accountTime(); settingsOpen = value; startTimer() }
+
+    private fun finishNotice() {
+        timer?.cancel()
+        mutable.value = pendingReturn?.takeIf { it.generation == controller.state.value.generation }
+        pendingReturn = null
+    }
 
     private fun accountTime() {
         val current = mutable.value ?: return
@@ -147,12 +158,12 @@ class TrackingActions(
     private fun startTimer() {
         timer?.cancel()
         val current = mutable.value ?: return
-        if (!foreground || focused || current.busy || current.failure != null || current.returnPrompt) return
+        if (!foreground || focused || settingsOpen || current.busy || current.failure != null || current.returnPrompt) return
         tickAt = clock()
         timer = scope.launch {
             delay(current.remainingMillis)
             if (mutable.value != current) return@launch
-            if (current.action == TrackingAction.REMOVE) send(current) else mutable.value = null
+            if (current.action == TrackingAction.REMOVE) send(current) else finishNotice()
         }
     }
 }

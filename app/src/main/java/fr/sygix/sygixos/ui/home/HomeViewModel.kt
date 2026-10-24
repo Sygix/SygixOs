@@ -102,6 +102,7 @@ class HomeViewModel(
     private val order: fr.sygix.sygixos.domain.HeroOrder = HeroSessionOrder(),
     private val programClock: () -> Long = System::currentTimeMillis,
     val tracking: fr.sygix.sygixos.tracking.TrackingRuntime? = null,
+    private val projectionDispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
 ) : ViewModel() {
 
     val clock: StateFlow<String> = clockSource.time()
@@ -147,7 +148,7 @@ class HomeViewModel(
     private val upNext = upNextSource?.let {
         UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory,
             tracking = tracking?.state ?: MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()), enrichment = tracking?.enrichment?.contents ?: MutableStateFlow(emptyMap()),
-            readers = tracking?.readers ?: MutableStateFlow(emptyMap()))
+            readers = tracking?.readers ?: MutableStateFlow(emptyMap()), projectionDispatcher = projectionDispatcher, clock = programClock)
     }
 
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
@@ -157,7 +158,7 @@ class HomeViewModel(
 
     private val visibleFeed = combine(rawFeed, tracking?.state ?: MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()),
         tracking?.enrichment?.contents ?: MutableStateFlow(emptyMap()), upNextMemory.removed, apps.disabledSources) { feed, session, _, removed, disabled ->
-        val visible = if (tracking == null) feed else {
+        val visible = if (tracking == null) feed else kotlinx.coroutines.withContext(projectionDispatcher) {
             val projected = fr.sygix.sygixos.tracking.TrackingHeroSource.project(fr.sygix.sygixos.domain.HeroRead(feed.items, shelfItems = feed.shelfItems), session,
                 removed.map { it.key }, tracking.enrichment.items(), disabled)
             feed.copy(items = projected.items, fromApps = feed.fromApps || projected.items.any { it.tracking != null }, shelfItems = projected.shelfItems)
@@ -175,12 +176,16 @@ class HomeViewModel(
     ) { catalog, feed, disabled, visualState, c ->
         val (v, retained, failed) = visualState
         disabledHeroSources = disabled
-        val shown = feed.withSources(disabled, fallbackItems)
-        val items = shown.items.filter { it.videoUrl != null || it.id in v || it.id in failed || it.id in retained }.map { item ->
-            (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in failed)).copy(expiresAt = Long.MAX_VALUE)
+        val epoch = generations.toMap()
+        val fallback = fallbackItems
+        val (hero, shown) = kotlinx.coroutines.withContext(projectionDispatcher) {
+            val shown = feed.withSources(disabled, fallback)
+            val items = shown.items.filter { it.videoUrl != null || it.id in v || it.id in failed || it.id in retained }.map { item ->
+                (v[item.id]?.let { item.copy(imageUrl = it) } ?: retained[item.id] ?: item.copy(artworkFailed = item.id in failed)).copy(expiresAt = Long.MAX_VALUE)
+            }
+            HeroState(items.ifEmpty { fallback }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
+                shelfItems = shown.shelfItems ?: shown.items.filter { it.tracking == null }, generations = epoch.filterKeys { id -> items.any { it.id == id } }) to shown
         }
-        val hero = HeroState(items.ifEmpty { fallbackItems }, shown.fromApps && items.isNotEmpty(), validated = v.values.toSet(), checked = c,
-            shelfItems = shown.shelfItems ?: shown.items.filter { it.tracking == null }, generations = generations.filterKeys { id -> items.any { it.id == id } })
         val heroItems = shown.items.asSequence()
             .take(VisualQuality.HERO_VALIDATED)
             .toList()
@@ -277,6 +282,8 @@ class HomeViewModel(
     fun onUpNextReturnHandled(id: Long) { upNext?.returnHandled(id) }
 
     fun onForeground() { foreground = true; tracking?.onForeground(); expirePrograms(); onArtworkForeground(); updates.onForeground() }
+
+    fun onDeparture() { tracking?.playback?.onDeparture() }
 
     fun onBackground() {
         foreground = false
@@ -479,6 +486,7 @@ class HomeViewModel(
                 onArtworkBackground = app.programArtwork::onBackground,
                 order = app.heroOrder,
                 tracking = app.tracking,
+                projectionDispatcher = Dispatchers.Default,
                 upNextOpener = UpNextOpener { item, source ->
                     if (source == null) AppLauncher.open(app, item) else AppLauncher.openWith(app, item, source)
                 },

@@ -12,7 +12,7 @@ import org.junit.Test
 class TrackingTransportTest {
     @Test fun serverFailureIsRetriedForReadsOnly() = runTest {
         var calls = 0
-        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(if (calls < 3) 502 else 200, "{}") }
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; TrackingResponse(if (calls < 3) 502 else 200, "{}") }
         assertEquals(200, transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")).status)
         assertEquals(3, calls)
         calls = 0
@@ -22,7 +22,7 @@ class TrackingTransportTest {
 
     @Test fun lostMutationResponseIsNotReplayed() = runTest {
         var calls = 0
-        val transport = BoundedTrackingTransport { ++calls; throw TrackingException(TrackingFailure.NETWORK) }
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; throw TrackingException(TrackingFailure.NETWORK) }
         try { transport.execute(TrackingRequest("https://api.betaseries.com/shows/show", "DELETE")); fail() }
         catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
         assertEquals(1, calls)
@@ -31,7 +31,7 @@ class TrackingTransportTest {
     @Test fun retryAfterAndRetryBudgetAreRespected() = runTest {
         val start = testScheduler.currentTime
         var calls = 0
-        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(429, "{}", 2000) }
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; TrackingResponse(429, "{}", 2000) }
         assertEquals(429, transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")).status)
         assertEquals(3, calls)
         assertEquals(4000, testScheduler.currentTime - start)
@@ -39,18 +39,27 @@ class TrackingTransportTest {
 
     @Test fun accessErrorsAreNotRetried() = runTest {
         var calls = 0
-        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(403, "{}") }
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; TrackingResponse(403, "{}") }
         assertEquals(403, transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")).status)
         assertEquals(1, calls)
     }
 
     @Test fun serverDelayBeyondCallBudgetFailsWithoutRetryingEarly() = runTest {
         var calls = 0
-        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(429, "{}", 90_000) }
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; TrackingResponse(429, "{}", 90_000) }
         try { transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")); fail() }
         catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
         assertEquals(1, calls)
-        assertEquals(60_000L, testScheduler.currentTime)
+        assertEquals(0L, testScheduler.currentTime)
+    }
+
+    @Test fun serverDelayIsCappedByTheRemainingCallBudget() = runTest {
+        var calls = 0
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; if (calls == 1) throw TrackingException(TrackingFailure.NETWORK) else TrackingResponse(429, "{}", 59_800) }
+        try { transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")); fail() }
+        catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
+        assertEquals(2, calls)
+        assertEquals(500L, testScheduler.currentTime)
     }
 
     @Test fun hostValidationRejectsCredentialsAndLookalikes() {
@@ -63,7 +72,7 @@ class TrackingTransportTest {
 
     @Test fun serviceUnavailableReadsAlsoHaveALimitedRetryCount() = runTest {
         var calls = 0
-        val transport = BoundedTrackingTransport { ++calls; TrackingResponse(503, "{}") }
+        val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; TrackingResponse(503, "{}") }
         assertEquals(503, transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")).status)
         assertEquals(3, calls)
     }

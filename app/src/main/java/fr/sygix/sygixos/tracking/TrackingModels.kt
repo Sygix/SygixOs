@@ -37,8 +37,6 @@ data class TrackingContent(
     val readerName: String? = null,
     val sessionGeneration: Long? = null,
     val offers: List<PlaybackOffer> = emptyList(),
-    val fetchedAt: Long = 0,
-    val validUntil: Long = 0,
     val failure: TrackingFailure? = null,
 )
 

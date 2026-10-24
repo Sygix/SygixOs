@@ -102,7 +102,7 @@ class TrackingSessionTest {
         first.complete(TrackingSnapshot(emptyList())); runCurrent()
         assertEquals("second", saved)
         assertEquals("second", controller.state.value.account?.id)
-        assertEquals(listOf(secondContent.copy(sessionGeneration = controller.state.value.generation, validUntil = 900_000)), controller.state.value.contents)
+        assertEquals(listOf(secondContent.copy(sessionGeneration = controller.state.value.generation)), controller.state.value.contents)
     }
 
     @Test fun knownAccessRefusalWithdrawsSnapshotAndStopsFurtherCallsUntilReassociation() = runTest {

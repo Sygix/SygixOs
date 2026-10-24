@@ -71,6 +71,7 @@ class BetaSeriesDevice(
                         if (attempt == current) mutable.value = if (controller.state.value.account != null) DeviceAssociationState.Connected else DeviceAssociationState.Error(controller.state.value.failure ?: TrackingFailure.ACCESS)
                         return@launch
                     } catch (error: BetaSeriesApiException) { if (error.code != 2001) throw error }
+                    catch (error: TrackingException) { if (error.failure !in setOf(TrackingFailure.NETWORK, TrackingFailure.PROTOCOL)) throw error }
                 }
                 if (current == attempt) mutable.value = DeviceAssociationState.Expired
             } catch (cancelled: CancellationException) { throw cancelled }

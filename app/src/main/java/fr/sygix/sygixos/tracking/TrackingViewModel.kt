@@ -60,11 +60,17 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
             qr = (device as? DeviceAssociationState.Waiting)?.association?.verificationUrl?.let(QrCode::encode))
     }
     val state = combine(base, menu, episodes, countries, status) { value, menu, episodes, countries, status -> value.copy(menu = menu, episodes = episodes, countries = countries, statusOpen = status,
-        menuActions = menu?.tracking?.let(::menuActions).orEmpty(), playerApps = value.player?.let { player -> player.apps.filter { player.otherApps || it.video } }.orEmpty()) }
-        .combine(runtime.region) { value, region -> value.copy(player = value.player?.let { player ->
-            val content = player.request.content
-            player.copy(request = player.request.copy(content = content.copy(offers = BetaSeriesOffers.confirm(content.offers, region?.takeIf { it.country == value.country }))))
-        }) }
+        menuActions = menu?.tracking?.let(::menuActions).orEmpty()) }
+        .combine(runtime.region) { value, region ->
+            val player = value.player?.let { player ->
+                val content = player.request.content
+                player.copy(request = player.request.copy(content = content.copy(offers = BetaSeriesOffers.confirm(content.offers, region?.takeIf { it.country == value.country }))))
+            }
+            value.copy(player = player, playerApps = player?.let { selection ->
+                PlaybackAppOrder.sort(selection.apps.filter { selection.otherApps || it.video },
+                    selection.request.targets.map { it.packageName }.toSet() + runtime.enrichment.publishers(selection.request.content.parent), selection.request.content.offers)
+            }.orEmpty())
+        }
         .stateIn(viewModelScope, SharingStarted.Eagerly, TrackingUiState(countryProposed = countryProposed))
 
     init {
@@ -127,6 +133,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     fun choosePlayer(packageName: String) { runtime.playback.choose(packageName) }
     fun otherApps() { runtime.playback.otherApps() }
     fun noticeFocused(value: Boolean) { runtime.actions.setFocused(value) }
+    fun settingsOpen(value: Boolean) { runtime.actions.setSettingsOpen(value) }
     fun dismissNotice() { runtime.actions.dismiss() }
     fun noticeAction() {
         val notice = state.value.notice ?: return

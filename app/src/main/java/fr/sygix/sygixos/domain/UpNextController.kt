@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -45,6 +46,7 @@ class UpNextController(
     private val tracking: StateFlow<fr.sygix.sygixos.tracking.TrackingState> = MutableStateFlow(fr.sygix.sygixos.tracking.TrackingState()),
     enrichment: StateFlow<Map<String, fr.sygix.sygixos.tracking.TrackingContent>> = MutableStateFlow(emptyMap()),
     readers: StateFlow<Map<String, fr.sygix.sygixos.model.UpNextSourceEntry>> = MutableStateFlow(emptyMap()),
+    private val projectionDispatcher: kotlinx.coroutines.CoroutineDispatcher = scope.coroutineContext[kotlin.coroutines.ContinuationInterceptor] as? kotlinx.coroutines.CoroutineDispatcher ?: kotlinx.coroutines.Dispatchers.Default,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private data class Loaded(
@@ -67,9 +69,7 @@ class UpNextController(
     private val combinedRaw = combine(raw, tracking, disabledSources, enrichment, readers) { loaded, tracked, disabled, identities, readers ->
         if (!loaded.memoryLoaded) return@combine loaded.copy(content = if (loaded.content == UpNextContent.Skeleton) UpNextContent.Skeleton else UpNextContent.Pending)
         val local = (loaded.content as? UpNextContent.Items)?.items.orEmpty().filter { it.source.packageName !in disabled }.map { item ->
-            val content = identities[item.key]?.takeIf { tracked.account != null && tracked.failure == null && it.sessionGeneration == tracked.generation }?.let { content ->
-                content
-            }
+            val content = identities[item.key]?.takeIf { tracked.account != null && tracked.failure != fr.sygix.sygixos.tracking.TrackingFailure.ACCESS && it.sessionGeneration == tracked.generation }
             if (content == null) item else item.copy(tracking = content, externalIds = content.externalIds,
                 source = item.source.copy(targetIdentity = content.identity), sources = item.sources.map { it.copy(targetIdentity = content.identity) })
         }.filter { it.tracking?.parent !in tracked.pendingRemovals }
@@ -92,7 +92,7 @@ class UpNextController(
             val target = loaded.returnKey?.let { key -> (shown as? UpNextContent.Items)?.items?.firstOrNull { key.matches(it) } }
             UpNextState(shown, placement, target?.let { UpNextReturn(it.key, loaded.returnId) })
         }
-    }.stateIn(scope, SharingStarted.Eagerly, null)
+    }.flowOn(projectionDispatcher).stateIn(scope, SharingStarted.Eagerly, null)
 
     val updates: Flow<Unit> = source.changes().onEach { refresh() }
 

@@ -60,6 +60,11 @@ class MainActivity : ComponentActivity() {
         viewModel.onForeground()
     }
 
+    override fun onPause() {
+        viewModel.onDeparture()
+        super.onPause()
+    }
+
     override fun onStop() {
         shownSinceStop = false
         viewModel.onBackground()
