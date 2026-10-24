@@ -418,4 +418,19 @@ class UpNextCardsTest {
         assertEquals(icon.width, icon.height, 0.5f)
         assertTrue(icon.height <= thumbnail.height / 2f + 0.5f)
     }
+
+    @Test
+    fun `app badges of the cards and of the menu are converted at their display size`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val icon = BitmapDrawable(context.resources, Bitmap.createBitmap(512, 512, Bitmap.Config.ARGB_8888))
+        var card: androidx.compose.ui.graphics.ImageBitmap? = null
+        var menu: androidx.compose.ui.graphics.ImageBitmap? = null
+        compose.setContent {
+            card = rememberIconBitmap(icon, Dimens.HeroSourceIcon)
+            menu = rememberIconBitmap(icon, Dimens.MenuEntryIcon)
+        }
+        compose.waitForIdle()
+        assertEquals(36 to 36, card!!.width to card!!.height)
+        assertEquals(44 to 44, menu!!.width to menu!!.height)
+    }
 }

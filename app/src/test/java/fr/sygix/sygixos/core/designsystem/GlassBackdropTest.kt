@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -118,7 +119,7 @@ class GlassBackdropTest {
     }
 
     @Test
-    fun `glass follows the zoom and the fade of the poster under it`() {
+    fun `glass follows the fade of the poster under it but not its zoom`() {
         val gray = android.graphics.Color.rgb(128, 128, 128)
         val backdrop = backdropOf(gray)
         val top = backdrop.layer("next")
@@ -136,8 +137,8 @@ class GlassBackdropTest {
             }
         }
         compose.waitForIdle()
-        val edgeX = 480f - 0.27f * 960f
-        val edgeY = 270f - 0.27f * 540f
+        val edgeX = 0.25f * 960f
+        val edgeY = 0.25f * 540f
         val dark = expectedOver(android.graphics.Color.rgb(64, 64, 64))
         val bright = expectedOver(android.graphics.Color.rgb(191, 191, 191))
         fun assertLevel(expected: Int, xDp: Float, yDp: Float) {
@@ -150,6 +151,21 @@ class GlassBackdropTest {
         assertLevel(bright, edgeX + 8f, edgeY + 20f)
         assertLevel(dark, edgeX + 20f, edgeY - 8f)
         assertLevel(bright, edgeX + 20f, edgeY + 8f)
+    }
+
+    @Test
+    fun `drawing the glass reads the fade of the poster but not its zoom`() {
+        val backdrop = backdropOf(android.graphics.Color.rgb(128, 128, 128))
+        val layer = backdrop.layers.single()
+        showGlassOver(backdrop)
+        fun statesRead(block: () -> Unit): Set<Any> = mutableSetOf<Any>().also { reads ->
+            Snapshot.observe(readObserver = { reads += it }) { block() }
+        }
+        val zoom = statesRead { layer.zoom.value }
+        val fade = statesRead { layer.fade.value }
+        val drawn = statesRead { compose.onRoot().captureToImage() }
+        assertTrue(drawn.containsAll(fade))
+        assertEquals(emptySet<Any>(), drawn intersect zoom)
     }
 
     @Test

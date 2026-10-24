@@ -22,6 +22,19 @@ import fr.sygix.sygixos.data.AppArtwork
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.model.TvApp
 import kotlinx.coroutines.Dispatchers
+import coil.Coil
+import coil.ComponentRegistry
+import coil.ImageLoader
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
+import coil.request.DefaultRequestOptions
+import coil.request.Disposable
+import coil.request.ErrorResult
+import coil.request.ImageRequest
+import coil.request.ImageResult
+import fr.sygix.sygixos.data.ProgramArtworkInterceptor
+import fr.sygix.sygixos.domain.ArtworkPolicy
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -121,4 +134,49 @@ class GridRecompositionTest {
         compose.waitForIdle()
         assertEquals(listOf("com.g3"), focusedApps)
     }
+
+    @Test
+    fun `a focus passing over tiles decodes no shelf poster and a settled focus decodes one`() {
+        val decodes = mutableListOf<Any>()
+        Coil.setImageLoader(object : ImageLoader {
+            override val defaults = DefaultRequestOptions()
+            override val components = ComponentRegistry()
+            override val memoryCache: MemoryCache? = null
+            override val diskCache: DiskCache? = null
+            override fun enqueue(request: ImageRequest): Disposable = error("unused")
+            override suspend fun execute(request: ImageRequest): ImageResult {
+                if (request.parameters.value<ArtworkPolicy>(ProgramArtworkInterceptor.POLICY) is ArtworkPolicy.Shelf) decodes += request.data
+                return ErrorResult(null, request, IllegalStateException("offline"))
+            }
+            override fun shutdown() = Unit
+            override fun newBuilder(): ImageLoader.Builder = error("unused")
+        })
+        val posters = (1..3).map { heroItem("s$it", "Programme $it", imageUrl = "https://example.invalid/s$it.jpg", sourcePackage = "com.g$it") }
+        val uris = posters.mapNotNull { it.imageUrl }.toSet()
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            TestHome(
+                catalog = catalogOf(dock = emptyList(), grid = (0 until 10).map { app("com.g$it", "Grille $it") }),
+                hero = heroStateOf(items = posters, validated = uris, checked = uris),
+                initialZone = Zone.GRID,
+                artworkSource = artwork,
+            )
+        }
+        compose.mainClock.advanceTimeBy(Motion.SHELF_PREPARE_DELAY_MS / 3)
+        compose.waitForIdle()
+        compose.onNodeWithTag("app-tile-com.g0").assertIsFocused()
+        repeat(3) {
+            press(Key.DirectionRight)
+            compose.mainClock.advanceTimeBy(Motion.SHELF_PREPARE_DELAY_MS / 3)
+        }
+        compose.onNodeWithTag("app-tile-com.g3").assertIsFocused()
+        assertEquals(emptyList<Any>(), decodes)
+        compose.mainClock.advanceTimeBy(Motion.SHELF_PREPARE_DELAY_MS)
+        compose.waitForIdle()
+        assertEquals(1, decodes.size)
+        assertTrue(decodes.single().toString().contains("s3"))
+    }
+
+    @After
+    fun resetImageLoader() = Coil.reset()
 }

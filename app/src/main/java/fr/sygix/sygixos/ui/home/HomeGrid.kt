@@ -172,6 +172,7 @@ internal fun HomeGrid(
         if (postersOf(target).isEmpty() && !pendingFor(target)) shelf = null
         if (shelf == null) {
             launch {
+                delay(Motion.SHELF_PREPARE_DELAY_MS)
                 val first = snapshotFlow { postersOf(target).firstOrNull() }.filterNotNull().first()
                 context.imageLoader.execute(posterRequest(context, first, posterSize, programs().firstOrNull { it.imageUrl == first }?.artwork))
             }

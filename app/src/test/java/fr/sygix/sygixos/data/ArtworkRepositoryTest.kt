@@ -20,10 +20,15 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.*
 import org.junit.Rule
@@ -40,10 +45,13 @@ internal fun artworkBytes(width: Int = 800, height: Int = 450, color: Int = andr
 
 internal class ArtworkFixture(directory: java.io.File, val read: ImageBytesReader, val now: AtomicLong = AtomicLong(1_000), localReader: ImageBytesReader? = null,
     timeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS, onRendered: (coil.request.SuccessResult) -> Unit = {}, dispatcher: kotlinx.coroutines.CoroutineDispatcher? = null,
-    executors: ArtworkExecutors? = null) : Closeable {
+    executors: ArtworkExecutors? = null, onQuery: ((String) -> Unit)? = null) : Closeable {
     val context: Context = ApplicationProvider.getApplicationContext()
     val disk = DiskCache.Builder().directory(directory).build()
-    val db = Room.inMemoryDatabaseBuilder(context, ArtworkDatabase::class.java).apply { dispatcher?.let { setQueryCoroutineContext(it); allowMainThreadQueries() } }.build()
+    val db = Room.inMemoryDatabaseBuilder(context, ArtworkDatabase::class.java).apply {
+        dispatcher?.let { setQueryCoroutineContext(it); allowMainThreadQueries() }
+        onQuery?.let { setQueryCallback({ sql, _ -> it(sql) }, Runnable::run) }
+    }.build()
     val repository = if (dispatcher == null) ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(executors = executors ?: ArtworkExecutors.threads(3)), clock = now::get, requestTimeoutMillis = timeoutMillis,
         localReader = localReader ?: LocalProgramImageReader(context.contentResolver))
     else ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(executors = virtualExecutors(dispatcher)), clock = now::get,
@@ -78,6 +86,47 @@ class ArtworkRepositoryTest {
     @get:Rule val folder = TemporaryFolder()
     private val source = ProgramArtwork("app", listOf("content://fixture/poster"), "film", "preview-1", "film")
     private val pixels by lazy { artworkBytes() }
+
+    @Test fun aBurstOfResolvesReadsTheImageTableOnceInsteadOfOncePerResolve() = runTest(main.dispatcher) {
+        val tableReads = java.util.concurrent.atomic.AtomicInteger()
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { uri, _ -> artworkBytes(800 + uri.lastPathSegment!!.removePrefix("image").toInt()) }, dispatcher = StandardTestDispatcher(testScheduler),
+            onQuery = { if (it.trim() == "SELECT * FROM program_images") tableReads.incrementAndGet() }).use { fixture ->
+            val sources = (1..10).map { n -> source.copy(candidates = listOf("content://fixture/image$n"), identity = "film$n", sharedIdentity = "film$n") }
+            sources.forEach { assertNotNull(fixture.repository.resolve(it, ArtworkPolicy.Hero).first) }
+            advanceTimeBy(ArtworkRepository.SCHEDULE_DEBOUNCE_MS)
+            runCurrent()
+            tableReads.set(0)
+            sources.map { async { fixture.repository.resolve(it, ArtworkPolicy.Hero) } }.awaitAll()
+            runCurrent()
+            assertEquals(0, tableReads.get())
+            advanceTimeBy(ArtworkRepository.SCHEDULE_DEBOUNCE_MS)
+            runCurrent()
+            assertEquals(1, tableReads.get())
+        }
+    }
+
+    @Test fun purgeSelectsExpiredAndOrphanImagesInOneQuery() = runTest(main.dispatcher) {
+        val linkReads = java.util.concurrent.atomic.AtomicInteger()
+        val now = AtomicLong(ArtworkAge.RETAIN_MS * 2)
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> pixels }, now = now, dispatcher = StandardTestDispatcher(testScheduler),
+            onQuery = { if (it.startsWith("SELECT * FROM program_image_links WHERE imageId")) linkReads.incrementAndGet() }).use { fixture ->
+            val dao = fixture.db.artwork()
+            val at = now.get()
+            dao.program(ArtworkProgram("watchnext", "1", "app", "fingerprint", "full", null, at, at + ArtworkAge.FRESH_MS))
+            fun image(id: String, fetchedAt: Long, retryAt: Long = 0) =
+                ArtworkImage(id, "app", "content://fixture/$id", "content://fixture/$id", 800, 450, "hash-$id", fetchedAt, "valid", retryAt)
+            dao.image(image("linked", at - 1_000))
+            dao.associate(ArtworkAssociation("linked", "fingerprint", null, at))
+            dao.image(image("expired", at - ArtworkAge.RETAIN_MS))
+            dao.associate(ArtworkAssociation("expired", "fingerprint", null, at))
+            dao.image(image("orphan", at - 1_000))
+            dao.image(image("waiting", 0, retryAt = at + 60_000))
+            linkReads.set(0)
+            fixture.repository.confirm("preview", emptyList())
+            assertEquals(setOf("linked", "waiting"), dao.images().map { it.id }.toSet())
+            assertEquals(0, linkReads.get())
+        }
+    }
 
     @Test fun aNeverValidImageDoesNotEmitAnExpirationOnForegroundChecks() = runBlocking {
         ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> throw java.io.FileNotFoundException("Unavailable fixture") }).use { fixture ->

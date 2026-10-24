@@ -121,9 +121,7 @@ private fun DrawScope.drawLayers(backdrop: GlassBackdrop, outline: Outline, clip
         val alpha = layer.fade.value
         if (alpha <= 0f) return@forEach
         val brush = layer.brush(source)
-        val zoom = layer.zoom.value
         matrix.setScale(width / source.width, height / source.height)
-        matrix.postScale(zoom, zoom, width / 2f, height / 2f)
         matrix.postTranslate(-offset.x, -offset.y)
         brush.createShader(size).setLocalMatrix(matrix)
         drawOutline(outline, brush, alpha = alpha)

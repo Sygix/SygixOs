@@ -49,7 +49,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import fr.sygix.sygixos.inlineDataStore
-import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -172,7 +171,7 @@ class HomeViewModelUpNextTest {
         source.loads.await { it > previousLoads }
         assertEquals(listOf(changed), (awaitItems(listOf(changed)).upNext!!.content as UpNextContent.Items).items)
         watching.cancel()
-        source.notifications.subscriptionCount.await { it == 0 }
+        assertEquals(1, source.notifications.subscriptionCount.value)
         Unit
     }
 
@@ -212,8 +211,9 @@ class HomeViewModelUpNextTest {
             override fun changes() = flowOf(Unit)
         }
         val home = viewModel(refused, "refused")
-        withTimeout(5_000) { home.upNextUpdates.collect() }
+        val watching = launch { home.upNextUpdates.collect() }
         awaitItems(listOf(item), home)
+        watching.cancel()
         Unit
     }
 }

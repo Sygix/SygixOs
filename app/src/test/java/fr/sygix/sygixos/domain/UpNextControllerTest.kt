@@ -75,12 +75,12 @@ class UpNextControllerTest {
     }
 
     @Test
-    fun `provider changes are observed only while updates are collected`() = runTest {
+    fun `provider changes stay observed during a stop and are read once on return`() = runTest {
         val source = Source(Result.success(listOf(item)))
         val controller = UpNextController(source, MutableStateFlow(true), MutableStateFlow(UpNextPosition.BEFORE_APPS), MutableStateFlow(emptySet()), backgroundScope)
         runCurrent()
         assertEquals(0, source.signals.subscriptionCount.value)
-        val watching = backgroundScope.launch { controller.updates.collect() }
+        var watching = backgroundScope.launch { controller.updates.collect() }
         runCurrent()
         assertEquals(1, source.signals.subscriptionCount.value)
         source.signals.emit(Unit)
@@ -88,10 +88,41 @@ class UpNextControllerTest {
         assertEquals(1, source.calls)
         watching.cancel()
         runCurrent()
-        assertEquals(0, source.signals.subscriptionCount.value)
+        assertEquals(1, source.signals.subscriptionCount.value)
+        watching = backgroundScope.launch { controller.updates.collect() }
+        runCurrent()
+        assertEquals(1, source.calls)
+        watching.cancel()
+        source.signals.emit(Unit)
         source.signals.emit(Unit)
         runCurrent()
         assertEquals(1, source.calls)
+        watching = backgroundScope.launch { controller.updates.collect() }
+        runCurrent()
+        assertEquals(2, source.calls)
+        watching.cancel()
+    }
+
+    @Test
+    fun `content opened from the row is moved first on return even without a provider change`() = runTest {
+        val other = item.copy(id = 2, title = "Autre", source = UpNextSourceEntry("b"), sources = listOf(UpNextSourceEntry("b")))
+        val source = Source(Result.success(listOf(item, other)))
+        val controller = UpNextController(source, MutableStateFlow(true), MutableStateFlow(UpNextPosition.BEFORE_APPS), MutableStateFlow(emptySet()), backgroundScope, clock = { testScheduler.currentTime })
+        var watching = backgroundScope.launch { controller.updates.collect() }
+        runCurrent()
+        source.signals.emit(Unit)
+        runCurrent()
+        val before = (controller.state.value!!.content as UpNextContent.Items).items
+        controller.opened(before.last())
+        runCurrent()
+        assertEquals(before, (controller.state.value!!.content as UpNextContent.Items).items)
+        watching.cancel()
+        advanceTimeBy(1_000)
+        watching = backgroundScope.launch { controller.updates.collect() }
+        runCurrent()
+        assertEquals(2, source.calls)
+        assertEquals(before.last().key, (controller.state.value!!.content as UpNextContent.Items).items.first().key)
+        watching.cancel()
     }
 
     @Test

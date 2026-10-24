@@ -34,6 +34,7 @@ import fr.sygix.sygixos.domain.StartupPhase
 import fr.sygix.sygixos.domain.StartupSession
 import fr.sygix.sygixos.domain.StartupTimings
 import fr.sygix.sygixos.domain.InMemoryUpNextMemory
+import fr.sygix.sygixos.domain.PendingChanges
 import fr.sygix.sygixos.domain.UpNextController
 import fr.sygix.sygixos.domain.UpNextMemory
 import fr.sygix.sygixos.domain.UpNextOpener
@@ -154,8 +155,26 @@ class HomeViewModel(
 
     val upNextUpdates: Flow<Unit> = upNext?.updates ?: emptyFlow()
 
-    val heroUpdates: Flow<Unit> = merge(hero.changes(), artwork.changes.drop(1).map { Unit }, flow { while (true) { delay(HERO_TTL_MS); emit(Unit) } })
-        .onEach { refreshHero(); refreshUpNext() }
+    private val heroChanges = PendingChanges(hero.changes(), viewModelScope)
+    private var periodicReadAt: Long? = null
+
+    val heroUpdates: Flow<Unit> = merge(
+        heroChanges.changes.onEach { refreshHero() },
+        merge(artwork.changes.drop(1).map { Unit }, periodicReads()).onEach { refreshHero(); refreshUpNext() },
+    )
+
+    private fun periodicReads(): Flow<Unit> = flow {
+        while (true) {
+            val now = programClock()
+            val due = (periodicReadAt ?: now.also { periodicReadAt = it }) + HERO_TTL_MS
+            if (now >= due) {
+                periodicReadAt = now
+                emit(Unit)
+            } else {
+                delay((due - now).coerceAtMost(HERO_TTL_MS))
+            }
+        }
+    }
 
     val state: StateFlow<HomeState> = combine(
         apps.catalog,
@@ -375,7 +394,7 @@ class HomeViewModel(
                 group.forEach { item ->
                     if (rawFeed.value.items.none { it.artwork.identity == item.artwork.identity }) return@forEach
                     val policy = if (shelf) ArtworkPolicy.Shelf(shelfWidth) else ArtworkPolicy.Hero
-                    val check = if (shelf) validator.prepare(item.artwork, shelfWidth) else validator.validate(item.artwork, policy)
+                    val check = validator.validate(item.artwork, policy)
                     val current = rawFeed.value.items.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
                     checks[current.id] = current.artwork
                     retries.update { if (check.retryable) it + current.id else it - current.id }

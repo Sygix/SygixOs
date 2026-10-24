@@ -20,6 +20,16 @@ class ArtworkSchedulerTest {
 
     private fun scheduler(parallelism: Int = 3) = ArtworkScheduler(parallelism, executors = timer.executors(parallelism))
 
+    @Test fun `provider queries and the image index share one pool whose idle threads stop and which survives a closed scheduler`() {
+        assertSame(ArtworkExecutors.Shared, ProviderQueries.Shared.workers.executors)
+        assertSame(ArtworkExecutors.Shared, ArtworkScheduler().executors)
+        val workers = ArtworkExecutors.Shared.workers as java.util.concurrent.ThreadPoolExecutor
+        assertEquals(6, workers.maximumPoolSize)
+        assertTrue(workers.allowsCoreThreadTimeOut())
+        ArtworkScheduler().close()
+        assertFalse(workers.isShutdown)
+    }
+
     @Test fun `thirty queued images do not consume their request timeout before starting`() = runBlocking {
         scheduler().use { scheduler ->
             val entered = CountDownLatch(1)

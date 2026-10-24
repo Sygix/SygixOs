@@ -22,7 +22,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
 
-class ProviderQueries internal constructor(private val workers: ArtworkScheduler) {
+class ProviderQueries internal constructor(internal val workers: ArtworkScheduler) {
     private val sequence = java.util.concurrent.atomic.AtomicLong()
 
     internal suspend fun <T> run(timeoutMillis: Long = 2_000, query: (CancellationSignal) -> T): Result<T> {

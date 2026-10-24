@@ -38,6 +38,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -298,14 +300,15 @@ fun HeroStage(
             }
             .focusable(),
     ) {
+        val videoCovers = remember { mutableStateOf(false) }
         AmbientGradient(
             animated = visible && !hasVisual && !showVideo && motion,
             deferred = !motion,
-            covered = { backdrop.covered },
+            covered = { backdrop.covered || videoCovers.value },
         )
         if (fallback) Spacer(Modifier.fillMaxSize().testTag(if (showVideo && player.firstFrameRendered) "hero-fallback-nature" else "hero-fallback-neutral"))
         if (showVideo) {
-            HeroVideoLayer(player, visible = player.firstFrameRendered)
+            HeroVideoLayer(player, visible = player.firstFrameRendered, covers = videoCovers)
         }
         val density = LocalDensity.current
         val veils = remember(density) { with(density) { HeroVeils(CornerVeilWidth.toPx(), CornerVeilHeight.toPx()) } }
@@ -349,15 +352,22 @@ fun HeroStage(
 }
 
 @Composable
-private fun HeroVideoLayer(player: HeroVideo, visible: Boolean) {
+private fun HeroVideoLayer(player: HeroVideo, visible: Boolean, covers: MutableState<Boolean>) {
     val alpha by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
         animationSpec = tween(Motion.HERO_VIDEO_FADE_MS, easing = AppleEasing),
         label = "heroVideoAlpha",
     )
+    val shown by rememberUpdatedState(visible)
+    val opaque by remember { derivedStateOf { shown && alpha >= 1f } }
+    LaunchedEffect(opaque) { covers.value = opaque }
+    DisposableEffect(covers) { onDispose { covers.value = false } }
     AndroidView(
         factory = { ctx -> TextureView(ctx).apply { isOpaque = false } },
-        update = { player.attach(it) },
+        update = {
+            player.attach(it)
+            it.isOpaque = opaque
+        },
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer {

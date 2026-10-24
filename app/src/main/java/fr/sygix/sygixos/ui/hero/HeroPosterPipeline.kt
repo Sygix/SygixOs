@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.drawable.toBitmap
 import coil.imageLoader
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import coil.size.Precision
@@ -222,9 +223,10 @@ internal object HeroPosterLoader {
         return HeroPosterImages(poster.asImageBitmap(), backdrop?.asImageBitmap())
     }
 
-    private fun request(context: Context, url: Any, size: PixelSize, transformation: Transformation): ImageRequest =
+    internal fun request(context: Context, url: Any, size: PixelSize, transformation: Transformation): ImageRequest =
         ImageRequest.Builder(context)
             .data(url)
+            .memoryCachePolicy(CachePolicy.DISABLED)
             .artworkPolicy(ArtworkPolicy.Hero)
             .size(size.width, size.height)
             .scale(Scale.FILL)
