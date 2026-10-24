@@ -1,7 +1,7 @@
 # AGENTS.md — instructions pour agents IA
 
 ## Vue d'ensemble
-SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pour remplacer le launcher Google TV. Propriétaire : Sygix. Langues UI : anglais (repli, `values/`), français (`values-fr/`, langue de référence des specs), allemand, espagnol, italien ; tout nouveau texte est ajouté dans chaque langue, avec une traduction relue et non littérale.
+SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pour remplacer le launcher Google TV. Propriétaire : Sygix. Langues UI : anglais (repli, `values/`), français (`values-fr/`, langue de référence des specs), allemand, espagnol, italien ; tout nouveau texte est ajouté dans chaque langue, avec une traduction relue et non littérale. Les écrans d'Android ou de Tsuyu cités reprennent leurs libellés exacts dans chaque langue.
 
 ## Feuille de route
 - P3 — Logo et écran de démarrage animé : livré (v0.0.1) ; cadence de la mascotte acceptée
