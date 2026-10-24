@@ -9,6 +9,8 @@
     <string name="upnext_position">Position d\'À suivre</string>
     <string name="upnext_position_before">Avant les applications</string>
     <string name="upnext_position_after">Après les applications</string>
+    <string name="visual_motion">Mouvement des visuels</string>
+    <string name="visual_motion_detail">Zoom lent des images du héro et du Top Shelf</string>
     <string name="upnext_open_with">Ouvrir avec…</string>
     <string name="upnext_load_error">Impossible de charger</string>
     <string name="upnext_retry">OK pour réessayer</string>

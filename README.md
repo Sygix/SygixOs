@@ -25,7 +25,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **Dark glass**: translucent glass with live blur on the dock, capsule, context menu and move-mode banner.
 - **Top Shelf preview**: artwork appears above an app tile after a short hover and pans once.
 - **Clock and settings capsule**: time and settings gear in a small glass capsule at the top right of the hero.
-- **Settings**: choose source apps, hide and restore apps, manage removed content, version and licenses, check for updates.
+- **Settings**: choose source apps, hide and restore apps, manage removed content, show and place À suivre, turn off the slow zoom of the hero and Top Shelf visuals (“Mouvement des visuels”) for a still home screen on modest TVs, version and licenses, check for updates.
 - **System launcher**: guided setup to make SygixOs your home screen, automatic or by permissions, with restore before uninstall.
 - **Self-update**: daily background check, signaled by a blue dot; nothing downloads without your consent.
 - **Never a black screen**: falls back to nature clips, then a settling gradient.

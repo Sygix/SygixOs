@@ -100,6 +100,7 @@ internal fun HomeGrid(
     onUpNextMenu: (UpNextItem) -> Unit = {},
     onRetryUpNext: () -> Unit = {},
     onUpNextReturnHandled: (Long) -> Unit = {},
+    visualMotion: Boolean = true,
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
     val appPackages = remember(catalog.grid) { catalog.grid.map { it.packageName } }
@@ -272,6 +273,7 @@ internal fun HomeGrid(
                     onTileLongClick = onTileLongClick,
                     indexOffset = sections.appIndexOffset,
                     isFocusEnabled = { enabled },
+                    visualMotion = visualMotion,
                 )
             }
         }
@@ -310,6 +312,7 @@ private fun GridRow(
     onTileLongClick: (TvApp) -> Unit,
     indexOffset: Int = 0,
     isFocusEnabled: () -> Boolean = { focusEnabled },
+    visualMotion: Boolean = true,
 ) {
     Column {
         val shown = remember { MutableTransitionState(false) }
@@ -321,7 +324,7 @@ private fun GridRow(
             exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
                 fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
         ) {
-            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing), shelfSources)
+            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing), shelfSources, visualMotion)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),

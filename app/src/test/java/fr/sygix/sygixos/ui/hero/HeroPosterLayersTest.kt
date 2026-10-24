@@ -73,7 +73,7 @@ class HeroPosterLayersTest {
     private fun poster(id: String, title: String = "") =
         HeroItem(id = id, title = title, imageUrl = "https://example.invalid/$id.jpg", sourcePackage = "com.source")
 
-    private fun show(vararg items: HeroItem, motion: Boolean = true) {
+    private fun show(vararg items: HeroItem, motion: Boolean = true, visualMotion: Boolean = true) {
         Coil.setImageLoader(TransformingImageLoader())
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -86,6 +86,7 @@ class HeroPosterLayersTest {
                 onOpen = {},
                 backdrop = backdrop,
                 motion = motion,
+                visualMotion = visualMotion,
             )
         }
     }
@@ -118,6 +119,16 @@ class HeroPosterLayersTest {
     fun `without motion, as under the startup screen, the first picture appears without a fade`() {
         show(poster("h1"), motion = false)
         advance(50)
+        assertEquals(1f, backdrop.layers.single().fade.value, 0.001f)
+        assertEquals(1f, backdrop.layers.single().zoom.value, 0.001f)
+    }
+
+    @Test
+    fun `without visual motion the picture fades in and stays at its original size`() {
+        show(poster("h1"), visualMotion = false)
+        advance(50)
+        assertTrue(backdrop.layers.single().fade.value < 0.5f)
+        advance(Motion.HERO_KEN_BURNS_MS.toLong())
         assertEquals(1f, backdrop.layers.single().fade.value, 0.001f)
         assertEquals(1f, backdrop.layers.single().zoom.value, 0.001f)
     }

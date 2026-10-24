@@ -40,11 +40,18 @@ class LauncherPrefs(
 
     private val upNextVisibleKey = booleanPreferencesKey("up_next_visible")
     private val upNextPositionKey = stringPreferencesKey("up_next_position")
+    private val visualMotionKey = booleanPreferencesKey("visual_motion")
 
     val upNextVisible: Flow<Boolean> = projection { it[upNextVisibleKey] ?: true }
     val upNextPosition: Flow<UpNextPosition> = projection { prefs ->
         UpNextPosition.entries.firstOrNull { it.name == prefs[upNextPositionKey] }
             ?: UpNextPosition.BEFORE_APPS
+    }
+
+    val visualMotion: Flow<Boolean> = projection { it[visualMotionKey] ?: true }
+
+    suspend fun setVisualMotion(enabled: Boolean) {
+        store.edit { it[visualMotionKey] = enabled }
     }
 
     suspend fun setUpNextVisible(visible: Boolean) {

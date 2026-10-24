@@ -76,6 +76,7 @@ class HomeViewModelStartupTest {
         session: StartupSession,
         motion: FakeMotionSource = FakeMotionSource(),
         dispatcher: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
+        io: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
     ) = mainDispatcher.track(HomeViewModel(
         apps = repo,
         hero = HeroRepository(EmptyFeed(), EmptyFeed()),
@@ -91,7 +92,34 @@ class HomeViewModelStartupTest {
         mascot = FakeMascotSource(),
         startupClock = { testScheduler.currentTime },
         startupDispatcher = dispatcher,
+        io = io,
     ))
+
+    @Test
+    fun `visual motion follows the preference and the system animation scale read on return`() = runTest {
+        val motion = FakeMotionSource()
+        val home = viewModel(StartupSession(), motion)
+        runCurrent()
+        assertTrue(home.visualMotion.value)
+        repo.setVisualMotion(false)
+        runCurrent()
+        assertFalse(home.visualMotion.value)
+        repo.setVisualMotion(true)
+        motion.enabled = false
+        runCurrent()
+        assertTrue(home.visualMotion.value)
+        home.onForeground()
+        runCurrent()
+        assertFalse(home.visualMotion.value)
+        motion.enabled = true
+        repo.setVisualMotion(false)
+        home.onForeground()
+        runCurrent()
+        assertFalse(home.visualMotion.value)
+        repo.setVisualMotion(true)
+        runCurrent()
+        assertTrue(home.visualMotion.value)
+    }
 
     @Test
     fun `first home of the process starts on the splash and a second one does not`() = runTest {

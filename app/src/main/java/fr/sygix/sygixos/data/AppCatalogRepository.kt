@@ -36,6 +36,7 @@ class AppCatalogRepository(
     val disabledSources: Flow<Set<String>> = prefs.disabledSources
     val upNextVisible: Flow<Boolean> = prefs.upNextVisible
     val upNextPosition: Flow<UpNextPosition> = prefs.upNextPosition
+    val visualMotion: Flow<Boolean> = prefs.visualMotion
 
     val upNextRemoved: Flow<List<RemovedUpNextContent>> = prefs.removed
 
@@ -43,6 +44,7 @@ class AppCatalogRepository(
 
     suspend fun setUpNextVisible(visible: Boolean) = prefs.setUpNextVisible(visible)
     suspend fun setUpNextPosition(position: UpNextPosition) = prefs.setUpNextPosition(position)
+    suspend fun setVisualMotion(enabled: Boolean) = prefs.setVisualMotion(enabled)
 
     val allApps: Flow<List<TvApp>> = installed.filterNotNull()
 

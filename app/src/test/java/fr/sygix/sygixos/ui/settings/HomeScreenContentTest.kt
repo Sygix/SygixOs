@@ -35,12 +35,13 @@ class HomeScreenContentTest {
     private val visible = mutableStateOf(true)
     private val position = mutableStateOf(UpNextPosition.BEFORE_APPS)
     private val enabled = mutableStateOf(true)
+    private val motion = mutableStateOf(true)
     private fun content(extra: Boolean = false) {
         compose.setContent {
             val focus = remember { FocusRequester() }
             MaterialTheme {
-                HomeScreenContent(visible.value, position.value,
-                    HomeScreenActions({ visible.value = !visible.value }, { position.value = it }),
+                HomeScreenContent(visible.value, position.value, motion.value,
+                    HomeScreenActions({ visible.value = !visible.value }, { position.value = it }, { motion.value = !motion.value }),
                     enabled.value, focus, additionalRows = { active ->
                         if (extra) repeat(3) { index ->
                             Spacer(Modifier.height(12.dp))
@@ -62,11 +63,36 @@ class HomeScreenContentTest {
         press(Key.DirectionDown)
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
         press(Key.DirectionDown)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        press(Key.DirectionDown)
         compose.onNodeWithTag("system-control-0").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
         repeat(4) { press(Key.DirectionDown) }
         compose.onNodeWithTag("system-control-2").assertIsFocused()
+    }
+    @Test fun `visual motion row follows the position row, toggles in place and is the last row without extension`() {
+        content()
+        compose.onNodeWithText("Mouvement des visuels").assertExists()
+        compose.onNodeWithText("Zoom lent des images du héro et du Top Shelf").assertExists()
+        assertTrue(compose.onNodeWithTag("setting-upnext-position").fetchSemanticsNode().boundsInRoot.bottom <=
+            compose.onNodeWithTag("setting-visual-motion").fetchSemanticsNode().boundsInRoot.top)
+        repeat(2) { press(Key.DirectionDown) }
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused().assertIsOn()
+        press(Key.Enter)
+        assertFalse(motion.value)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused().assertIsOff()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        press(Key.DirectionRight)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        press(Key.DirectionUp)
+        compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
+        press(Key.DirectionDown)
+        press(Key.Enter)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused().assertIsOn()
     }
     @Test fun `position remains enabled while visibility is off`() {
         content()

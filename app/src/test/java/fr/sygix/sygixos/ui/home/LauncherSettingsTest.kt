@@ -82,14 +82,14 @@ class LauncherSettingsTest {
     @Test
     fun `the launcher line follows the up next rows under its group title and fits the TV screen`() {
         open()
-        val order = listOf("setting-upnext-visible", "setting-upnext-position", "setting-launcher-group", row)
+        val order = listOf("setting-upnext-visible", "setting-upnext-position", "setting-visual-motion", "setting-launcher-group", row)
         order.zipWithNext().forEach { (above, below) -> assertTrue("$above above $below", top(above) < top(below)) }
         val screen = compose.onRoot().fetchSemanticsNode().boundsInRoot.bottom
         val density = compose.density.density
-        val position = compose.onNodeWithTag("setting-upnext-position").fetchSemanticsNode().boundsInRoot
+        val motion = compose.onNodeWithTag("setting-visual-motion").fetchSemanticsNode().boundsInRoot
         val title = compose.onNodeWithTag("setting-launcher-group", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         val line = compose.onNodeWithTag(row).fetchSemanticsNode().boundsInRoot
-        assertEquals(position.bottom, title.top, 1f)
+        assertEquals(motion.bottom, title.top, 1f)
         assertEquals(title.bottom, line.top, 1f)
         val textHeight = title.height / density - (Dimens.SettingsGroupTitleTop + Dimens.SettingsGroupTitleBottom).value
         assertTrue("group title text $textHeight dp", textHeight in 10f..24f)
@@ -107,22 +107,26 @@ class LauncherSettingsTest {
         open()
         press(Key.DirectionDown)
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
         repeat(2) {
             press(Key.DirectionDown)
             compose.onNodeWithTag(row).assertIsFocused()
         }
         press(Key.DirectionUp)
+        compose.onNodeWithTag("setting-visual-motion").assertIsFocused()
+        press(Key.DirectionUp)
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
         press(Key.DirectionUp)
         compose.onNodeWithTag("setting-upnext-visible").assertIsFocused()
-        repeat(2) { press(Key.DirectionDown) }
+        repeat(3) { press(Key.DirectionDown) }
         compose.onNodeWithTag(row).assertIsFocused()
         press(Key.DirectionRight)
         compose.onNodeWithTag(row).assertIsFocused()
         press(Key.DirectionLeft)
         compose.onNodeWithTag("settings-category-HOME_SCREEN").assertIsFocused()
         press(Key.DirectionRight)
-        repeat(2) { press(Key.DirectionDown) }
+        repeat(3) { press(Key.DirectionDown) }
         compose.onNodeWithTag(row).assertIsFocused()
         press(Key.Back)
         compose.onNodeWithTag("settings-screen").assertDoesNotExist()
@@ -132,7 +136,7 @@ class LauncherSettingsTest {
     fun `the guide opens over the settings and gives the focus back to the line without touching the seen flag`() {
         val store = FakeLauncherStore()
         open(store)
-        repeat(2) { press(Key.DirectionDown) }
+        repeat(3) { press(Key.DirectionDown) }
         press(Key.DirectionCenter)
         compose.onNodeWithTag("launcher-panel").assertExists()
         compose.onNodeWithTag("settings-home-screen").assertExists()
@@ -159,7 +163,7 @@ class LauncherSettingsTest {
     @Test
     fun `the guide over the settings is glass blurring the settings page`() {
         open(glassBlur = true)
-        repeat(2) { press(Key.DirectionDown) }
+        repeat(3) { press(Key.DirectionDown) }
         press(Key.DirectionCenter)
         val panel = "launcher-panel"
         assertTrue(compose.onNodeWithTag(panel).fetchSemanticsNode().config[GlassActive])
@@ -171,7 +175,7 @@ class LauncherSettingsTest {
     @Test
     fun `home while the guide is open over the settings closes everything`() {
         open()
-        repeat(2) { press(Key.DirectionDown) }
+        repeat(3) { press(Key.DirectionDown) }
         press(Key.DirectionCenter)
         compose.runOnIdle { launcher.onHome() }
         compose.waitForIdle()
@@ -208,9 +212,9 @@ class LauncherSettingsTest {
     @Test
     fun `closing the position dropdown never pulls focus to the launcher line`() {
         open()
-        repeat(2) { press(Key.DirectionDown) }
+        repeat(3) { press(Key.DirectionDown) }
         compose.onNodeWithTag(row).assertIsFocused()
-        press(Key.DirectionUp)
+        repeat(2) { press(Key.DirectionUp) }
         compose.onNodeWithTag("setting-upnext-position").assertIsFocused()
         press(Key.DirectionCenter)
         compose.onNodeWithTag("setting-upnext-position-list").performKeyInput { keyDown(Key.Back); keyUp(Key.Back) }

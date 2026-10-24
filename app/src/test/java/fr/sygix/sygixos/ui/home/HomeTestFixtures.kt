@@ -82,6 +82,7 @@ internal fun TestHome(
     onMoveInGrid: (TvApp, Int) -> Unit = { _, _ -> },
     upNext: UpNextState? = null,
     settingsActions: SettingsActions = SettingsActions(),
+    visualMotion: Boolean = true,
 ) {
     val packageManager = LocalContext.current.packageManager
     val artwork = remember(packageManager, artworkSource) { artworkSource ?: AppArtworkSource(packageManager, Dispatchers.Unconfined) }
@@ -108,6 +109,7 @@ internal fun TestHome(
                 onMoveInGrid = onMoveInGrid,
                 upNext = upNext,
                 settingsActions = settingsActions,
+                visualMotion = visualMotion,
             )
         }
     }

@@ -139,6 +139,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
     val context = LocalContext.current
     val settingsViewModel = rememberSettingsViewModel()
     val settingsState by settingsViewModel.state.collectAsStateWithLifecycle()
+    val visualMotion by viewModel.visualMotion.collectAsStateWithLifecycle()
     CompositionLocalProvider(
         LocalAppArtwork provides viewModel.artwork,
         LocalAppIcons provides settingsViewModel.icons,
@@ -185,6 +186,7 @@ fun HomeScreen(viewModel: HomeViewModel, glassBlur: Boolean = true, launcher: La
                 gridReady = startup == StartupPhase.Done,
                 launcherState = launcherState,
                 launcherActions = launcher?.actions ?: LauncherSystemActions(),
+                visualMotion = visualMotion,
             )
         }
     }
@@ -376,6 +378,7 @@ internal fun LauncherHome(
     upNextUpdates: Flow<Unit> = emptyFlow(),
     launcherState: LauncherSystemState = LauncherSystemState(),
     launcherActions: LauncherSystemActions = LauncherSystemActions(),
+    visualMotion: Boolean = true,
 ) {
     var zone by rememberSaveable { mutableStateOf(initialZone) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
@@ -526,6 +529,7 @@ internal fun LauncherHome(
                         onVisualReady = onHeroVisualReady,
                         onDisplayed = onHeroDisplayed,
                         motion = interactive,
+                        visualMotion = visualMotion,
                         backdrop = backdrop,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
@@ -588,6 +592,7 @@ internal fun LauncherHome(
                         onUpNextMenu = { menuItem = it },
                         onRetryUpNext = onRetryUpNext,
                         onUpNextReturnHandled = onUpNextReturnHandled,
+                        visualMotion = visualMotion,
                         modifier = Modifier.testTag("home-grid"),
                     )
                 }

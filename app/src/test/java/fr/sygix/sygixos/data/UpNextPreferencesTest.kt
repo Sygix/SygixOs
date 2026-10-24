@@ -40,6 +40,15 @@ class UpNextPreferencesTest {
     }
 
     @Test
+    fun `visual motion is enabled by default and its value persists across instances`() = runBlocking {
+        assertTrue(prefs.visualMotion.first())
+        prefs.setVisualMotion(false)
+        assertFalse(LauncherPrefs(context).visualMotion.first())
+        LauncherPrefs(context).setVisualMotion(true)
+        assertTrue(prefs.visualMotion.first())
+    }
+
+    @Test
     fun `unknown stored position uses default`() = runBlocking {
         context.dataStore.edit { it[stringPreferencesKey("up_next_position")] = "FUTURE_VALUE" }
         assertEquals(UpNextPosition.BEFORE_APPS, prefs.upNextPosition.first())
