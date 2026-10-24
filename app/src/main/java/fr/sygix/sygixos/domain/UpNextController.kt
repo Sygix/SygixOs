@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -94,7 +95,9 @@ class UpNextController(
         }
     }.flowOn(projectionDispatcher).stateIn(scope, SharingStarted.Eagerly, null)
 
-    val updates: Flow<Unit> = source.changes().onEach { refresh() }
+    private val changes = PendingChanges(source.changes(), scope)
+
+    val updates: Flow<Unit> = changes.changes.onStart { if (pendingReturn != null) changes.mark() }.onEach { refresh() }
 
     init {
         scope.launch {

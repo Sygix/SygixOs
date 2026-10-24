@@ -8,7 +8,7 @@ package fr.sygix.sygixos.data
 import java.io.Closeable
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executor
-import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.ScheduledThreadPoolExecutor
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.ThreadPoolExecutor
@@ -23,11 +23,18 @@ internal class ArtworkExecutors(
     val shutdown: () -> Unit,
 ) {
     companion object {
+        val Shared: ArtworkExecutors by lazy {
+            val threads = threads(SHARED_PARALLELISM)
+            ArtworkExecutors(threads.workers, threads.cancellations, threads.schedule) {}
+        }
+
         fun threads(parallelism: Int): ArtworkExecutors {
             val threads = ThreadFactory { task -> Thread(task, "artwork-worker").apply { isDaemon = true } }
-            val workers = Executors.newFixedThreadPool(parallelism, threads)
+            val workers = ThreadPoolExecutor(parallelism, parallelism, IDLE_MS, TimeUnit.MILLISECONDS, LinkedBlockingQueue(), threads)
+                .apply { allowCoreThreadTimeOut(true) }
             val deadlines = ScheduledThreadPoolExecutor(1, threads).apply { removeOnCancelPolicy = true }
-            val cancellations = ThreadPoolExecutor(2, 2, 0, TimeUnit.MILLISECONDS, ArrayBlockingQueue(64), threads, ThreadPoolExecutor.DiscardPolicy())
+            val cancellations = ThreadPoolExecutor(2, 2, IDLE_MS, TimeUnit.MILLISECONDS, ArrayBlockingQueue(64), threads, ThreadPoolExecutor.DiscardPolicy())
+                .apply { allowCoreThreadTimeOut(true) }
             return ArtworkExecutors(
                 workers = workers,
                 cancellations = cancellations,
@@ -35,13 +42,16 @@ internal class ArtworkExecutors(
                 shutdown = { deadlines.shutdownNow(); workers.shutdownNow(); cancellations.shutdownNow() },
             )
         }
+
+        private const val SHARED_PARALLELISM = 6
+        private const val IDLE_MS = 30_000L
     }
 }
 
 internal class ArtworkScheduler(
     private val parallelism: Int = 3,
     private val capacity: Int = 64,
-    private val executors: ArtworkExecutors = ArtworkExecutors.threads(parallelism),
+    internal val executors: ArtworkExecutors = ArtworkExecutors.Shared,
 ) : Closeable {
     private val pending = mutableListOf<Work<*>>()
     private val active = mutableSetOf<String>()

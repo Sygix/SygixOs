@@ -21,11 +21,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.core.graphics.drawable.toBitmap
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.*
 import fr.sygix.sygixos.model.UpNextItem
@@ -43,8 +41,7 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
             key(entry.packageName) {
                 MenuEntry("upnext-menu-entry-${entry.packageName}", entry.label, { onOpen(entry) }, if (index == 0) first else null) {
                     entry.icon?.let { icon ->
-                        val bitmap = remember(icon) { icon.toBitmap().asImageBitmap() }
-                        Image(bitmap, null, Modifier.size(Dimens.MenuEntryIcon).clip(RoundedCornerShape(Dimens.MenuEntryIconCorner)))
+                        Image(rememberIconBitmap(icon, Dimens.MenuEntryIcon), null, Modifier.size(Dimens.MenuEntryIcon).clip(RoundedCornerShape(Dimens.MenuEntryIconCorner)))
                     }
                 }
             }

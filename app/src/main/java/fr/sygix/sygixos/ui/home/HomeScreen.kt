@@ -478,7 +478,6 @@ internal fun LauncherHome(
     val pageScroll = rememberScrollState()
     var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val density = LocalDensity.current
-    val countsState = counts.collectAsStateWithLifecycle()
 
     CompositionLocalProvider(LocalHazeState provides haze.takeIf { glassBlur }) {
     BoxWithConstraints(
@@ -675,7 +674,7 @@ internal fun LauncherHome(
             SettingsScreen(
                 state = settings ?: SettingsState(),
                 modifier = Modifier.hazeSource(settingsHaze),
-                counts = countsState,
+                counts = counts.collectAsStateWithLifecycle(),
                 actions = settingsActions,
                 onBack = { settingsOpen = false },
                 homeHandlesBack = homeHandlesBack,

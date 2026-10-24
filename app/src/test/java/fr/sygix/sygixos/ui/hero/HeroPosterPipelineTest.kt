@@ -10,18 +10,32 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import coil.request.CachePolicy
 import coil.size.Size
+import fr.sygix.sygixos.MainDispatcherRule
+import fr.sygix.sygixos.data.ArtworkFixture
+import fr.sygix.sygixos.data.ImageBytesReader
+import fr.sygix.sygixos.data.artworkBytes
+import fr.sygix.sygixos.domain.PixelSize
+import fr.sygix.sygixos.model.ProgramArtwork
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HeroPosterPipelineTest {
+
+    @get:Rule val main = MainDispatcherRule()
+    @get:Rule val folder = TemporaryFolder()
 
     private val spec = PosterSpec.of(1920, 1080, 640f, 300f)
 
@@ -72,5 +86,29 @@ class HeroPosterPipelineTest {
     @Test
     fun `box blur radius matches the 28 px blur of the mockup at backdrop scale`() {
         assertEquals(3, BoxBlur.radiusFor(28f / PosterSpec.BACKDROP_DIVISOR))
+    }
+
+    @Test
+    fun `hero poster requests stay out of the memory cache but use the disk cache`() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val request = HeroPosterLoader.request(context, "https://example.invalid/poster.jpg", PixelSize(spec.width, spec.height), VeiledPosterTransformation(spec))
+        assertEquals(CachePolicy.DISABLED, request.memoryCachePolicy)
+        assertEquals(CachePolicy.ENABLED, request.diskCachePolicy)
+    }
+
+    @Test
+    fun `a program shown again is read back from the disk cache without filling the memory cache`() = runTest(main.dispatcher) {
+        var reads = 0
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads++; artworkBytes() }, dispatcher = StandardTestDispatcher(testScheduler)).use { fixture ->
+            coil.Coil.setImageLoader(fixture.loader)
+            try {
+                val uri = "content://fixture/poster"
+                val artwork = ProgramArtwork("fixture.app", listOf(uri), "fiction")
+                val small = PosterSpec.of(320, 180, 64f, 30f)
+                repeat(2) { assertTrue(HeroPosterLoader.load(fixture.context, uri, small, artwork) != null) }
+                assertEquals(1, reads)
+                assertEquals(0, fixture.loader.memoryCache?.size)
+            } finally { coil.Coil.reset() }
+        }
     }
 }

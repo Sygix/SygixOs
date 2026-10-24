@@ -46,20 +46,6 @@ class VisualValidator(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     internal var repository: ArtworkRepository? = null
-    suspend fun prepare(source: ProgramArtwork, width: Int): VisualCheck = prepareWithinBudget(source, width)
-
-    private suspend fun prepareWithinBudget(source: ProgramArtwork, width: Int): VisualCheck {
-        val policy = ArtworkPolicy.Shelf(width)
-        val check = validate(source, policy)
-        val uri = check.visual ?: return check
-        val zoomedWidth = width * VisualQuality.SHELF_ZOOM
-        val size = fr.sygix.sygixos.domain.ImageBounds.screen(zoomedWidth.roundToInt(), (zoomedWidth / fr.sygix.sygixos.core.designsystem.Dimens.ShelfAspectRatio).roundToInt())
-        val result = imageLoader.execute(ImageRequest.Builder(context).data(source.withCandidates(listOf(uri)))
-            .size(size.width, size.height).scale(coil.size.Scale.FILL).precision(coil.size.Precision.INEXACT)
-            .artworkPolicy(policy).build())
-        return if (result is SuccessResult) check else VisualCheck(null, retryable = true)
-    }
-
     suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck {
         repository?.let {
             val (image, failure) = it.resolve(source, policy, visible = false)

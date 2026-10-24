@@ -300,7 +300,7 @@ class HomeRefreshTest {
         override fun newBuilder(): ImageLoader.Builder = error("unused")
     }
 
-    private fun viewModel(programs: HeroContentProvider, apps: AppCatalogRepository, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable?) = main.track(HomeViewModel(
+    private fun viewModel(programs: HeroContentProvider, apps: AppCatalogRepository, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, upNext: fr.sygix.sygixos.domain.UpNextSource? = null, respond: suspend (String, Int) -> Throwable?) = main.track(HomeViewModel(
         apps, HeroRepository(programs, provider { emptyList() }), AppArtworkSource(context.packageManager, main.dispatcher),
         VisualValidator(context, Loader(respond), main.dispatcher).also { it.repository = artworkRepository }, object : ClockSource {
             override fun current() = ""
@@ -311,11 +311,13 @@ class HomeRefreshTest {
             override fun arrange(items: List<HeroItem>) = items
         },
         programClock = programClock,
+        upNextSource = upNext,
+        io = main.dispatcher,
     ))
 
     private suspend fun TestScope.home(programs: HeroContentProvider, programClock: () -> Long = System::currentTimeMillis, artworkRepository: fr.sygix.sygixos.data.ArtworkRepository? = null, respond: suspend (String, Int) -> Throwable? = { _, _ -> broken }): HomeViewModel {
         val apps = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore()), main.dispatcher)
-        val home = viewModel(programs, apps, programClock, artworkRepository, respond)
+        val home = viewModel(programs, apps, programClock, artworkRepository, respond = respond)
         artworkRepository?.let { home.observeArtwork(it.events) }
         apps.refreshApps()
         home.state.await { it is HomeState.Ready }
@@ -358,16 +360,16 @@ class HomeRefreshTest {
         watching.cancel()
     }
 
-    @Test fun theHeroIsRereadOnProviderSignalsAndAfterTheTtlOnlyWhileObserved() = runTest(main.dispatcher) {
+    @Test fun theHeroIsRereadOnProviderSignalsAndAfterTheTtlButOnReturnOnlyWhenSomethingChangedOrTheTtlIsDue() = runTest(main.dispatcher) {
         val signals = MutableSharedFlow<Unit>()
         var loads = 0
         val home = viewModel(object : HeroContentProvider {
             override suspend fun load(): List<HeroItem> { loads++; return listOf(heroItem("a", "A")) }
             override fun changes() = signals.onStart { emit(Unit) }
-        }, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore()), main.dispatcher)) { _, _ -> broken }
+        }, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore()), main.dispatcher), programClock = { testScheduler.currentTime }) { _, _ -> broken }
         advanceTimeBy(HERO_TTL_MS * 2)
         assertEquals(0, loads)
-        val watching = backgroundScope.launch { home.heroUpdates.collect() }
+        var watching = backgroundScope.launch { home.heroUpdates.collect() }
         runCurrent()
         assertEquals(1, loads)
         signals.emit(Unit)
@@ -380,9 +382,69 @@ class HomeRefreshTest {
         runCurrent()
         assertEquals(3, loads)
         watching.cancel()
-        advanceTimeBy(HERO_TTL_MS * 2)
+        advanceTimeBy(HERO_TTL_MS / 2)
+        runCurrent()
+        watching = backgroundScope.launch { home.heroUpdates.collect() }
         runCurrent()
         assertEquals(3, loads)
+        watching.cancel()
+        signals.emit(Unit)
+        signals.emit(Unit)
+        runCurrent()
+        assertEquals(3, loads)
+        watching = backgroundScope.launch { home.heroUpdates.collect() }
+        runCurrent()
+        assertEquals(4, loads)
+        watching.cancel()
+        advanceTimeBy(HERO_TTL_MS)
+        runCurrent()
+        assertEquals(4, loads)
+        watching = backgroundScope.launch { home.heroUpdates.collect() }
+        runCurrent()
+        assertEquals(5, loads)
+        watching.cancel()
+    }
+
+    @Test fun aReturnWithoutChangeReadsNothingWhileAChangeDuringTheStopIsReadOncePerZone() = runTest(main.dispatcher) {
+        val previews = MutableSharedFlow<Unit>()
+        val watchNext = MutableSharedFlow<Unit>()
+        var heroReads = 0
+        var upNextReads = 0
+        val upNext = object : fr.sygix.sygixos.domain.UpNextSource {
+            override suspend fun load(): Result<List<fr.sygix.sygixos.model.UpNextItem>> { upNextReads++; return Result.success(emptyList()) }
+            override fun changes() = watchNext.onStart { emit(Unit) }
+        }
+        val home = viewModel(object : HeroContentProvider {
+            override suspend fun load(): List<HeroItem> { heroReads++; return listOf(heroItem("a", "A")) }
+            override fun changes() = kotlinx.coroutines.flow.merge(previews, watchNext).onStart { emit(Unit) }
+        }, AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(testDataStore()), main.dispatcher), programClock = { testScheduler.currentTime }, upNext = upNext) { _, _ -> broken }
+        fun start() = listOf(backgroundScope.launch { home.heroUpdates.collect() }, backgroundScope.launch { home.upNextUpdates.collect() })
+        fun stop(observers: List<kotlinx.coroutines.Job>) { observers.forEach { it.cancel() }; home.onBackground() }
+        var observers = start()
+        runCurrent()
+        assertEquals(1 to 1, heroReads to upNextReads)
+        watchNext.emit(Unit)
+        runCurrent()
+        assertEquals(2 to 2, heroReads to upNextReads)
+        previews.emit(Unit)
+        runCurrent()
+        assertEquals(3 to 2, heroReads to upNextReads)
+        stop(observers)
+        advanceTimeBy(60_000)
+        home.onForeground()
+        observers = start()
+        runCurrent()
+        assertEquals(3 to 2, heroReads to upNextReads)
+        stop(observers)
+        watchNext.emit(Unit)
+        watchNext.emit(Unit)
+        runCurrent()
+        assertEquals(3 to 2, heroReads to upNextReads)
+        home.onForeground()
+        observers = start()
+        runCurrent()
+        assertEquals(4 to 3, heroReads to upNextReads)
+        stop(observers)
     }
 
     @Test fun unpublishedProgramsLeaveTheHeroAndItsValidatedSetsWhileModifiedOnesAreUpdated() = runTest(main.dispatcher) {
@@ -464,6 +526,15 @@ class HomeRefreshTest {
         home.prepareShelf("com.a")
         assertTrue(uri in home.hero()?.checked.orEmpty())
         assertEquals(2, attempts[uri])
+    }
+
+    @Test fun shelfValidationChecksTheHeaderWithoutDecodingAtThePanelSize() = runTest(main.dispatcher) {
+        val uri = "https://example.invalid/a.jpg"
+        val home = home(provider { shelfFeed(heroItem("a", "A", imageUrl = uri, sourcePackage = "com.a")) }) { _, _ -> null }
+        home.awaitHeroChecked()
+        home.prepareShelf("com.a")
+        home.state.await { (it as? HomeState.Ready)?.hero?.shelfValidated?.contains(uri) == true }
+        assertEquals(1, attempts[uri])
     }
 
     @Test fun theShelfOfTheFocusedAppFollowsTheRepublishedPrograms() = runTest(main.dispatcher) {

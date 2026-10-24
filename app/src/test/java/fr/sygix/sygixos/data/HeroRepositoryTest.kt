@@ -69,10 +69,10 @@ class HeroRepositoryTest {
     }
 
     @Test
-    fun `nature fallback exposes only https landscape clips`() = runBlocking {
+    fun `nature fallback exposes only https landscape clips at the screen size`() = runBlocking {
         val clips = NatureFallbackProvider().load()
-        assertTrue(clips.isNotEmpty())
-        assertTrue(clips.all { it.videoUrl!!.startsWith("https://") && it.videoUrl.contains("2560_1440") })
+        assertEquals(11, clips.size)
+        assertTrue(clips.all { it.videoUrl!!.startsWith("https://") && it.videoUrl.contains("1920_1080") && !it.videoUrl.contains("2560") })
         assertTrue(clips.all { it.title.isEmpty() && it.imageUrl == null })
     }
 }

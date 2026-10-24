@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -20,6 +21,7 @@ import fr.sygix.sygixos.domain.VisualQuality
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -152,10 +154,16 @@ internal class HeroPlayer(
         exo = null
     }
 
-    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    private fun create(factory: DataSource.Factory): ExoPlayer = ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(factory)).build().apply {
-        volume = 0f
+    private fun create(factory: DataSource.Factory): ExoPlayer = mutedPlayer(context, factory).apply {
         addListener(listener)
         view?.let(::setVideoTextureView)
     }
+}
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+internal fun mutedPlayer(context: Context, factory: DataSource.Factory): ExoPlayer {
+    val tracks = DefaultTrackSelector(context).apply {
+        parameters = buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, true).build()
+    }
+    return ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(factory)).setTrackSelector(tracks).build()
 }

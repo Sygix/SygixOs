@@ -30,7 +30,9 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import android.graphics.drawable.Drawable
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -208,8 +210,7 @@ internal fun UpNextCard(
             onDrawBehind { drawRect(scrim) }
         })
         item.source.icon?.let { icon ->
-            val bitmap = remember(icon) { icon.toBitmap().asImageBitmap() }
-            Image(bitmap, null, Modifier.align(Alignment.TopEnd).padding(Dimens.UpNextBadgeInset).size(Dimens.HeroSourceIcon).clip(RoundedCornerShape(Dimens.UpNextBadgeCorner)).testTag("upnext-card-badge-${item.key}"))
+            Image(rememberIconBitmap(icon, Dimens.HeroSourceIcon), null, Modifier.align(Alignment.TopEnd).padding(Dimens.UpNextBadgeInset).size(Dimens.HeroSourceIcon).clip(RoundedCornerShape(Dimens.UpNextBadgeCorner)).testTag("upnext-card-badge-${item.key}"))
         }
         val progress = UpNextCardText.progress(item)
         Column(
@@ -287,4 +288,10 @@ internal fun UpNextGlyph(retry: Boolean, color: Color, modifier: Modifier) {
             drawPath(hills, color, style = stroke)
         }
     }
+}
+
+@Composable
+internal fun rememberIconBitmap(icon: Drawable, size: Dp): ImageBitmap {
+    val pixels = with(LocalDensity.current) { size.roundToPx() }
+    return remember(icon, pixels) { icon.toBitmap(pixels, pixels).asImageBitmap() }
 }

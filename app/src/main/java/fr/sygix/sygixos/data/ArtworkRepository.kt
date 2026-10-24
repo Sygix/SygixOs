@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,7 @@ internal class ArtworkRepository(
     private val mutableEvents = MutableSharedFlow<ArtworkEvent>(extraBufferCapacity = 128)
     val events = mutableEvents.asSharedFlow()
     private var timer: Job? = null
+    private val scheduleRequests = Channel<Unit>(Channel.CONFLATED)
     var imageLoader: (() -> coil.ImageLoader)? = null
     private val initialized = scope.async {
         val name = database.openHelper.databaseName
@@ -84,12 +86,25 @@ internal class ArtworkRepository(
         purge()
     }
 
+    init {
+        scope.launch {
+            initialized.await()
+            for (request in scheduleRequests) {
+                delay(SCHEDULE_DEBOUNCE_MS)
+                scheduleRequests.tryReceive()
+                try { reschedule() } catch (cancelled: CancellationException) { throw cancelled } catch (error: Exception) {
+                    android.util.Log.w("ProgramArtwork", "cause=schedule-failed", error)
+                }
+            }
+        }
+    }
+
     @Synchronized fun signal(identity: String): MutableStateFlow<ArtworkEvent?> = signals.getOrPut(identity) { MutableStateFlow(null) }
 
     @Synchronized fun watch(source: ProgramArtwork, policy: ArtworkPolicy): Closeable {
         watched[source.identity] = source to policy
         consumers[source.identity] = (consumers[source.identity] ?: 0) + 1
-        scope.launch { initialized.await(); schedule() }
+        schedule()
         return Closeable { synchronized(this) {
             val count = (consumers[source.identity] ?: 1) - 1
             if (count == 0) { consumers.remove(source.identity); watched.remove(source.identity); refreshes.remove(source.identity)?.cancel() } else consumers[source.identity] = count
@@ -268,7 +283,11 @@ internal class ArtworkRepository(
         refreshes[source.identity] = scope.launch { fetch(source, uri, true) }
     }
 
-    private suspend fun schedule() {
+    private fun schedule() {
+        scheduleRequests.trySend(Unit)
+    }
+
+    private suspend fun reschedule() {
         val now = clock()
         val uris = synchronized(this) { watched.values.flatMap { it.first.candidates.flatMap(::visualCandidates) }.toSet() }
         val images = dao.images().filter { it.uri in uris }
@@ -316,11 +335,9 @@ internal class ArtworkRepository(
     private suspend fun purge() {
         dao.expirePrograms(clock())
         dao.removeOrphanAssociations()
-        dao.images().forEach { image ->
-            if (image.fetchedAt > 0 && !ArtworkAge.usable(image.fetchedAt, clock()) || dao.associations(image.id).isEmpty() && image.retryAt <= clock()) {
-                dao.deleteImage(image.id)
-                disk.remove(image.diskKey)
-            }
+        dao.purgeable(clock(), ArtworkAge.RETAIN_MS).forEach { image ->
+            dao.deleteImage(image.id)
+            disk.remove(image.diskKey)
         }
     }
 
@@ -329,7 +346,10 @@ internal class ArtworkRepository(
         scope.cancel()
         scheduler.close()
     }
-    companion object { const val GENERIC_RETRY_MS = 60 * 60_000L }
+    companion object {
+        const val GENERIC_RETRY_MS = 60 * 60_000L
+        const val SCHEDULE_DEBOUNCE_MS = 250L
+    }
 }
 
 internal fun fingerprint(source: ProgramArtwork) = artworkHash(source.identity)

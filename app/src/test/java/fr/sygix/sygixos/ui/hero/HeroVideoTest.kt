@@ -23,6 +23,10 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.test.performKeyInput
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -96,7 +100,8 @@ internal class FakeVideo : HeroVideo {
         }
     }
 
-    override fun attach(textureView: TextureView) = Unit
+    var view: TextureView? = null
+    override fun attach(textureView: TextureView) { view = textureView }
     override fun release() {
         releases++
         loadedItem = null
@@ -334,5 +339,59 @@ class HeroVideoTest {
         advance(Motion.HERO_CROSSFADE_MS + 100L)
         compose.onNodeWithText(slow.title, useUnmergedTree = true).assertExists()
         assertTrue(video.playing)
+    }
+
+    @Test
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    fun `the hero player selects no audio track`() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<Context>()
+        val player = mutedPlayer(context, androidx.media3.datasource.DefaultDataSource.Factory(context))
+        try {
+            val parameters = (player.trackSelector as androidx.media3.exoplayer.trackselection.DefaultTrackSelector).parameters
+            assertTrue(androidx.media3.common.C.TRACK_TYPE_AUDIO in parameters.disabledTrackTypes)
+            assertFalse(androidx.media3.common.C.TRACK_TYPE_VIDEO in parameters.disabledTrackTypes)
+        } finally {
+            player.release()
+        }
+    }
+
+    @Test
+    @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+    fun `once the video frame is shown and faded in, the gradient is not drawn under it and the video surface is opaque`() {
+        Coil.setImageLoader(ReadyLoader())
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, _ -> video },
+                LocalLifecycleOwner provides owner,
+            ) {
+                androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color.Red)) {
+                    HeroStage(
+                        items = listOf(clip("v1", "Clip")),
+                        validatedVisuals = emptySet(),
+                        active = true,
+                        visible = true,
+                        focusRequester = FocusRequester(),
+                        onOpen = {},
+                    )
+                }
+            }
+        }
+        advance(500)
+        assertEquals("v1", video.loadedItem)
+        fun underVideo(): Int {
+            val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+            val density = compose.density.density
+            return bitmap.getPixel((768 * density).toInt(), (170 * density).toInt())
+        }
+        assertTrue(underVideo() != Color.RED)
+        assertFalse(video.view!!.isOpaque)
+        compose.runOnIdle { video.render("v1") }
+        advance(Motion.HERO_VIDEO_FADE_MS / 2L)
+        assertTrue(underVideo() != Color.RED)
+        assertFalse(video.view!!.isOpaque)
+        advance(Motion.HERO_VIDEO_FADE_MS * 2L)
+        assertTrue(video.view!!.isOpaque)
+        assertEquals(Color.RED, underVideo())
     }
 }

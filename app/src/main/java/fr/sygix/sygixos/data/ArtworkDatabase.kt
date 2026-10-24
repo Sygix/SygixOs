@@ -80,6 +80,8 @@ internal abstract class ArtworkDao {
     @Query("DELETE FROM tv_programs WHERE expiresAt<=:now") abstract suspend fun expirePrograms(now: Long)
     @Query("DELETE FROM program_image_links WHERE identity NOT IN (SELECT imageFingerprint FROM tv_programs) AND (sharedIdentity IS NULL OR sharedIdentity NOT IN (SELECT sharedIdentity FROM tv_programs WHERE sharedIdentity IS NOT NULL))")
     abstract suspend fun removeOrphanAssociations()
+    @Query("SELECT * FROM program_images WHERE (fetchedAt > 0 AND (:now < fetchedAt OR :now - fetchedAt >= :retainMs)) OR (retryAt <= :now AND NOT EXISTS (SELECT 1 FROM program_image_links WHERE imageId = program_images.id))")
+    abstract suspend fun purgeable(now: Long, retainMs: Long): List<ArtworkImage>
     @Query("DELETE FROM program_images WHERE id=:id") abstract suspend fun deleteImage(id: String)
     @Transaction open suspend fun confirm(table: String, values: List<Pair<ArtworkProgram, List<ArtworkCandidate>>>) {
         removeAbsent(table, values.map { it.first.providerId })
