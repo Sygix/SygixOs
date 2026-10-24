@@ -10,19 +10,21 @@ import java.text.Normalizer
 import java.util.Locale
 
 object PlaybackAppOrder {
-    fun sort(apps: List<PlaybackApp>, publishers: Set<String>, offers: List<PlaybackOffer>): List<PlaybackApp> {
+    fun sort(apps: List<PlaybackApp>, publishers: Set<String>, offers: List<PlaybackOffer>, includeAll: Boolean = true): List<PlaybackApp> {
         val confirmed = offers.filter { it.confirmedCountry != null }.mapNotNull { normalize(it.name) }
         val mentioned = offers.filter { it.confirmedCountry == null }.mapNotNull { normalize(it.name) }
         val collator = Collator.getInstance(Locale.FRENCH)
-        return apps.sortedWith(compareBy<PlaybackApp> { app ->
+        fun rank(app: PlaybackApp): Int {
             val label = normalize(app.label)
-            when {
+            return when {
                 app.packageName in publishers -> 0
                 confirmed.any { matches(label, it) } -> 1
                 mentioned.any { matches(label, it) } -> 2
                 else -> 3
             }
-        }.thenBy(collator) { it.label })
+        }
+        return apps.map { it to rank(it) }.filter { (app, rank) -> includeAll || app.video || rank < 3 }
+            .sortedWith(compareBy<Pair<PlaybackApp, Int>> { it.second }.thenBy(collator) { it.first.label }).map { it.first }
     }
 
     private fun matches(label: String?, offer: String): Boolean =

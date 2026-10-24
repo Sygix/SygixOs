@@ -67,8 +67,9 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
                 player.copy(request = player.request.copy(content = content.copy(offers = BetaSeriesOffers.confirm(content.offers, region?.takeIf { it.country == value.country }))))
             }
             value.copy(player = player, playerApps = player?.let { selection ->
-                PlaybackAppOrder.sort(selection.apps.filter { selection.otherApps || it.video },
-                    selection.request.targets.map { it.packageName }.toSet() + runtime.enrichment.publishers(selection.request.content.parent), selection.request.content.offers)
+                PlaybackAppOrder.sort(selection.apps,
+                    selection.request.targets.map { it.packageName }.toSet() + runtime.enrichment.publishers(selection.request.content.parent), selection.request.content.offers,
+                    includeAll = selection.otherApps)
             }.orEmpty())
         }
         .stateIn(viewModelScope, SharingStarted.Eagerly, TrackingUiState(countryProposed = countryProposed))

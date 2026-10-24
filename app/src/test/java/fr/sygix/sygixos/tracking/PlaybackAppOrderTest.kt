@@ -25,6 +25,20 @@ class PlaybackAppOrderTest {
             PlaybackAppOrder.sort(apps, setOf("org.jellyfin.androidtv"), offers).map { it.packageName })
     }
 
+    @Test fun mentionedServicesAndPublishersAreOfferedEvenWithoutTheVideoCategory() {
+        val installed = listOf(
+            PlaybackApp("fixture.francetv", "france.tv", true),
+            PlaybackApp("fixture.netflix", "Netflix", false),
+            PlaybackApp("fixture.prime", "Prime Video", false),
+            PlaybackApp("fixture.publisher", "Médiathèque", false),
+            PlaybackApp("fixture.music", "Spotify", false),
+        )
+        val offers = listOf(PlaybackOffer("1", "Netflix"), PlaybackOffer("2", "Amazon Prime Video"))
+        assertEquals(listOf("fixture.publisher", "fixture.netflix", "fixture.prime", "fixture.francetv"),
+            PlaybackAppOrder.sort(installed, setOf("fixture.publisher"), offers, includeAll = false).map { it.packageName })
+        assertEquals(5, PlaybackAppOrder.sort(installed, emptySet(), offers, includeAll = true).size)
+    }
+
     @Test fun withoutPublisherOrOfferTheOrderIsAlphabetical() {
         assertEquals(listOf("Disney+", "france.tv", "Jellyfin", "Netflix", "Nova", "Play Films", "Prime Video"),
             PlaybackAppOrder.sort(apps.reversed(), emptySet(), emptyList()).map { it.label })
