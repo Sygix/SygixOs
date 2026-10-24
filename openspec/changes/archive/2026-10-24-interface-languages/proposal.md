@@ -27,7 +27,7 @@ Dépendances : aucune ; `tv-resource-budget` (ouvert) ne touche pas les mêmes e
 ## Non-goals
 - Pas d'autre langue pour l'instant (portugais, néerlandais, langues non latines, écriture de droite à gauche) : une langue s'ajoute plus tard avec ses ressources et une entrée dans la liste.
 - Pas de changement de la langue du système ni des autres applications (il faudrait un accès privilégié).
-- Tsuyu reste en français : ses boutons cités dans le parcours gardent leur libellé français, suivi de leur sens.
+- La traduction de Tsuyu se fait dans son propre dépôt : les boutons de Tsuyu cités par le parcours sont déjà traduits ici, avec les libellés que Tsuyu reprendra.
 - Les données externes (titres, résumés, services BetaSeries) restent dans la langue de leur source.
 
 ## Questions ouvertes

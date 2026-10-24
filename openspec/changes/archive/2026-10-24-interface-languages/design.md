@@ -40,7 +40,7 @@ Elles ont été traduites depuis le français par langue, puis relues avec un gl
 - les libellés exacts d'Android pour les écrans système cités ;
 - le tutoiement là où Google et Apple le pratiquent (de, es, it).
 
-Tsuyu n'est qu'en français : ses boutons cités gardent leur libellé, suivi de leur sens.
+Tsuyu sera traduit dans les mêmes langues : ses boutons cités sont traduits directement (Start / Turn on Tsuyu / Allow / Deny ; Starten / Tsuyu aktivieren / Zulassen / Ablehnen ; Iniciar / Activar Tsuyu / Permitir / Rechazar ; Avvia / Attiva Tsuyu / Consenti / Rifiuta), libellés que Tsuyu reprendra.
 
 ## Risks / Trade-offs
 - [Le libellé d'un écran Android varie selon le constructeur] → On reprend les libellés AOSP ; ces textes indiquent déjà que le nom peut varier.

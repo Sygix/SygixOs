@@ -67,8 +67,8 @@ Tous les textes de SygixOs SHALL s'afficher dans la langue de l'interface : fran
 - **THEN** les dates courtes, l'heure, les noms de pays et leur ordre alphabétique suivent cette langue
 
 #### Scenario: écrans d'une autre application
-- **WHEN** un texte décrit un bouton d'une application non traduite, comme Tsuyu
-- **THEN** il cite le libellé tel que cette application l'affiche, suivi de son sens dans la langue de l'interface ; les écrans Android cités reprennent les libellés d'Android dans cette langue
+- **WHEN** un texte décrit un bouton d'Android ou de Tsuyu
+- **THEN** il cite le libellé de ce bouton dans la langue de l'interface : celui d'Android pour ses écrans, celui que Tsuyu affiche dans cette langue pour Tsuyu
 
 ### Requirement: Catégorie « Langue »
 La catégorie « Langue » SHALL afficher l'en-tête des autres catégories (titre « Langue », description « Choisissez la langue de SygixOs. Par défaut, il suit la langue de la TV. ») puis une ligne « Langue de la TV » et une ligne par langue, nommée dans sa propre langue (Deutsch, English, Español, Français, Italiano). La ligne retenue SHALL porter une coche ; les lignes SHALL garder la forme et le focus des lignes de réglages.

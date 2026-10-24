@@ -8,7 +8,7 @@
 ## 2. Catalogues de langues
 
 - [x] 2.1 Déplacer le français dans `values-fr/`, écrire l'anglais dans `values/`, déclarer `unqualifiedResLocale=en`, `generateLocaleConfig` et `localeFilters` ; vérifié par `assembleRelease` et le `localeConfig` présent dans le manifeste fusionné
-- [x] 2.2 Traduire en allemand, espagnol et italien (glossaire commun, libellés Android exacts, boutons de Tsuyu en français) et relire les quatre langues ; vérifié par `TranslationCatalogTest`
+- [x] 2.2 Traduire en allemand, espagnol et italien (glossaire commun, libellés Android exacts, boutons de Tsuyu traduits) et relire les quatre langues ; vérifié par `TranslationCatalogTest`
 - [x] 2.3 Fixer la langue française des tests Robolectric (`fr-w960dp-h540dp-xhdpi`, `qualifiers=fr`) et mettre à jour la règle de `openspec/config.yaml` ; vérifié par `./gradlew test`
 
 ## 3. Réglage de langue
@@ -21,7 +21,7 @@
 ## 4. Validation
 
 - [x] 4.1 `openspec validate --all --strict` et `./gradlew test` passent
-- [ ] 4.2 Sur la TV réelle en `assembleRelease` : langue de la TV suivie par défaut, choix de chaque langue avec retour du focus sur la ligne choisie, retour à « Langue de la TV », choix conservé après redémarrage de l'application, textes sans débordement dans les cinq langues, langue d'Android inchangée
+- [x] 4.2 Non faite, à la décision du propriétaire (release sans validation TV) — sur la TV réelle en `assembleRelease` : langue de la TV suivie par défaut, choix de chaque langue avec retour du focus sur la ligne choisie, retour à « Langue de la TV », choix conservé après redémarrage de l'application, textes sans débordement dans les cinq langues, langue d'Android inchangée
 
 ## Workflow follow-up
 

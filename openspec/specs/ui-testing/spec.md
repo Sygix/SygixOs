@@ -12,7 +12,7 @@ La suite UI SHALL tester l'écran home par assertions sémantiques (Robolectric 
 - **WHEN** la suite UI s'exécute
 - **THEN** tous les tests tournent sur JVM via Robolectric, sans émulateur ni génération de PNG, et font partie de la task `test` standard
 
-**Détails.** — Taille des tests TV : Les tests Compose désignés à taille TV dans cette capability SHALL utiliser `@Config(qualifiers = "w960dp-h540dp-xhdpi")`, jamais la taille Robolectric par défaut. Cas « configuration des tests Compose » : quand un scénario de cette capability demande un test à taille TV, ses dimensions et sa densité sont celles du qualifier, y compris pour le démarrage, les mises à jour et la configuration automatique.
+**Détails.** — Taille des tests TV : Les tests Compose désignés à taille TV dans cette capability SHALL utiliser `@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")`, jamais la taille Robolectric par défaut ; les autres tests Robolectric tournent aussi en français, langue des textes cités par les specs. Cas « configuration des tests Compose » : quand un scénario de cette capability demande un test à taille TV, ses dimensions et sa densité sont celles du qualifier, y compris pour le démarrage, les mises à jour et la configuration automatique.
 
 ### Requirement: Sélecteurs stables
 Les zones, tuiles et contrôles SHALL exposer des testTags stables, sans dépendre de leur texte, position ou d'une donnée personnelle. Les contrôles du suivi SHALL ajouter leurs sélecteurs aux sélecteurs existants, sans renommer les éléments locaux.
@@ -196,7 +196,7 @@ Les composables de l'écran home SHALL pouvoir être composés dans un test avec
 - **THEN** le catalogue et le HeroState (programmes, visuels validés/contrôlés) sont fournis par paramètres sans requête au TV Provider, et le rendu des tuiles ne dépend pas du PackageManager (artwork déterministe ou absent)
 
 ### Requirement: Couverture de la transition héro ↔ grille
-La transition en défilement entre le héro et la grille SHALL être couverte par des tests Compose exécutés à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), par assertions sémantiques et de position, avec les key events physiques du D-pad.
+La transition en défilement entre le héro et la grille SHALL être couverte par des tests Compose exécutés à la taille d'une TV (`@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")`), par assertions sémantiques et de position, avec les key events physiques du D-pad.
 
 #### Scenario: descente vers la grille
 - **WHEN** le test presse bas depuis le dock (ou depuis le héro avec un dock vide) et laisse l'animation se terminer
@@ -239,7 +239,7 @@ La transition en défilement entre le héro et la grille SHALL être couverte pa
 - **THEN** ils passent inchangés dans leurs assertions de focus ; toute assertion fondée sur l'alpha des couches est remplacée par une assertion de position
 
 ### Requirement: Couverture du volet Applications cachées
-Le volet « Applications cachées » SHALL être couvert par des tests Compose TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`), données déterministes et testTags stables pour le volet, « Tout réactiver », chaque app, chaque contenu retiré, les lignes « Afficher les N autres » et l'état vide.
+Le volet « Applications cachées » SHALL être couvert par des tests Compose TV (`@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")`), données déterministes et testTags stables pour le volet, « Tout réactiver », chaque app, chaque contenu retiré, les lignes « Afficher les N autres » et l'état vide.
 
 #### Scenario: liste dans le volet
 - **WHEN** la catégorie « Applications cachées » est sélectionnée avec des apps cachées
@@ -296,7 +296,7 @@ Le volet « Applications cachées » SHALL être couvert par des tests Compose T
 **Détails.** — Sélecteurs des éléments cachés : Les tags SHALL être « hidden-pane », « unhide-all », « hidden-row-<package> », « hidden-switch-<package> », « hidden-empty », « hidden-group-upnext » pour l'intertitre, « hidden-content-row-<clé> », « hidden-content-action-<clé> » (clé sérialisée), « hidden-show-more-apps », « hidden-show-more-upnext ». Cas « volet déterministe » : quand les tests de « Couverture du volet Applications cachées » ciblent un élément, ces sélecteurs stables identifient les lignes, groupes et actions indépendamment de leur texte ou position.
 
 ### Requirement: Couverture du style tvOS
-Le style tvOS accueil/menu/réglages SHALL être testé à taille TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) par assertions sémantiques, positions et couleurs calculées, sans captures, avec des testTags stables pour la capsule, le héro, le dock, les tuiles, le menu et les lignes de réglages.
+Le style tvOS accueil/menu/réglages SHALL être testé à taille TV (`@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")`) par assertions sémantiques, positions et couleurs calculées, sans captures, avec des testTags stables pour la capsule, le héro, le dock, les tuiles, le menu et les lignes de réglages.
 
 #### Scenario: tuile focusée sans débordement
 - **WHEN** une tuile de la grille, puis une tuile du dock prend le focus et l'animation se termine
@@ -524,7 +524,7 @@ Le rendu héro/verre de launcher-shell SHALL tester en JVM tailles de décodage,
 - **THEN** pendant tout le fondu, le bas de chaque bloc « hero-metadata » et la position de « hero-open » ne changent pas ; à la fin, seul le nouveau bloc reste
 
 ### Requirement: Couverture des infos du héro
-Les infos du programme dans le héro (« Diaporama héro » de `launcher-shell`) SHALL être couvertes par des tests JUnit (choix du libellé de l'en-tête, éléments de la ligne d'infos, arrondis de la durée et du temps restant, lecture des colonnes du TV Provider) et par des tests Compose à la taille d'une TV (`@Config(qualifiers = "w960dp-h540dp-xhdpi")`) avec une source d'icônes de test, sans capture d'image et avec des titres fictifs uniquement.
+Les infos du programme dans le héro (« Diaporama héro » de `launcher-shell`) SHALL être couvertes par des tests JUnit (choix du libellé de l'en-tête, éléments de la ligne d'infos, arrondis de la durée et du temps restant, lecture des colonnes du TV Provider) et par des tests Compose à la taille d'une TV (`@Config(qualifiers = "fr-w960dp-h540dp-xhdpi")`) avec une source d'icônes de test, sans capture d'image et avec des titres fictifs uniquement.
 
 #### Scenario: types de programme
 - **WHEN** le héro affiche un programme `CONTINUE`, `NEXT`, `NEW`, `WATCHLIST`, un preview program et un watch next sans type
@@ -878,3 +878,18 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 #### Scenario: ajout au compte depuis une carte locale
 - **WHEN** le test ouvre le menu d'un contenu local identifié absent du compte connecté, puis répète sans compte, avec identité ambiguë et avec appartenance inconnue
 - **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement utilise le parcours commun, avec confirmation du premier lecteur si aucune préférence n'existe ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive
+
+### Requirement: Couverture des langues
+Les langues de l'interface SHALL être couvertes par la task `test` : tests JUnit de la résolution de la langue (langue de la TV, liste de plusieurs langues, repli sur l'anglais, choix explicite), test de complétude qui échoue si une langue manque d'un texte ou n'a pas les mêmes paramètres que l'anglais, et tests Compose TV de la catégorie « Langue ».
+
+#### Scenario: résolution
+- **WHEN** la suite JUnit s'exécute
+- **THEN** une langue de la TV non traduite donne l'anglais, une liste qui contient une langue traduite donne la première traduite, et un choix explicite l'emporte sur la TV
+
+#### Scenario: complétude des traductions
+- **WHEN** un texte est ajouté à l'anglais sans être traduit dans une autre langue, ou traduit avec d'autres paramètres
+- **THEN** le test de complétude échoue en nommant le texte et la langue
+
+#### Scenario: catégorie « Langue »
+- **WHEN** les tests Compose TV parcourent la catégorie « Langue »
+- **THEN** ils vérifient l'ordre des lignes, la coche, le focus initial sur la ligne retenue, les bords sans boucle, gauche vers la catégorie, l'application d'un choix une seule fois et le texte de la langue de la TV non traduite
