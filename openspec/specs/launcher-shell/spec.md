@@ -297,7 +297,7 @@ Le héro SHALL conserver les programmes watch next et preview encore publiés de
 
 #### Scenario: rafraîchissement automatique
 - **WHEN** un changement du TV Provider est signalé au premier plan ou que sa relecture périodique est due
-- **THEN** le provider est relu au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; le retour déclenche une relecture et le compte suit sa propre source partagée
+- **THEN** le provider est relu au plus tard toutes les 15 minutes au premier plan, jamais en arrière-plan ; le retour ne déclenche une relecture que si un changement a été signalé pendant l'arrêt ou si la relecture périodique est due (« Préchargement et mémoire », scénario « relecture au retour au premier plan ») ; le compte suit sa propre source partagée
 
 #### Scenario: programme retiré
 - **WHEN** une app retire un programme
@@ -390,7 +390,11 @@ Le panneau SHALL n'afficher que des visuels validés, chargés et non expirés d
 
 #### Scenario: contenu disponible
 - **WHEN** l'app focusée a des visuels validés (preview programs / watch next)
-- **THEN** chaque affiche apparaît en fondu (300-400ms easing Apple) une fois chargée, puis défile lentement une seule fois (Ken Burns, un seul passage) et reste ensuite immobile sur sa dernière position ; le défilement repart du début à chaque nouvelle affiche
+- **THEN** chaque affiche apparaît en fondu (300-400ms easing Apple) une fois chargée, puis défile lentement une seule fois (Ken Burns, un seul passage) et reste ensuite immobile sur sa dernière position ; le défilement repart du début à chaque nouvelle affiche ; il n'a lieu que si « Mouvement des visuels » est activé et que les animations du système ne sont pas coupées
+
+#### Scenario: mouvement des visuels désactivé
+- **WHEN** « Mouvement des visuels » est désactivé ou que l'échelle d'animation du système est à 0
+- **THEN** chaque affiche apparaît en fondu puis reste immobile, cadrée comme au début du défilement ; le changement d'affiche et son fondu sont inchangés, et entre deux affiches le panneau ne redessine aucune image
 
 #### Scenario: pas de contenu
 - **WHEN** l'app focusée n'a aucun visuel validé
@@ -440,7 +444,11 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
-- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple : le nouveau visuel apparaît par-dessus l'ancien, sans assombrissement intermédiaire), le visuel courant zoome lentement une seule fois (Ken Burns, un seul passage d'environ 10 s, achevé avant le changement de visuel : au moins 2 s d'image immobile par cycle) puis reste immobile sur sa dernière position, le zoom repartant du début à chaque nouveau visuel, sans son, sans aperçu de l'élément suivant
+- **THEN** le héro passe au programme suivant toutes les 12 s environ par fondu croisé (1,4 s, easing Apple : le nouveau visuel apparaît par-dessus l'ancien, sans assombrissement intermédiaire), le visuel courant zoome lentement une seule fois (Ken Burns, un seul passage d'environ 10 s, achevé avant le changement de visuel : au moins 2 s d'image immobile par cycle) puis reste immobile sur sa dernière position, le zoom repartant du début à chaque nouveau visuel, sans son, sans aperçu de l'élément suivant ; le zoom n'a lieu que si « Mouvement des visuels » est activé et que les animations du système ne sont pas coupées
+
+#### Scenario: mouvement des visuels désactivé
+- **WHEN** « Mouvement des visuels » est désactivé ou que l'échelle d'animation du système est à 0
+- **THEN** chaque visuel du héro est affiché immobile à sa taille d'origine, sans Ken Burns ; le fondu croisé de 1,4 s, le défilement toutes les 12 s environ, les textes et les vidéos d'aperçu sont inchangés, et entre deux changements de programme aucune image n'est redessinée tant qu'aucune vidéo ne joue
 
 #### Scenario: navigation manuelle
 - **WHEN** l'utilisateur presse gauche/droite sur le héro
@@ -610,7 +618,7 @@ Le launcher SHALL borner la validation : premiers visuels du héro au chargement
 
 #### Scenario: écran au repos
 - **WHEN** aucune touche n'est pressée et aucune transition n'est en cours
-- **THEN** seules les animations spécifiées encore visibles redessinent l'écran (vidéo d'aperçu, passage unique du dégradé animé du repli, passage unique du Ken Burns d'un nouveau visuel du héro ou du panneau Top Shelf, changement de visuel du défilement automatique) ; une fois ces passages terminés, l'image est immobile ; aucune animation d'un élément hors écran ne tourne, et une animation continue ne provoque aucune recomposition à chaque image ; les contrôles d'expiration se déclenchent aux échéances utiles, pas par frame
+- **THEN** seules les animations spécifiées encore visibles redessinent l'écran (vidéo d'aperçu, passage unique du dégradé animé du repli, passage unique du Ken Burns d'un nouveau visuel du héro ou du panneau Top Shelf, changement de visuel du défilement automatique) ; une fois ces passages terminés, l'image est immobile ; aucune animation d'un élément hors écran ne tourne, et une animation continue ne provoque aucune recomposition à chaque image ; les contrôles d'expiration se déclenchent aux échéances utiles, pas par frame ; avec « Mouvement des visuels » désactivé, un visuel fixe du héro ou du panneau ne redessine rien entre deux changements de visuel ; le verre du dock et de la capsule suit le fondu de son visuel mais n'est pas redessiné par le zoom
 
 #### Scenario: taille de décodage
 - **WHEN** un visuel du héro, une affiche du panneau Top Shelf ou une bannière d'app est décodé, même publié en 3840 × 2160
@@ -619,6 +627,26 @@ Le launcher SHALL borner la validation : premiers visuels du héro au chargement
 #### Scenario: une passe par image
 - **WHEN** le héro affiche le visuel d'un programme, au repos, pendant le Ken Burns ou un fondu
 - **THEN** les voiles du bas et de la gauche sont intégrés au visuel décodé et le voile du coin haut droit est dessiné seul sur sa petite zone ; ni fond de fenêtre, ni fond noir, ni dégradé du repli, ni voile n'est dessiné sous un visuel opaque, et aucun fondu ne passe par un calque plein écran hors écran
+
+#### Scenario: affiches du héro hors cache mémoire
+- **WHEN** une affiche du héro est préparée puis affichée
+- **THEN** elle est lue depuis le cache disque partagé et n'est pas conservée dans le cache mémoire des images ; seuls les calques affichés par le héro la retiennent, et un retour à un programme déjà vu la relit depuis le disque
+
+#### Scenario: relecture au retour au premier plan
+- **WHEN** le launcher revient au premier plan
+- **THEN** les programmes du héro et d'À suivre ne sont relus que si le TV Provider a signalé un changement pendant l'arrêt ou si le délai de relecture du héro est échu ; un même changement ne provoque qu'une lecture d'À suivre ; les compteurs de programmes des réglages ne sont lus que réglages ouverts ; les échéances des images et programmes restent contrôlées comme en « retour au premier plan après libération »
+
+#### Scenario: aperçu sans audio
+- **WHEN** une vidéo d'aperçu ou une vidéo nature joue dans le héro
+- **THEN** aucune piste audio n'est décodée et aucune sortie audio n'est ouverte par le launcher
+
+#### Scenario: vidéo nature à la taille de l'écran
+- **WHEN** le héro joue une vidéo nature
+- **THEN** la version lue est en 1920 × 1080 au plus ; sous une vidéo dont la première image est rendue et le fondu terminé, le dégradé de repli n'est plus dessiné et la vidéo est composée sans transparence
+
+#### Scenario: affiches du panneau décodées une à une
+- **WHEN** les affiches candidates d'une app sont validées au focus posé
+- **THEN** elles sont vérifiées par leur en-tête sans être décodées à la taille du panneau ; seule l'affiche affichée, puis la suivante au changement, est décodée à la taille du panneau ; un focus qui traverse une tuile en moins de 0,5 s ne décode aucune affiche
 
 #### Scenario: écran de démarrage
 - **WHEN** l'écran de démarrage est affiché

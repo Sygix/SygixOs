@@ -2,6 +2,8 @@
 
 Les tâches cochées sont vérifiées par un test nommé ; les tâches 1.x et 5.x exigent la TV réelle en `assembleRelease`.
 
+Les mesures TV des tâches 1.1 et 5.1 ont été dispensées pour cet archivage ; leurs résultats et la comparaison de fluidité et de mémoire restent non vérifiés.
+
 ## 1. Référence sur la TV
 
 - [ ] 1.1 Remesurer la référence de `design.md` sur `main` (accueil au repos, grille avec panneau, arrière-plan, navigation grille, mémoire, threads) avec le protocole de mesure ; critère : valeurs consignées dans la PR d'implémentation, dans les mêmes unités.
@@ -11,7 +13,7 @@ Les tâches cochées sont vérifiées par un test nommé ; les tâches 1.x et 5.
 - [x] 2.1 Préférence « Mouvement des visuels » dans DataStore, activée par défaut, combinée à l'échelle d'animation du système en un seul drapeau de mouvement ; critère : JUnit sur la valeur par défaut, la persistance et la combinaison.
 - [x] 2.2 Ligne switch dans « Écran d'accueil » sous « Position d'À suivre », chaînes FR « Mouvement des visuels » et « Zoom lent des images du héro et du Top Shelf », testTag `setting-visual-motion` ; critère : test Compose à la taille TV (w960dp-h540dp-xhdpi) sur la bascule, le focus conservé et la navigation haut, bas, gauche et Retour.
 - [x] 2.3 Héro et panneau Top Shelf sans Ken Burns ni panoramique quand le drapeau est faux, fondus et défilement inchangés ; critère : test qui vérifie l'échelle 1 du visuel et l'absence d'image redessinée entre deux changements de visuel, sous horloge de test.
-- [ ] 2.4 README : mention du réglage dans la description des réglages.
+- [x] 2.4 README : mention du réglage dans la description des réglages.
 
 ## 3. Optimisations sans changement visible
 
