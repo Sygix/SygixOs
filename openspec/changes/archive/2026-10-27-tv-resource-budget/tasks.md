@@ -2,7 +2,7 @@
 
 Les tâches cochées sont vérifiées par un test nommé ; les tâches 1.x et 5.x exigent la TV réelle en `assembleRelease`.
 
-Les mesures TV des tâches 1.1 et 5.1 ont été dispensées pour cet archivage ; leurs résultats et la comparaison de fluidité et de mémoire restent non vérifiés.
+Les mesures TV des tâches 1.1 et 5.1 ont été réalisées selon Sygix, mais leurs résultats ne sont plus disponibles ; la comparaison de fluidité et de mémoire ne peut donc pas être vérifiée. Leur documentation a été dispensée pour cet archivage.
 
 ## 1. Référence sur la TV
 
