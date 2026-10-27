@@ -12,7 +12,8 @@
     <string name="tracking_error_network">Can\'t reach the service. Try again.</string>
     <string name="tracking_error_configuration">BetaSeries configuration unavailable. Try again.</string>
     <string name="tracking_error_access">Account access has expired. Reconnect to continue.</string>
-    <string name="tracking_error_storage">Secure storage unavailable. Reconnect to continue.</string>
+    <string name="tracking_error_storage">Secure storage is temporarily unavailable. Try again.</string>
+    <string name="tracking_session_retained">Your saved connection has not been removed.</string>
     <string name="tracking_error_incomplete">Your account list is incomplete. Try again.</string>
     <string name="tracking_error_protocol">Invalid response from BetaSeries. Try again.</string>
     <string name="tracking_reconnect">Reconnect BetaSeries</string>

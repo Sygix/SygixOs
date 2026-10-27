@@ -32,6 +32,57 @@ import org.robolectric.annotation.Config
 class TrackingSettingsTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun restoringAndRetryingIdentityKeepsFocusAndNeverStartsAnAssociation() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            fixture.savedToken = "fixture-token"
+            val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+            fixture.accountGate = gate
+            fixture.runtime.controller.restore(); runCurrent()
+            show(fixture)
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            compose.onNodeWithTag("tracking-connect").assertDoesNotExist()
+            press(Key.Enter)
+            assertEquals(1, fixture.accountReads)
+            fixture.accountFailure = TrackingFailure.NETWORK
+            gate.complete(Unit); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            compose.onNodeWithTag("tracking-connect").assertDoesNotExist()
+            fixture.accountGate = null
+            fixture.accountFailure = null
+            press(Key.Enter); runCurrent(); compose.waitForIdle()
+            assertNotNull(fixture.runtime.controller.state.value.account)
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            compose.onNodeWithTag("tracking-device-code").assertDoesNotExist()
+            compose.onNodeWithTag("tracking-device-qr").assertDoesNotExist()
+            assertEquals(2, fixture.accountReads)
+            assertEquals(1, fixture.sessionReads)
+            assertEquals(0, fixture.sessionWrites)
+            assertEquals(0, fixture.revocations)
+            assertEquals(0, fixture.associations)
+        } finally { fixture.close() }
+    }
+
+    @Test fun retryAfterTemporaryStorageFailureReadsTheSavedSessionWithoutQr() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            fixture.savedToken = "fixture-token"
+            fixture.storageFailure = true
+            fixture.runtime.controller.restore(); runCurrent()
+            show(fixture)
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            compose.onNodeWithTag("tracking-connect").assertDoesNotExist()
+            fixture.storageFailure = false
+            press(Key.Enter); runCurrent(); compose.waitForIdle()
+            assertNotNull(fixture.runtime.controller.state.value.account)
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            assertEquals(2, fixture.sessionReads)
+            assertEquals(0, fixture.sessionWrites)
+            assertEquals(0, fixture.revocations)
+            assertEquals(0, fixture.associations)
+        } finally { fixture.close() }
+    }
+
     @Test fun associationShowsOneCompleteAddressAndBackRestoresConnectWithoutPolling() = runTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
         try {
@@ -190,6 +241,15 @@ class TrackingSettingsTest {
         private val store = ViewModelStore()
         val preferences = TrackingPreferencesFixture()
         var polls = 0
+        var savedToken: String? = null
+        var storageFailure = false
+        var accountFailure: TrackingFailure? = null
+        var accountGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+        var sessionReads = 0
+        var sessionWrites = 0
+        var accountReads = 0
+        var revocations = 0
+        var associations = 0
         val seen = mutableMapOf("1" to true, "2" to false, "3" to false)
         val episodeWrites = mutableListOf<Pair<String, Boolean>>()
         val availableEpisodes = linkedSetOf("1", "2", "3")
@@ -201,9 +261,10 @@ class TrackingSettingsTest {
             transport = TrackingTransport { request ->
                 when {
                     request.url.endsWith("/") -> TrackingResponse(200, "{apiHost:\"https://api.betaseries.com\",apiKey:\"fixture-client\"}")
-                    request.url.endsWith("oauth/device") -> TrackingResponse(200, "{\"device_code\":\"fixture-device\",\"user_code\":\"FIXTURE\",\"verification_url\":\"https://www.betaseries.com/device\",\"expires_in\":100,\"interval\":1}")
+                    request.url.endsWith("oauth/device") -> { ++associations; TrackingResponse(200, "{\"device_code\":\"fixture-device\",\"user_code\":\"FIXTURE\",\"verification_url\":\"https://www.betaseries.com/device\",\"expires_in\":100,\"interval\":1}") }
                     request.url.endsWith("oauth/access_token") -> { ++polls; TrackingResponse(400, "{\"errors\":[{\"code\":2001}]}") }
-                    request.url.endsWith("members/infos") -> TrackingResponse(200, "{\"member\":{\"id\":1,\"login\":\"Fixture\"}}")
+                    request.url.endsWith("members/infos") -> { ++accountReads; accountGate?.await(); accountFailure?.let { throw TrackingException(it) }; TrackingResponse(200, "{\"member\":{\"id\":1,\"login\":\"Fixture\"}}") }
+                    request.url.endsWith("members/destroy") -> { ++revocations; TrackingResponse(200, "{}") }
                     request.url.contains("shows/member") -> TrackingResponse(200, if (episodeMode) "{\"shows\":[$show],\"total\":1,\"totalMissingShows\":0}" else "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
                     request.url.contains("episodes/list") -> TrackingResponse(200, if (episodeMode) "{\"shows\":[{\"id\":1,\"unseen\":[${seen.filterValues { !it }.keys.joinToString(",") { episode(it) }}]}],\"total\":1,\"totalMissingShows\":0}" else "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}")
                     request.url.contains("shows/display") -> TrackingResponse(200, "{\"show\":$show}")
@@ -223,8 +284,8 @@ class TrackingSettingsTest {
                     else -> error("Unexpected fixture endpoint")
                 }
             }, sessionStore = object : TrackingSessionStore {
-                override suspend fun read(): String? = null
-                override suspend fun write(token: String?) {}
+                override suspend fun read(): String? { ++sessionReads; if (storageFailure) throw TrackingException(TrackingFailure.STORAGE); return savedToken }
+                override suspend fun write(token: String?) { ++sessionWrites; savedToken = token }
             }, preferences = preferences, clock = clock, nanoTime = { clock() * 1_000_000 }, wallClock = { 1_800_000_000_000L },
             parserDispatcher = scope.coroutineContext[kotlin.coroutines.ContinuationInterceptor] as kotlinx.coroutines.CoroutineDispatcher, configurationFile = null)
         val viewModel = ViewModelProvider(store, object : ViewModelProvider.Factory {

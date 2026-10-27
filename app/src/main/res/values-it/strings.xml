@@ -12,7 +12,8 @@
     <string name="tracking_error_network">Impossibile connettersi al servizio. Riprova.</string>
     <string name="tracking_error_configuration">Configurazione di BetaSeries non disponibile. Riprova.</string>
     <string name="tracking_error_access">L\'accesso all\'account è scaduto. Accedi di nuovo.</string>
-    <string name="tracking_error_storage">Archiviazione protetta non disponibile. Accedi di nuovo.</string>
+    <string name="tracking_error_storage">L\'archiviazione protetta è temporaneamente non disponibile. Riprova.</string>
+    <string name="tracking_session_retained">La connessione salvata non è stata eliminata.</string>
     <string name="tracking_error_incomplete">L\'elenco dell\'account è incompleto. Riprova.</string>
     <string name="tracking_error_protocol">Risposta di BetaSeries non valida. Riprova.</string>
     <string name="tracking_reconnect">Riconnetti BetaSeries</string>

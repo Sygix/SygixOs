@@ -22,6 +22,11 @@ internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? =
     var lists = 0
     var incomplete = false
     var mutationFailure: TrackingFailure? = null
+    var storageFailure: TrackingFailure? = null
+    var accountFailure: TrackingFailure? = null
+    var movieListResponse: TrackingResponse? = null
+    var sessionWrites = 0
+    var revocations = 0
     val requests = mutableListOf<TrackingRequest>()
     val artworkCalls = mutableListOf<List<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>>()
     val playbackApps = kotlinx.coroutines.flow.MutableStateFlow(listOf(PlaybackApp("org.jellyfin.androidtv", "Jellyfin", true)))
@@ -38,7 +43,8 @@ internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? =
             val query = uri.rawQuery.orEmpty().split('&').mapNotNull { field -> field.split('=', limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }.toMap()
             when (uri.path) {
                 "/" -> TrackingResponse(200, "{apiHost:\"https://api.betaseries.com\",apiKey:\"fixture-client\"}")
-                "/members/infos" -> TrackingResponse(200, "{\"member\":{\"id\":1,\"login\":\"Fixture\"}}")
+                "/members/infos" -> { accountFailure?.let { throw TrackingException(it) }; TrackingResponse(200, "{\"member\":{\"id\":1,\"login\":\"Fixture\"}}") }
+                "/members/destroy" -> { ++revocations; TrackingResponse(200, "{}") }
                 "/shows/member", "/episodes/list" -> { ++lists; if (incomplete && uri.path == "/episodes/list") throw TrackingException(TrackingFailure.INCOMPLETE); TrackingResponse(200, "{\"shows\":[],\"total\":0,\"totalMissingShows\":0}") }
                 "/platforms/list" -> {
                     val country = query.getValue("country")
@@ -48,7 +54,7 @@ internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? =
                 }
                 "/movies/member" -> {
                     val movies = if (!removed && query["state"]?.toIntOrNull() == state) listOf(movie()) else emptyList()
-                    TrackingResponse(200, "{\"movies\":[${movies.joinToString(",")}],\"total\":${movies.size},\"totalMissingMovies\":0}")
+                    movieListResponse ?: TrackingResponse(200, "{\"movies\":[${movies.joinToString(",")}],\"total\":${movies.size},\"totalMissingMovies\":0}")
                 }
                 "/movies/movie" -> when (request.method) {
                     "DELETE" -> { mutationFailure?.let { throw TrackingException(it) }; removed = true; ++removals; TrackingResponse(200, "{}") }
@@ -58,8 +64,8 @@ internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? =
                 else -> error("Unexpected movie fixture endpoint")
             }
         }, sessionStore = object : TrackingSessionStore {
-            override suspend fun read() = savedToken
-            override suspend fun write(token: String?) {}
+            override suspend fun read(): String? { storageFailure?.let { throw TrackingException(it) }; return savedToken }
+            override suspend fun write(token: String?) { ++sessionWrites }
         }, preferences = TrackingPreferencesFixture(), playbackApps = object : PlaybackAppResolver {
             override suspend fun installed() = playbackApps.value
             override fun changes() = playbackApps.map { Unit }

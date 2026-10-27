@@ -154,6 +154,38 @@ class TrackingHomeNavigationTest {
         } finally { store.clear() }
     }
 
+    @Test fun restorationFailureBeforeIdentityKeepsStatusAndRetryReachableFromTheGear() = runTest {
+        val fixture = TrackingMovieFixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
+        fixture.storageFailure = TrackingFailure.STORAGE
+        fixture.runtime.controller.restore(); runCurrent()
+        assertNull(fixture.runtime.controller.state.value.account)
+        val local = fr.sygix.sygixos.model.UpNextItem(999, fr.sygix.sygixos.model.UpNextSourceEntry("fixture.other"),
+            fr.sygix.sygixos.model.UpNextContentType.MOVIE, "Local fixture", watchNextType = fr.sygix.sygixos.model.ProgramKind.WATCHLIST)
+        val store = ViewModelStore()
+        try {
+            val vm = viewModel(store, fixture)
+            compose.setContent {
+                val state by vm.state.collectAsState()
+                TestHome(catalogOf(emptyList(), listOf(app("fixture.grid", "Grid"))), heroStateOf(listOf(heroItem("fixture-hero", "Fixture hero"))),
+                    initialZone = Zone.GRID, upNext = UpNextState(UpNextContent.Items(listOf(local)), UpNextPosition.BEFORE_APPS),
+                    trackingViewModel = vm, trackingUi = state)
+            }
+            runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-status").assertExists()
+            press(Key.Back); press(Key.DirectionUp); press(Key.DirectionRight)
+            compose.onNodeWithTag("tracking-status-retry").assertIsFocused()
+            fixture.storageFailure = null
+            press(Key.Enter, "tracking-status-detail"); runCurrent(); compose.waitForIdle()
+            assertNotNull(fixture.runtime.controller.state.value.account)
+            compose.onNodeWithTag("tracking-status-detail").assertDoesNotExist()
+            compose.onNodeWithTag("settings-gear").assertIsFocused()
+            compose.onNodeWithTag("tracking-device-code").assertDoesNotExist()
+            assertEquals(0, fixture.sessionWrites)
+            assertEquals(0, fixture.revocations)
+            assertTrue(fixture.requests.none { "/oauth/" in it.url })
+        } finally { store.clear() }
+    }
+
     private fun show(viewModel: TrackingViewModel) {
         compose.setContent {
             val state by viewModel.state.collectAsState()

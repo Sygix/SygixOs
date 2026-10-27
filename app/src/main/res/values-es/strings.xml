@@ -12,7 +12,8 @@
     <string name="tracking_error_network">No se puede conectar con el servicio. Inténtalo de nuevo.</string>
     <string name="tracking_error_configuration">Configuración de BetaSeries no disponible. Inténtalo de nuevo.</string>
     <string name="tracking_error_access">El acceso a la cuenta ha caducado. Vuelve a conectarte.</string>
-    <string name="tracking_error_storage">Almacenamiento seguro no disponible. Vuelve a conectarte.</string>
+    <string name="tracking_error_storage">El almacenamiento seguro no está disponible temporalmente. Inténtalo de nuevo.</string>
+    <string name="tracking_session_retained">Tu conexión guardada no se ha eliminado.</string>
     <string name="tracking_error_incomplete">La lista de la cuenta está incompleta. Inténtalo de nuevo.</string>
     <string name="tracking_error_protocol">Respuesta de BetaSeries no válida. Inténtalo de nuevo.</string>
     <string name="tracking_reconnect">Reconectar BetaSeries</string>

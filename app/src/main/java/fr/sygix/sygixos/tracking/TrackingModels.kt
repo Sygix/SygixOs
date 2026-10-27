@@ -14,6 +14,7 @@ data class TrackingIdentity(val provider: String, val type: TrackingType, val id
 data class TrackingAccount(val id: String, val name: String)
 enum class AccountMembership { PRESENT, ABSENT, UNKNOWN }
 enum class TrackingFailure { NETWORK, PROTOCOL, ACCESS, CONFIGURATION, STORAGE, INCOMPLETE }
+enum class TrackingSessionStatus { NONE, RESTORING, SAVED }
 
 open class TrackingException(val failure: TrackingFailure) : Exception(failure.name)
 
@@ -50,7 +51,11 @@ data class TrackingState(
     val pendingRemovals: Set<TrackingIdentity> = emptySet(),
     val snapshotAt: Long? = null,
     val revocationUnconfirmed: Boolean = false,
-)
+    val sessionStatus: TrackingSessionStatus = TrackingSessionStatus.NONE,
+) {
+    val hasSession: Boolean get() = sessionStatus != TrackingSessionStatus.NONE || account != null
+    val statusVisible: Boolean get() = hasSession && (loading || failure != null)
+}
 
 interface WatchTrackingProvider {
     suspend fun account(token: String): TrackingAccount

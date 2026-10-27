@@ -60,12 +60,15 @@ class TrackingController(
         if (work?.isActive == true) return
         val generation = state.value.generation
         work?.cancel()
+        mutable.value = state.value.copy(sessionStatus = TrackingSessionStatus.RESTORING, loading = true, failure = null)
         work = scope.launch {
             try {
-                val saved = storage.withLock { store.read() } ?: return@launch
+                val saved = storage.withLock { store.read() }
                 currentCoroutineContext().ensureActive()
                 if (generation != state.value.generation) return@launch
+                if (saved == null) { mutable.value = TrackingState(generation); return@launch }
                 token = saved
+                mutable.value = state.value.copy(sessionStatus = TrackingSessionStatus.SAVED)
                 load(generation, saved)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
@@ -85,7 +88,7 @@ class TrackingController(
                     work?.cancel()
                     val previous = token
                     token = value
-                    mutable.value = TrackingState(previousGeneration + 1, account)
+                    mutable.value = TrackingState(previousGeneration + 1, account, sessionStatus = TrackingSessionStatus.SAVED)
                     refresh()
                     if (previous != null && previous != value) revoke(previous, state.value.generation)
                 }
@@ -102,6 +105,10 @@ class TrackingController(
         if (state.value.failure == TrackingFailure.ACCESS || work?.isActive == true) return
         val generation = state.value.generation
         work = scope.launch { load(generation, current) }
+    }
+
+    fun retry() {
+        if (token == null) restore() else refresh()
     }
 
     fun patch(content: TrackingContent) {

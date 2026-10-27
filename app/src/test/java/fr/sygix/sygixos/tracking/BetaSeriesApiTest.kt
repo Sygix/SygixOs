@@ -116,15 +116,29 @@ class BetaSeriesApiTest {
         assertEquals(listOf("2"), partial.contents.map { it.identity.id })
     }
 
-    @Test fun nonJsonAccessFailureAndDeleteQueryAreExplicit() = runTest {
+    @Test fun nonJsonRefusalIsRetryableAndDeleteQueryIsExplicit() = runTest {
         val refused = api { TrackingResponse(401, "Denied") }
         try { refused.request("members/infos", "fixture-token"); fail() }
-        catch (error: TrackingException) { assertEquals(TrackingFailure.ACCESS, error.failure) }
+        catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
         val sent = mutableListOf<TrackingRequest>()
         val service = api { request -> sent += request; TrackingResponse(200, "{}") }
         service.request("shows/show", "fixture-token", "DELETE", mapOf("id" to "42"))
         assertTrue(sent.single().url.endsWith("?id=42"))
         assertTrue(sent.single().fields.isEmpty())
+    }
+
+    @Test fun genericHttpRefusalsNeverProveThatTheTokenExpired() = runTest {
+        for (status in listOf(401, 403)) for (body in listOf("{}", "{\"errors\":[]}", "<html>Fixture service unavailable</html>", "{invalid")) {
+            try { api { TrackingResponse(status, body) }.request("members/infos", "fixture-token"); fail() }
+            catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
+        }
+    }
+
+    @Test fun explicitTokenRefusalRequiresReconnectionRegardlessOfHttpStatus() = runTest {
+        for (status in listOf(400, 401, 403)) {
+            try { api { TrackingResponse(status, "{\"errors\":[{\"code\":1002}]}") }.request("members/infos", "fixture-token"); fail() }
+            catch (error: BetaSeriesApiException) { assertEquals(TrackingFailure.ACCESS, error.trackingFailure()) }
+        }
     }
 
     @Test fun loadsAllPagesBeyondTwentyWithoutTreatingMissingPagesAsEmpty() = runTest {

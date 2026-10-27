@@ -50,11 +50,11 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
     LaunchedEffect(state.tracking.account?.id, enabled) { if (enabled) { withFrameNanos { }; first.tryRequestFocus() } }
     Column(Modifier.fillMaxWidth().testTag("tracking-settings")) {
         SettingsHeader(R.string.tracking_title, R.string.tracking_description)
-        if (state.tracking.account == null) {
+        if (!state.tracking.hasSession) {
             TrackingRow(stringResource(R.string.tracking_connect), "tracking-connect", enabled, first, onClick = viewModel::connect)
             state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
         } else {
-            Text(state.tracking.account.name, style = TextStyles.MenuTitle, color = SygixColors.OnDark)
+            state.tracking.account?.let { Text(it.name, style = TextStyles.MenuTitle, color = SygixColors.OnDark) }
             val status = when {
                 state.tracking.loading -> R.string.tracking_loading
                 state.tracking.failure == TrackingFailure.ACCESS -> R.string.tracking_reconnect
@@ -64,7 +64,16 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
             }
             Text(stringResource(status), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
             state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
-            TrackingRow(stringResource(if (state.tracking.failure == TrackingFailure.ACCESS) R.string.tracking_reconnect else R.string.tracking_sync), "tracking-sync", enabled, first) {
+            if (state.tracking.account == null && state.tracking.failure != null && state.tracking.failure != TrackingFailure.ACCESS) {
+                Text(stringResource(R.string.tracking_session_retained), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+            }
+            val action = when {
+                state.tracking.loading -> R.string.tracking_loading
+                state.tracking.failure == TrackingFailure.ACCESS -> R.string.tracking_reconnect
+                state.tracking.failure != null -> R.string.tracking_retry
+                else -> R.string.tracking_sync
+            }
+            TrackingRow(stringResource(action), "tracking-sync", enabled, first) {
                 viewModel.synchronize()
             }
             Box {

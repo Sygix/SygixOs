@@ -12,7 +12,8 @@
     <string name="tracking_error_network">Keine Verbindung zum Dienst. Versuch es noch einmal.</string>
     <string name="tracking_error_configuration">BetaSeries-Konfiguration nicht verfügbar. Versuch es noch einmal.</string>
     <string name="tracking_error_access">Der Kontozugriff ist abgelaufen. Verbinde BetaSeries neu.</string>
-    <string name="tracking_error_storage">Sicherer Speicher nicht verfügbar. Verbinde BetaSeries neu.</string>
+    <string name="tracking_error_storage">Der sichere Speicher ist vorübergehend nicht verfügbar. Versuche es erneut.</string>
+    <string name="tracking_session_retained">Deine gespeicherte Verbindung wurde nicht gelöscht.</string>
     <string name="tracking_error_incomplete">Die Liste des Kontos ist unvollständig. Versuch es noch einmal.</string>
     <string name="tracking_error_protocol">Ungültige Antwort von BetaSeries. Versuch es noch einmal.</string>
     <string name="tracking_reconnect">BetaSeries neu verbinden</string>

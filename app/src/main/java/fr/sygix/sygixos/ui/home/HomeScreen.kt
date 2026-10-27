@@ -640,7 +640,7 @@ internal fun LauncherHome(
                         onRetryUpNext = onRetryUpNext,
                         onUpNextReturnHandled = onUpNextReturnHandled,
                         trackingStatus = {
-                            if (trackingUi?.tracking?.account != null && (trackingUi.tracking.loading || trackingUi.tracking.failure != null)) Text(
+                            if (trackingUi?.tracking?.statusVisible == true) Text(
                                 stringResource(if (trackingUi.tracking.loading) R.string.tracking_loading else R.string.tracking_error),
                                 style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary,
                                 modifier = Modifier.testTag("tracking-status"),

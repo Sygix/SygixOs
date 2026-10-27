@@ -37,8 +37,8 @@ class BetaSeriesApi(
         if (token != null) headers["X-BetaSeries-Token"] = token
         val response = transport.execute(TrackingRequest("${config.apiHost}/$path$query", method, headers, parameters.takeUnless { method in setOf("GET", "DELETE") } ?: emptyMap()))
         val json = try { kotlinx.coroutines.withContext(dispatcher) { JSONObject(response.body) } }
-        catch (_: Exception) { throw TrackingException(if (response.status in setOf(401, 403)) TrackingFailure.ACCESS else TrackingFailure.PROTOCOL) }
-        if (response.status in setOf(401, 403) && json.errorsCode() != 1001) throw TrackingException(TrackingFailure.ACCESS)
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { throw TrackingException(if (response.status in setOf(401, 403)) TrackingFailure.NETWORK else TrackingFailure.PROTOCOL) }
         if (response.status !in 200..299 && json.errorsCode() == null) throw TrackingException(TrackingFailure.NETWORK)
         return json
     }

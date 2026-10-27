@@ -144,7 +144,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     fun confirmCountry(code: String) { viewModelScope.launch { runtime.preferences.confirmCountry(code) } }
     fun connect() { runtime.device.open() }
     fun disconnect() { runtime.disconnect() }
-    fun synchronize() { if (state.value.tracking.failure == TrackingFailure.ACCESS) { runtime.disconnect(); runtime.device.open() } else runtime.controller.refresh() }
+    fun synchronize() { if (state.value.tracking.failure == TrackingFailure.ACCESS) { runtime.disconnect(); runtime.device.open() } else runtime.controller.retry() }
     fun choosePlayer(packageName: String) { runtime.playback.choose(packageName) }
     fun otherApps() { runtime.playback.otherApps() }
     fun noticeFocused(value: Boolean) { runtime.actions.setFocused(value) }
@@ -190,7 +190,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     fun showStatus() { status.value = true }
     fun retryStatus() {
         status.value = false
-        if (state.value.tracking.failure == TrackingFailure.ACCESS) { runtime.disconnect(); runtime.device.open() } else runtime.controller.refresh()
+        if (state.value.tracking.failure == TrackingFailure.ACCESS) { runtime.disconnect(); runtime.device.open() } else runtime.controller.retry()
     }
     private fun loadEpisodes(content: TrackingContent) {
         episodeJob?.cancel()

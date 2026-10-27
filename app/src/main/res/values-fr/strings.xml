@@ -12,7 +12,8 @@
     <string name="tracking_error_network">Connexion au service impossible. Réessayez.</string>
     <string name="tracking_error_configuration">Configuration BetaSeries indisponible. Réessayez.</string>
     <string name="tracking_error_access">L\'accès au compte a expiré. Reconnectez-vous.</string>
-    <string name="tracking_error_storage">Stockage sécurisé indisponible. Reconnectez-vous.</string>
+    <string name="tracking_error_storage">Stockage sécurisé temporairement indisponible. Réessayez.</string>
+    <string name="tracking_session_retained">Votre connexion enregistrée n\'a pas été effacée.</string>
     <string name="tracking_error_incomplete">La liste du compte est incomplète. Réessayez.</string>
     <string name="tracking_error_protocol">Réponse BetaSeries non valide. Réessayez.</string>
     <string name="tracking_reconnect">Reconnecter BetaSeries</string>
