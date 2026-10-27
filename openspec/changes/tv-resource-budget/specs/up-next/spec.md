@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Rafraîchissement
-La rangée SHALL se recharger quand le TV Provider signale un changement, que `READ_TV_LISTINGS` vient d'être accordée ou à la périodicité de relecture de « Contenu héro TV Provider » de launcher-shell tant que le launcher est au premier plan ; au retour au premier plan, elle SHALL se recharger seulement si le TV Provider a signalé un changement pendant l'arrêt, si cette périodicité est échue ou si un contenu vient d'être ouvert depuis la rangée (« Contenus ouverts depuis SygixOs »). Les résultats SHALL suivre « Validité des programmes publiés ». L'apport du compte SHALL suivre sa propre source partagée et ses propres règles de rafraîchissement (watch-tracking) ; un changement de son état SHALL être projeté sur la rangée sans relire le TV Provider.
+La rangée SHALL recharger le TV Provider sur notification, octroi de `READ_TV_LISTINGS` ou échéance de « Contenu héro TV Provider » de launcher-shell au premier plan. Au retour, les scénarios ci-dessous et « Contenus ouverts depuis SygixOs » SHALL déterminer la relecture. Les résultats SHALL suivre « Validité des programmes publiés ». L'apport du compte SHALL suivre sa source et son rafraîchissement propres (watch-tracking), et ses changements SHALL être projetés sans relire le TV Provider.
 
 #### Scenario: retour au premier plan
 - **WHEN** le launcher revient au premier plan après un changement du TV Provider pendant l'arrêt, après l'échéance de la périodicité de relecture ou après l'ouverture d'un contenu depuis la rangée, ou que la permission vient d'être accordée

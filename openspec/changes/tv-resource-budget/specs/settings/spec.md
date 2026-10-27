@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Apps sources
-« Apps sources » SHALL lister toutes les apps TV installées avec un switch Apple activé par défaut pour leur contribution au héro, Top Shelf et Up Next, description « Choisissez les applications qui alimentent le héro, le Top Shelf et À suivre. ». Seules les apps y figurent. Les compteurs SHALL couvrir tous leurs programmes du TV Provider, avec une seule observation active seulement réglages ouverts, en pause hors premier plan et recomptage au retour ; tri, focus et comptage SHALL suivre les scénarios ci-dessous.
+« Apps sources » SHALL lister uniquement les apps TV installées, avec un switch Apple activé par défaut pour leur contribution au héro, Top Shelf et Up Next. Les compteurs SHALL couvrir tous leurs programmes du TV Provider, avec une seule observation active réglages ouverts, en pause hors premier plan et recomptage au retour ; tri, focus et comptage SHALL suivre les scénarios ci-dessous.
 
 #### Scenario: présentation
 - **WHEN** la catégorie « Apps sources » est affichée
