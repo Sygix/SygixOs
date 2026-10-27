@@ -5,7 +5,7 @@ Les tests sont écrits avec chaque correction puis exécutés seulement en fin d
 ## 1. Conservation du stockage sécurisé
 
 - [x] 1.1 Extraire le fournisseur de clés et conserver le fichier sur erreur de récupération temporaire ou inconnue ; preuve : KeystoreTrackingSessionTest.temporaryOrUnknownKeyFailuresKeepEncryptedSessionUntilRecovery et failedReplacementDoesNotOverwriteTheSavedSession ; régression d'effacement vérifiée en réintroduisant l'ancien comportement.
-- [x] 1.2 Terminer la restauration sur clé confirmée absente, invalidation définitive ou authentification GCM invalide ; preuve : KeystoreTrackingSessionTest.confirmedMissingKeyEndsRestorationAndDeletesOnlyUnreadableSession, confirmedPermanentKeyInvalidationEndsRestoration et failedGcmAuthenticationEndsRestorationWithoutAnEndlessStorageError.
+- [x] 1.2 Terminer la restauration sur clé confirmée absente, invalidation définitive ou authentification GCM invalide ; preuve : KeystoreTrackingSessionTest.confirmedMissingKeyEndsRestorationAndDeletesOnlyUnreadableSession, confirmedPermanentKeyInvalidationAllowsSavingAndReadingANewSession, failedInvalidKeyCleanupKeepsSessionRetryableUntilANewKeyCanBeCreated et failedGcmAuthenticationEndsRestorationWithoutAnEndlessStorageError. Le point P2 de revue est couvert jusqu'à la relecture du nouveau jeton ; les deux régressions d'invalidation échouent sur le code relu puis passent avec la correction.
 
 ## 2. Restauration et qualification des erreurs
 
@@ -20,10 +20,10 @@ Les tests sont écrits avec chaque correction puis exécutés seulement en fin d
 
 ## 4. Vérification finale et publication
 
-- [x] 4.1 Exécuter les régressions et `./gradlew test` après toutes les corrections ; preuve : 1 247 tests, zéro échec/erreur/test ignoré ; 53 tests ciblés réussis et quatre régressions vérifiées avec les comportements défectueux réintroduits, puis correctif rétabli. Une première exécution complète a dépassé son délai ; la relance diagnostique puis la commande finale ont réussi sans changement applicatif.
+- [x] 4.1 Exécuter les régressions et `./gradlew test` après toutes les corrections ; preuve après correction P2 : 1 248 tests, zéro échec/erreur/test ignoré, et assembleRelease réussi. Vérification initiale : 53 tests ciblés et quatre régressions vérifiées avec les comportements défectueux réintroduits ; les deux régressions P2 ont aussi échoué sur le code relu avant la réussite de la suite corrigée. Une première exécution complète initiale avait dépassé son délai avant les relances réussies.
 - [x] 4.2 Vérifier le change avec openspec-verify-change et `openspec validate --all --strict` ; preuve : verification.md relie les cinq exigences au code et aux tests, sans divergence fonctionnelle trouvée ; validation stricte 11/11. La validation sur TV de 4.3 reste explicitement ouverte avant archivage.
 - [ ] 4.3 Construire `assembleRelease` et vérifier sur TV la session conservée après redémarrage et panne/reprise ; preuve : résultat distinct des tests JVM, sans donnée personnelle.
-- [ ] 4.4 Relire le diff et les scans licence/confidentialité, créer les commits signés puis la PR ; preuve : signatures valides, URL et état de CI rapportés.
+- [x] 4.4 Relire le diff et les scans licence/confidentialité, créer les commits signés puis la PR ; preuve : scans vides et signatures G vérifiées, PR https://github.com/Sygix/SygixOs/pull/103 ; état de CI du head courant à consulter dans la PR. Les corrections de revue sont intégrées aux commits concernés par autosquash signé.
 
 ## Workflow follow-up
 
