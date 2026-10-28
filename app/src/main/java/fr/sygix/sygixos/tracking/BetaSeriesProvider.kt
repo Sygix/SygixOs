@@ -8,7 +8,8 @@ package fr.sygix.sygixos.tracking
 import java.time.LocalDate
 import org.json.JSONObject
 
-class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -> LocalDate) : WatchTrackingProvider {
+class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -> LocalDate) : TrackingContentProvider {
+    override val id = "betaseries"
     private val resolver = BoundedIdentityResolver(::search)
 
     private suspend fun search(query: ContentQuery): List<CatalogCandidate> {
@@ -23,7 +24,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         }
     }
 
-    suspend fun identify(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity? = null): TrackingContent? =
+    override suspend fun identify(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity?): TrackingContent? =
         kotlinx.coroutines.withContext(api.dispatcher) { identifyContent(token, item, known) }
 
     private suspend fun identifyContent(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity?): TrackingContent? {
@@ -59,7 +60,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
 
     override suspend fun revoke(token: String) { api.request("members/destroy", token, "POST") }
 
-    suspend fun platforms(country: String): RegionalPlatforms {
+    override suspend fun platforms(country: String): RegionalPlatforms {
         val groups = api.request("platforms/list", fields = mapOf("country" to country.lowercase(java.util.Locale.ROOT))).optJSONObject("platforms")
             ?: throw TrackingException(TrackingFailure.PROTOCOL)
         val ids = groups.keys().asSequence().flatMap { key ->
@@ -103,14 +104,14 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         TrackingSnapshot(contents.distinctBy { it.identity }, failure)
     } ?: throw TrackingException(TrackingFailure.INCOMPLETE) }
 
-    suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> = kotlinx.coroutines.withContext(api.dispatcher) {
+    override suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> = kotlinx.coroutines.withContext(api.dispatcher) {
         val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).getJSONObject("show")
         showEpisodes(token, content.parent.id, content.season ?: 1).filter { value ->
             value.text("date")?.let { runCatching { !LocalDate.parse(it.take(10)).isAfter(today()) }.getOrDefault(false) } == true
         }.map { episode(show, it) }
     }
 
-    suspend fun seasons(token: String, content: TrackingContent): List<Int> {
+    override suspend fun seasons(token: String, content: TrackingContent): List<Int> {
         val values = api.request("shows/seasons", token, fields = mapOf("id" to content.parent.id)).optJSONArray("seasons")
             ?: throw TrackingException(TrackingFailure.PROTOCOL)
         return (0 until values.length()).mapNotNull { values.optJSONObject(it)?.optInt("number", -1)?.takeIf { number -> number >= 0 } }.distinct().sorted()
@@ -127,7 +128,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
 
     private val episodeMarker = Regex("""(?i)\bS\d{1,3}\s*E\d{1,4}\b""")
 
-    suspend fun mutate(token: String, content: TrackingContent, action: TrackingAction): List<TrackingContent> =
+    override suspend fun mutate(token: String, content: TrackingContent, action: TrackingAction): List<TrackingContent> =
         kotlinx.coroutines.withTimeoutOrNull(90_000) {
             var failure: Exception? = null
             try { sendMutation(token, content, action) }
@@ -138,7 +139,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             catch (error: Exception) { throw (failure ?: error) }
         } ?: throw TrackingException(TrackingFailure.NETWORK)
 
-    internal suspend fun sendMutation(token: String, content: TrackingContent, action: TrackingAction) {
+    override suspend fun sendMutation(token: String, content: TrackingContent, action: TrackingAction) {
         val movie = content.identity.type == TrackingType.MOVIE
         val target = content.identity.id
         val parent = content.parent.id
@@ -155,14 +156,14 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         }
     }
 
-    suspend fun verify(token: String, content: TrackingContent, action: TrackingAction): List<TrackingContent> {
+    override suspend fun verify(token: String, content: TrackingContent, action: TrackingAction): List<TrackingContent> {
         val entry = readTarget(token, content, action)
         if (!matches(entry, action, content)) throw TrackingException(TrackingFailure.INCOMPLETE)
         val next = if (content.identity.type != TrackingType.MOVIE && action == TrackingAction.SEEN && content.parent.type == TrackingType.SHOW) next(token, content) else null
         return listOfNotNull(entry.copy(sessionGeneration = content.sessionGeneration), next?.takeIf { it.identity != entry.identity })
     }
 
-    internal suspend fun readTarget(token: String, content: TrackingContent, action: TrackingAction): TrackingContent {
+    override suspend fun readTarget(token: String, content: TrackingContent, action: TrackingAction): TrackingContent {
         val movie = content.identity.type == TrackingType.MOVIE
         val showAction = !movie && action in setOf(TrackingAction.ADD, TrackingAction.REMOVE, TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE)
         val path = if (movie) "movies/movie" else if (showAction) "shows/display" else "episodes/display"
@@ -183,7 +184,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         return entry
     }
 
-    internal fun matches(entry: TrackingContent, action: TrackingAction, original: TrackingContent): Boolean = when (action) {
+    override fun matches(entry: TrackingContent, action: TrackingAction, original: TrackingContent): Boolean = when (action) {
             TrackingAction.ADD -> entry.membership == AccountMembership.PRESENT
             TrackingAction.REMOVE -> entry.membership == AccountMembership.ABSENT
             TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> entry.archived == (action == TrackingAction.ARCHIVE)
@@ -192,7 +193,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             TrackingAction.RESTORE_MOVIE_STATE -> entry.movieState == original.movieState
     }
 
-    internal suspend fun reserve(token: String, content: TrackingContent, desired: Map<String, Int>): List<TrackingContent> = kotlinx.coroutines.withTimeoutOrNull(90_000) {
+    override suspend fun reserve(token: String, content: TrackingContent, desired: Map<String, Int>): List<TrackingContent> = kotlinx.coroutines.withTimeoutOrNull(90_000) {
         require(content.parent.type == TrackingType.SHOW)
         val response = api.request("episodes/list", token, fields = mapOf("showId" to content.parent.id, "limit" to "6", "showsLimit" to "1", "released" to "1"))
         if (response.optInt("totalMissingEpisodes") > 0 || response.optInt("totalMissingShows") > 0) throw TrackingException(TrackingFailure.INCOMPLETE)

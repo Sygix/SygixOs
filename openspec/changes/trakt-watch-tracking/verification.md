@@ -21,8 +21,9 @@ Le propriétaire a explicitement remplacé les vérifications sur TV physique pa
 | Non vu ciblé | Le retrait des lectures de l'épisode ciblé conserve les quatre autres épisodes marqués pendant le test | Vérifié |
 | Séries masquées | Ajout et retrait de `progress_watched` acceptés ; la progression générale continue à renvoyer la série masquée : le client doit appliquer explicitement la liste des masquages | Vérifié |
 | Film vu/non vu | Vu retire le film de watchlist ; retirer son historique ne le réajoute pas. Le rétablissement de son état à voir nécessite un ajout ciblé à la watchlist | Vérifié |
-| Événements multiples réels | Avec le réglage de compte `watch_only_once`, les envois répétés mettent à jour une lecture (`updated`) plutôt que d'en créer plusieurs. Aucun réglage du compte n'a été changé pour forcer ce cas | Limite du préflight ; couverture avec plusieurs événements requise dans les tests de contrat |
+| Événements multiples réels | Avec `watch_only_once`, les répétitions mettent à jour une lecture. Après désactivation temporaire explicitement autorisée par le propriétaire, deux événements distincts ont été créés puis supprimés par le Non vu ciblé ; les quatre autres épisodes restent vus | Vérifié |
 | Nettoyage du jeu de test | Absence initiale contrôlée ; suppression des seules données créées, puis absence finale confirmée dans watchlists, masquages et historique des deux cibles | Vérifié |
+| Restauration du réglage | Après le test de lectures multiples, la valeur initiale de `watch_only_once` est rétablie puis confirmée par relecture | Vérifié |
 
 Les cibles de mutation ont été choisies et autorisées par le propriétaire dans la conversation. Le présent rapport ne publie ni titres, ni identifiants de contenus ou de compte, ni configuration cliente, ni code d'association, ni jeton.
 
@@ -40,3 +41,11 @@ Deux erreurs de l'outil temporaire ont été corrigées avant les vérifications
 - Conserver les règles acceptées d'erreur, de budget, de cache, d'identité et d'isolation de session ; aucun autre client, secret fixe ou moteur web n'a été nécessaire.
 
 Les validations du code applicatif, des migrations, de l'interface et des tests sont complétées au fur et à mesure ; aucun résultat de cette section ne vaut tâche d'implémentation déjà réalisée.
+
+## Configuration et frontières communes
+
+- Régression reproduite avant correction : le test de cache ancien BetaSeries attendait une seule découverte et en observait deux après l'échéance historique.
+- Après correction : 44 tests ciblés réussis dans `BetaSeriesConfigTest`, `TraktConfigurationTest`, `TrackingHttpsTransportTest`, `BetaSeriesApiTest`, `BetaSeriesDeviceTest` et `TrackingSessionRecoveryApiTest` ; zéro échec, erreur ou test ignoré.
+- Les tests contrôlent notamment cache persistant sans échéance, ressources officielles renommées, ambiguïté, rejet de domaine/redirection, annulation à l'échéance, protection contre un refus tardif de l'ancienne configuration et récupération partagée pour huit lectures refusées concurrentes.
+- Le transport commun accepte les tableaux JSON Trakt sans trois lectures inutiles, préserve les corps JSON des mutations et expose les en-têtes de pagination ; le parcours d'association BetaSeries continue de passer après extraction de son protocole derrière le flux commun.
+- Contrôle des prérequis : dix exigences MODIFIED ont une cible dans l'ordre d'archivage et conservent les noms de tous les scénarios cumulés. L'ordre reste récupération de session, état hors ligne, puis Trakt.

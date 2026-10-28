@@ -41,6 +41,7 @@ data class TrackingContent(
     val offers: List<PlaybackOffer> = emptyList(),
     val failure: TrackingFailure? = null,
     val airDate: String? = null,
+    val removableFromAccount: Boolean = true,
 )
 
 data class TrackingSnapshot(val contents: List<TrackingContent>, val failure: TrackingFailure? = null)
