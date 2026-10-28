@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tracking_title">Wiedergabe-Tracking</string>
-    <string name="tracking_description">Behalte deine Serien und Filme mit BetaSeries im Blick.</string>
-    <string name="tracking_connect">Mit BetaSeries verbinden</string>
+    <string name="tracking_description">Behalte Serien und Filme mit deinem Tracking-Konto im Blick.</string>
+    <string name="tracking_connect">Verbinden</string>
+    <string name="tracking_provider">Anbieter</string>
+    <string name="tracking_provider_locked">Trenne die Verbindung, um den Anbieter zu wechseln.</string>
+    <string name="tracking_attribution_trakt">Trakt · https://trakt.tv · Diese App wurde von Trakt weder genehmigt noch zertifiziert.</string>
+    <string name="tracking_offer_error">Die Verfügbarkeit konnte nicht geprüft werden. Du kannst trotzdem einen Player wählen.</string>
     <string name="tracking_disconnect">Trennen</string>
     <string name="tracking_sync">Synchronisieren</string>
     <string name="tracking_loading">Einen Moment…</string>
@@ -10,16 +14,16 @@
     <string name="tracking_ready">Konto synchronisiert</string>
     <string name="tracking_error">Tracking nicht verfügbar</string>
     <string name="tracking_error_network">Keine Verbindung zum Dienst. Versuch es noch einmal.</string>
-    <string name="tracking_error_configuration">BetaSeries-Konfiguration nicht verfügbar. Versuch es noch einmal.</string>
-    <string name="tracking_error_access">Der Kontozugriff ist abgelaufen. Verbinde BetaSeries neu.</string>
+    <string name="tracking_error_configuration">Dienstkonfiguration nicht verfügbar. Versuch es noch einmal.</string>
+    <string name="tracking_error_access">Der Kontozugriff ist abgelaufen. Verbinde dein Konto neu.</string>
     <string name="tracking_error_storage">Der sichere Speicher ist vorübergehend nicht verfügbar. Versuche es erneut.</string>
     <string name="tracking_session_retained">Deine gespeicherte Verbindung wurde nicht gelöscht.</string>
     <string name="tracking_error_incomplete">Die Liste des Kontos ist unvollständig. Versuch es noch einmal.</string>
-    <string name="tracking_error_protocol">Ungültige Antwort von BetaSeries. Versuch es noch einmal.</string>
-    <string name="tracking_reconnect">BetaSeries neu verbinden</string>
+    <string name="tracking_error_protocol">Ungültige Antwort vom Dienst. Versuch es noch einmal.</string>
+    <string name="tracking_reconnect">Neu verbinden</string>
     <string name="tracking_retry">Erneut versuchen</string>
     <string name="tracking_country">Land</string>
-    <string name="tracking_revocation_unconfirmed">Abmeldung bei BetaSeries nicht bestätigt</string>
+    <string name="tracking_revocation_unconfirmed">Abmeldung beim Dienst nicht bestätigt</string>
     <string name="tracking_offer_confirmed">Bestätigte Dienste in diesem Land: %1$s</string>
     <string name="tracking_episode_seen_label">%1$s ✓</string>
     <string name="tracking_action_blocked">Schließ die laufende Aktion ab oder brich sie ab, bevor du eine neue startest.</string>
