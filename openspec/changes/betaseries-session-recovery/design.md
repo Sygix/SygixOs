@@ -48,3 +48,7 @@ Réutiliser le contrôle `tracking-sync` pour chargement, réessai et reconnexio
 ## Migration Plan
 
 Réutiliser le format AES-GCM et l'alias existants, sans réécriture au démarrage. Une mise à jour conserve les sessions encore présentes. Un jeton déjà supprimé par l'ancienne version ne peut pas être récupéré. Retour arrière possible sans migration de données.
+
+## Related Changes
+
+Le change `trakt-watch-tracking` reprend les règles de conservation et de refus ambigu du présent change dans un socle partagé. Ordre d'archivage : `betaseries-session-recovery`, puis `betaseries-offline-state`, puis `trakt-watch-tracking`, après leurs validations respectives. Lors de la consolidation, conserver le scénario d'indicateur sans identité et les contrôles de restauration ; l'ajout ultérieur de Trakt ne constitue pas une preuve de validation TV du présent correctif.
