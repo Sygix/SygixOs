@@ -105,3 +105,7 @@ Réutiliser `tracking-notification`, `tracking-undo`, `tracking-status`, `tracki
 Créer le schéma de suivi sans toucher au format des préférences et identités de catalogue. À la première exécution, le jeton existant permet une lecture d'identité puis un premier remplissage ; sans cache déjà créé et sans réseau, ne pas inventer de compte ni de contenus. Les migrations futures conservent intentions, incarnation et confirmations ; une erreur de migration expose une erreur de stockage sans effacement destructif.
 
 Un retour à une ancienne version ne sait pas synchroniser cette nouvelle file : documenter cette limite, conserver la base et ne pas présenter ce retour comme une synchronisation accomplie. Archiver après merge et validation sur TV réelle. Aucun code ni essai TV n'est exécuté dans cette phase de spécification.
+
+## Related Changes
+
+Le change `trakt-watch-tracking` utilise le cache, la réserve, les intentions et les scénarios de ce change comme base fonctionnelle. Après leur consolidation, il étend le fournisseur et retient les nouveaux vu/non vu jusqu'à expiration d'Annuler, avec reprise durable du temps restant ; ses deltas remplacent alors les exigences communes concernées en préservant leurs autres scénarios. Il supprime aussi l'échéance du cache de configuration d'application, distinct du cache de compte. Ordre d'archivage : `betaseries-session-recovery`, puis `betaseries-offline-state`, puis `trakt-watch-tracking`, après leurs validations respectives ; aucune tâche cochée ni preuve TV du présent change n'est modifiée par cette note.
