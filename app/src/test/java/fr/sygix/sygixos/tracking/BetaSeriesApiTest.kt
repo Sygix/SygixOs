@@ -88,7 +88,7 @@ class BetaSeriesApiTest {
         assertEquals(listOf("2", "3"), seasons)
     }
 
-    @Test fun snapshotRequestsOneReleasedEpisodeAndOnlyUnseenMoviesAndKeepsMoviesWhenEpisodePageFails() = runTest {
+    @Test fun snapshotRequestsSixReleasedEpisodesAndOnlyUnseenMoviesAndKeepsMoviesWhenEpisodePageFails() = runTest {
         val requests = mutableListOf<TrackingRequest>()
         var oversized = false
         val provider = BetaSeriesProvider(api { request ->
@@ -98,7 +98,7 @@ class BetaSeriesApiTest {
                 request.url.contains("movies/member") -> TrackingResponse(200, """{"movies":[{"id":2,"title":"Fixture movie","user":{"status":0}}],"total":1}""")
                 request.url.contains("episodes/list") -> {
                     val parameters = java.net.URI(request.url).rawQuery.split('&').associate { it.substringBefore('=') to it.substringAfter('=') }
-                    assertEquals("1", parameters["limit"])
+                    assertEquals("6", parameters["limit"])
                     assertEquals("100", parameters["showsLimit"])
                     assertEquals("1", parameters["released"])
                     if (oversized) throw TrackingException(TrackingFailure.PROTOCOL)

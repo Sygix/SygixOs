@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        (application as fr.sygix.sygixos.SygixOsApp).onUiStarted()
         splashScreen.setOnExitAnimationListener { it.remove() }
         viewModel = ViewModelProvider(this, HomeViewModel.Factory(applicationContext))[HomeViewModel::class.java]
         launcher = ViewModelProvider(this, LauncherSystemViewModel.Factory(applicationContext))[LauncherSystemViewModel::class.java]

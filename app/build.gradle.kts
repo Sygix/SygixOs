@@ -127,6 +127,8 @@ aboutLibraries {
 }
 
 dependencies {
+    implementation(libs.work.runtime)
+    testImplementation(libs.work.testing)
     implementation(libs.room.runtime)
     ksp(libs.room.compiler)
     testImplementation(libs.room.testing)

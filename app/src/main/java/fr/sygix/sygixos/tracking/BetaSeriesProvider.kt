@@ -80,23 +80,27 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         }
         val shows = pages("shows/member", "shows").associateBy { it.requiredId() }
         val movies = pages("movies/member", "movies", mapOf("state" to "0"))
-        val episodes = pages("episodes/list", "shows", mapOf("released" to "1", "showsLimit" to "100", "limit" to "1"))
-        val contents = episodes.mapNotNull { group ->
+        val episodes = pages("episodes/list", "shows", mapOf("released" to "1", "showsLimit" to "100", "limit" to "6"))
+        val contents = episodes.flatMap { group ->
             val show = shows[group.requiredId()]
-                ?: return@mapNotNull TrackingContent(TrackingIdentity("betaseries", TrackingType.SHOW, group.requiredId()), title = group.text("title").orEmpty(), membership = AccountMembership.UNKNOWN, failure = TrackingFailure.INCOMPLETE)
+                ?: return@flatMap listOf(TrackingContent(TrackingIdentity("betaseries", TrackingType.SHOW, group.requiredId()), title = group.text("title").orEmpty(), membership = AccountMembership.UNKNOWN, failure = TrackingFailure.INCOMPLETE))
             when (archiveState(show)) {
-                true -> return@mapNotNull null
-                null -> return@mapNotNull TrackingContent(TrackingIdentity("betaseries", TrackingType.SHOW, show.requiredId()), title = show.text("title").orEmpty(), membership = AccountMembership.UNKNOWN, failure = TrackingFailure.INCOMPLETE)
+                true -> return@flatMap emptyList()
+                null -> return@flatMap listOf(TrackingContent(TrackingIdentity("betaseries", TrackingType.SHOW, show.requiredId()), title = show.text("title").orEmpty(), membership = AccountMembership.UNKNOWN, failure = TrackingFailure.INCOMPLETE))
                 false -> Unit
             }
             val unseen = group.optJSONArray("unseen") ?: throw TrackingException(TrackingFailure.PROTOCOL)
-            val next = (0 until unseen.length()).map { unseen.getJSONObject(it) }.filter {
+            (0 until unseen.length()).map { unseen.getJSONObject(it) }.filter {
                 val date = it.text("date")?.let { value -> runCatching { LocalDate.parse(value.take(10)) }.getOrNull() }
+                if (date == null) failure = TrackingFailure.INCOMPLETE
                 date != null && !date.isAfter(today()) && it.optJSONObject("user")?.optBoolean("seen") != true
-            }.minWithOrNull(compareBy<JSONObject> { it.optInt("season") }.thenBy { it.optInt("episode") }) ?: return@mapNotNull null
-            episode(show, next)
+            }.sortedWith(compareBy<JSONObject> { it.optInt("season") }.thenBy { it.optInt("episode") }).take(6).map {
+                val content = episode(show, it)
+                if (content.season == null || content.episode == null) { failure = TrackingFailure.INCOMPLETE; content.copy(failure = TrackingFailure.INCOMPLETE) }
+                else content
+            }
         } + movies.filter { it.optJSONObject("user")?.optInt("status", -1) == 0 }.map(::movie)
-        TrackingSnapshot(contents.distinctBy { it.parent }, failure)
+        TrackingSnapshot(contents.distinctBy { it.identity }, failure)
     } ?: throw TrackingException(TrackingFailure.INCOMPLETE) }
 
     suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> = kotlinx.coroutines.withContext(api.dispatcher) {
@@ -134,7 +138,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             catch (error: Exception) { throw (failure ?: error) }
         } ?: throw TrackingException(TrackingFailure.NETWORK)
 
-    private suspend fun sendMutation(token: String, content: TrackingContent, action: TrackingAction) {
+    internal suspend fun sendMutation(token: String, content: TrackingContent, action: TrackingAction) {
         val movie = content.identity.type == TrackingType.MOVIE
         val target = content.identity.id
         val parent = content.parent.id
@@ -152,6 +156,13 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
     }
 
     suspend fun verify(token: String, content: TrackingContent, action: TrackingAction): List<TrackingContent> {
+        val entry = readTarget(token, content, action)
+        if (!matches(entry, action, content)) throw TrackingException(TrackingFailure.INCOMPLETE)
+        val next = if (content.identity.type != TrackingType.MOVIE && action == TrackingAction.SEEN && content.parent.type == TrackingType.SHOW) next(token, content) else null
+        return listOfNotNull(entry.copy(sessionGeneration = content.sessionGeneration), next?.takeIf { it.identity != entry.identity })
+    }
+
+    internal suspend fun readTarget(token: String, content: TrackingContent, action: TrackingAction): TrackingContent {
         val movie = content.identity.type == TrackingType.MOVIE
         val showAction = !movie && action in setOf(TrackingAction.ADD, TrackingAction.REMOVE, TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE)
         val path = if (movie) "movies/movie" else if (showAction) "shows/display" else "episodes/display"
@@ -163,20 +174,52 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             movie -> content.copy(seen = user?.optInt("status", -1) == 1, movieState = user?.optInt("status", -1) ?: -1,
                 membership = if (action in setOf(TrackingAction.ADD, TrackingAction.REMOVE)) membership(value) else content.membership)
             showAction -> content.copy(archived = archiveState(value), membership = if (action in setOf(TrackingAction.ADD, TrackingAction.REMOVE)) membership(value) else content.membership)
-            else -> content.copy(seen = user?.optBoolean("seen") == true)
+            else -> {
+                if (user?.opt("seen") !is Boolean) throw TrackingException(TrackingFailure.PROTOCOL)
+                content.copy(seen = user.getBoolean("seen"))
+            }
         }
-        val confirmed = when (action) {
+        if (movie && action in setOf(TrackingAction.SEEN, TrackingAction.UNSEEN, TrackingAction.RESTORE_MOVIE_STATE) && user?.opt("status") !is Number) throw TrackingException(TrackingFailure.PROTOCOL)
+        return entry
+    }
+
+    internal fun matches(entry: TrackingContent, action: TrackingAction, original: TrackingContent): Boolean = when (action) {
             TrackingAction.ADD -> entry.membership == AccountMembership.PRESENT
             TrackingAction.REMOVE -> entry.membership == AccountMembership.ABSENT
             TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> entry.archived == (action == TrackingAction.ARCHIVE)
-            TrackingAction.SEEN, TrackingAction.UNSEEN -> if (movie) user?.has("status") == true && entry.movieState == if (action == TrackingAction.SEEN) 1 else 0
-                else user?.has("seen") == true && entry.seen == (action == TrackingAction.SEEN)
-            TrackingAction.RESTORE_MOVIE_STATE -> user?.has("status") == true && entry.movieState == content.movieState
-        }
-        if (!confirmed) throw TrackingException(TrackingFailure.INCOMPLETE)
-        val next = if (!movie && action == TrackingAction.SEEN && content.parent.type == TrackingType.SHOW) next(token, content) else null
-        return listOfNotNull(entry.copy(sessionGeneration = content.sessionGeneration), next?.takeIf { it.identity != entry.identity })
+            TrackingAction.SEEN, TrackingAction.UNSEEN -> if (entry.identity.type == TrackingType.MOVIE) entry.movieState == if (action == TrackingAction.SEEN) 1 else 0
+                else entry.seen == (action == TrackingAction.SEEN)
+            TrackingAction.RESTORE_MOVIE_STATE -> entry.movieState == original.movieState
     }
+
+    internal suspend fun reserve(token: String, content: TrackingContent, desired: Map<String, Int>): List<TrackingContent> = kotlinx.coroutines.withTimeoutOrNull(90_000) {
+        require(content.parent.type == TrackingType.SHOW)
+        val response = api.request("episodes/list", token, fields = mapOf("showId" to content.parent.id, "limit" to "6", "showsLimit" to "1", "released" to "1"))
+        if (response.optInt("totalMissingEpisodes") > 0 || response.optInt("totalMissingShows") > 0) throw TrackingException(TrackingFailure.INCOMPLETE)
+        val groups = response.getJSONArray("shows")
+        val group = (0 until groups.length()).map { groups.getJSONObject(it) }.singleOrNull { it.requiredId() == content.parent.id }
+        val values = group?.getJSONArray("unseen")
+        val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).getJSONObject("show")
+        if (archiveState(show) != false) throw TrackingException(TrackingFailure.INCOMPLETE)
+        fun candidates(values: List<JSONObject>) = values.filter { value ->
+            val date = value.text("date")?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+            if (date == null) throw TrackingException(TrackingFailure.INCOMPLETE)
+            if (value.optInt("season", -1) < 0 || value.optInt("episode", -1) < 1 || value.optJSONObject("user")?.opt("seen") !is Boolean) throw TrackingException(TrackingFailure.INCOMPLETE)
+            !date.isAfter(today()) && (desired[value.requiredId()]?.let { it != 1 } ?: (value.optJSONObject("user")?.opt("seen") == false))
+        }.map { episode(show, it) }.sortedWith(compareBy<TrackingContent> { it.season }.thenBy { it.episode })
+        val initial = candidates((0 until (values?.length() ?: 0)).map { values!!.getJSONObject(it) })
+        if (initial.size >= 6) return@withTimeoutOrNull initial.take(6)
+        val result = linkedMapOf<String, TrackingContent>()
+        initial.forEach { result[it.identity.id] = it }
+        val numbers = seasons(token, content)
+        var requests = 0
+        for (number in numbers) {
+            if (++requests > 20) throw TrackingException(TrackingFailure.INCOMPLETE)
+            candidates(showEpisodes(token, content.parent.id, number)).forEach { result[it.identity.id] = it }
+            if (result.size >= 6) return@withTimeoutOrNull result.values.sortedWith(compareBy<TrackingContent> { it.season }.thenBy { it.episode }).take(6)
+        }
+        result.values.sortedWith(compareBy<TrackingContent> { it.season }.thenBy { it.episode })
+    } ?: throw TrackingException(TrackingFailure.NETWORK)
 
     private suspend fun next(token: String, content: TrackingContent): TrackingContent? {
         val groups = api.request("episodes/list", token, fields = mapOf("showId" to content.parent.id, "limit" to "1", "showsLimit" to "1", "released" to "1")).optJSONArray("shows")
@@ -201,6 +244,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         val images = show.optJSONObject("images")
         return TrackingContent(
             identity = TrackingIdentity("betaseries", TrackingType.EPISODE, value.requiredId()),
+            airDate = value.text("date"),
             parent = TrackingIdentity("betaseries", TrackingType.SHOW, show.requiredId()),
             title = show.text("title") ?: throw TrackingException(TrackingFailure.PROTOCOL),
             episodeTitle = value.text("title"), season = value.optInt("season", -1).takeIf { it >= 0 }, episode = value.optInt("episode", -1).takeIf { it > 0 },

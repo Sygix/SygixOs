@@ -53,6 +53,24 @@ class TrackingHttpsTransportTest {
         assertTrue(call.isCanceled())
     }
 
+    @Test fun departureAuthorizationIsCheckedAtTheActualEnqueueBoundary() = runTest {
+        var invalidated = false
+        var enqueued = false
+        val transport = TrackingHttpsTransport(Call.Factory { request ->
+            invalidated = true
+            TestCall(request) { _, _ -> enqueued = true }
+        }, dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler))
+        val authorization = TrackingRequestAuthorization({ true }, { dispatch ->
+            if (invalidated) throw TrackingSessionChangedException()
+            dispatch()
+        })
+        try {
+            kotlinx.coroutines.withContext(authorization) { transport.execute(TrackingRequest("https://api.betaseries.com/fixture", "POST")) }
+            fail()
+        } catch (_: TrackingSessionChangedException) { }
+        assertFalse(enqueued)
+    }
+
     private class TestCall(private val value: Request, private val enqueue: (Call, Callback) -> Unit) : Call {
         private val cancelled = AtomicBoolean()
         override fun request() = value

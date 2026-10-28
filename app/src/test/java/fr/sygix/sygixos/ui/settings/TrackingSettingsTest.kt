@@ -144,7 +144,7 @@ class TrackingSettingsTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
         try {
             fixture.runtime.controller.connect("fixture-token"); runCurrent()
-            val content = fixture.runtime.controller.state.value.contents.single()
+            val content = TrackingProjection.candidates(fixture.runtime.controller.state.value.contents).single()
             fixture.viewModel.menu(TrackingProjection.card(content))
             fixture.viewModel.showEpisodes()
             runCurrent(); show(fixture)
@@ -170,7 +170,7 @@ class TrackingSettingsTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
         try {
             fixture.runtime.controller.connect("fixture-token"); runCurrent()
-            fixture.viewModel.menu(TrackingProjection.card(fixture.runtime.controller.state.value.contents.single()))
+            fixture.viewModel.menu(TrackingProjection.card(TrackingProjection.candidates(fixture.runtime.controller.state.value.contents).single()))
             fixture.viewModel.showEpisodes(); runCurrent(); show(fixture)
             press(Key.DirectionDown, "tracking-episodes")
             compose.onNodeWithTag("tracking-episode-3").assertIsFocused()
@@ -196,7 +196,7 @@ class TrackingSettingsTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
         try {
             fixture.runtime.controller.connect("fixture-token"); runCurrent()
-            fixture.viewModel.menu(TrackingProjection.card(fixture.runtime.controller.state.value.contents.single()))
+            fixture.viewModel.menu(TrackingProjection.card(TrackingProjection.candidates(fixture.runtime.controller.state.value.contents).single()))
             fixture.viewModel.showEpisodes(); runCurrent(); show(fixture)
             press(Key.DirectionUp, "tracking-episodes"); press(Key.Enter, "tracking-episodes")
             val first = kotlinx.coroutines.CompletableDeferred<Unit>()
@@ -221,7 +221,7 @@ class TrackingSettingsTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime }, episodeMode = true)
         try {
             fixture.runtime.controller.connect("fixture-token"); runCurrent()
-            fixture.viewModel.menu(TrackingProjection.card(fixture.runtime.controller.state.value.contents.single()))
+            fixture.viewModel.menu(TrackingProjection.card(TrackingProjection.candidates(fixture.runtime.controller.state.value.contents).single()))
             fixture.viewModel.showEpisodes(); runCurrent(); show(fixture)
             press(Key.DirectionUp, "tracking-episodes"); press(Key.Enter, "tracking-episodes")
             val pending = kotlinx.coroutines.CompletableDeferred<Unit>()

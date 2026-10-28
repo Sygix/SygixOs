@@ -641,7 +641,7 @@ internal fun LauncherHome(
                         onUpNextReturnHandled = onUpNextReturnHandled,
                         trackingStatus = {
                             if (trackingUi?.tracking?.statusVisible == true) Text(
-                                stringResource(if (trackingUi.tracking.loading) R.string.tracking_loading else R.string.tracking_error),
+                                stringResource(fr.sygix.sygixos.ui.settings.trackingStateLabel(trackingUi.tracking)),
                                 style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary,
                                 modifier = Modifier.testTag("tracking-status"),
                             )

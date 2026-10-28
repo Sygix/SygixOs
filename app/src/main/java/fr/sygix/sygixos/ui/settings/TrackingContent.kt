@@ -40,6 +40,17 @@ internal fun trackingFailureLabel(failure: TrackingFailure): Int = when (failure
     TrackingFailure.PROTOCOL -> R.string.tracking_error_protocol
 }
 
+internal fun trackingStateLabel(state: TrackingState): Int = when {
+    state.failure == TrackingFailure.ACCESS -> R.string.tracking_reconnect
+    state.failure == TrackingFailure.STORAGE -> R.string.tracking_error_storage
+    state.pendingCount > 0 -> R.string.tracking_saved_pending
+    state.loading -> R.string.tracking_loading
+    state.failure != null -> trackingFailureLabel(state.failure)
+    state.reserveIncomplete -> R.string.tracking_error_incomplete
+    state.contents.isEmpty() -> R.string.tracking_empty
+    else -> R.string.tracking_ready
+}
+
 @Composable
 internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: TrackingViewModel, enabled: Boolean, first: FocusRequester) {
     var dropdown by remember { mutableStateOf(false) }
@@ -55,13 +66,7 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
             state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
         } else {
             state.tracking.account?.let { Text(it.name, style = TextStyles.MenuTitle, color = SygixColors.OnDark) }
-            val status = when {
-                state.tracking.loading -> R.string.tracking_loading
-                state.tracking.failure == TrackingFailure.ACCESS -> R.string.tracking_reconnect
-                state.tracking.failure != null -> R.string.tracking_error
-                state.tracking.contents.isEmpty() -> R.string.tracking_empty
-                else -> R.string.tracking_ready
-            }
+            val status = trackingStateLabel(state.tracking)
             Text(stringResource(status), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
             state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
             if (state.tracking.account == null && state.tracking.failure != null && state.tracking.failure != TrackingFailure.ACCESS) {

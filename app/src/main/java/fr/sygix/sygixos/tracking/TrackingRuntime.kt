@@ -31,9 +31,12 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
     val parserDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
     configurationFile: java.io.File? = context.noBackupFilesDir.resolve("tracking-configuration"),
     identityFile: java.io.File? = context.noBackupFilesDir.resolve("tracking-identities"),
+    durable: TrackingSyncServices? = if (sessionStore is KeystoreTrackingSession) TrackingSyncServices.get(context) else null,
+    repository: TrackingRepository? = durable?.repository,
+    scheduler: TrackingWorkScheduler? = durable?.scheduler,
 ) {
-    private val api = BetaSeriesApi(transport, BetaSeriesConfigurationSource(transport, configurationFile, wallClock, parserDispatcher), parserDispatcher)
-    val provider = BetaSeriesProvider(api) { java.time.Instant.ofEpochMilli(wallClock()).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+    private val api = durable?.api ?: BetaSeriesApi(transport, BetaSeriesConfigurationSource(transport, configurationFile, wallClock, parserDispatcher), parserDispatcher)
+    val provider = durable?.provider ?: BetaSeriesProvider(api) { java.time.Instant.ofEpochMilli(wallClock()).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
     val region = preferences.country.transformLatest { country ->
         emit(null)
         if (country != null) emit(try { provider.platforms(country) }
@@ -49,7 +52,8 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
             }
         }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
-    val controller = TrackingController(provider, sessionStore, scope, clock)
+    val controller = TrackingController(provider, sessionStore, scope, clock, repository, scheduler,
+        beforeRestore = { durable?.recoverPurge() ?: false }, invalidate = { durable?.invalidate() })
     val enrichment = TrackingEnrichment(controller, provider, scope, clock, TrackingIdentityCache(identityFile, parserDispatcher), onIdentities = { links ->
         try { onIdentities(links) }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }

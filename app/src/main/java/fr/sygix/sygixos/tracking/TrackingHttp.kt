@@ -44,6 +44,7 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
 ) : TrackingTransport {
 
     override suspend fun execute(request: TrackingRequest): TrackingResponse = withContext(dispatcher) {
+        kotlinx.coroutines.currentCoroutineContext()[TrackingRequestAuthorization]?.validate()
         if (!officialTrackingUrl(request.url)) throw TrackingException(TrackingFailure.CONFIGURATION)
         val builder = Request.Builder().url(request.url)
         request.headers.forEach { (name, value) -> builder.header(name, value) }
@@ -52,7 +53,7 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
         val call = client.newCall(builder.build())
         suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation { call.cancel() }
-            call.enqueue(object : Callback {
+            val callback = object : Callback {
                 override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(TrackingException(TrackingFailure.NETWORK)) }
                 override fun onResponse(call: Call, response: Response) {
                     try {
@@ -70,7 +71,9 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
                         if (continuation.isActive) continuation.resumeWithException(TrackingException(TrackingFailure.PROTOCOL))
                     }
                 }
-            })
+            }
+            val authorization = continuation.context[TrackingRequestAuthorization]
+            if (authorization == null) call.enqueue(callback) else authorization.dispatch { call.enqueue(callback) }
         }
     }
 }
@@ -80,7 +83,7 @@ class BoundedTrackingTransport(private val clock: () -> Long, private val delega
     override suspend fun execute(request: TrackingRequest): TrackingResponse = withTimeoutOrNull(if (request.method == "GET") 60_000 else 15_000) {
         val deadline = clock() + if (request.method == "GET") 60_000 else 15_000
         suspend fun waitForRetry(millis: Long) {
-            if (millis > deadline - clock()) throw TrackingException(TrackingFailure.NETWORK)
+            if (millis > deadline - clock()) throw TrackingRetryException(millis)
             delay(millis.coerceAtLeast(0))
         }
         var last: TrackingResponse? = null
@@ -89,7 +92,7 @@ class BoundedTrackingTransport(private val clock: () -> Long, private val delega
                 withTimeoutOrNull(minOf(15_000, (deadline - clock()).coerceAtLeast(1))) { delegate.execute(request) } ?: throw TrackingException(TrackingFailure.NETWORK)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) {
-                if (request.method != "GET" || error is TrackingException && error.failure != TrackingFailure.NETWORK || attempt == 2) throw error
+                if (request.method != "GET" || error is TrackingSessionChangedException || error is TrackingException && error.failure != TrackingFailure.NETWORK || attempt == 2) throw error
                 waitForRetry(500L shl attempt)
                 return@repeat
             }
@@ -98,7 +101,10 @@ class BoundedTrackingTransport(private val clock: () -> Long, private val delega
             if (request.method != "GET" || response.status !in setOf(429, 502, 503, 504) && !nonJson) return@withTimeoutOrNull response
             if (attempt < 2) waitForRetry(response.retryAfterMillis ?: (500L shl attempt))
         }
-        last ?: throw TrackingException(TrackingFailure.NETWORK)
+        last?.let { response ->
+            if (response.status !in 200..299 && response.retryAfterMillis != null) throw TrackingRetryException(response.retryAfterMillis)
+            response
+        } ?: throw TrackingException(TrackingFailure.NETWORK)
     } ?: throw TrackingException(TrackingFailure.NETWORK)
 }
 

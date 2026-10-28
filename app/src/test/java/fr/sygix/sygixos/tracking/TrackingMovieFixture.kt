@@ -13,7 +13,8 @@ import fr.sygix.sygixos.testDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.map
 
-internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? = "fixture-token", onArtwork: suspend (List<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>) -> Unit = {}, clock: () -> Long) {
+internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? = "fixture-token", onArtwork: suspend (List<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>) -> Unit = {},
+    repository: TrackingRepository? = null, scheduler: TrackingWorkScheduler? = null, clock: () -> Long) {
     private val context: android.content.Context = ApplicationProvider.getApplicationContext()
     var removed = false
     var state = 0
@@ -72,6 +73,6 @@ internal class TrackingMovieFixture(scope: CoroutineScope, savedToken: String? =
         }, playbackLauncher = object : PlaybackLauncher {
             override fun launch(app: PlaybackApp, request: PlaybackRequest): PlaybackPrecision { launches += request; return PlaybackPrecision.APPLICATION }
         }, clock = clock, nanoTime = { clock() * 1_000_000 }, wallClock = { 1_800_000_000_000L },
-        parserDispatcher = projectionDispatcher, configurationFile = null, identityFile = null)
+        parserDispatcher = projectionDispatcher, configurationFile = null, identityFile = null, repository = repository, scheduler = scheduler)
     val content: TrackingContent get() = runtime.controller.state.value.contents.single()
 }

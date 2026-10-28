@@ -32,7 +32,8 @@ class TrackingTransportTest {
         val start = testScheduler.currentTime
         var calls = 0
         val transport = BoundedTrackingTransport({ testScheduler.currentTime }) { ++calls; TrackingResponse(429, "{}", 2000) }
-        assertEquals(429, transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")).status)
+        try { transport.execute(TrackingRequest("https://api.betaseries.com/shows/member")); fail() }
+        catch (error: TrackingRetryException) { assertEquals(2000L, error.retryAfterMillis) }
         assertEquals(3, calls)
         assertEquals(4000, testScheduler.currentTime - start)
     }

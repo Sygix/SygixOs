@@ -17,6 +17,7 @@ enum class TrackingFailure { NETWORK, PROTOCOL, ACCESS, CONFIGURATION, STORAGE, 
 enum class TrackingSessionStatus { NONE, RESTORING, SAVED }
 
 open class TrackingException(val failure: TrackingFailure) : Exception(failure.name)
+class TrackingRetryException(val retryAfterMillis: Long) : TrackingException(TrackingFailure.NETWORK)
 
 data class TrackingContent(
     val identity: TrackingIdentity,
@@ -39,6 +40,7 @@ data class TrackingContent(
     val sessionGeneration: Long? = null,
     val offers: List<PlaybackOffer> = emptyList(),
     val failure: TrackingFailure? = null,
+    val airDate: String? = null,
 )
 
 data class TrackingSnapshot(val contents: List<TrackingContent>, val failure: TrackingFailure? = null)
@@ -52,9 +54,13 @@ data class TrackingState(
     val snapshotAt: Long? = null,
     val revocationUnconfirmed: Boolean = false,
     val sessionStatus: TrackingSessionStatus = TrackingSessionStatus.NONE,
+    val pendingCount: Int = 0,
+    val reserveIncomplete: Boolean = false,
+    val pendingIdentities: Set<TrackingIdentity> = emptySet(),
+    val durableRevision: Long = 0,
 ) {
     val hasSession: Boolean get() = sessionStatus != TrackingSessionStatus.NONE || account != null
-    val statusVisible: Boolean get() = hasSession && (loading || failure != null)
+    val statusVisible: Boolean get() = hasSession && (loading || failure != null || pendingCount > 0 || reserveIncomplete)
 }
 
 interface WatchTrackingProvider {

@@ -179,13 +179,18 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
 
     override fun onCreate() {
         super.onCreate()
-        if (prefetchesMascot && Application.getProcessName() == packageName) {
-            mascotAnimation.prefetch(CoroutineScope(SupervisorJob() + Dispatchers.Default))
-        }
         registerActivityLifecycleCallbacks(foregroundTracker)
         watchPackageChanges()
-        updateRepository.coldStart()
         if (checksAccessibility && Application.getProcessName() == packageName) accessibilityCheck.check()
+    }
+
+    private var uiStarted = false
+
+    fun onUiStarted() {
+        if (uiStarted) return
+        uiStarted = true
+        if (prefetchesMascot) mascotAnimation.prefetch(CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        updateRepository.coldStart()
     }
 
     private fun watchPackageChanges() {

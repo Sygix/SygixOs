@@ -35,7 +35,9 @@ class BetaSeriesApi(
         val query = if (method in setOf("GET", "DELETE") && parameters.isNotEmpty()) parameters.entries.joinToString("&", "?") { (key, value) -> "$key=${URLEncoder.encode(value, "UTF-8")}" } else ""
         val headers = mutableMapOf("Accept" to "application/json", "X-BetaSeries-Version" to "3.0", "X-BetaSeries-Key" to config.apiKey)
         if (token != null) headers["X-BetaSeries-Token"] = token
+        kotlinx.coroutines.currentCoroutineContext()[TrackingRequestAuthorization]?.validate()
         val response = transport.execute(TrackingRequest("${config.apiHost}/$path$query", method, headers, parameters.takeUnless { method in setOf("GET", "DELETE") } ?: emptyMap()))
+        if (response.status !in 200..299 && response.status !in setOf(401, 403) && response.retryAfterMillis != null) throw TrackingRetryException(response.retryAfterMillis)
         val json = try { kotlinx.coroutines.withContext(dispatcher) { JSONObject(response.body) } }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (_: Exception) { throw TrackingException(if (response.status in setOf(401, 403)) TrackingFailure.NETWORK else TrackingFailure.PROTOCOL) }
@@ -62,6 +64,7 @@ class BetaSeriesApi(
             val batch = (0 until array.length()).map { array.getJSONObject(it) }
             val previousSize = result.size
             batch.forEach { result[it.requiredId()] = it }
+            if (json.optInt("totalMissingEpisodes") > 0 || json.optInt("totalMissingShows") > 0) throw TrackingException(TrackingFailure.INCOMPLETE)
             if (batch.isNotEmpty() && result.size == previousSize) throw TrackingException(TrackingFailure.INCOMPLETE)
             offset += batch.size
             val total = json.optInt("total", -1)

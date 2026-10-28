@@ -38,7 +38,7 @@ Aucune : la persistance et la synchronisation prolongent les contrats de suivi e
 ## Dependencies / Archive Order
 
 - Base fonctionnelle : P9 livré et archivé. Aucune dépendance d'implémentation sur le change `tv-resource-budget` ; ses deltas de rafraîchissement du TV Provider ne sont pas modifiés ici et la synchronisation BetaSeries ne relance pas ces lectures.
-- Un change local distinct `betaseries-session-recovery` existe sur une autre branche. Il n'est pas fusionné dans la base de ce change. S'il est livré, l'archiver avant celui-ci puis réconcilier ses exigences de fin de session, de bornes réseau et de présentation avant implémentation ; préserver sa distinction panne temporaire/refus explicite. Ce change remplace uniquement son interdiction de reprise automatique pour les vu/non vu persistants.
+- Le correctif `betaseries-session-recovery` est fusionné dans la base d'implémentation. Ses exigences de fin de session, de bornes réseau et de présentation sont conservées, notamment la distinction panne temporaire/refus explicite. Sa validation sur TV reste ouverte : son archivage attend cette preuve et précédera celui du présent change. Ce change remplace uniquement son interdiction de reprise automatique pour les vu/non vu persistants.
 - Archiver ce change après son merge et sa validation sur TV réelle, avec réexamen des exigences communes si la récupération de session est encore en attente.
 
 ## Non-goals

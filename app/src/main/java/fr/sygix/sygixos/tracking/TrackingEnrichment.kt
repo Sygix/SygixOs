@@ -26,6 +26,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
     private val mutable = MutableStateFlow<Map<String, TrackingContent>>(emptyMap())
     override val contents = mutable.asStateFlow()
     @Volatile private var local: List<UpNextItem> = emptyList()
+    @Volatile private var localConfirmed = false
     val sourcePackages: Set<String> get() = local.map { it.source.packageName }.toSet()
     override fun items(): List<UpNextItem> = local.map { item ->
         val current = controller.state.value
@@ -53,7 +54,8 @@ class TrackingEnrichment(private val controller: TrackingController, private val
     }
 
     fun local(items: List<UpNextItem>) {
-        if (items == local) return
+        if (localConfirmed && items == local) return
+        localConfirmed = true
         local = items
         refresh()
     }
@@ -73,10 +75,16 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                     try {
                         val known = catalogue?.get(item.key, item.cardIdentity)
                             ?: updated[item.key]?.takeIf { cached?.first == item.cardIdentity }?.let { LocalTrackingIdentity(it.identity, it.parent) }
+                        current.contents.firstOrNull { it.identity == known?.identity }?.let { saved ->
+                            updated[item.key] = saved
+                            if (generation == controller.state.value.generation) mutable.value = updated.toMap()
+                        }
                         val content = controller.authenticated { token -> provider.identify(token, item, known) }
                         if (content != null) {
                             catalogue?.put(item.key, item.cardIdentity, content)
-                            updated[item.key] = content.copy(sessionGeneration = generation)
+                            val stored = controller.state.value.contents.firstOrNull { it.identity == content.identity }
+                            updated[item.key] = stored ?: content.copy(sessionGeneration = generation)
+                            if (stored == null) controller.patch(content.copy(sessionGeneration = generation))
                         }
                         identified[item.key] = item.cardIdentity to clock()
                     } catch (cancelled: CancellationException) { throw cancelled }
@@ -93,6 +101,11 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                 catch (_: Exception) { return@launch }
                 if (generation != controller.state.value.generation) return@launch
                 mutable.value = updated.toMap()
+                controller.incarnation?.takeIf { localConfirmed }?.let { incarnation ->
+                    try { controller.repository?.references(incarnation, "local", items.mapNotNull { updated[it.key]?.identity }.toSet()) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { controller.markFailure(TrackingFailure.STORAGE) }
+                }
             }
         }
     }

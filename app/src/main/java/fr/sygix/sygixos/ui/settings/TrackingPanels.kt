@@ -21,7 +21,7 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
     val close = stringResource(R.string.tracking_close)
     val retry = stringResource(R.string.tracking_retry)
     when {
-        state.statusOpen -> TrackingModal(stringResource(R.string.tracking_error), "tracking-status-detail", listOf(
+        state.statusOpen -> TrackingModal(stringResource(trackingStateLabel(state.tracking)), "tracking-status-detail", listOf(
             TrackingModalAction("tracking-status-retry", stringResource(if (state.tracking.failure == TrackingFailure.ACCESS) R.string.tracking_reconnect else R.string.tracking_retry), viewModel::retryStatus),
             TrackingModalAction("tracking-status-close", close, viewModel::close),
         ), viewModel::close, focusModel = viewModel) { state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) } }
@@ -108,6 +108,8 @@ internal fun TrackingNotification(notice: TrackingNotice, viewModel: TrackingVie
         notice.failure != null && notice.undoing -> R.string.tracking_undo_error
         notice.failure != null -> R.string.tracking_error
         notice.action == TrackingAction.REMOVE -> R.string.tracking_remove_pending
+        notice.locallySaved && notice.confirmed -> R.string.tracking_synced
+        notice.locallySaved -> R.string.tracking_saved_pending
         else -> R.string.tracking_success
     }
     GlassSurface(modifier.widthIn(min = Dimens.TrackingNotificationMinWidth, max = Dimens.TrackingNotificationMaxWidth).testTag("tracking-notification"), shape = androidx.compose.foundation.shape.RoundedCornerShape(Dimens.MenuCorner), look = GlassLook.Menu) {

@@ -167,4 +167,6 @@
     <string name="language_description">Scegli la lingua di SygixOs. Per impostazione predefinita, segue la lingua della TV.</string>
     <string name="language_system">Lingua della TV</string>
     <string name="language_system_unsupported">Lingua della TV non supportata · %1$s</string>
+    <string name="tracking_saved_pending">Salvato sulla TV · In attesa di sincronizzazione</string>
+    <string name="tracking_synced">Sincronizzato</string>
 </resources>

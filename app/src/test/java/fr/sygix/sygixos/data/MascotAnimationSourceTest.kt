@@ -76,8 +76,16 @@ class MascotAnimationSourceTest {
 
     @Test
     @Config(application = SygixOsApp::class)
-    fun `main process prefetches the animation when it starts`() {
+    fun `background process startup does not prefetch the animation`() {
         val app = ApplicationProvider.getApplicationContext<SygixOsApp>()
+        assertFalse(app.mascotAnimation.prefetched)
+    }
+
+    @Test
+    @Config(application = SygixOsApp::class)
+    fun `first ui startup prefetches the animation`() {
+        val app = ApplicationProvider.getApplicationContext<SygixOsApp>()
+        app.onUiStarted()
         assertTrue(app.mascotAnimation.prefetched)
     }
 }

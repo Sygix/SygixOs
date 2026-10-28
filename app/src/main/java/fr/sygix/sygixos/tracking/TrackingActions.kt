@@ -23,6 +23,9 @@ data class TrackingNotice(
     val returnPrompt: Boolean = false,
     val undoing: Boolean = false,
     val blocked: Boolean = false,
+    val locallySaved: Boolean = false,
+    val intent: StoredTrackingIntent? = null,
+    val confirmed: Boolean = false,
 )
 
 class TrackingActions(
@@ -51,6 +54,7 @@ class TrackingActions(
                     work?.cancel(); timer?.cancel(); mutable.value = null; pendingReturn = null; excludedMutable.value = emptySet()
                 }
                 if (mutable.value?.returnPrompt == true && state.contents.any { it.identity == mutable.value?.content?.identity && it.seen }) mutable.value = null
+                confirmLocal(state)
             }
         }
     }
@@ -77,7 +81,42 @@ class TrackingActions(
         if (action == TrackingAction.REMOVE) {
             excludedMutable.value = excludedMutable.value + content.parent
             startTimer()
-        } else send(notice)
+        } else if (controller.repository != null && action in setOf(TrackingAction.SEEN, TrackingAction.UNSEEN)) sendLocal(notice)
+        else send(notice)
+    }
+
+    private fun sendLocal(notice: TrackingNotice, inverse: Boolean = false) {
+        work = scope.launch {
+            val operation = notice.copy(busy = true, failure = null, undoing = inverse || notice.undoing)
+            mutable.value = operation
+            try {
+                if (operation.undoing) {
+                    controller.undo(requireNotNull(operation.intent), operation.content)
+                    if (controller.state.value.generation == operation.generation) finishNotice()
+                } else {
+                    val intent = controller.record(operation.content, operation.action)
+                    if (controller.state.value.generation != operation.generation) return@launch
+                    mutable.value = operation.copy(busy = false, locallySaved = true, intent = intent)
+                    confirmLocal(controller.state.value)
+                    startTimer()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (controller.state.value.generation == operation.generation) mutable.value = operation.copy(busy = false, failure = error.trackingFailure())
+            }
+        }
+    }
+
+    private fun confirmLocal(state: TrackingState) {
+        val notice = mutable.value?.takeIf { it.locallySaved && !it.confirmed && !it.busy } ?: return
+        val intent = notice.intent ?: return
+        if (state.durableRevision < intent.revision || notice.content.identity in state.pendingIdentities) return
+        val target = state.contents.firstOrNull { it.identity == notice.content.identity } ?: return
+        if (target.seen == (notice.action == TrackingAction.SEEN)) {
+            accountTime()
+            mutable.value = mutable.value?.copy(confirmed = true)
+            startTimer()
+        }
     }
 
     private fun send(notice: TrackingNotice, inverse: Boolean = false) {
@@ -117,13 +156,15 @@ class TrackingActions(
         if (current.action == TrackingAction.REMOVE) {
             excludedMutable.value = excludedMutable.value - current.content.parent
             finishNotice()
-        } else send(current, inverse = true)
+        } else if (current.locallySaved) sendLocal(current, inverse = true)
+        else send(current, inverse = true)
     }
 
     fun retry() {
         val current = mutable.value ?: return
         if (current.busy || current.failure == null) return
-        send(current)
+        if (controller.repository != null && current.action in setOf(TrackingAction.SEEN, TrackingAction.UNSEEN)) sendLocal(current)
+        else send(current)
     }
 
     fun returned(content: TrackingContent, generation: Long) {
@@ -142,6 +183,7 @@ class TrackingActions(
 
     private fun finishNotice() {
         timer?.cancel()
+        controller.releaseUndo()
         mutable.value = pendingReturn?.takeIf { it.generation == controller.state.value.generation }
         pendingReturn = null
     }
