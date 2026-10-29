@@ -32,7 +32,7 @@ La session Trakt SHALL conserver de façon protégée les jetons d'accès et de 
 
 #### Scenario: panne et résultat incertain du renouvellement
 - **WHEN** le renouvellement subit une panne, une réponse perdue ou une erreur de stockage
-- **THEN** session, compte lié et intentions restent conservés avec erreur réessayable ; un jeton de renouvellement à usage unique n'est pas réémis aveuglément et aucune réussite n'est annoncée sans sauvegarde ; un refus définitif confirmé propose Reconnecter
+- **THEN** session, compte lié et intentions restent conservés ; une panne de stockage récupérable propose Réessayer, mais Reconnecter le remplace si le renouvellement incertain ne peut plus être repris sûrement, sans purge préalable ; un jeton de renouvellement à usage unique n'est pas réémis aveuglément et aucune réussite n'est annoncée sans sauvegarde ; un refus définitif confirmé propose aussi Reconnecter ; la réassociation conserve les intentions si le même compte est confirmé et isole les données si un autre compte est confirmé
 
 #### Scenario: client d'origine remplacé
 - **WHEN** une nouvelle configuration d'application a été découverte

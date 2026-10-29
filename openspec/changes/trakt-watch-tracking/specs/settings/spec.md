@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Réglages du suivi de visionnage
-La catégorie Suivi de visionnage SHALL exposer BetaSeries ou Trakt selon le fournisseur choisi, connexion ou déconnexion, état du compte, synchronisation, réessai et pays confirmé. Elle SHALL distinguer état local durable, demandes en attente, confirmation distante et reconnexion. Une session en restauration ou conservée après panne SHALL proposer un réessai sans nouvelle association implicite.
+La catégorie Suivi de visionnage SHALL exposer BetaSeries ou Trakt selon le fournisseur choisi, connexion ou déconnexion, état du compte, synchronisation, réessai et pays confirmé. Elle SHALL distinguer état local durable, demandes en attente, confirmation distante et reconnexion. Une session en restauration ou conservée après panne SHALL proposer un réessai sans nouvelle association implicite ; le renouvellement Trakt incertain non récupérable SHALL proposer Reconnecter selon « Session et renouvellement Trakt », toujours sur action explicite.
 
 #### Scenario: sans compte
 - **WHEN** la catégorie est ouverte avec une absence de session confirmée
@@ -17,7 +17,7 @@ La catégorie Suivi de visionnage SHALL exposer BetaSeries ou Trakt selon le fou
 
 #### Scenario: restauration sans identité chargée
 - **WHEN** la session est en cours de restauration ou que son identité n'a pas pu être chargée
-- **THEN** son fournisseur reste celui de la session, le sélecteur reste verrouillé et le premier contrôle utilisable conserve une place et un focus stables avec chargement ou Réessayer ; Connecter n'est pas proposé par supposition ; Réessayer relit le stockage ou le compte avec la session conservée, sans code ni QR ; seul le traitement confirmé du refus de session peut proposer Reconnecter
+- **THEN** son fournisseur reste celui de la session, le sélecteur reste verrouillé et le premier contrôle utilisable conserve une place et un focus stables avec chargement ou Réessayer ; Connecter n'est pas proposé par supposition ; Réessayer relit le stockage ou le compte avec la session conservée, sans code ni QR ; Reconnecter est réservé au refus de session confirmé ou au renouvellement Trakt incertain non récupérable selon son contrat
 
 #### Scenario: stockage temporairement indisponible
 - **WHEN** la lecture sécurisée échoue sans perte définitive confirmée

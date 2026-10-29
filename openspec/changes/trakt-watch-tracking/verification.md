@@ -82,3 +82,85 @@ Les contrôles d'APK installé, de navigation réelle et de cycle de vie sur l'�
 ## Revue indépendante et correction d'appartenance
 
 La revue du code `0724414` a relevé un point P2 : un historique de film ne prouve pas sa présence dans la watchlist. Le marquage vu est désormais conservé séparément et l'appartenance d'un film identifié découle seulement de sa watchlist. Le test `aWatchedMovieOutsideTheWatchlistCanBeAddedWithoutChangingItsHistory` a échoué avant correction puis réussi : Ajouter est autorisé, Retirer est refusé pour ce contenu absent, l'ajout ne modifie pas son historique. La classe `TraktProtocolTest` complète passe après correction. La relecture du diff correctif reste distincte du verdict initial.
+
+## Vérification du code avant review complémentaire
+
+- Code relu : `6e1e9d6`, verdict indépendant **MERGEABLE** après correction du point P2. La relecture incrémentale ne relève aucun nouveau défaut concret ; elle ne vaut ni CI ni autorisation de merge.
+- Suite complète du code corrigé : **1351 tests réussis, zéro échec, zéro ignoré**, en 56 secondes, avec le même script local de journalisation et sans filtrage.
+- `assembleRelease`, `assembleDebug` et `assemblePerf` ont réussi séparément de la suite. La release standard est construite ; l'installation runtime utilise un identifiant d'application isolé et un fixture débogable. Ce fixture ne fournit pas de mesure de performance de la release ni du matériel.
+
+## Parcours observés sur l'émulateur
+
+| Scénario | Preuve observée | Statut |
+| --- | --- | --- |
+| Restauration Trakt et contribution | Session chiffrée restaurée, contrôles connectés et attribution Trakt, cartes série/film, métadonnées et images visibles | Vérifié |
+| Menu et saisons | Série commencée avec Archiver plutôt que Retirer, épisodes vus distingués, retour de focus sans ouverture involontaire | Vérifié |
+| Choix du fournisseur et association BetaSeries | Liste existante au D-pad, choix sans association implicite, code/adresse complète/QR puis fermeture sans autorisation | Vérifié pour l'UI ; compte BetaSeries authentifié non exercé |
+| Marquage local retenu | Changement de prochain épisode et avis sans prise de focus ; base avec `undoHeld=1`, `possiblySent=0` | Vérifié |
+| Pause et restauration d'Annuler | Focus sur Annuler suspendant le compteur ; arrêt forcé et lancement à froid conservant intention, contexte et temps restant | Vérifié ; aucune précision de durée GPU déclarée |
+| Annuler au D-pad | Une intention retenue supprimée après validation d'Annuler ; les intentions antérieures restent présentes et aucune émission du marquage annulé n'était engagée | Vérifié |
+| Lecteur et retour | Application vidéo contrôlée ouverte avec repli applicatif explicite ; retour proposant « Terminé ? » ; absence de nouveau marquage en ignorant la proposition | Vérifié pour la délégation et le cycle de vie ; pas de décodage vidéo réel |
+| Cache après simulation de panne | Cartes et données durables conservées après changement temporaire de proxy et redémarrage | Observé ; blocage effectif de tous les appels non établi |
+| Synchronisation automatique en arrière-plan | Demandes libérées conservées ; le JobScheduler de l'émulateur attendait la contrainte CONNECTIVITY/VALIDATED malgré des appels API directs possibles | Non vérifié automatiquement dans cet état du réseau ; convergence métier et worker couverts en JVM |
+
+Deux passages indépendants ont été complétés par des contrôles du processus principal sur Annuler. Les captures utiles ont été transmises au propriétaire dans son canal privé, sans upload public et sans chemin local dans le présent rapport. Les écrans runtime ont suivi la langue du fixture ; les textes français à taille TV et les cinq catalogues sont couverts par les tests Compose et de complétude, pas par une prétendue visite runtime de chaque traduction.
+
+### Remise en état
+
+Les deux cibles distantes de test ont retrouvé leur absence initiale : watchlists, historique ciblé et masque de progression contrôlés vides. Les intentions et contextes locaux de l'installation isolée ont été nettoyés après arrêt du processus pour empêcher une réémission ultérieure. L'autorisation Trakt reste conservée dans son stockage protégé, sans nouveau code. Le proxy est revenu à son état initial et l'émulateur a été arrêté. Les anciens incidents des outils CLI temporaires ne sont pas comptés comme des crashes produit.
+
+## Rapport OpenSpec
+
+| Dimension | Résultat |
+| --- | --- |
+| Completeness | 32/34 tâches ; les 23 exigences ADDED/MODIFIED ont une implémentation identifiée. Les tâches runtime 8.2 et 8.3 restent ouvertes avec les limites ci-dessus. |
+| Correctness | Correspondance code/tests pour les 23 exigences et examen des 140 scénarios ; couverture runtime partielle, explicitement non assimilée aux preuves JVM. |
+| Coherence | Socle partagé, une base et une file Room, frontières par fournisseur, configuration et jetons séparés, composants et navigation existants réutilisés ; préférence de lecteur hors compte/fournisseur toujours réservée à l'autre session demandée. |
+
+### CRITICAL — avant archivage
+
+- Terminer 8.2 : validation complète des deux associations et des cas de migration/cache ancien sur APK installé, au-delà des preuves contrôlées et de l'UI déjà observée.
+- Terminer 8.3 : convergence automatique réelle après coupure/rétablissement du réseau pendant une autre application et autres combinaisons runtime non exercées ; ne pas assimiler l'attente de validation réseau Android à une confirmation distante.
+
+### WARNING — limites de preuve
+
+- La TV physique et les mesures FPS/jank sont écartées explicitement par le propriétaire ; elles ne sont pas une preuve manquante cachée.
+- Le fixture runtime est débogable ; la release standard est construite mais ses performances sur matériel ne sont pas évaluées.
+
+Les contrôles de code réalisés ne présentent plus de constat de revue bloquant. La PR d'implémentation peut exposer ces preuves et limites ; **le change n'est pas déclaré prêt pour archivage**, et aucun archivage ni merge n'est effectué ici.
+
+## Corrections de la review complémentaire
+
+La review complémentaire de `8ea1250` a reproduit six défauts supplémentaires par tests ciblés et identifié deux autres défauts par lecture croisée du code et de ses tests. Le verdict historique ci-dessus ne couvre pas ces constats. Les corrections ci-dessous ont été réalisées sur demande du propriétaire, avec validation explicite du parcours Reconnecter après renouvellement incertain et de l'intégration par fixups signés/autosquash.
+
+| Constat | Statut et correction | Preuve |
+| --- | --- | --- |
+| Identités Trakt relues comme BetaSeries | Traité : cache versionné et clés isolées par fournisseur ; format historique ambigu écarté | `TrackingIdentityCacheTest` : aller-retour disque, mêmes IDs numériques, bascule entre fournisseurs et cache historique |
+| Renouvellement incertain bloqué sur Réessayer | Traité : état RECONNECT sans suppression des contenus ni intentions ; entrée dans l'association depuis réglages, détail, épisodes, saisons et offres ; panne de sauvegarde récupérable conservant Réessayer | `TraktProtocolTest.lostRefreshResponseLeavesDurableUncertaintyAndNeverReissuesToken`, `receivedRotatedPairCanRepairStorageWithoutExchangingAgain`, `TrackingOfflineControllerTest.uncertainSessionReassociationRetainsSameAccountIntentAndPurgesOnlyAfterDifferentAccountConfirmation`, `TrackingSettingsTest.uncertainSessionOffersReconnectionWithoutDisconnectingOrDiscardingAccount` |
+| Épisode Trakt sans date annulant une série valide | Traité : filtrage de l'admissibilité avant lecture du statut dans réserve et liste de saison | `TrackingRecoveryRegressionTest.undatedFutureEpisodeDoesNotDiscardAiredTraktEpisode` |
+| Entrée BetaSeries malformée annulant les films valides | Traité : conversion isolée par groupe et épisode, résultat partiel conservant les contenus valides et empêchant une purge fondée sur l'absence | `TrackingRecoveryRegressionTest.malformedBetaSeriesGroupKeepsValidMovie` |
+| Ancien prochain épisode conservé après complément complet | Traité : réconciliation de la fenêtre ciblée, sans purge sur résultat partiel, avec protection des intentions, références et révisions postérieures | `TrackingRecoveryRegressionTest.completeReserveReplacesStaleUnseenCandidates`, `TrackingRepositoryTest.reserveReconciliationProtectsPendingReferencedAndNewerEntriesAndNeverPurgesPartialResults` |
+| Succès du worker effaçant une erreur de compte | Traité : erreurs snapshot et synchronisation séparées, résultat global dérivé ; migration Room v3→v4 conservatrice | `TrackingRecoveryRegressionTest.successfulReserveDoesNotClearUnrecoveredSnapshotFailure`, `TrackingRepositoryTest.successfulSnapshotDoesNotHidePendingSynchronizationFailure`, `migrationFromVersionThreeRetainsSnapshotErrorAndHeldUndo` |
+| Découvertes répétées après échec/rejet de configuration | Traité : résultat d'échec partagé, reprise explicite ou après une minute au prochain besoin ; refus tardif de la même génération sans remise à zéro de cet échec | `TrackingRecoveryRegressionTest.rejectedConfigurationDiscoveryIsSharedAcrossConsumers`, `TraktConfigurationTest.failedDiscoveryIsSharedUntilExplicitRetryOrBoundedRecoveryDelay`, consommateurs concurrents et échéance de découverte |
+| Statut d'indisponibilité affiché deux fois | Traité : détail affiché seulement s'il diffère du statut principal, dans les réglages et le panneau de détail | `TrackingSettingsTest.unavailableStatusAppearsOnceAndKeepsSyncFocus`, tests Compose à taille TV |
+
+Deux lectures redondantes sont également corrigées : une identité connue réutilise le snapshot frais avant de relire son statut (`TrackingEnrichmentTest.restoredIdentityReusesFreshSnapshotButReadsAgainAfterItsFreshnessExpires`) ; une panne des films ne force pas une seconde lecture des réserves déjà complètes (`TrackingRecoveryRegressionTest.failedMovieCollectionDoesNotForceReloadOfACompleteEpisodeReserve`). La coalescence supplémentaire des sollicitations WorkManager et l'optimisation des gros comptes Trakt restent des pistes non implémentées : elles nécessitent respectivement une preuve de réveil sans perte et une mesure des lectures avant modification des budgets ou de la concurrence.
+
+### Vérifications des corrections
+
+- `./gradlew test` : **1367 tests réussis, zéro échec, zéro ignoré**, dont 16 tests supplémentaires. Les six reproductions initiales échouaient sur les comportements attendus avant correction. La suite vérifie aussi les régressions BetaSeries, le nettoyage, la migration depuis les anciennes bases et les cinq catalogues de traduction.
+- Le test de changement de jeton pendant lecture utilise un dispatcher réel pour ses opérations bloquées par la base Room, afin que l'avance automatique de l'horloge virtuelle ne transforme pas l'attente de cette base en expiration fictive de découverte. Les échéances réseau restent testées séparément avec horloges contrôlées.
+- `assembleDebug` et `assembleRelease` ont produit les APK corrigés ; debug : 49318161 octets, release : 6176753 octets. Une commande regroupant tests et builds a dépassé son délai après génération des APK ; elle n'est pas la preuve de réussite de la suite. La commande `./gradlew test` séparée ci-dessus a terminé avec succès.
+- `openspec validate --all --strict` : 12 éléments valides, zéro échec. Le diagnostic informatif d'archivage rappelle la dépendance à l'archivage préalable du suivi hors ligne ; aucun archivage n'est tenté.
+- Vérification directe de l'APK debug standard sur émulateur Android TV : installation sans effacement des données, lancement, navigation vers Suivi de visionnage, sélection de Trakt, retour vers les réglages, choix conservé et focus sur le contrôle attendu. Le choix initial BetaSeries a été rétabli ; aucun crash dans le journal dédié. Captures envoyées en privé et émulateur arrêté.
+- Aucun compte n'était connecté dans cette installation standard. Les états d'erreur connectée, de renouvellement incertain et la réassociation authentifiée ne sont donc pas déclarés observés sur l'émulateur lors de ce passage ; leur preuve reste les tests métier/Room et Compose, distincte des parcours historiques du fixture isolé.
+
+### Bilan OpenSpec actualisé
+
+| Dimension | Résultat |
+| --- | --- |
+| Completeness | 32/34 tâches ; les tâches 8.2 et 8.3 restent ouvertes. Aucun scénario historique non observé n'a été coché par la réussite des nouveaux tests. |
+| Correctness | Correspondance des exigences relue sur les fichiers affectés : configuration, session/identités Trakt, résultat partiel BetaSeries, réserve, erreurs et présentation. Preuves JVM actualisées ; les preuves runtime historiques des chemins non rejoués ne sont pas une validation complète du nouveau code. |
+| Coherence | Une base Room avec migration non destructive, erreurs persistantes distinctes, cache d'identités isolé et interfaces partagées. Spec, design et README précisent le parcours de reconnexion accepté. |
+
+Les deux tâches runtime incomplètes restent des points critiques avant archivage. La réassociation authentifiée après perte réelle de réponse, les états connectés dans l'APK corrigé et les performances matérielles ne sont pas vérifiés lors de ce passage. Les huit défauts ont une correction et des preuves automatisées ; le change n'est toujours pas déclaré prêt pour archivage.
