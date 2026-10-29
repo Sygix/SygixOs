@@ -62,7 +62,7 @@ class TrackingAccountLifecycle(
             true
         } else {
             if (!restoredReferences) {
-                repository.account()?.let { repository.references(it.incarnation, "undo", emptySet()) }
+                repository.account()?.let { repository.restoreUndoReferences(it.incarnation) }
                 restoredReferences = true
             }
             false

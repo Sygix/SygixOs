@@ -21,34 +21,50 @@ internal class TrackingApplicationConfiguration<T : Any>(
     private val decode: (JSONObject) -> T?,
     private val encode: (T) -> JSONObject,
     private val discover: suspend () -> T,
+    private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
     private val mutex = Mutex()
     private var cached: T? = null
     private var rejected: T? = null
     private var restored = false
+    private var failed: Pair<Long, TrackingFailure>? = null
 
     suspend fun get(): T = withContext(dispatcher) {
-        withTimeoutOrNull(30_000) {
-            mutex.withLock {
+        mutex.withLock {
+            failed?.takeIf { clock() - it.first in 0 until 60_000 }?.let { throw TrackingException(it.second) }
+            try {
                 if (!restored) {
                     cached = read()
                     restored = true
                 }
                 cached?.let { return@withLock it }
-                val value = discover()
+                val value = withTimeoutOrNull(30_000) { discover() } ?: throw TrackingException(TrackingFailure.CONFIGURATION)
                 if (value == rejected) throw TrackingException(TrackingFailure.CONFIGURATION)
                 write(value)
                 cached = value
+                failed = null
                 value
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (error is TrackingSessionChangedException || error.trackingFailure().requiresReconnection) throw error
+                failed = clock() to error.trackingFailure()
+                throw error
             }
-        } ?: throw TrackingException(TrackingFailure.CONFIGURATION)
+        }
     }
+
+    suspend fun retry() = mutex.withLock { failed = null }
 
     suspend fun invalidate(previous: T) = withContext(dispatcher) {
         mutex.withLock {
-            if (cached == previous) {
+            if (!restored) {
+                cached = read()
+                restored = true
+            }
+            if (cached == previous || cached == null && rejected != previous) {
                 rejected = previous
                 cached = null
+                failed = null
                 file?.let { target ->
                     try {
                         AtomicFile(target).delete()

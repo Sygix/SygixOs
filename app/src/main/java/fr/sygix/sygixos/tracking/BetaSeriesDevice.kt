@@ -49,6 +49,7 @@ interface TrackingDeviceProtocol {
 
 class BetaSeriesDeviceProtocol(private val api: BetaSeriesApi, private val clock: () -> Long) : TrackingDeviceProtocol {
     override suspend fun prepare(): DeviceAssociation {
+        api.prepareRetry()
         val response = api.request("oauth/device", method = "POST")
         val device = response.text("device_code") ?: throw TrackingException(TrackingFailure.PROTOCOL)
         val user = response.text("user_code") ?: throw TrackingException(TrackingFailure.PROTOCOL)
@@ -105,14 +106,16 @@ open class TrackingDeviceFlow(
                                 if (attempt == current) mutable.value = DeviceAssociationState.Expired
                                 return@launch
                             }
-                            is TrackingDevicePoll.SlowDown -> interval = maxOf(interval + 5_000, result.intervalMillis)
+                            is TrackingDevicePoll.SlowDown -> interval = maxOf(minOf(interval, Long.MAX_VALUE - 5_000) + 5_000, result.intervalMillis)
                             is TrackingDevicePoll.Authorized -> {
+                                val generation = controller.state.value.generation
                                 controller.connect(result.token) { attempt == current }
-                                if (attempt == current) mutable.value = if (controller.state.value.account != null) DeviceAssociationState.Connected else DeviceAssociationState.Error(controller.state.value.failure ?: TrackingFailure.ACCESS)
+                                if (attempt == current) mutable.value = if (controller.state.value.generation != generation && controller.state.value.account != null) DeviceAssociationState.Connected else DeviceAssociationState.Error(controller.state.value.failure ?: TrackingFailure.ACCESS)
                                 return@launch
                             }
                         }
-                    } catch (error: TrackingException) { if (error.failure !in setOf(TrackingFailure.NETWORK, TrackingFailure.PROTOCOL)) throw error }
+                    } catch (error: TrackingRetryException) { interval = maxOf(interval, error.retryAfterMillis) }
+                    catch (error: TrackingException) { if (error.failure !in setOf(TrackingFailure.NETWORK, TrackingFailure.PROTOCOL)) throw error }
                 }
                 if (current == attempt) mutable.value = DeviceAssociationState.Expired
             } catch (cancelled: CancellationException) { throw cancelled }

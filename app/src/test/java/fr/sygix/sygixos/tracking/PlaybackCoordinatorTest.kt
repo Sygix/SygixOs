@@ -13,6 +13,58 @@ import org.junit.Test
 class PlaybackCoordinatorTest {
     private val content = TrackingContent(TrackingIdentity("fixture", TrackingType.EPISODE, "5"), TrackingIdentity("fixture", TrackingType.SHOW, "1"), "Fixture", season = 2, episode = 5)
 
+    @Test fun manualPlayerChoiceRemainsAvailableWhenOffersFailOrAreStillLoading() = runTest {
+        val controller = controller(backgroundScope)
+        controller.restore(); runCurrent()
+        val gate = kotlinx.coroutines.CompletableDeferred<TrackingOfferResult>()
+        var offerReads = 0
+        var launches = 0
+        var remembered = 0
+        val coordinator = PlaybackCoordinator(object : PlaybackAppResolver {
+            override suspend fun installed() = listOf(PlaybackApp("fixture.player", "Player", true))
+        }, object : PlaybackLauncher {
+            override fun launch(app: PlaybackApp, request: PlaybackRequest): PlaybackPrecision { launches++; return PlaybackPrecision.APPLICATION }
+        }, object : PlaybackPreferences {
+            override suspend fun preferred(content: TrackingIdentity): String? = null
+            override suspend fun remember(content: TrackingIdentity, packageName: String) { remembered++ }
+        }, controller, TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope), backgroundScope,
+            loadOffers = { if (++offerReads == 1) TrackingOfferResult(emptyList(), TrackingFailure.NETWORK) else gate.await() })
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT)); runCurrent()
+        assertFalse(coordinator.selection.value!!.loading)
+        assertEquals(TrackingFailure.NETWORK, coordinator.selection.value?.offersFailure)
+        assertEquals(1, coordinator.selection.value?.apps?.size)
+        assertEquals(0, launches)
+        coordinator.refreshOffers(); runCurrent()
+        assertTrue(coordinator.selection.value!!.offersLoading)
+        coordinator.choose("fixture.player"); runCurrent()
+        assertEquals(1, launches)
+        assertEquals(1, remembered)
+        assertNull(coordinator.selection.value)
+        gate.complete(TrackingOfferResult(listOf(PlaybackOffer("fixture", "Fixture", "FR"))))
+        runCurrent()
+        assertNull(coordinator.selection.value)
+    }
+
+    @Test fun rememberedPlayerLaunchDoesNotWaitForOptionalOffers() = runTest {
+        val controller = controller(backgroundScope)
+        controller.restore(); runCurrent()
+        var launches = 0
+        var offerReads = 0
+        val coordinator = PlaybackCoordinator(object : PlaybackAppResolver {
+            override suspend fun installed() = listOf(PlaybackApp("fixture.player", "Player", true))
+        }, object : PlaybackLauncher {
+            override fun launch(app: PlaybackApp, request: PlaybackRequest): PlaybackPrecision { launches++; return PlaybackPrecision.APPLICATION }
+        }, object : PlaybackPreferences {
+            override suspend fun preferred(content: TrackingIdentity) = "fixture.player"
+            override suspend fun remember(content: TrackingIdentity, packageName: String) = Unit
+        }, controller, TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope), backgroundScope,
+            loadOffers = { offerReads++; throw TrackingException(TrackingFailure.NETWORK) })
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.HERO)); runCurrent()
+        assertEquals(1, launches)
+        assertEquals(0, offerReads)
+        assertNull(coordinator.selection.value)
+    }
+
     @Test fun firstChoiceIsRequiredForSingleAppAndPreferenceIsSharedAcrossSurfaces() = runTest {
         val controller = controller(backgroundScope)
         controller.restore(); runCurrent()

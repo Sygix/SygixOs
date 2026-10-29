@@ -32,6 +32,40 @@ import org.robolectric.annotation.Config
 class TrackingSettingsTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun unavailableStatusAppearsOnceAndKeepsSyncFocus() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            fixture.runtime.controller.markFailure(TrackingFailure.NETWORK); runCurrent()
+            show(fixture)
+            val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+            compose.onAllNodesWithText(context.getString(fr.sygix.sygixos.R.string.tracking_error_network)).assertCountEquals(1)
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            assertNull(trackingStatusDetailLabel(TrackingState(failure = TrackingFailure.NETWORK)))
+            assertNotNull(trackingStatusDetailLabel(TrackingState(failure = TrackingFailure.NETWORK, pendingCount = 1)))
+        } finally { fixture.close() }
+    }
+
+    @Test fun uncertainSessionOffersReconnectionWithoutDisconnectingOrDiscardingAccount() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            val account = fixture.runtime.controller.state.value.account
+            fixture.runtime.controller.markFailure(TrackingFailure.RECONNECT); runCurrent()
+            show(fixture)
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            compose.onNodeWithTag("tracking-provider").assertIsNotEnabled()
+            press(Key.Enter); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-device-code").assertExists()
+            assertEquals(account, fixture.runtime.controller.state.value.account)
+            assertEquals("fixture-token", fixture.savedToken)
+            assertEquals(0, fixture.revocations)
+            assertEquals(1, fixture.associations)
+            press(Key.Back, "tracking-device")
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+        } finally { fixture.close() }
+    }
+
     @Test fun providerDropdownPrecedesConnectAndChangingItDoesNotStartAssociation() = runTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
         try {

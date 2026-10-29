@@ -33,6 +33,7 @@ class TrackingActions(
     private val mutate: suspend (String, TrackingContent, TrackingAction) -> Unit,
     private val scope: CoroutineScope,
     private val reconcile: suspend (String, TrackingContent, TrackingAction) -> Boolean = { _, _, _ -> false },
+    initialForeground: Boolean = true,
     private val clock: () -> Long = System::nanoTime,
 ) {
     private val mutable = MutableStateFlow<TrackingNotice?>(null)
@@ -41,18 +42,22 @@ class TrackingActions(
     val excluded = excludedMutable.asStateFlow()
     private var work: Job? = null
     private var timer: Job? = null
-    private var foreground = true
+    private var foreground = initialForeground
     private var focused = false
     private var settingsOpen = false
     private var pendingReturn: TrackingNotice? = null
     private var tickAt = 0L
+    private var persistence: Job? = null
+    private var restoring: Job? = null
 
     init {
         scope.launch {
             controller.state.collect { state ->
                 if (mutable.value?.generation?.let { it != state.generation } == true) {
-                    work?.cancel(); timer?.cancel(); mutable.value = null; pendingReturn = null; excludedMutable.value = emptySet()
+                    work?.cancel(); timer?.cancel(); persistence?.cancel(); restoring?.cancel()
+                    mutable.value = null; pendingReturn = null; excludedMutable.value = emptySet()
                 }
+                restoreNotice(state)
                 if (mutable.value?.returnPrompt == true && state.contents.any { it.identity == mutable.value?.content?.identity && it.seen }) mutable.value = null
                 confirmLocal(state)
             }
@@ -61,6 +66,7 @@ class TrackingActions(
 
     fun perform(content: TrackingContent, action: TrackingAction) {
         if (controller.state.value.account == null || content.sessionGeneration?.let { it != controller.state.value.generation } == true) return
+        if (mutable.value == null && controller.state.value.undoContexts.isNotEmpty()) { restoreNotice(controller.state.value); return }
         if (work?.isActive == true || mutable.value?.let { !it.returnPrompt } == true) {
             accountTime()
             mutable.value = mutable.value?.copy(blocked = true)
@@ -71,7 +77,7 @@ class TrackingActions(
             TrackingAction.ADD -> content.membership == AccountMembership.ABSENT
             TrackingAction.ARCHIVE, TrackingAction.UNARCHIVE -> content.membership == AccountMembership.PRESENT && content.parent.type == TrackingType.SHOW && content.archived != null
             TrackingAction.SEEN, TrackingAction.UNSEEN, TrackingAction.RESTORE_MOVIE_STATE -> content.membership == AccountMembership.PRESENT && content.identity.type != TrackingType.SHOW
-            TrackingAction.REMOVE -> content.membership == AccountMembership.PRESENT
+            TrackingAction.REMOVE -> content.membership == AccountMembership.PRESENT && content.removableFromAccount
         }
         if (!applicable) return
         pendingReturn = null
@@ -94,7 +100,7 @@ class TrackingActions(
                     controller.undo(requireNotNull(operation.intent), operation.content)
                     if (controller.state.value.generation == operation.generation) finishNotice()
                 } else {
-                    val intent = controller.record(operation.content, operation.action)
+                    val intent = controller.record(operation.content, operation.action, 10_000)
                     if (controller.state.value.generation != operation.generation) return@launch
                     mutable.value = operation.copy(busy = false, locallySaved = true, intent = intent)
                     confirmLocal(controller.state.value)
@@ -116,6 +122,30 @@ class TrackingActions(
             accountTime()
             mutable.value = mutable.value?.copy(confirmed = true)
             startTimer()
+        }
+    }
+
+    private fun restoreNotice(state: TrackingState) {
+        if (state.undoContexts.isNotEmpty() && mutable.value?.returnPrompt == true) {
+            pendingReturn = mutable.value
+            mutable.value = null
+        }
+        if (mutable.value != null || state.account == null || restoring?.isActive == true) return
+        val held = state.undoContexts.firstOrNull() ?: return
+        val repository = controller.repository ?: return
+        restoring = scope.launch {
+            try {
+                val pending = repository.pending(held.incarnation).firstOrNull { it.key == held.key && it.revision == held.revision }
+                val saved = repository.undoContext(held.incarnation, held.key, held.revision)
+                if (pending?.undoHeld == true && saved != null && mutable.value == null && controller.state.value.generation == state.generation) {
+                    val action = if (pending.desiredState == 1) TrackingAction.SEEN else TrackingAction.UNSEEN
+                    val previous = TrackingContentCodec.decode(saved.previousPayload).copy(sessionGeneration = state.generation)
+                    mutable.value = TrackingNotice(previous, action, state.generation, saved.remainingMillis,
+                        locallySaved = true, intent = pending)
+                    startTimer()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { if (controller.state.value.generation == state.generation) controller.markFailure(TrackingFailure.STORAGE) }
         }
     }
 
@@ -163,19 +193,46 @@ class TrackingActions(
     fun retry() {
         val current = mutable.value ?: return
         if (current.busy || current.failure == null) return
-        if (controller.repository != null && current.action in setOf(TrackingAction.SEEN, TrackingAction.UNSEEN)) sendLocal(current)
+        if (current.locallySaved && current.intent != null) retryLocal(current)
+        else if (controller.repository != null && current.action in setOf(TrackingAction.SEEN, TrackingAction.UNSEEN)) sendLocal(current)
         else send(current)
+    }
+
+    private fun retryLocal(notice: TrackingNotice) {
+        val intent = notice.intent ?: return
+        work = scope.launch {
+            mutable.value = notice.copy(busy = true, failure = null)
+            try {
+                controller.updateUndoRemaining(intent, notice.remainingMillis)
+                if (controller.state.value.generation != notice.generation) return@launch
+                if (notice.remainingMillis == 0L) {
+                    val released = controller.releaseUndo(intent)
+                    if (controller.state.value.generation != notice.generation) return@launch
+                    if (released) finishNotice()
+                    else mutable.value = notice.copy(failure = TrackingFailure.STORAGE)
+                } else {
+                    mutable.value = notice.copy(busy = false, failure = null)
+                    startTimer()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) {
+                if (controller.state.value.generation == notice.generation) mutable.value = notice.copy(busy = false, failure = error.trackingFailure())
+            }
+        }
     }
 
     fun returned(content: TrackingContent, generation: Long) {
         if (generation != controller.state.value.generation || controller.state.value.account == null) return
         pendingReturn = TrackingNotice(content, TrackingAction.SEEN, generation, returnPrompt = true)
         val current = mutable.value
-        if (current?.busy != true && (current == null || current.action != TrackingAction.REMOVE && current.failure == null)) finishNotice()
+        if (current?.busy != true && (current == null || current.action != TrackingAction.REMOVE && !current.locallySaved && current.failure == null)) finishNotice()
     }
 
     fun confirmReturn() { val current = mutable.value ?: return; if (current.returnPrompt) { mutable.value = null; perform(current.content, TrackingAction.SEEN) } }
-    fun dismiss() { if (mutable.value?.returnPrompt == true || mutable.value?.failure != null) finishNotice() }
+    fun dismiss() {
+        val current = mutable.value ?: return
+        if (current.returnPrompt || current.failure != null && !current.locallySaved) finishNotice()
+    }
     fun dismissReturn() { pendingReturn = null; if (mutable.value?.returnPrompt == true) mutable.value = null }
     fun setForeground(value: Boolean) { accountTime(); foreground = value; startTimer() }
     fun setFocused(value: Boolean) { accountTime(); focused = value; startTimer() }
@@ -184,15 +241,28 @@ class TrackingActions(
     private fun finishNotice() {
         timer?.cancel()
         controller.releaseUndo()
-        mutable.value = pendingReturn?.takeIf { it.generation == controller.state.value.generation }
-        pendingReturn = null
+        mutable.value = null
+        if (controller.state.value.undoContexts.isNotEmpty()) restoreNotice(controller.state.value)
+        else {
+            mutable.value = pendingReturn?.takeIf { it.generation == controller.state.value.generation }
+            pendingReturn = null
+        }
     }
 
     private fun accountTime() {
         val current = mutable.value ?: return
-        if (timer?.isActive == true && foreground && !focused) {
+        if (timer?.isActive == true && foreground && !focused && !settingsOpen) {
             val elapsed = ((clock() - tickAt) / 1_000_000).coerceAtLeast(0)
             mutable.value = current.copy(remainingMillis = (current.remainingMillis - elapsed).coerceAtLeast(0))
+            current.intent?.let { intent -> persistence = scope.launch {
+                try { controller.updateUndoRemaining(intent, current.remainingMillis - elapsed) }
+                catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) {
+                    if (mutable.value?.intent == intent && controller.state.value.generation == current.generation) {
+                        timer?.cancel(); mutable.value = mutable.value?.copy(failure = TrackingFailure.STORAGE)
+                    }
+                }
+            } }
         }
         timer?.cancel()
     }
@@ -201,11 +271,29 @@ class TrackingActions(
         timer?.cancel()
         val current = mutable.value ?: return
         if (!foreground || focused || settingsOpen || current.busy || current.failure != null || current.returnPrompt) return
-        tickAt = clock()
         timer = scope.launch {
-            delay(current.remainingMillis)
-            if (mutable.value != current) return@launch
-            if (current.action == TrackingAction.REMOVE) send(current) else finishNotice()
+            persistence?.join()
+            val waiting = mutable.value ?: return@launch
+            if (waiting.generation != controller.state.value.generation || waiting.generation != current.generation || waiting.intent != current.intent || waiting.action != current.action ||
+                waiting.busy || waiting.failure != null || !foreground || focused || settingsOpen) return@launch
+            tickAt = clock()
+            delay(waiting.remainingMillis)
+            val latest = mutable.value ?: return@launch
+            if (latest.generation != controller.state.value.generation || latest.generation != current.generation || latest.intent != current.intent || latest.action != current.action) return@launch
+            if (latest.busy || latest.failure != null || !foreground || focused || settingsOpen) return@launch
+            if (latest.action == TrackingAction.REMOVE) send(latest)
+            else if (latest.locallySaved && latest.intent != null) {
+                mutable.value = latest.copy(remainingMillis = 0, busy = true)
+                try {
+                    val released = controller.releaseUndo(latest.intent)
+                    if (controller.state.value.generation != latest.generation) return@launch
+                    if (released) finishNotice()
+                    else if (controller.state.value.generation == latest.generation) mutable.value = latest.copy(remainingMillis = 0, failure = TrackingFailure.STORAGE)
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) {
+                    if (controller.state.value.generation == latest.generation) mutable.value = latest.copy(remainingMillis = 0, failure = TrackingFailure.STORAGE)
+                }
+            } else finishNotice()
         }
     }
 }

@@ -19,7 +19,7 @@ interface TrackingLocalContents {
     fun items(): List<UpNextItem>
 }
 
-class TrackingEnrichment(private val controller: TrackingController, private val provider: BetaSeriesProvider, private val scope: CoroutineScope,
+class TrackingEnrichment(private val controller: TrackingController, private val provider: TrackingContentProvider, private val scope: CoroutineScope,
     private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
     private val catalogue: TrackingIdentityCache? = null,
     private val onIdentities: suspend (List<fr.sygix.sygixos.domain.UpNextIdentityLink>) -> Unit = {}) : TrackingLocalContents {
@@ -73,11 +73,17 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                     val cached = identified[item.key]
                     if (cached?.first == item.cardIdentity && clock() - cached.second < 15 * 60_000) continue
                     try {
-                        val known = catalogue?.get(item.key, item.cardIdentity)
+                        val known = catalogue?.get(item.key, item.cardIdentity, provider.id)
                             ?: updated[item.key]?.takeIf { cached?.first == item.cardIdentity }?.let { LocalTrackingIdentity(it.identity, it.parent) }
-                        current.contents.firstOrNull { it.identity == known?.identity }?.let { saved ->
+                        val saved = current.contents.firstOrNull { it.identity == known?.identity }
+                        if (saved != null) {
                             updated[item.key] = saved
                             if (generation == controller.state.value.generation) mutable.value = updated.toMap()
+                            if (!current.loading && current.failure == null && saved.failure == null &&
+                                current.snapshotAt?.let { clock() - it in 0 until 15 * 60_000 } == true) {
+                                identified[item.key] = item.cardIdentity to requireNotNull(current.snapshotAt)
+                                continue
+                            }
                         }
                         val content = controller.authenticated { token -> provider.identify(token, item, known) }
                         if (content != null) {

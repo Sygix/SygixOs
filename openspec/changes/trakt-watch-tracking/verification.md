@@ -49,3 +49,32 @@ Les validations du code applicatif, des migrations, de l'interface et des tests 
 - Les tests contrôlent notamment cache persistant sans échéance, ressources officielles renommées, ambiguïté, rejet de domaine/redirection, annulation à l'échéance, protection contre un refus tardif de l'ancienne configuration et récupération partagée pour huit lectures refusées concurrentes.
 - Le transport commun accepte les tableaux JSON Trakt sans trois lectures inutiles, préserve les corps JSON des mutations et expose les en-têtes de pagination ; le parcours d'association BetaSeries continue de passer après extraction de son protocole derrière le flux commun.
 - Contrôle des prérequis : dix exigences MODIFIED ont une cible dans l'ordre d'archivage et conservent les noms de tous les scénarios cumulés. L'ordre reste récupération de session, état hors ligne, puis Trakt.
+
+## Implémentation intégrée et preuves métier
+
+- Suite complète exécutée séparément : `./gradlew test` avec instrumentation locale de progression, sans filtre de tests : **1348 tests réussis, zéro échec et zéro test ignoré**, en 55 secondes. Une commande groupant tests et construction release avait auparavant dépassé son délai ; elle n'est pas comptée comme réussite des tests.
+- Deux tests supplémentaires de présentation par fournisseur ont ensuite été ajoutés et exécutés avec leurs classes : huit tests ciblés réussis. Ils vérifient noms, identité du héro, priorité du lecteur, badge disponible, retrait local et réaffichage pour BetaSeries et Trakt, sans changement de l'état du compte.
+- Les régressions d'intégration ont été observées avec les anciens comportements réintroduits : une nouvelle association échouait avec ACCESS avant la première sauvegarde ; le renouvellement rendait la file introuvable si la liaison utilisait le texte complet des jetons. Elles passent avec validation explicite du candidat et empreinte du lien logique stable.
+- Un test de stockage réel provoque une erreur SQLite au moment de libérer Annuler : Réessayer conserve maintenant la même révision et ne redémarre pas une fenêtre complète. Un autre vérifie que « Terminé ? » attend la fin d'une retenue existante au lieu de la masquer et de bloquer sa demande.
+- La migration v2→v3 conserve les intentions héritées envoyables et crée le contexte durable d'Annuler seulement pour les nouveaux marquages. Les tests couvrent recréation de base, pauses, reprise après interruption, concurrence annulation/expiration, anciennes confirmations et protection du nettoyage.
+- Le worker ignore intentions et réserves retenues ; une file uniquement annulable s'arrête sans requête API. Une autre demande libérée peut continuer. La convergence après réponse perdue relit la cible et reste portée par la file Room, sans seconde file de contenus dans les jetons d'authentification.
+- Le lecteur mémorisé n'attend pas les offres facultatives. Le sélecteur manuel reste utilisable pendant leur chargement et après leur erreur, avec réessai dédié et confirmations invalidées au changement de pays.
+
+### Contrats de métadonnées complémentaires vérifiés sur l'émulateur
+
+Les en-têtes numériques de pagination sont présents. Les offres Trakt renvoient un objet par pays avec tableaux de catégories et champs `source`, `link`, `link_android`, `prices`, devise et UHD. Les métadonnées `full,images` exposent les images et la durée ; les épisodes d'une saison doivent être demandés avec `extended=full` pour obtenir `first_aired` et `runtime`. Le paramètre `extended=episodes` ne fournit pas ces champs sur l'endpoint testé ; l'implémentation utilise le contrat effectivement observé.
+
+### Correspondance avec les exigences
+
+| Capability | Implémentation | Preuves principales |
+| --- | --- | --- |
+| `tracking-application-configuration` | `TrackingApplicationConfiguration`, `TrackingOfficialResources`, sources BetaSeries/Trakt | `BetaSeriesConfigTest`, `TraktConfigurationTest`, récupération concurrente dans `BetaSeriesApiTest` et refus dans `TraktProtocolTest` |
+| `trakt-integration` | `TraktApi`, `TraktDeviceProtocol`, `TraktSessionEnvelope`, `TraktProvider` | préflight authentifié ; `TraktProtocolTest`, `TrackingRuntimeProviderTest`, `TraktWorkerIntegrationTest` |
+| `watch-tracking` | interfaces de fournisseur, registre, dépôt/contrôleur communs, intentions et contexte Annuler | `TrackingRepositoryTest`, `TrackingOfflineControllerTest`, `TrackingUndoDispatchTest`, `TrackingSyncTest`, tests de fin de session |
+| `betaseries-integration` | adaptateur conservé, cache partagé sans échéance et protocole d'association derrière le flux commun | suites BetaSeries existantes, cache ancien et récupération de session |
+| `settings` | choix persisté, liste partagée avec Position, verrouillage et contrôles adaptés | `TrackingSettingsTest`, `TrackingRuntimeProviderTest`, parcours de réglages existants |
+| `launcher-shell` | projection commune, identités de héro séparées par fournisseur, notice et indicateur existants | `TrackingProjectionTest`, `TrackingHomeNavigationTest`, `TrackingOfflineHomeTest`, suites du héro |
+| `up-next` | fusion, priorité de lecteur et masquages locaux inchangés | `UpNextTrackingMemoryTest`, suites Up Next et contenus retirés |
+| `ui-testing` | sélecteurs nouveaux et conservés, tests D-pad à taille TV et cinq langues | suites Compose et `TranslationCatalogTest` |
+
+Les contrôles d'APK installé, de navigation réelle et de cycle de vie sur l'émulateur restent distincts et ouverts dans le groupe 8 de `tasks.md`. La présence des tests JVM ne vaut pas observation de ces parcours sur appareil.

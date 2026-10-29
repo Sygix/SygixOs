@@ -16,6 +16,38 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class TrackingEnrichmentTest {
+    @Test fun restoredIdentityReusesFreshSnapshotButReadsAgainAfterItsFreshnessExpires() = runTest {
+        var details = 0
+        val content = TrackingContent(TrackingIdentity("betaseries", TrackingType.MOVIE, "42"), title = "Fixture")
+        val controller = TrackingController(object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount("A", "Fixture")
+            override suspend fun snapshot(token: String) = TrackingSnapshot(listOf(content))
+            override suspend fun revoke(token: String) = Unit
+        }, object : TrackingSessionStore {
+            override suspend fun read() = "fixture"
+            override suspend fun write(token: String?) = Unit
+        }, backgroundScope, { testScheduler.currentTime })
+        controller.restore(); runCurrent()
+        val item = UpNextItem(7, UpNextSourceEntry("fixture.player"), UpNextContentType.MOVIE, "Fixture")
+        val cache = TrackingIdentityCache(null, kotlinx.coroutines.Dispatchers.Unconfined)
+        cache.put(item.key, item.cardIdentity, content)
+        val provider = BetaSeriesProvider(trackingApi(TrackingTransport { request ->
+            if (request.url.endsWith('/')) TrackingResponse(200, """{"apiHost":"https://api.betaseries.com","apiKey":"fixture"}""")
+            else {
+                details++
+                assertTrue(request.url.contains("movies/movie"))
+                TrackingResponse(200, """{"movie":{"id":42,"title":"Fixture","user":{"in_account":true,"status":0}}}""")
+            }
+        })) { java.time.LocalDate.of(2026, 1, 1) }
+        val enrichment = TrackingEnrichment(controller, provider, backgroundScope, { testScheduler.currentTime }, cache)
+        enrichment.local(listOf(item)); runCurrent()
+        assertEquals(content.identity, enrichment.items().single().tracking!!.identity)
+        assertEquals(0, details)
+        advanceTimeBy(900_001)
+        enrichment.refresh(); runCurrent()
+        assertEquals(1, details)
+    }
+
     @Test fun episodeIdentificationSearchesNormalizedSeriesTitleWithFiveCandidatesAtMost() = runTest {
         var searches = 0
         val api = trackingApi(TrackingTransport { request -> when {

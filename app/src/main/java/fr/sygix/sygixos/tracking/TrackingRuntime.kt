@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: CoroutineScope,
@@ -35,14 +38,16 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
     repository: TrackingRepository? = durable?.repository,
     scheduler: TrackingWorkScheduler? = durable?.scheduler,
 ) {
+    private val actualProvider = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    private val chosenProvider = preferences.provider.stateIn(scope, SharingStarted.Eagerly, "betaseries")
+    private val session = durable?.session ?: (sessionStore as? CoordinatedTrackingSessionStore ?: CoordinatedTrackingSessionStore(sessionStore))
+    private val observedSession = TrackingObservedSessionStore(session) { token -> actualProvider.value = token?.let(TraktSessionEnvelope::provider) }
     private val api = durable?.api ?: BetaSeriesApi(transport, BetaSeriesConfigurationSource(transport, configurationFile, wallClock, parserDispatcher), parserDispatcher)
-    val provider = durable?.provider ?: BetaSeriesProvider(api) { java.time.Instant.ofEpochMilli(wallClock()).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
-    val region = preferences.country.transformLatest { country ->
-        emit(null)
-        if (country != null) emit(try { provider.platforms(country) }
-        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
-        catch (_: Exception) { null })
-    }.flowOn(parserDispatcher).stateIn(scope, SharingStarted.Eagerly, null)
+    private val betaProvider = durable?.betaProvider ?: BetaSeriesProvider(api) { java.time.Instant.ofEpochMilli(wallClock()).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+    private val traktApi = durable?.traktApi ?: TraktApi(transport, TraktConfigurationSource(transport,
+        configurationFile?.let { java.io.File(it.parentFile, "${it.name}-trakt") }, wallClock, parserDispatcher), session, parserDispatcher, wallClock, clock)
+    private val traktProvider = durable?.traktProvider ?: TraktProvider(traktApi, wallClock)
+    val provider = TrackingProviderRegistry(betaProvider, traktProvider) { actualProvider.value ?: chosenProvider.value }
     val readers = combine(preferences.players, catalog.allApps) { preferences, installed ->
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val selected = preferences.values.toSet()
@@ -52,24 +57,53 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
             }
         }
     }.stateIn(scope, SharingStarted.Eagerly, emptyMap())
-    val controller = TrackingController(provider, sessionStore, scope, clock, repository, scheduler,
+    val controller = TrackingController(provider, observedSession, scope, clock, repository, scheduler,
         beforeRestore = { durable?.recoverPurge() ?: false }, invalidate = { durable?.invalidate() })
+    val selectedProvider = combine(chosenProvider, actualProvider, controller.state.map { it.hasSession }.distinctUntilChanged()) { chosen, actual, saved ->
+        actual?.takeIf { saved } ?: chosen
+    }.stateIn(scope, SharingStarted.Eagerly, chosenProvider.value)
+    val region = combine(preferences.country, selectedProvider, controller.state.map {
+        it.account?.id?.takeIf { _ -> it.hasSession && it.failure != TrackingFailure.ACCESS }
+    }.distinctUntilChanged()) { country, provider, account -> Triple(country, provider, account) }.transformLatest { (country, providerId, account) ->
+        emit(null)
+        if (country != null && account != null) emit(try { provider.forId(providerId).platforms(country) }
+        catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (_: Exception) { null })
+    }.flowOn(parserDispatcher).stateIn(scope, SharingStarted.Eagerly, null)
     val enrichment = TrackingEnrichment(controller, provider, scope, clock, TrackingIdentityCache(identityFile, parserDispatcher), onIdentities = { links ->
         try { onIdentities(links) }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (_: Exception) { throw TrackingException(TrackingFailure.STORAGE) }
     })
-    val device = BetaSeriesDevice(api, controller, scope, clock)
+    val device = TrackingDeviceFlow({ object : TrackingDeviceProtocol {
+        private var source: TrackingDeviceProtocol? = null
+        override suspend fun prepare(): DeviceAssociation {
+            val selected = actualProvider.value?.takeIf { controller.state.value.hasSession } ?: preferences.provider.first()
+            val protocol = when (selected) {
+                "betaseries" -> BetaSeriesDeviceProtocol(api, clock)
+                "trakt" -> TraktDeviceProtocol(traktApi, clock, wallClock)
+                else -> throw TrackingException(TrackingFailure.CONFIGURATION)
+            }
+            source = protocol
+            return protocol.prepare()
+        }
+        override suspend fun poll(association: DeviceAssociation) = (source ?: throw TrackingException(TrackingFailure.PROTOCOL)).poll(association)
+    } }, controller, scope, clock)
     val actions = TrackingActions(controller, { token, content, action -> provider.mutate(token, content, action).forEach(controller::patch) }, scope,
         reconcile = { token, content, action -> try { provider.verify(token, content, action).forEach(controller::patch); true }
-            catch (error: TrackingException) { if (error.failure == TrackingFailure.INCOMPLETE) false else throw error } }, clock = nanoTime)
+            catch (error: TrackingException) { if (error.failure == TrackingFailure.INCOMPLETE) false else throw error } }, clock = nanoTime, initialForeground = false)
     val opened = MutableSharedFlow<PlaybackRequest>(extraBufferCapacity = 8)
-    val playback = PlaybackCoordinator(playbackApps ?: AndroidPlaybackApps(context, catalog, { enrichment.sourcePackages }), playbackLauncher, preferences, controller, actions, scope, onOpened = { opened.tryEmit(it) })
+    val playback = PlaybackCoordinator(playbackApps ?: AndroidPlaybackApps(context, catalog, { enrichment.sourcePackages }), playbackLauncher, preferences, controller, actions, scope,
+        loadOffers = { content ->
+            val country = preferences.country.first()
+            if (country == null) TrackingOfferResult(content.offers.map { it.copy(confirmedCountry = null) })
+            else controller.authenticated { token -> provider.offers(token, content, country) }
+        }, onOpened = { opened.tryEmit(it) })
     private var confirmedArtwork = emptyList<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>()
     val state = combine(controller.state, actions.excluded, preferences.players, readers, region) { current, excluded, players, readers, region ->
         current.copy(contents = TrackingProjection.candidates(current.contents).filter { it.parent !in excluded }.map { content ->
             val reader = readers[players[TrackingPreferences.playerKey(content.parent)]]
-            content.copy(readerPackage = reader?.packageName, readerName = reader?.label, offers = BetaSeriesOffers.confirm(content.offers, region))
+            content.copy(readerPackage = reader?.packageName, readerName = reader?.label, offers = confirmOffers(content, region))
         }, pendingRemovals = excluded)
     }.mapLatest { value ->
         try {
@@ -83,6 +117,8 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
         catch (_: Exception) { return@mapLatest value.copy(contents = emptyList(), failure = TrackingFailure.STORAGE) }
         value
     }.flowOn(parserDispatcher).stateIn(scope, SharingStarted.Eagerly, TrackingState())
+
+    fun confirmOffers(content: TrackingContent, region: RegionalPlatforms?): List<PlaybackOffer> = provider.forId(content.parent.provider).confirmOffers(content.offers, region)
 
     fun onForeground() {
         device.setVisible(true)

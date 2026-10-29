@@ -10,6 +10,7 @@ import org.json.JSONObject
 
 class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -> LocalDate) : TrackingContentProvider {
     override val id = "betaseries"
+    override suspend fun prepareRetry() = api.prepareRetry()
     private val resolver = BoundedIdentityResolver(::search)
 
     private suspend fun search(query: ContentQuery): List<CatalogCandidate> {
@@ -70,39 +71,65 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         return RegionalPlatforms(country, ids)
     }
 
-    override suspend fun snapshot(token: String): TrackingSnapshot = kotlinx.coroutines.withContext(api.dispatcher) { kotlinx.coroutines.withTimeoutOrNull(90_000) {
+    override suspend fun snapshot(token: String): TrackingSnapshot = kotlinx.coroutines.withContext(api.dispatcher) {
+        val contents = mutableListOf<TrackingContent>()
+        val completeReserves = mutableSetOf<TrackingIdentity>()
         var failure: TrackingFailure? = null
+        var issues = 0
+        fun <T> entry(block: () -> T): T? = try { block() }
+        catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException || error.trackingFailure() in setOf(TrackingFailure.ACCESS, TrackingFailure.STORAGE)) throw error
+            failure = TrackingFailure.INCOMPLETE
+            issues++
+            null
+        }
         suspend fun pages(path: String, key: String, fields: Map<String, String> = emptyMap()): List<JSONObject> = try { api.pages(path, key, token, fields) }
         catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (error: Exception) {
             if (error.trackingFailure() == TrackingFailure.ACCESS) throw error
             failure = TrackingFailure.INCOMPLETE
+            issues++
             (error as? TrackingPagesException)?.items.orEmpty()
         }
-        val shows = pages("shows/member", "shows").associateBy { it.requiredId() }
+        val completed = kotlinx.coroutines.withTimeoutOrNull(90_000) {
+        val shows = pages("shows/member", "shows").mapNotNull { value -> entry { value.requiredId() to value } }.toMap()
         val movies = pages("movies/member", "movies", mapOf("state" to "0"))
+        movies.forEach { value -> entry {
+            val status = value.optJSONObject("user")?.optInt("status", -1) ?: -1
+            if (status < 0) throw TrackingException(TrackingFailure.PROTOCOL)
+            if (status == 0) contents += movie(value)
+        } }
+        val issuesBeforePages = issues
         val episodes = pages("episodes/list", "shows", mapOf("released" to "1", "showsLimit" to "100", "limit" to "6"))
-        val contents = episodes.flatMap { group ->
+        val completePages = issues == issuesBeforePages
+        episodes.forEach { group -> entry {
+            val issuesBeforeGroup = issues
             val show = shows[group.requiredId()]
-                ?: return@flatMap listOf(TrackingContent(TrackingIdentity("betaseries", TrackingType.SHOW, group.requiredId()), title = group.text("title").orEmpty(), membership = AccountMembership.UNKNOWN, failure = TrackingFailure.INCOMPLETE))
+                ?: throw TrackingException(TrackingFailure.INCOMPLETE)
             when (archiveState(show)) {
-                true -> return@flatMap emptyList()
-                null -> return@flatMap listOf(TrackingContent(TrackingIdentity("betaseries", TrackingType.SHOW, show.requiredId()), title = show.text("title").orEmpty(), membership = AccountMembership.UNKNOWN, failure = TrackingFailure.INCOMPLETE))
+                true -> return@entry
+                null -> throw TrackingException(TrackingFailure.INCOMPLETE)
                 false -> Unit
             }
             val unseen = group.optJSONArray("unseen") ?: throw TrackingException(TrackingFailure.PROTOCOL)
-            (0 until unseen.length()).map { unseen.getJSONObject(it) }.filter {
-                val date = it.text("date")?.let { value -> runCatching { LocalDate.parse(value.take(10)) }.getOrNull() }
-                if (date == null) failure = TrackingFailure.INCOMPLETE
-                date != null && !date.isAfter(today()) && it.optJSONObject("user")?.optBoolean("seen") != true
-            }.sortedWith(compareBy<JSONObject> { it.optInt("season") }.thenBy { it.optInt("episode") }).take(6).map {
-                val content = episode(show, it)
-                if (content.season == null || content.episode == null) { failure = TrackingFailure.INCOMPLETE; content.copy(failure = TrackingFailure.INCOMPLETE) }
-                else content
-            }
-        } + movies.filter { it.optJSONObject("user")?.optInt("status", -1) == 0 }.map(::movie)
-        TrackingSnapshot(contents.distinctBy { it.identity }, failure)
-    } ?: throw TrackingException(TrackingFailure.INCOMPLETE) }
+            contents += (0 until unseen.length()).mapNotNull { index -> entry {
+                val value = unseen.getJSONObject(index)
+                val date = value.text("date")?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+                    ?: throw TrackingException(TrackingFailure.INCOMPLETE)
+                if (date.isAfter(today())) return@entry null
+                val seen = value.optJSONObject("user")?.opt("seen") as? Boolean ?: throw TrackingException(TrackingFailure.INCOMPLETE)
+                if (seen) return@entry null
+                episode(show, value).also {
+                    if (it.season == null || it.episode == null) throw TrackingException(TrackingFailure.INCOMPLETE)
+                }
+            } }.sortedWith(compareBy<TrackingContent> { it.season }.thenBy { it.episode }).take(6)
+            if (completePages && issues == issuesBeforeGroup) completeReserves += TrackingIdentity(id, TrackingType.SHOW, show.requiredId())
+        } }
+        true
+        }
+        if (completed != true) failure = TrackingFailure.INCOMPLETE
+        TrackingSnapshot(contents.distinctBy { it.identity }, failure, completeReserves)
+    }
 
     override suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> = kotlinx.coroutines.withContext(api.dispatcher) {
         val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).getJSONObject("show")

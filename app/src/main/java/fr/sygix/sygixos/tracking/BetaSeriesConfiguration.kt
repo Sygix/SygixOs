@@ -61,8 +61,9 @@ class BetaSeriesConfigurationSource(
                 if (found != null) break
             }
             found ?: throw TrackingException(TrackingFailure.CONFIGURATION)
-        })
+        }, clock = clock)
 
     suspend fun get(): BetaSeriesConfiguration = source.get()
     suspend fun invalidate(previous: BetaSeriesConfiguration) = source.invalidate(previous)
+    suspend fun retry() = source.retry()
 }

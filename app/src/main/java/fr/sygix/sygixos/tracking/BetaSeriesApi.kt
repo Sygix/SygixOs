@@ -14,6 +14,8 @@ class BetaSeriesApi(
     private val configuration: BetaSeriesConfigurationSource,
     internal val dispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
 ) {
+    suspend fun prepareRetry() = configuration.retry()
+
     suspend fun request(path: String, token: String? = null, method: String = "GET", fields: Map<String, String> = emptyMap()): JSONObject {
         require(path.matches(Regex("[a-z_]+/[a-z_]+")))
         val config = configuration.get()

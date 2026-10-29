@@ -64,6 +64,11 @@ class TraktConfigurationTest {
         try { source.get(); fail("Rejected client was accepted again") }
         catch (error: TrackingException) { assertEquals(TrackingFailure.CONFIGURATION, error.failure) }
         assertEquals(6, reads)
+        coroutineScope { (1..8).map { async {
+            try { source.get(); fail("Rejected client was accepted again") }
+            catch (error: TrackingException) { assertEquals(TrackingFailure.CONFIGURATION, error.failure) }
+        } }.forEach { it.await() } }
+        assertEquals(6, reads)
     }
 
     @Test fun extractionRejectsAmbiguityAndNeverRunsJavaScript() {
@@ -71,6 +76,27 @@ class TraktConfigurationTest {
         assertNull(TraktConfigParser.configuration("?trakt-api-key=$client&other=1; ?trakt-api-key=${"b".repeat(64)}"))
         assertNull(TraktConfigParser.entry("import('/entry/app.first.js'); import('/entry/app.second.js')"))
         assertEquals("../nodes/0.renamed.js", TraktConfigParser.root("['../nodes/0.renamed.js','../nodes/0.renamed.js']"))
+    }
+
+    @Test fun failedDiscoveryIsSharedUntilExplicitRetryOrBoundedRecoveryDelay() = runTest {
+        var calls = 0
+        var fails = true
+        val source = TrackingApplicationConfiguration<String>(null, StandardTestDispatcher(testScheduler), { null }, { org.json.JSONObject() }, {
+            calls++
+            if (fails) throw TrackingException(TrackingFailure.NETWORK)
+            "fixture"
+        }, { testScheduler.currentTime })
+        coroutineScope { List(5) { async {
+            try { source.get(); fail() } catch (error: TrackingException) { assertEquals(TrackingFailure.NETWORK, error.failure) }
+        } }.forEach { it.await() } }
+        assertEquals(1, calls)
+        testScheduler.advanceTimeBy(60_000)
+        try { source.get(); fail() } catch (_: TrackingException) { }
+        assertEquals(2, calls)
+        fails = false
+        source.retry()
+        assertEquals("fixture", source.get())
+        assertEquals(3, calls)
     }
 
     @Test fun unofficialImportAndRedirectAreRejectedBeforeAnotherRequest() = runTest {

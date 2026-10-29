@@ -13,7 +13,8 @@ data class RegionalPlatforms(val country: String, val ids: Set<String>)
 data class TrackingIdentity(val provider: String, val type: TrackingType, val id: String)
 data class TrackingAccount(val id: String, val name: String)
 enum class AccountMembership { PRESENT, ABSENT, UNKNOWN }
-enum class TrackingFailure { NETWORK, PROTOCOL, ACCESS, CONFIGURATION, STORAGE, INCOMPLETE }
+enum class TrackingFailure { NETWORK, PROTOCOL, ACCESS, CONFIGURATION, STORAGE, INCOMPLETE, RECONNECT }
+val TrackingFailure?.requiresReconnection: Boolean get() = this == TrackingFailure.ACCESS || this == TrackingFailure.RECONNECT
 enum class TrackingSessionStatus { NONE, RESTORING, SAVED }
 
 open class TrackingException(val failure: TrackingFailure) : Exception(failure.name)
@@ -44,7 +45,8 @@ data class TrackingContent(
     val removableFromAccount: Boolean = true,
 )
 
-data class TrackingSnapshot(val contents: List<TrackingContent>, val failure: TrackingFailure? = null)
+data class TrackingSnapshot(val contents: List<TrackingContent>, val failure: TrackingFailure? = null,
+    val completeReserves: Set<TrackingIdentity> = emptySet())
 data class TrackingState(
     val generation: Long = 0,
     val account: TrackingAccount? = null,
@@ -59,13 +61,16 @@ data class TrackingState(
     val reserveIncomplete: Boolean = false,
     val pendingIdentities: Set<TrackingIdentity> = emptySet(),
     val durableRevision: Long = 0,
+    val undoContexts: List<StoredTrackingUndo> = emptyList(),
 ) {
     val hasSession: Boolean get() = sessionStatus != TrackingSessionStatus.NONE || account != null
     val statusVisible: Boolean get() = hasSession && (loading || failure != null || pendingCount > 0 || reserveIncomplete)
 }
 
 interface WatchTrackingProvider {
+    suspend fun prepareRetry() = Unit
     suspend fun account(token: String): TrackingAccount
+    suspend fun validateSession(token: String): TrackingAccount = account(token)
     suspend fun snapshot(token: String): TrackingSnapshot
     suspend fun revoke(token: String)
 }

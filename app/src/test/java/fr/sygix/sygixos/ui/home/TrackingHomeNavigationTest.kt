@@ -112,6 +112,7 @@ class TrackingHomeNavigationTest {
         val store = ViewModelStore()
         try {
             show(viewModel(store, fixture))
+            fixture.runtime.onForeground(); runCurrent()
             fixture.runtime.actions.perform(content, TrackingAction.REMOVE)
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()

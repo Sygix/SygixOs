@@ -22,20 +22,23 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
     val retry = stringResource(R.string.tracking_retry)
     when {
         state.statusOpen -> TrackingModal(stringResource(trackingStateLabel(state.tracking)), "tracking-status-detail", listOf(
-            TrackingModalAction("tracking-status-retry", stringResource(if (state.tracking.failure == TrackingFailure.ACCESS) R.string.tracking_reconnect else R.string.tracking_retry), viewModel::retryStatus),
+            TrackingModalAction("tracking-status-retry", stringResource(if (state.tracking.failure.requiresReconnection) R.string.tracking_reconnect else R.string.tracking_retry), viewModel::retryStatus),
             TrackingModalAction("tracking-status-close", close, viewModel::close),
-        ), viewModel::close, focusModel = viewModel) { state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) } }
+        ), viewModel::close, focusModel = viewModel) { trackingStatusDetailLabel(state.tracking)?.let { Text(stringResource(it), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) } }
         state.player != null -> {
             val player = state.player
             val other = stringResource(R.string.tracking_other_app)
             val actions = if (player.loading) emptyList() else state.playerApps.map { app ->
                 TrackingModalAction("tracking-player-${app.packageName}", app.label) { viewModel.choosePlayer(app.packageName) }
-            } + if (!player.otherApps) listOf(TrackingModalAction("tracking-other-app", other, viewModel::otherApps)) else emptyList()
+            } + (if (!player.otherApps) listOf(TrackingModalAction("tracking-other-app", other, viewModel::otherApps)) else emptyList()) +
+                 (if (player.offersFailure != null) listOf(TrackingModalAction("tracking-offers-retry", if (player.offersFailure.requiresReconnection) stringResource(R.string.tracking_reconnect) else retry, viewModel::retryOffers)) else emptyList())
             TrackingModal(stringResource(R.string.tracking_player_title), "tracking-player-picker", actions + TrackingModalAction("tracking-player-close", close, viewModel::close), viewModel::close,
                 initial = actions.indexOfFirst { it.key == "tracking-player-${player.preferredPackage}" }.coerceAtLeast(0), focusModel = viewModel, loading = player.loading) {
                 Text(player.request.content.title, style = TextStyles.Row, color = SygixColors.OnDark)
                 Text(stringResource(if (player.loading) R.string.tracking_loading else if (player.failure != null) R.string.tracking_error else if (player.apps.isEmpty()) R.string.tracking_no_apps else R.string.tracking_unconfirmed), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                 if (player.failure != null) Text(stringResource(R.string.tracking_player_error), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+                if (player.offersLoading) Text(stringResource(R.string.tracking_offer_loading), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+                if (player.offersFailure != null) Text(stringResource(R.string.tracking_offer_error), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                 if (player.missingPreferred) Text(stringResource(R.string.tracking_player_missing), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                 val services = player.request.content.offers.mapNotNull { it.name }.distinct()
                 if (services.isNotEmpty()) Text(stringResource(R.string.tracking_offer_services, services.joinToString(", ")), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, maxLines = 2)
@@ -47,7 +50,8 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
             val episodes = state.episodes
             if (episodes.choosingSeason) {
                 val actions = episodes.seasons.map { season -> TrackingModalAction("tracking-season-$season", stringResource(R.string.tracking_season, season)) { viewModel.chooseSeason(season) } } +
-                    if (episodes.failure != null) listOf(TrackingModalAction("tracking-seasons-retry", retry, viewModel::showSeasons)) else emptyList()
+                    if (episodes.failure != null) listOf(TrackingModalAction("tracking-seasons-retry", if (episodes.failure.requiresReconnection) stringResource(R.string.tracking_reconnect) else retry,
+                        if (episodes.failure.requiresReconnection) viewModel::reconnectEpisodes else viewModel::showSeasons)) else emptyList()
                 TrackingModal(stringResource(R.string.tracking_seasons), "tracking-season-picker", actions + TrackingModalAction("tracking-season-back", stringResource(R.string.tracking_episode_back), viewModel::close), viewModel::close,
                     initial = episodes.seasons.indexOf(episodes.content.season ?: 1).coerceAtLeast(0), focusModel = viewModel, loading = episodes.loading) {
                     if (episodes.loading || episodes.failure != null || episodes.seasons.isEmpty()) Text(stringResource(if (episodes.loading) R.string.tracking_loading else if (episodes.failure != null) R.string.tracking_error else R.string.tracking_empty), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
@@ -67,8 +71,8 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
                 val numbers = fr.sygix.sygixos.domain.UpNextCardText.episodeNumbers(TrackingProjection.card(content))
                 val label = listOfNotNull(numbers?.let { stringResource(R.string.upnext_episode_number, it.first, it.second) }, content.episodeTitle).joinToString(stringResource(R.string.hero_details_separator))
                 TrackingModalAction("tracking-episode-${content.identity.id}", if (content.seen) stringResource(R.string.tracking_episode_seen_label, label) else label) { viewModel.selectEpisode(content) }
-            } + if (episodes.failure != null) listOf(TrackingModalAction("tracking-episodes-retry", stringResource(if (episodes.failure == TrackingFailure.ACCESS) R.string.tracking_reconnect else R.string.tracking_retry),
-                if (episodes.failure == TrackingFailure.ACCESS) viewModel::reconnectEpisodes else viewModel::retryEpisodes)) else emptyList()
+            } + if (episodes.failure != null) listOf(TrackingModalAction("tracking-episodes-retry", stringResource(if (episodes.failure.requiresReconnection) R.string.tracking_reconnect else R.string.tracking_retry),
+                if (episodes.failure.requiresReconnection) viewModel::reconnectEpisodes else viewModel::retryEpisodes)) else emptyList()
             TrackingModal(stringResource(R.string.tracking_episodes), "tracking-episodes", actions + listOf(TrackingModalAction("tracking-seasons", stringResource(R.string.tracking_seasons), viewModel::showSeasons), TrackingModalAction("tracking-episodes-close", close, viewModel::close)), viewModel::close,
                 initial = episodes.items.indexOfFirst { it.identity == (episodes.focused ?: episodes.content.identity) }.coerceAtLeast(0), onFocusedAction = viewModel::episodeFocused,
                 focusFallbackKey = episodes.focused?.let { "tracking-episode-${it.id}" }, focusModel = viewModel, loading = episodes.loading) {
@@ -117,7 +121,7 @@ internal fun TrackingNotification(notice: TrackingNotice, viewModel: TrackingVie
             Text(stringResource(text), style = TextStyles.Row, color = SygixColors.OnDark)
             Text(notice.content.title, style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, maxLines = 1)
             if (notice.blocked) Text(stringResource(R.string.tracking_action_blocked), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
-            TrackingRow(stringResource(if (notice.returnPrompt) R.string.tracking_seen else if (notice.failure == TrackingFailure.ACCESS) R.string.tracking_reconnect else if (notice.failure != null) R.string.tracking_retry else if (notice.busy) R.string.tracking_loading else R.string.tracking_undo),
+            TrackingRow(stringResource(if (notice.returnPrompt) R.string.tracking_seen else if (notice.failure.requiresReconnection) R.string.tracking_reconnect else if (notice.failure != null) R.string.tracking_retry else if (notice.busy) R.string.tracking_loading else R.string.tracking_undo),
                 if (notice.returnPrompt) "tracking-return-prompt" else "tracking-undo", focusEnabled, focus, viewModel::noticeFocused, viewModel::noticeAction)
         }
     }

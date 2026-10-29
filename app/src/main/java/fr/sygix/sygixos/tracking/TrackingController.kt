@@ -62,32 +62,50 @@ class TrackingController(
             contents = if (account.accessDenied) emptyList() else view.contents.map { it.copy(sessionGeneration = state.value.generation) },
             pendingCount = view.pending, reserveIncomplete = view.incomplete,
             pendingIdentities = view.pendingIdentities, durableRevision = account.revision,
+            undoContexts = view.undoContexts,
             failure = account.failure?.let(TrackingFailure::valueOf) ?: state.value.failure?.takeIf { it == TrackingFailure.STORAGE })
     }
 
-    internal suspend fun record(content: TrackingContent, action: TrackingAction): StoredTrackingIntent {
+    internal suspend fun record(content: TrackingContent, action: TrackingAction, undoRemainingMillis: Long? = null): StoredTrackingIntent {
         val repository = repository ?: throw TrackingException(TrackingFailure.STORAGE)
         val incarnation = incarnation ?: throw TrackingException(TrackingFailure.ACCESS)
-        val intent = try { repository.record(incarnation, content, action) }
+        val intent = try { repository.record(incarnation, content, action, undoRemainingMillis) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (error: TrackingException) { throw error }
         catch (_: Exception) { throw TrackingException(TrackingFailure.STORAGE) }
         publish(repository.view.first())
-        schedule()
+        if (undoRemainingMillis == null) schedule()
         return intent
     }
 
-    internal suspend fun undo(intent: StoredTrackingIntent, content: TrackingContent) {
-        try { repository?.undo(intent, content) }
+    internal suspend fun undo(intent: StoredTrackingIntent, content: TrackingContent): Boolean {
+        val undone = try { repository?.undo(intent, content) ?: false }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (error: TrackingException) { throw error }
         catch (_: Exception) { throw TrackingException(TrackingFailure.STORAGE) }
         repository?.let { publish(it.view.first()) }
         schedule()
+        return undone
+    }
+
+    internal suspend fun updateUndoRemaining(intent: StoredTrackingIntent, remainingMillis: Long) {
+        repository?.updateUndoRemaining(intent.incarnation, intent.key, intent.revision, remainingMillis)
+    }
+
+    internal suspend fun releaseUndo(intent: StoredTrackingIntent): Boolean {
+        val repository = repository ?: return false
+        val released = repository.releaseUndo(intent.incarnation, intent.key, intent.revision) ||
+            repository.account()?.incarnation == intent.incarnation && repository.undoContext(intent.incarnation, intent.key, intent.revision) == null &&
+            repository.pending(intent.incarnation).none { it.key == intent.key && (it.revision != intent.revision || it.undoHeld) }
+        if (released) {
+            publish(repository.view.first())
+            schedule()
+        }
+        return released
     }
 
     internal fun releaseUndo() { incarnation?.let { current -> scope.launch {
-        try { repository?.references(current, "undo", emptySet()) }
+        try { repository?.let { it.restoreUndoReferences(current); publish(it.view.first()) } }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { mutable.value = state.value.copy(failure = TrackingFailure.STORAGE) }
     } } }
@@ -102,7 +120,7 @@ class TrackingController(
         if (foreground == enabled) return
         foreground = enabled
         if (enabled) schedule()
-        if (!enabled || work?.isActive == true || state.value.failure == TrackingFailure.ACCESS) return
+        if (!enabled || work?.isActive == true || state.value.failure.requiresReconnection) return
         if (token == null && state.value.failure == TrackingFailure.STORAGE) restore()
         else if (snapshotDue()) refresh()
     }
@@ -110,14 +128,14 @@ class TrackingController(
     suspend fun <T> authenticated(block: suspend (String) -> T): T {
         val current = token ?: throw TrackingException(TrackingFailure.ACCESS)
         val generation = state.value.generation
-        if (state.value.failure == TrackingFailure.ACCESS) throw TrackingException(TrackingFailure.ACCESS)
+        state.value.failure?.takeIf { it.requiresReconnection }?.let { throw TrackingException(it) }
         try {
             val result = block(current)
             if (generation != state.value.generation || token != current || state.value.failure == TrackingFailure.ACCESS) throw TrackingException(TrackingFailure.ACCESS)
             return result
         } catch (cancelled: CancellationException) { throw cancelled }
         catch (error: Exception) {
-            if (generation == state.value.generation && token == current && error.trackingFailure() == TrackingFailure.ACCESS) markFailure(TrackingFailure.ACCESS)
+            if (generation == state.value.generation && token == current && error.trackingFailure().requiresReconnection) markFailure(error.trackingFailure())
             throw error
         }
     }
@@ -145,7 +163,7 @@ class TrackingController(
                     mutable.value = state.value.copy(snapshotAt = account.snapshotAt?.let { clock() - (wallClock() - it).coerceAtLeast(0) })
                     schedule()
                 }
-                if (state.value.failure == TrackingFailure.ACCESS || !snapshotDue()) mutable.value = state.value.copy(loading = false)
+                if (state.value.failure.requiresReconnection || !snapshotDue()) mutable.value = state.value.copy(loading = false)
                 else load(generation, saved)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
@@ -157,7 +175,7 @@ class TrackingController(
     suspend fun connect(value: String, stillValid: () -> Boolean = { true }) = scope.async {
         val previousGeneration = state.value.generation
         try {
-            val account = provider.account(value)
+            val account = provider.validateSession(value)
             withContext(NonCancellable) {
                 storage.withLock {
                     if (previousGeneration != state.value.generation || !stillValid()) { revoke(value); return@withLock }
@@ -185,17 +203,20 @@ class TrackingController(
         }
     }.await()
 
-    fun refresh() {
+    fun refresh(prepareRetry: Boolean = false) {
         val current = token ?: return
-        if (state.value.failure == TrackingFailure.ACCESS || work?.isActive == true) return
+        if (state.value.failure.requiresReconnection || work?.isActive == true) return
         val generation = state.value.generation
-        work = scope.launch { load(generation, current) }
+        work = scope.launch {
+            if (prepareRetry) provider.prepareRetry()
+            load(generation, current)
+        }
     }
 
     fun retry() {
         observeRepository()
         schedule()
-        if (token == null) restore() else refresh()
+        if (token == null) restore() else refresh(prepareRetry = true)
     }
 
     fun patch(content: TrackingContent) {
@@ -217,8 +238,8 @@ class TrackingController(
 
     fun markFailure(failure: TrackingFailure) {
         work?.cancel()
-        mutable.value = state.value.copy(loading = false, contents = emptyList(), failure = failure)
-        if (failure == TrackingFailure.ACCESS) incarnation?.let { current -> scope.launch {
+        mutable.value = state.value.copy(loading = false, contents = if (failure == TrackingFailure.RECONNECT) state.value.contents else emptyList(), failure = failure)
+        if (failure.requiresReconnection) incarnation?.let { current -> scope.launch {
             try { repository?.failure(current, failure) }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { mutable.value = state.value.copy(failure = TrackingFailure.STORAGE) }
@@ -259,7 +280,7 @@ class TrackingController(
         catch (error: Exception) {
             if (generation == state.value.generation) {
                 val failure = error.trackingFailure()
-                try { incarnation?.let { repository?.failure(it, failure) } }
+                try { incarnation?.let { repository?.snapshotFailed(it, failure) } }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { mutable.value = state.value.copy(loading = false, failure = TrackingFailure.STORAGE); return }
                 mutable.value = state.value.copy(loading = false, contents = if (failure == TrackingFailure.ACCESS) emptyList() else state.value.contents,
@@ -305,10 +326,6 @@ internal fun Exception.trackingFailure(): TrackingFailure = when (this) {
     is TrackingException -> failure
     is android.database.SQLException, is androidx.sqlite.SQLiteException -> TrackingFailure.STORAGE
     is org.json.JSONException -> TrackingFailure.PROTOCOL
-    is BetaSeriesApiException -> when (code) {
-        1001 -> TrackingFailure.CONFIGURATION
-        1002, 2002, 2003, 2004 -> TrackingFailure.ACCESS
-        else -> TrackingFailure.PROTOCOL
-    }
+    is BetaSeriesApiException -> classifyBetaSeriesRefusal(code)
     else -> TrackingFailure.NETWORK
 }

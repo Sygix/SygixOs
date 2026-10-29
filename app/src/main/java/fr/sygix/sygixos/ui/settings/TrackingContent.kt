@@ -37,13 +37,14 @@ internal fun trackingFailureLabel(failure: TrackingFailure): Int = when (failure
     TrackingFailure.NETWORK -> R.string.tracking_error_network
     TrackingFailure.CONFIGURATION -> R.string.tracking_error_configuration
     TrackingFailure.ACCESS -> R.string.tracking_error_access
+    TrackingFailure.RECONNECT -> R.string.tracking_error_reconnect
     TrackingFailure.STORAGE -> R.string.tracking_error_storage
     TrackingFailure.INCOMPLETE -> R.string.tracking_error_incomplete
     TrackingFailure.PROTOCOL -> R.string.tracking_error_protocol
 }
 
 internal fun trackingStateLabel(state: TrackingState): Int = when {
-    state.failure == TrackingFailure.ACCESS -> R.string.tracking_reconnect
+    state.failure.requiresReconnection -> R.string.tracking_reconnect
     state.failure == TrackingFailure.STORAGE -> R.string.tracking_error_storage
     state.pendingCount > 0 -> R.string.tracking_saved_pending
     state.loading -> R.string.tracking_loading
@@ -52,6 +53,9 @@ internal fun trackingStateLabel(state: TrackingState): Int = when {
     state.contents.isEmpty() -> R.string.tracking_empty
     else -> R.string.tracking_ready
 }
+
+internal fun trackingStatusDetailLabel(state: TrackingState): Int? = state.failure?.let(::trackingFailureLabel)
+    ?.takeUnless { it == trackingStateLabel(state) }
 
 @Composable
 internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: TrackingViewModel, enabled: Boolean, first: FocusRequester) {
@@ -97,13 +101,13 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
             state.tracking.account?.let { Text(it.name, style = TextStyles.MenuTitle, color = SygixColors.OnDark) }
             val status = trackingStateLabel(state.tracking)
             Text(stringResource(status), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
-            state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
+            trackingStatusDetailLabel(state.tracking)?.let { Text(stringResource(it), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
             if (state.tracking.account == null && state.tracking.failure != null && state.tracking.failure != TrackingFailure.ACCESS) {
                 Text(stringResource(R.string.tracking_session_retained), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
             }
             val action = when {
                 state.tracking.loading -> R.string.tracking_loading
-                state.tracking.failure == TrackingFailure.ACCESS -> R.string.tracking_reconnect
+                state.tracking.failure.requiresReconnection -> R.string.tracking_reconnect
                 state.tracking.failure != null -> R.string.tracking_retry
                 else -> R.string.tracking_sync
             }

@@ -38,8 +38,9 @@ class TraktConfigurationSource(transport: TrackingTransport, file: File?, clock:
             val script = resources.script("https://app.trakt.tv/", entry)
             val root = TraktConfigParser.root(script) ?: throw TrackingException(TrackingFailure.CONFIGURATION)
             TraktConfigParser.configuration(resources.script(entryUrl, root)) ?: throw TrackingException(TrackingFailure.CONFIGURATION)
-        })
+        }, clock = clock)
 
     suspend fun get(): TraktConfiguration = source.get()
     suspend fun invalidate(previous: TraktConfiguration) = source.invalidate(previous)
+    suspend fun retry() = source.retry()
 }

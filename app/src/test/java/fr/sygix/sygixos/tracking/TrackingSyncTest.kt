@@ -272,7 +272,7 @@ class TrackingSyncTest {
             }
             var oldTokenCalls = 0
             var remote = 0
-            val provider = BetaSeriesProvider(trackingApi(TrackingTransport { request ->
+            val transport = TrackingTransport { request ->
                 if (request.url.endsWith('/')) { entered.complete(Unit); release.await(); configuration() }
                 else {
                     if (request.headers["X-BetaSeries-Token"] == "fixture-session") oldTokenCalls++
@@ -284,7 +284,9 @@ class TrackingSyncTest {
                         else -> TrackingResponse(200, "{\"movie\":{\"id\":1,\"user\":{\"status\":$remote}}}")
                     }
                 }
-            })) { LocalDate.of(2026, 1, 1) }
+            }
+            val provider = BetaSeriesProvider(BetaSeriesApi(transport,
+                BetaSeriesConfigurationSource(transport, null, System::currentTimeMillis, kotlinx.coroutines.Dispatchers.IO), kotlinx.coroutines.Dispatchers.IO)) { LocalDate.of(2026, 1, 1) }
             val coordinator = TrackingSyncCoordinator(repository, provider, renewableSession)
             val oldRun = async { coordinator.drain(account.incarnation) }
             entered.await()
@@ -295,7 +297,8 @@ class TrackingSyncTest {
             assertEquals(0, oldTokenCalls)
             assertFalse(repository.account()!!.accessDenied)
             assertEquals(if (reserveOnly) 0 else 1, repository.pending(account.incarnation).size)
-            assertTrue(coordinator.drain(account.incarnation))
+            val drained = coordinator.drain(account.incarnation)
+            assertTrue("reserveOnly=$reserveOnly failure=${repository.account()?.failure}", drained)
             assertTrue(repository.pending(account.incarnation).isEmpty())
             assertTrue(repository.reserves(account.incarnation).isEmpty())
             assertFalse(repository.account()!!.accessDenied)

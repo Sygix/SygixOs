@@ -19,6 +19,7 @@ data class TrackingRepositoryView(
     val pending: Int = 0,
     val incomplete: Boolean = false,
     val pendingIdentities: Set<TrackingIdentity> = emptySet(),
+    val undoContexts: List<StoredTrackingUndo> = emptyList(),
 )
 
 class TrackingRepository(private val database: TrackingDatabase, private val clock: () -> Long = System::currentTimeMillis) {
@@ -26,7 +27,7 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
     private val departureGate = Any()
     private var binding: Pair<String, String>? = null
     val view = flow {
-        combine(dao.observeAccount(), dao.observeContents(), dao.observeIntents(), dao.observeReserves()) { _, _, _, _ -> Unit }
+        combine(dao.observeAccount(), dao.observeContents(), dao.observeIntents(), dao.observeReserves(), dao.observeUndo()) { _, _, _, _, _ -> Unit }
             .collect { emit(database.withTransaction {
                 val account = dao.account() ?: return@withTransaction TrackingRepositoryView(null)
                 val intents = dao.intents(account.incarnation).associateBy { it.key }
@@ -35,7 +36,7 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
                     intents[row.key]?.let { effective(content, it.desiredState) } ?: content
                 }
                 TrackingRepositoryView(account, contents, intents.size, dao.reserves(account.incarnation).any { it.needsFill || !it.complete },
-                    contents.filter { it.identity.storageKey in intents }.map { it.identity }.toSet())
+                    contents.filter { it.identity.storageKey in intents }.map { it.identity }.toSet(), dao.undoContexts(account.incarnation))
             }) }
     }.flowOn(Dispatchers.IO)
 
@@ -49,7 +50,8 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
         synchronized(departureGate) { binding = null }
         val previous = dao.account()
         val current = if (previous?.accountId == account.id) previous.copy(name = account.name, sessionHash = hash(token), accessDenied = false,
-            revision = previous.revision + 1, failure = null)
+            revision = previous.revision + 1, syncFailure = null,
+            snapshotFailure = previous.snapshotFailure?.takeUnless { it in setOf(TrackingFailure.ACCESS.name, TrackingFailure.RECONNECT.name) })
             else {
                 clear()
                 StoredTrackingAccount(accountId = account.id, name = account.name, incarnation = UUID.randomUUID().toString(), sessionHash = hash(token))
@@ -85,16 +87,17 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
             val pending = intents.any { existing[it.key]?.parentKey == parent.storageKey }
             val reserve = reserves[parent.storageKey]
             val confirmedLater = snapshot.contents.any { it.parent == parent && (existing[it.identity.storageKey]?.revision ?: 0) > startedRevision }
-            val refill = snapshot.failure != null || reserve?.needsFill == true && (reserve.requestedRevision > startedRevision || pending || confirmedLater)
+            val incomplete = snapshot.failure != null && parent !in snapshot.completeReserves
+            val refill = incomplete || reserve?.needsFill == true && (reserve.requestedRevision > startedRevision || pending || confirmedLater)
             dao.putReserve(StoredTrackingReserve(incarnation, parent.storageKey, !refill, refill,
-                if (snapshot.failure != null) revision else reserve?.requestedRevision ?: 0))
+                if (incomplete) revision else reserve?.requestedRevision ?: 0))
         }
         if (snapshot.failure == null) {
             val present = snapshot.contents.map { it.parent.storageKey }.toSet()
             val pendingParents = intents.mapNotNull { existing[it.key]?.parentKey }.toSet()
             reserves.keys.filter { it !in present && it !in pendingParents }.forEach { dao.deleteReserve(incarnation, it) }
         }
-        dao.putAccount(account.copy(revision = revision, snapshotAt = clock(), failure = snapshot.failure?.name))
+        dao.putAccount(account.copy(revision = revision, snapshotAt = clock(), snapshotFailure = snapshot.failure?.name))
         cleanup(incarnation)
     }
 
@@ -115,48 +118,109 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
         }
     }
 
-    suspend fun record(incarnation: String, content: TrackingContent, action: TrackingAction): StoredTrackingIntent = database.withTransaction {
+    suspend fun record(incarnation: String, content: TrackingContent, action: TrackingAction,
+        undoRemainingMillis: Long? = null): StoredTrackingIntent = database.withTransaction {
         val account = active(incarnation)?.takeUnless { it.accessDenied } ?: throw TrackingException(TrackingFailure.ACCESS)
         require(action in setOf(TrackingAction.SEEN, TrackingAction.UNSEEN, TrackingAction.RESTORE_MOVIE_STATE))
-        val revision = account.revision + 1
         val previous = dao.intents(incarnation).firstOrNull { it.key == content.identity.storageKey }
+        val state = when (action) { TrackingAction.SEEN -> 1; TrackingAction.UNSEEN -> 0; else -> content.movieState }
+        if (previous?.undoHeld == true) {
+            if (undoRemainingMillis != null && previous.desiredState == state &&
+                dao.undoContexts(incarnation).any { it.key == previous.key && it.revision == previous.revision }) return@withTransaction previous
+            throw TrackingException(TrackingFailure.INCOMPLETE)
+        }
+        val revision = account.revision + 1
         val old = dao.contents(incarnation).firstOrNull { it.key == content.identity.storageKey }
         if (old == null) dao.putContents(listOf(stored(incarnation, content, revision)))
-        val state = when (action) { TrackingAction.SEEN -> 1; TrackingAction.UNSEEN -> 0; else -> content.movieState }
         val intent = StoredTrackingIntent(incarnation, content.identity.storageKey, revision, state,
             if (content.identity.type == TrackingType.MOVIE) content.movieState else if (content.seen) 1 else 0,
-            possiblySent = previous?.possiblySent == true)
+            possiblySent = undoRemainingMillis == null && previous?.possiblySent == true, undoHeld = undoRemainingMillis != null)
         dao.putAccount(account.copy(revision = revision))
         dao.putIntent(intent)
-        dao.deleteReferences(incarnation, "undo")
-        dao.putReference(StoredTrackingReference(incarnation, intent.key, "undo"))
+        if (undoRemainingMillis != null) {
+            dao.putUndo(StoredTrackingUndo(incarnation, intent.key, revision, undoRemainingMillis.coerceAtLeast(0),
+                TrackingContentCodec.encode(content), previous?.revision, previous?.desiredState, previous?.previousState, previous?.possiblySent))
+            dao.putReference(StoredTrackingReference(incarnation, intent.key, "undo"))
+        }
         if (content.identity.type == TrackingType.EPISODE) dao.putReserve(StoredTrackingReserve(incarnation, content.parent.storageKey, false, true, revision))
         intent
     }
 
-    suspend fun undo(intent: StoredTrackingIntent, previous: TrackingContent) = database.withTransaction {
+    suspend fun undo(intent: StoredTrackingIntent, previous: TrackingContent): Boolean = database.withTransaction {
         val account = active(intent.incarnation) ?: throw TrackingException(TrackingFailure.ACCESS)
         val pending = dao.intents(intent.incarnation).firstOrNull { it.key == intent.key }
+        val context = dao.undoContexts(intent.incarnation).firstOrNull { it.key == intent.key && it.revision == intent.revision }
+        if (intent.undoHeld && (context == null || pending?.revision != intent.revision)) return@withTransaction false
+        if (intent.undoHeld && context != null && pending?.revision == intent.revision) {
+            dao.deleteIntent(intent.incarnation, intent.key, intent.revision)
+            dao.deleteUndo(intent.incarnation, intent.key, intent.revision)
+            if (context.previousIntentRevision != null && context.previousDesiredState != null && context.previousState != null) {
+                dao.putIntent(StoredTrackingIntent(intent.incarnation, intent.key, context.previousIntentRevision,
+                    context.previousDesiredState, context.previousState, context.previousPossiblySent == true))
+            }
+            val restored = TrackingContentCodec.decode(context.previousPayload)
+            dao.putContents(listOf(stored(intent.incarnation, restored, account.revision + 1)))
+            dao.putAccount(account.copy(revision = account.revision + 1))
+            if (dao.undoContexts(intent.incarnation).isEmpty()) dao.deleteReferences(intent.incarnation, "undo")
+            cleanup(intent.incarnation)
+            return@withTransaction true
+        }
         if (pending?.revision == intent.revision && !pending.possiblySent) {
             dao.deleteIntent(intent.incarnation, intent.key, intent.revision)
             dao.putAccount(account.copy(revision = account.revision + 1))
+            return@withTransaction true
         } else {
             record(intent.incarnation, previous, if (previous.identity.type == TrackingType.MOVIE) TrackingAction.RESTORE_MOVIE_STATE
                 else if (previous.seen) TrackingAction.SEEN else TrackingAction.UNSEEN)
+            return@withTransaction false
         }
+    }
+
+    suspend fun updateUndoRemaining(incarnation: String, key: String, revision: Long, remainingMillis: Long): Boolean = database.withTransaction {
+        val held = dao.undoContexts(incarnation).firstOrNull { it.key == key && it.revision == revision } ?: return@withTransaction false
+        dao.putUndo(held.copy(remainingMillis = remainingMillis.coerceAtLeast(0)))
+        true
+    }
+
+    suspend fun releaseUndo(incarnation: String, key: String, revision: Long): Boolean = database.withTransaction {
+        val held = dao.undoContexts(incarnation).firstOrNull { it.key == key && it.revision == revision } ?: return@withTransaction false
+        val intent = dao.intents(incarnation).firstOrNull { it.key == key && it.revision == revision } ?: return@withTransaction false
+        dao.deleteUndo(incarnation, key, revision)
+        dao.putIntent(intent.copy(undoHeld = false))
+        if (dao.undoContexts(incarnation).isEmpty()) dao.deleteReferences(incarnation, "undo")
+        val account = requireNotNull(active(incarnation))
+        dao.putAccount(account.copy(revision = account.revision + 1))
+        cleanup(incarnation)
+        true
+    }
+
+    suspend fun undoContext(incarnation: String, key: String, revision: Long): StoredTrackingUndo? =
+        dao.undoContexts(incarnation).firstOrNull { it.key == key && it.revision == revision }
+
+    suspend fun restoreUndoReferences(incarnation: String) = database.withTransaction {
+        val keys = dao.undoContexts(incarnation).map { it.key }.toSet()
+        val existing = dao.references(incarnation).filter { it.owner == "undo" }.map { it.key }.toSet()
+        if (keys == existing) return@withTransaction
+        dao.deleteReferences(incarnation, "undo")
+        keys.forEach { dao.putReference(StoredTrackingReference(incarnation, it, "undo")) }
     }
 
     suspend fun markSent(intent: StoredTrackingIntent): Boolean = database.withTransaction {
         val account = active(intent.incarnation)?.takeUnless { it.accessDenied } ?: return@withTransaction false
-        if (dao.intents(account.incarnation).none { it.key == intent.key && it.revision == intent.revision }) return@withTransaction false
-        dao.putIntent(intent.copy(possiblySent = true))
+        val current = dao.intents(account.incarnation).firstOrNull { it.key == intent.key && it.revision == intent.revision }
+            ?: return@withTransaction false
+        if (current.undoHeld || dao.undoContexts(account.incarnation).any { it.key == intent.key && it.revision == intent.revision }) return@withTransaction false
+        dao.putIntent(current.copy(possiblySent = true))
         true
     }
 
     suspend fun confirm(intent: StoredTrackingIntent, content: TrackingContent) = database.withTransaction {
         val account = active(intent.incarnation) ?: return@withTransaction
+        dao.undoContexts(intent.incarnation).firstOrNull { it.key == intent.key && it.previousIntentRevision == intent.revision }
+            ?.let { context -> dao.putUndo(context.copy(previousIntentRevision = null, previousDesiredState = null,
+                previousState = null, previousPossiblySent = null)) }
         val revision = account.revision + 1
-        dao.putAccount(account.copy(revision = revision, failure = null))
+        dao.putAccount(account.copy(revision = revision))
         dao.putContents(listOf(stored(intent.incarnation, content, revision)))
         dao.deleteIntent(intent.incarnation, intent.key, intent.revision)
         cleanup(intent.incarnation)
@@ -167,6 +231,15 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
         val existing = dao.contents(incarnation).associateBy { it.key }
         val revision = account.revision + 1
         dao.putAccount(account.copy(revision = revision))
+        if (complete) {
+            val incoming = contents.map { it.identity.storageKey }.toSet()
+            val protected = dao.intents(incarnation).map { it.key }.toSet() + dao.references(incarnation).map { it.key } + dao.undoContexts(incarnation).map { it.key }
+            val order = compareBy<TrackingContent> { it.season }.thenBy { it.episode }
+            val last = contents.maxWithOrNull(order)
+            existing.values.filter { it.parentKey == parent.storageKey && it.key !in incoming && it.key !in protected && it.revision <= startedRevision }
+                .filter { contents.size < 6 || last != null && order.compare(TrackingContentCodec.decode(it.payload), last) <= 0 }
+                .forEach { dao.deleteContent(incarnation, it.key) }
+        }
         dao.putContents(contents.filter { (existing[it.identity.storageKey]?.revision ?: 0) <= startedRevision }.map { stored(incarnation, it, revision) })
         val changed = account.revision != startedRevision
         dao.putReserve(StoredTrackingReserve(incarnation, parent.storageKey, complete && !changed, !complete || changed,
@@ -186,14 +259,20 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
     suspend fun failure(incarnation: String, failure: TrackingFailure?, token: String? = null) = database.withTransaction {
         val account = active(incarnation) ?: return@withTransaction
         if (token != null && account.sessionHash != hash(token)) return@withTransaction
-        dao.putAccount(account.copy(revision = account.revision + 1, failure = failure?.name, accessDenied = account.accessDenied || failure == TrackingFailure.ACCESS,
+        dao.putAccount(account.copy(revision = account.revision + 1, syncFailure = failure?.name, accessDenied = account.accessDenied || failure == TrackingFailure.ACCESS,
             retryAt = if (failure == null) 0 else account.retryAt))
+    }
+
+    suspend fun snapshotFailed(incarnation: String, failure: TrackingFailure) = database.withTransaction {
+        val account = active(incarnation) ?: return@withTransaction
+        dao.putAccount(account.copy(revision = account.revision + 1, snapshotFailure = failure.name, snapshotAt = clock(),
+            accessDenied = account.accessDenied || failure == TrackingFailure.ACCESS))
     }
 
     suspend fun defer(incarnation: String, retryAt: Long, token: String? = null) = database.withTransaction {
         val account = active(incarnation) ?: return@withTransaction
         if (token != null && account.sessionHash != hash(token)) return@withTransaction
-        dao.putAccount(account.copy(revision = account.revision + 1, retryAt = maxOf(retryAt, account.retryAt), failure = TrackingFailure.NETWORK.name))
+        dao.putAccount(account.copy(revision = account.revision + 1, retryAt = maxOf(retryAt, account.retryAt), syncFailure = TrackingFailure.NETWORK.name))
     }
 
     suspend fun purge() = database.withTransaction {
@@ -202,11 +281,11 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
     }
 
     private suspend fun active(incarnation: String) = dao.account()?.takeIf { it.incarnation == incarnation }
-    private suspend fun clear() { dao.clearAccount(); dao.clearIntents(); dao.clearContents(); dao.clearReferences(); dao.clearReserves() }
+    private suspend fun clear() { dao.clearAccount(); dao.clearIntents(); dao.clearContents(); dao.clearReferences(); dao.clearReserves(); dao.clearUndo() }
 
     private suspend fun cleanup(incarnation: String) {
         val intents = dao.intents(incarnation).associateBy { it.key }
-        val protected = intents.keys + dao.references(incarnation).map { it.key }
+        val protected = intents.keys + dao.references(incarnation).map { it.key } + dao.undoContexts(incarnation).map { it.key }
         val entries = dao.contents(incarnation).associateWith { row ->
             val content = TrackingContentCodec.decode(row.payload)
             intents[row.key]?.let { effective(content, it.desiredState) } ?: content
@@ -229,7 +308,7 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
         content.identity.storageKey, content.parent.storageKey, TrackingContentCodec.encode(content.copy(sessionGeneration = null)), revision)
 
     companion object {
-        private fun hash(token: String) = MessageDigest.getInstance("SHA-256").digest(token.toByteArray()).joinToString("") { "%02x".format(it) }
+        private fun hash(token: String) = MessageDigest.getInstance("SHA-256").digest(TraktSessionEnvelope.binding(token).toByteArray()).joinToString("") { "%02x".format(it) }
         fun effective(content: TrackingContent, state: Int) = content.copy(seen = state == 1,
             movieState = if (content.identity.type == TrackingType.MOVIE) state else content.movieState)
     }

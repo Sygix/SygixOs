@@ -1,0 +1,321 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 3,
+    "identityHash": "164480a61449060729e3e141a3634e5e",
+    "entities": [
+      {
+        "tableName": "tracking_account",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`slot` INTEGER NOT NULL, `accountId` TEXT NOT NULL, `name` TEXT NOT NULL, `incarnation` TEXT NOT NULL, `sessionHash` TEXT NOT NULL, `revision` INTEGER NOT NULL, `snapshotAt` INTEGER, `failure` TEXT, `accessDenied` INTEGER NOT NULL, `retryAt` INTEGER NOT NULL, PRIMARY KEY(`slot`))",
+        "fields": [
+          {
+            "fieldPath": "slot",
+            "columnName": "slot",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "incarnation",
+            "columnName": "incarnation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessionHash",
+            "columnName": "sessionHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snapshotAt",
+            "columnName": "snapshotAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "failure",
+            "columnName": "failure",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "accessDenied",
+            "columnName": "accessDenied",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retryAt",
+            "columnName": "retryAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "slot"
+          ]
+        }
+      },
+      {
+        "tableName": "tracking_content",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`incarnation` TEXT NOT NULL, `key` TEXT NOT NULL, `parentKey` TEXT NOT NULL, `payload` TEXT NOT NULL, `revision` INTEGER NOT NULL, PRIMARY KEY(`incarnation`, `key`))",
+        "fields": [
+          {
+            "fieldPath": "incarnation",
+            "columnName": "incarnation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentKey",
+            "columnName": "parentKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payload",
+            "columnName": "payload",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "incarnation",
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "tracking_intent",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`incarnation` TEXT NOT NULL, `key` TEXT NOT NULL, `revision` INTEGER NOT NULL, `desiredState` INTEGER NOT NULL, `previousState` INTEGER NOT NULL, `possiblySent` INTEGER NOT NULL, `undoHeld` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`incarnation`, `key`))",
+        "fields": [
+          {
+            "fieldPath": "incarnation",
+            "columnName": "incarnation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "desiredState",
+            "columnName": "desiredState",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "previousState",
+            "columnName": "previousState",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "possiblySent",
+            "columnName": "possiblySent",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "undoHeld",
+            "columnName": "undoHeld",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "incarnation",
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "tracking_reference",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`incarnation` TEXT NOT NULL, `key` TEXT NOT NULL, `owner` TEXT NOT NULL, PRIMARY KEY(`incarnation`, `key`, `owner`))",
+        "fields": [
+          {
+            "fieldPath": "incarnation",
+            "columnName": "incarnation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "owner",
+            "columnName": "owner",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "incarnation",
+            "key",
+            "owner"
+          ]
+        }
+      },
+      {
+        "tableName": "tracking_reserve",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`incarnation` TEXT NOT NULL, `parentKey` TEXT NOT NULL, `complete` INTEGER NOT NULL, `needsFill` INTEGER NOT NULL, `requestedRevision` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`incarnation`, `parentKey`))",
+        "fields": [
+          {
+            "fieldPath": "incarnation",
+            "columnName": "incarnation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "parentKey",
+            "columnName": "parentKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "complete",
+            "columnName": "complete",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "needsFill",
+            "columnName": "needsFill",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "requestedRevision",
+            "columnName": "requestedRevision",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "incarnation",
+            "parentKey"
+          ]
+        }
+      },
+      {
+        "tableName": "tracking_undo",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`incarnation` TEXT NOT NULL, `key` TEXT NOT NULL, `revision` INTEGER NOT NULL, `remainingMillis` INTEGER NOT NULL, `previousPayload` TEXT NOT NULL, `previousIntentRevision` INTEGER, `previousDesiredState` INTEGER, `previousState` INTEGER, `previousPossiblySent` INTEGER, PRIMARY KEY(`incarnation`, `key`))",
+        "fields": [
+          {
+            "fieldPath": "incarnation",
+            "columnName": "incarnation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "remainingMillis",
+            "columnName": "remainingMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "previousPayload",
+            "columnName": "previousPayload",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "previousIntentRevision",
+            "columnName": "previousIntentRevision",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "previousDesiredState",
+            "columnName": "previousDesiredState",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "previousState",
+            "columnName": "previousState",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "previousPossiblySent",
+            "columnName": "previousPossiblySent",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "incarnation",
+            "key"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '164480a61449060729e3e141a3634e5e')"
+    ]
+  }
+}
