@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
@@ -54,15 +56,42 @@ internal fun trackingStateLabel(state: TrackingState): Int = when {
 @Composable
 internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: TrackingViewModel, enabled: Boolean, first: FocusRequester) {
     var dropdown by remember { mutableStateOf(false) }
+    var providerDropdown by remember { mutableStateOf(false) }
+    var returnToConnect by remember { mutableStateOf(false) }
     val countryFocus = remember { FocusRequester() }
+    val connectFocus = remember { FocusRequester() }
+    val lockedProviderFocus = remember { FocusRequester() }
     val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     LaunchedEffect(locale) { viewModel.displayLocale(locale) }
-    LaunchedEffect(enabled) { if (!enabled) dropdown = false }
-    LaunchedEffect(state.tracking.account?.id, enabled) { if (enabled) { withFrameNanos { }; first.tryRequestFocus() } }
+    LaunchedEffect(enabled) { if (!enabled) { dropdown = false; providerDropdown = false } }
+    LaunchedEffect(state.tracking.hasSession) { if (state.tracking.hasSession) { returnToConnect = false; providerDropdown = false } }
+    LaunchedEffect(state.tracking.hasSession, enabled, state.providerSaving) {
+        if (enabled && !state.providerSaving) {
+            withFrameNanos { }
+            if (!state.tracking.hasSession && returnToConnect) connectFocus.tryRequestFocus() else first.tryRequestFocus()
+        }
+    }
     Column(Modifier.fillMaxWidth().testTag("tracking-settings")) {
         SettingsHeader(R.string.tracking_title, R.string.tracking_description)
+        val provider = TrackingProviderKind.fromId(state.providerId) ?: TrackingProviderKind.BETASERIES
+        val providerFocus = if (state.tracking.hasSession) lockedProviderFocus else first
+        Box {
+            PreferenceRow(stringResource(R.string.tracking_provider), enabled && !state.tracking.hasSession,
+                { if (!state.providerSaving && !state.tracking.hasSession) { returnToConnect = false; providerDropdown = true } },
+                Modifier.testTag("tracking-provider").semantics { if (state.tracking.hasSession) disabled() },
+                focusRequester = providerFocus, selected = providerDropdown,
+                detail = if (state.tracking.hasSession) stringResource(R.string.tracking_provider_locked) else null,
+                dimmed = state.tracking.hasSession, onFocused = { if (it) returnToConnect = false }) { colors ->
+                Text(if (state.providerSaving) stringResource(R.string.tracking_loading) else provider.displayName, style = TextStyles.RowState, color = colors.tertiary)
+                if (!state.tracking.hasSession) Chevron(providerDropdown, colors.tertiary, Modifier.padding(start = Dimens.SettingsChevronGap).size(Dimens.SettingsChevron))
+            }
+            if (providerDropdown) SettingsChoiceDropdown(TrackingProviderKind.entries, provider, "tracking-provider", { it.id }, { it.displayName },
+                onClose = { providerDropdown = false; providerFocus.tryRequestFocus() },
+                onSelect = { viewModel.selectProvider(it.id); providerDropdown = false; providerFocus.tryRequestFocus() })
+        }
         if (!state.tracking.hasSession) {
-            TrackingRow(stringResource(R.string.tracking_connect), "tracking-connect", enabled, first, onClick = viewModel::connect)
+            TrackingRow(stringResource(R.string.tracking_connect), "tracking-connect", enabled && !state.providerSaving, connectFocus,
+                onFocused = { if (it) returnToConnect = true }, onClick = viewModel::connect)
             state.tracking.failure?.let { Text(stringResource(trackingFailureLabel(it)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary) }
         } else {
             state.tracking.account?.let { Text(it.name, style = TextStyles.MenuTitle, color = SygixColors.OnDark) }
@@ -94,7 +123,7 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
             TrackingRow(stringResource(R.string.tracking_disconnect), "tracking-disconnect", enabled, onClick = viewModel::disconnect)
         }
         if (state.tracking.revocationUnconfirmed) Text(stringResource(R.string.tracking_revocation_unconfirmed), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
-        Text(stringResource(R.string.tracking_attribution), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, modifier = Modifier.padding(top = Dimens.MenuPadding))
+        Text(stringResource(if (provider == TrackingProviderKind.TRAKT) R.string.tracking_attribution_trakt else R.string.tracking_attribution), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, modifier = Modifier.padding(top = Dimens.MenuPadding).testTag("tracking-attribution"))
     }
 }
 

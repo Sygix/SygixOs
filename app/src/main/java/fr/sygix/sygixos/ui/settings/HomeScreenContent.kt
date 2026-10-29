@@ -142,57 +142,6 @@ private fun UpNextPositionDropdown(
     onClose: () -> Unit,
     onSelect: (UpNextPosition) -> Unit,
 ) {
-    val requesters = remember { UpNextPosition.entries.map { FocusRequester() } }
-    var focusedIndex by remember { mutableStateOf(selected.ordinal) }
-    val density = LocalDensity.current
-    val offset = with(density) { Dimens.DropdownOffset.roundToPx() }
-    val inset = with(density) { Dimens.DropdownInsetEnd.roundToPx() }
-    val provider = remember(offset, inset) {
-        object : PopupPositionProvider {
-            override fun calculatePosition(anchorBounds: IntRect, windowSize: IntSize, layoutDirection: LayoutDirection, popupContentSize: IntSize) =
-                IntOffset(anchorBounds.right - popupContentSize.width - inset, anchorBounds.bottom + offset)
-        }
-    }
-    Popup(popupPositionProvider = provider, onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
-        GlassSurface(shape = RoundedCornerShape(Dimens.DropdownCorner), look = GlassLook.Menu,
-            modifier = Modifier.width(Dimens.DropdownWidth).testTag("setting-upnext-position-list").onPreviewKeyEvent {
-                when (it.key) {
-                    Key.Back, Key.Escape -> { if (it.type == KeyEventType.KeyUp) onClose(); true }
-                    Key.DirectionLeft, Key.DirectionRight -> true
-                    Key.DirectionUp, Key.DirectionDown -> {
-                        if (it.type == KeyEventType.KeyDown) {
-                            val next = (focusedIndex + if (it.key == Key.DirectionDown) 1 else -1).coerceIn(0, requesters.lastIndex)
-                            requesters[next].tryRequestFocus()
-                        }
-                        true
-                    }
-                    else -> false
-                }
-            },
-        ) {
-            Column(Modifier.padding(Dimens.DropdownPadding), verticalArrangement = Arrangement.spacedBy(Dimens.DropdownOptionGap)) {
-                UpNextPosition.entries.forEachIndexed { index, option ->
-                    var focused by remember { mutableStateOf(false) }
-                    val colors = animatedPillColors(focused)
-                    Row(
-                        Modifier.fillMaxWidth().height(Dimens.DropdownOptionHeight)
-                            .testTag("setting-upnext-position-${option.name}")
-                            .tvFocusable(focusRequester = requesters[index], onFocused = { focused = it; if (it) focusedIndex = index })
-                            .tvClickable(onClick = { onSelect(option) })
-                            .semantics { this.selected = option == selected }
-                            .focusPill(colors, RoundedCornerShape(Dimens.DropdownOptionCorner))
-                            .padding(start = Dimens.DropdownOptionPaddingStart, end = Dimens.DropdownOptionPaddingEnd),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(Modifier.size(Dimens.DropdownCheck), contentAlignment = Alignment.Center) {
-                            if (option == selected) CheckGlyph(colors.content, Modifier.fillMaxSize().testTag("setting-upnext-position-check"))
-                        }
-                        Spacer(Modifier.width(Dimens.DropdownCheckGap))
-                        Text(stringResource(option.label()), style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
-                    }
-                }
-            }
-        }
-        LaunchedEffect(Unit) { requesters[selected.ordinal].tryRequestFocus() }
-    }
+    SettingsChoiceDropdown(UpNextPosition.entries, selected, "setting-upnext-position", { it.name },
+        { stringResource(it.label()) }, onClose, onSelect)
 }

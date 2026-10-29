@@ -8,10 +8,6 @@ package fr.sygix.sygixos.tracking
 import java.net.URI
 import java.io.File
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 
 class BetaSeriesConfiguration(val apiHost: String, val apiKey: String) {
@@ -47,50 +43,26 @@ object BetaSeriesConfigParser {
 }
 
 class BetaSeriesConfigurationSource(
-    private val transport: TrackingTransport,
-    private val file: File?,
-    private val clock: () -> Long,
-    private val dispatcher: CoroutineDispatcher,
+    transport: TrackingTransport,
+    file: File?,
+    clock: () -> Long,
+    dispatcher: CoroutineDispatcher,
 ) {
-    private val mutex = Mutex()
-    private var cached: BetaSeriesConfiguration? = null
-    private var fetchedAt = 0L
-    private val ttl = 7 * 24 * 60 * 60_000L
-
-    suspend fun get(): BetaSeriesConfiguration = withContext(dispatcher) {
-        withTimeoutOrNull(30_000) { mutex.withLock {
-            if (cached == null && file?.exists() == true) {
-                val json = runCatching { JSONObject(file.readText()) }.getOrNull()
-                val timestamp = json?.optLong("fetchedAt") ?: 0
-                val config = json?.takeIf { it.text("apiHost") == "https://api.betaseries.com" }?.text("apiKey")?.takeIf { it.length <= 512 }
-                    ?.let { BetaSeriesConfiguration("https://api.betaseries.com", it) }
-                if (config != null && clock() - timestamp in 0 until ttl) { cached = config; fetchedAt = timestamp }
-            }
-            cached?.takeIf { clock() - fetchedAt in 0 until ttl }?.let { return@withLock it }
-            val page = transport.execute(TrackingRequest("https://www.betaseries.com/", maxBytes = 10 * 1024 * 1024))
-            if (page.status != 200) throw TrackingException(TrackingFailure.CONFIGURATION)
-            var found = BetaSeriesConfigParser.configuration(page.body)
-            if (found == null) for (script in BetaSeriesConfigParser.scripts(page.body)) {
-                val response = transport.execute(TrackingRequest(script, maxBytes = 10 * 1024 * 1024))
-                if (response.status == 200) found = BetaSeriesConfigParser.configuration(response.body)
+    private val source = TrackingApplicationConfiguration(file, dispatcher,
+        decode = { value -> value.takeIf { it.text("apiHost") == "https://api.betaseries.com" }?.text("apiKey")
+            ?.takeIf { it.length <= 512 }?.let { BetaSeriesConfiguration("https://api.betaseries.com", it) } },
+        encode = { value: BetaSeriesConfiguration -> JSONObject().put("apiHost", value.apiHost).put("apiKey", value.apiKey).put("fetchedAt", clock()) },
+        discover = {
+            val resources = TrackingOfficialResources(transport, "www.betaseries.com")
+            val page = resources.page()
+            var found = BetaSeriesConfigParser.configuration(page)
+            if (found == null) for (script in BetaSeriesConfigParser.scripts(page)) {
+                found = BetaSeriesConfigParser.configuration(resources.script("https://www.betaseries.com/", script))
                 if (found != null) break
             }
-            val result = found ?: throw TrackingException(TrackingFailure.CONFIGURATION)
-            fetchedAt = clock()
-            file?.let {
-                val atomic = android.util.AtomicFile(it)
-                val output = atomic.startWrite()
-                try {
-                    output.write(JSONObject().put("apiHost", result.apiHost).put("apiKey", result.apiKey).put("fetchedAt", fetchedAt).toString().toByteArray())
-                    atomic.finishWrite(output)
-                } catch (error: Exception) { atomic.failWrite(output); throw TrackingException(TrackingFailure.CONFIGURATION) }
-            }
-            cached = result
-            result
-        } } ?: throw TrackingException(TrackingFailure.CONFIGURATION)
-    }
+            found ?: throw TrackingException(TrackingFailure.CONFIGURATION)
+        })
 
-    suspend fun invalidate(previous: BetaSeriesConfiguration) = withContext(dispatcher) {
-        mutex.withLock { if (cached == previous) { cached = null; file?.let { android.util.AtomicFile(it).delete() } } }
-    }
+    suspend fun get(): BetaSeriesConfiguration = source.get()
+    suspend fun invalidate(previous: BetaSeriesConfiguration) = source.invalidate(previous)
 }

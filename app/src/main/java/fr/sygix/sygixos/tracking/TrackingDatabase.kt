@@ -49,10 +49,24 @@ data class StoredTrackingIntent(
     val desiredState: Int,
     val previousState: Int,
     val possiblySent: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val undoHeld: Boolean = false,
 )
 
 @Entity(tableName = "tracking_reference", primaryKeys = ["incarnation", "key", "owner"])
 data class StoredTrackingReference(val incarnation: String, val key: String, val owner: String)
+
+@Entity(tableName = "tracking_undo", primaryKeys = ["incarnation", "key"])
+data class StoredTrackingUndo(
+    val incarnation: String,
+    val key: String,
+    val revision: Long,
+    val remainingMillis: Long,
+    val previousPayload: String,
+    val previousIntentRevision: Long?,
+    val previousDesiredState: Int?,
+    val previousState: Int?,
+    val previousPossiblySent: Boolean?,
+)
 
 @Entity(tableName = "tracking_reserve", primaryKeys = ["incarnation", "parentKey"])
 data class StoredTrackingReserve(val incarnation: String, val parentKey: String, val complete: Boolean, val needsFill: Boolean,
@@ -75,6 +89,9 @@ interface TrackingDao {
     @Query("SELECT * FROM tracking_reserve")
     fun observeReserves(): Flow<List<StoredTrackingReserve>>
 
+    @Query("SELECT * FROM tracking_undo")
+    fun observeUndo(): Flow<List<StoredTrackingUndo>>
+
     @Query("SELECT * FROM tracking_content WHERE incarnation = :incarnation")
     suspend fun contents(incarnation: String): List<StoredTrackingContent>
 
@@ -86,6 +103,9 @@ interface TrackingDao {
 
     @Query("SELECT * FROM tracking_reserve WHERE incarnation = :incarnation")
     suspend fun reserves(incarnation: String): List<StoredTrackingReserve>
+
+    @Query("SELECT * FROM tracking_undo WHERE incarnation = :incarnation ORDER BY revision")
+    suspend fun undoContexts(incarnation: String): List<StoredTrackingUndo>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putAccount(value: StoredTrackingAccount)
@@ -102,8 +122,14 @@ interface TrackingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putReserve(value: StoredTrackingReserve)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putUndo(value: StoredTrackingUndo)
+
     @Query("DELETE FROM tracking_reserve WHERE incarnation = :incarnation AND parentKey = :parentKey")
     suspend fun deleteReserve(incarnation: String, parentKey: String)
+
+    @Query("DELETE FROM tracking_undo WHERE incarnation = :incarnation AND `key` = :key AND revision = :revision")
+    suspend fun deleteUndo(incarnation: String, key: String, revision: Long)
 
     @Query("DELETE FROM tracking_intent WHERE incarnation = :incarnation AND `key` = :key AND revision = :revision")
     suspend fun deleteIntent(incarnation: String, key: String, revision: Long)
@@ -126,12 +152,15 @@ interface TrackingDao {
     @Query("DELETE FROM tracking_reserve")
     suspend fun clearReserves()
 
+    @Query("DELETE FROM tracking_undo")
+    suspend fun clearUndo()
+
     @Query("DELETE FROM tracking_account")
     suspend fun clearAccount()
 }
 
 @Database(entities = [StoredTrackingAccount::class, StoredTrackingContent::class, StoredTrackingIntent::class,
-    StoredTrackingReference::class, StoredTrackingReserve::class], version = 2, exportSchema = true)
+    StoredTrackingReference::class, StoredTrackingReserve::class, StoredTrackingUndo::class], version = 3, exportSchema = true)
 abstract class TrackingDatabase : RoomDatabase() {
     abstract fun tracking(): TrackingDao
 
@@ -142,7 +171,14 @@ abstract class TrackingDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE tracking_intent ADD COLUMN undoHeld INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE TABLE IF NOT EXISTS tracking_undo (incarnation TEXT NOT NULL, `key` TEXT NOT NULL, revision INTEGER NOT NULL, remainingMillis INTEGER NOT NULL, previousPayload TEXT NOT NULL, previousIntentRevision INTEGER, previousDesiredState INTEGER, previousState INTEGER, previousPossiblySent INTEGER, PRIMARY KEY(incarnation, `key`))")
+            }
+        }
+
         fun open(context: Context): TrackingDatabase = Room.databaseBuilder(context.applicationContext,
-            TrackingDatabase::class.java, context.noBackupFilesDir.resolve("tracking.db").absolutePath).addMigrations(MIGRATION_1_2).build()
+            TrackingDatabase::class.java, context.noBackupFilesDir.resolve("tracking.db").absolutePath).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 }

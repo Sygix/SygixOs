@@ -19,6 +19,8 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -28,9 +30,10 @@ data class TrackingRequest(
     val headers: Map<String, String> = emptyMap(),
     val fields: Map<String, String> = emptyMap(),
     val maxBytes: Int = 2 * 1024 * 1024,
+    val jsonBody: String? = null,
 )
 
-data class TrackingResponse(val status: Int, val body: String, val retryAfterMillis: Long? = null)
+data class TrackingResponse(val status: Int, val body: String, val retryAfterMillis: Long? = null, val headers: Map<String, String> = emptyMap())
 
 fun interface TrackingTransport {
     suspend fun execute(request: TrackingRequest): TrackingResponse
@@ -48,7 +51,9 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
         if (!officialTrackingUrl(request.url)) throw TrackingException(TrackingFailure.CONFIGURATION)
         val builder = Request.Builder().url(request.url)
         request.headers.forEach { (name, value) -> builder.header(name, value) }
-        val body = FormBody.Builder().apply { request.fields.forEach { (key, value) -> add(key, value) } }.build()
+        val body = request.jsonBody?.let { value ->
+            value.toRequestBody("application/json".toMediaType())
+        } ?: FormBody.Builder().apply { request.fields.forEach { (key, value) -> add(key, value) } }.build()
         builder.method(request.method, body.takeUnless { request.method == "GET" })
         val call = client.newCall(builder.build())
         suspendCancellableCoroutine { continuation ->
@@ -64,7 +69,7 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
                                 header.toLongOrNull()?.takeIf { seconds -> seconds in 0..Long.MAX_VALUE / 1000 }?.times(1000)
                                     ?: runCatching { (java.time.ZonedDateTime.parse(header, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() - clock()).coerceAtLeast(0) }.getOrNull()
                             }
-                            TrackingResponse(it.code, bytes.toString(Charsets.UTF_8), retryAfter)
+                            TrackingResponse(it.code, bytes.toString(Charsets.UTF_8), retryAfter, it.headers.toMultimap().mapValues { (_, values) -> values.joinToString(",") })
                         }
                         if (continuation.isActive) continuation.resume(result)
                     } catch (_: Exception) {
@@ -97,7 +102,7 @@ class BoundedTrackingTransport(private val clock: () -> Long, private val delega
                 return@repeat
             }
             last = response
-            val nonJson = request.headers["Accept"] == "application/json" && !response.body.trimStart().startsWith("{") && response.status !in setOf(401, 403)
+            val nonJson = request.headers["Accept"] == "application/json" && response.status != 204 && response.body.trimStart().firstOrNull() !in setOf('{', '[') && response.status !in setOf(401, 403)
             if (request.method != "GET" || response.status !in setOf(429, 502, 503, 504) && !nonJson) return@withTimeoutOrNull response
             if (attempt < 2) waitForRetry(response.retryAfterMillis ?: (500L shl attempt))
         }
@@ -110,5 +115,5 @@ class BoundedTrackingTransport(private val clock: () -> Long, private val delega
 
 internal fun officialTrackingUrl(value: String): Boolean = runCatching {
     val uri = java.net.URI(value)
-    uri.scheme == "https" && uri.host in setOf("www.betaseries.com", "betaseries.com", "api.betaseries.com") && uri.userInfo == null && uri.port in setOf(-1, 443)
+    uri.scheme == "https" && uri.host in setOf("www.betaseries.com", "betaseries.com", "api.betaseries.com", "app.trakt.tv", "trakt.tv", "api.trakt.tv", "auth.trakt.tv") && uri.userInfo == null && uri.port in setOf(-1, 443)
 }.getOrDefault(false)

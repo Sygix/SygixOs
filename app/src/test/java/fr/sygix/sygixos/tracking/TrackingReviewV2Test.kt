@@ -109,6 +109,7 @@ class TrackingReviewV2Test {
     @Test fun settingsPauseUndoDeadlineUntilVisibleAgain() = runTest {
         val fixture = TrackingMovieFixture(backgroundScope) { testScheduler.currentTime }
         fixture.runtime.controller.restore(); runCurrent()
+        fixture.runtime.onForeground(); runCurrent()
         fixture.runtime.actions.perform(fixture.content, TrackingAction.REMOVE); runCurrent()
         advanceTimeBy(3000)
         fixture.runtime.actions.setSettingsOpen(true)

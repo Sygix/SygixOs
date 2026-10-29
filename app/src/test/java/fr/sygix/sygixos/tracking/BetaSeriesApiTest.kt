@@ -7,6 +7,7 @@ package fr.sygix.sygixos.tracking
 
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.async
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,6 +17,34 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class BetaSeriesApiTest {
+    @Test fun concurrentRejectedReadsShareOneConfigurationRecoveryAndEachReplayOnlyOnce() = runTest {
+        var discoveries = 0
+        val firstWave = kotlinx.coroutines.CompletableDeferred<Unit>()
+        var refused = 0
+        var accepted = 0
+        val transport = TrackingTransport { request ->
+            if (request.url.endsWith("/")) {
+                discoveries++
+                TrackingResponse(200, "{apiHost:\"https://api.betaseries.com\",apiKey:\"fixture-$discoveries\"}")
+            } else if (request.headers["X-BetaSeries-Key"] == "fixture-1") {
+                if (++refused == 8) firstWave.complete(Unit)
+                firstWave.await()
+                TrackingResponse(400, """{"errors":[{"code":1001}]}""")
+            } else {
+                accepted++
+                TrackingResponse(200, "{}")
+            }
+        }
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val api = BetaSeriesApi(transport, BetaSeriesConfigurationSource(transport, null, { testScheduler.currentTime }, dispatcher), dispatcher)
+        kotlinx.coroutines.coroutineScope {
+            (1..8).map { async { api.request("shows/list") } }.forEach { it.await() }
+        }
+        assertEquals(2, discoveries)
+        assertEquals(8, refused)
+        assertEquals(8, accepted)
+    }
+
     @Test fun seenCrossesSeasonBoundaryAndUndoRestoresOneCandidateThroughRealReadbacks() = runTest {
         val original = TrackingContent(TrackingIdentity("betaseries", TrackingType.EPISODE, "10"), TrackingIdentity("betaseries", TrackingType.SHOW, "1"), "Fixture", season = 1, episode = 10, archived = false, sessionGeneration = 0)
         val seen = mutableMapOf("10" to false, "11" to false)

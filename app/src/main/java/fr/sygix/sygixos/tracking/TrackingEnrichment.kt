@@ -19,7 +19,7 @@ interface TrackingLocalContents {
     fun items(): List<UpNextItem>
 }
 
-class TrackingEnrichment(private val controller: TrackingController, private val provider: BetaSeriesProvider, private val scope: CoroutineScope,
+class TrackingEnrichment(private val controller: TrackingController, private val provider: TrackingContentProvider, private val scope: CoroutineScope,
     private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
     private val catalogue: TrackingIdentityCache? = null,
     private val onIdentities: suspend (List<fr.sygix.sygixos.domain.UpNextIdentityLink>) -> Unit = {}) : TrackingLocalContents {

@@ -17,7 +17,7 @@ import kotlinx.coroutines.async
 class BetaSeriesConfigTest {
     @get:org.junit.Rule val temporary = org.junit.rules.TemporaryFolder()
 
-    @Test fun persistedConfigurationSurvivesRestartExpiresAfterSevenDaysAndIsRemovedOnRefusal() = kotlinx.coroutines.test.runTest {
+    @Test fun persistedConfigurationSurvivesRestartAndAgeUntilAnExplicitRefusal() = kotlinx.coroutines.test.runTest {
         val file = temporary.newFile()
         var calls = 0
         val transport = TrackingTransport { ++calls; TrackingResponse(200, """{"apiHost":"https://api.betaseries.com","apiKey":"fixture-client"}""") }
@@ -26,13 +26,15 @@ class BetaSeriesConfigTest {
         val restarted = source()
         assertEquals(first, restarted.get())
         assertEquals(1, calls)
-        testScheduler.advanceTimeBy(7 * 24 * 60 * 60_000L)
-        val renewed = restarted.get()
-        assertEquals(2, calls)
-        restarted.invalidate(renewed)
+        testScheduler.advanceTimeBy(21 * 24 * 60 * 60_000L)
+        assertEquals(first, restarted.get())
+        val olderRestart = source()
+        assertEquals(first, olderRestart.get())
+        assertEquals(1, calls)
+        olderRestart.invalidate(first)
         assertFalse(file.exists())
         source().get()
-        assertEquals(3, calls)
+        assertEquals(2, calls)
     }
 
     @Test fun discoveryOnlyReadsSixOfficialScriptsAndLargeUnrelatedBlocksDoNotChangeConfiguration() = kotlinx.coroutines.test.runTest {

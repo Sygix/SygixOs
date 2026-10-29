@@ -19,7 +19,7 @@ object TrackingProjection {
 
     fun card(content: TrackingContent): UpNextItem = UpNextItem(
         id = content.identity.id.toLongOrNull() ?: content.identity.hashCode().toLong(),
-        source = UpNextSourceEntry(content.readerPackage.orEmpty(), content.readerName ?: "BetaSeries"),
+        source = UpNextSourceEntry(content.readerPackage.orEmpty(), content.readerName ?: TrackingProviderKind.label(content.parent.provider)),
         type = if (content.identity.type == TrackingType.MOVIE) UpNextContentType.MOVIE else UpNextContentType.EPISODE,
         title = content.title, seriesTitle = content.title.takeUnless { content.identity.type == TrackingType.MOVIE },
         season = content.season?.toString(), episode = content.episode?.toString(), episodeTitle = content.episodeTitle,
@@ -30,8 +30,8 @@ object TrackingProjection {
     )
 
     fun hero(content: TrackingContent): HeroItem = HeroItem(
-        id = "tracking:${content.identity.type}:${content.identity.id}", title = content.title,
-        imageUrl = content.image, sourcePackage = content.readerPackage, sourceLabel = content.readerName ?: "BetaSeries", kind = if (content.identity.type == TrackingType.MOVIE) ProgramKind.WATCHLIST else ProgramKind.NEXT,
+        id = "tracking:${content.identity.provider}:${content.identity.type}:${content.identity.id}", title = content.title,
+        imageUrl = content.image, sourcePackage = content.readerPackage, sourceLabel = content.readerName ?: TrackingProviderKind.label(content.parent.provider), kind = if (content.identity.type == TrackingType.MOVIE) ProgramKind.WATCHLIST else ProgramKind.NEXT,
         season = content.season?.toString(), episode = content.episode?.toString(), durationMillis = content.durationMillis,
         posterUrl = content.poster, tracking = content,
     )

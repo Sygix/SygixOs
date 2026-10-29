@@ -14,9 +14,38 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class UpNextTrackingMemoryTest {
     private val contents = (1..5).map { TrackingContent(TrackingIdentity("fixture", TrackingType.MOVIE, it.toString()), title = "Fixture $it") }
+
+    @Test fun bothProvidersKeepReaderBadgesAndLocalHideRestoreWithoutChangingAccountState() = runTest {
+        for (provider in TrackingProviderKind.entries) {
+            val content = TrackingContent(TrackingIdentity(provider.id, TrackingType.MOVIE, "1"), title = "Fixture",
+                readerPackage = "fixture.player", readerName = "Preferred player")
+            val tracking = MutableStateFlow(TrackingState(account = TrackingAccount("fixture", "Fixture"), contents = listOf(content)))
+            val memory = InMemoryUpNextMemory()
+            val reader = fr.sygix.sygixos.model.UpNextSourceEntry("fixture.player", "Preferred player", android.graphics.drawable.ColorDrawable(android.graphics.Color.WHITE))
+            val controller = UpNextController(failingSource(SecurityException()), MutableStateFlow(true), MutableStateFlow(UpNextPosition.BEFORE_APPS),
+                MutableStateFlow(emptySet()), backgroundScope, memory, tracking = tracking, readers = MutableStateFlow(mapOf(reader.packageName to reader)))
+            runCurrent()
+            val card = (controller.state.value?.content as UpNextContent.Items).items.single()
+            assertSame(reader.icon, card.source.icon)
+            assertEquals("Preferred player", card.source.label)
+            controller.remove(card); runCurrent()
+            assertNull(controller.state.value)
+            val removed = memory.removed.value.single()
+            assertTrue(TrackingHeroSource.project(HeroRead(emptyList()), tracking.value, listOf(removed.key), emptyList(), emptySet()).items.isEmpty())
+            memory.restoreRemoved(removed.key); runCurrent()
+            assertEquals(card.key, (controller.state.value?.content as UpNextContent.Items).items.single().key)
+            assertEquals(listOf(content), tracking.value.contents)
+            assertFalse(content.seen)
+        }
+    }
 
     @Test fun remoteCardsUsePersistedOpenedOrderBeforeAnySuccessfulLocalRead() = runTest {
         val memory = InMemoryUpNextMemory()

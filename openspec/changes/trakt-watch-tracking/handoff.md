@@ -1,5 +1,9 @@
 # Handoff — Suivi Trakt et configuration d'application
 
+## Mise à jour de l'implémentation
+
+Le propriétaire a lancé l'implémentation dans une PR empilée sur la PR de spécification et a choisi l'émulateur Android TV pour tous les contrôles, à la place de la TV physique. `verification.md` contient les observations Android authentifiées et leurs limites. Il a également demandé de conserver la connexion de diagnostic afin de ne plus répéter les associations ; celle-ci est chiffrée et reste privée à l'émulateur, jamais dans le dépôt. L'état de cadrage ci-dessous est historique ; l'avancement courant fait foi dans `tasks.md`.
+
 ## État de cette session
 
 Cadrage uniquement, rédigé sur `main` au commit `92240bd`, branche `docs/spec-trakt-watch-tracking`. Change : `trakt-watch-tracking`. Proposal, design, huit deltas et tâches d'implémentation sont présents. Aucun code applicatif, build, association Trakt ou essai TV n'a été réalisé ici ; toutes les tâches d'implémentation restent ouvertes.

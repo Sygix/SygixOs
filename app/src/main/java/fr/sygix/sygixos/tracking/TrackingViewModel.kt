@@ -50,6 +50,8 @@ data class TrackingUiState(
     val statusOpen: Boolean = false,
     val menuActions: List<TrackingMenuAction> = emptyList(),
     val playerApps: List<PlaybackApp> = emptyList(),
+    val providerId: String = "betaseries",
+    val providerSaving: Boolean = false,
 ) {
     val modal: Boolean get() = statusOpen || player != null || menu != null || episodes != null || device != DeviceAssociationState.Closed && device != DeviceAssociationState.Connected
 }
@@ -58,6 +60,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     private val menu = MutableStateFlow<UpNextItem?>(null)
     private val episodes = MutableStateFlow<TrackingEpisodeList?>(null)
     private val status = MutableStateFlow(false)
+    private val providerSaving = MutableStateFlow(false)
     private var episodeJob: Job? = null
     private var episodeRequest = 0L
     private val countryProposed = android.content.res.Resources.getSystem().configuration.locales[0].country.takeIf { it in Locale.getISOCountries() }
@@ -68,13 +71,15 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     private val base = combine(runtime.state, runtime.device.state, runtime.preferences.country, runtime.playback.selection, runtime.actions.notice) { tracking, device, country, player, notice ->
         TrackingUiState(tracking, device, country, countryProposed, player = player, notice = notice,
             qr = (device as? DeviceAssociationState.Waiting)?.association?.verificationUrl?.let(QrCode::encode))
+    }.combine(combine(runtime.selectedProvider, providerSaving) { provider, saving -> provider to saving }) { value, provider ->
+        value.copy(providerId = provider.first, providerSaving = provider.second)
     }
     val state = combine(base, menu, episodes, countries, status) { value, menu, episodes, countries, status -> value.copy(menu = menu, episodes = episodes, countries = countries, statusOpen = status,
         menuActions = menu?.tracking?.let(::menuActions).orEmpty()) }
         .combine(runtime.region) { value, region ->
             val player = value.player?.let { player ->
                 val content = player.request.content
-                player.copy(request = player.request.copy(content = content.copy(offers = BetaSeriesOffers.confirm(content.offers, region?.takeIf { it.country == value.country }))))
+                player.copy(request = player.request.copy(content = content.copy(offers = runtime.confirmOffers(content, region?.takeIf { it.country == value.country }))))
             }
             value.copy(player = player, playerApps = player?.let { selection ->
                 PlaybackAppOrder.sort(selection.apps,
@@ -135,18 +140,29 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
         if (content.parent.type == TrackingType.SHOW && content.archived != null) add(TrackingMenuAction("tracking-action-archive",
             if (content.archived) fr.sygix.sygixos.R.string.tracking_unarchive else fr.sygix.sygixos.R.string.tracking_archive,
             if (content.archived) TrackingAction.UNARCHIVE else TrackingAction.ARCHIVE))
-        add(TrackingMenuAction("tracking-action-remove", fr.sygix.sygixos.R.string.tracking_remove, TrackingAction.REMOVE))
+        if (content.removableFromAccount) add(TrackingMenuAction("tracking-action-remove", fr.sygix.sygixos.R.string.tracking_remove, TrackingAction.REMOVE))
         add(TrackingMenuAction("upnext-menu-remove", fr.sygix.sygixos.R.string.upnext_remove))
     }
 
     fun removeLocal() { val item = menu.value ?: return; menu.value = null; remove(item) }
     fun addLocal(item: UpNextItem) { item.tracking?.takeIf { it.membership == AccountMembership.ABSENT }?.let { runtime.actions.perform(it, TrackingAction.ADD) } }
     fun confirmCountry(code: String) { viewModelScope.launch { runtime.preferences.confirmCountry(code) } }
-    fun connect() { runtime.device.open() }
+    fun selectProvider(provider: String) {
+        if (runtime.controller.state.value.hasSession || state.value.modal || providerSaving.value || TrackingProviderKind.fromId(provider) == null) return
+        providerSaving.value = true
+        viewModelScope.launch {
+            try { runtime.preferences.selectProvider(provider) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { runtime.controller.markFailure(TrackingFailure.STORAGE) }
+            finally { providerSaving.value = false }
+        }
+    }
+    fun connect() { if (!providerSaving.value) runtime.device.open() }
     fun disconnect() { runtime.disconnect() }
     fun synchronize() { if (state.value.tracking.failure == TrackingFailure.ACCESS) runtime.device.open() else runtime.controller.retry() }
     fun choosePlayer(packageName: String) { runtime.playback.choose(packageName) }
     fun otherApps() { runtime.playback.otherApps() }
+    fun retryOffers() { runtime.playback.refreshOffers() }
     fun noticeFocused(value: Boolean) { runtime.actions.setFocused(value) }
     fun settingsOpen(value: Boolean) { runtime.actions.setSettingsOpen(value) }
     fun dismissNotice() { runtime.actions.dismiss() }

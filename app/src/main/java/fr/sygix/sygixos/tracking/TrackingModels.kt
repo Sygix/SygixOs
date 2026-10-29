@@ -41,6 +41,7 @@ data class TrackingContent(
     val offers: List<PlaybackOffer> = emptyList(),
     val failure: TrackingFailure? = null,
     val airDate: String? = null,
+    val removableFromAccount: Boolean = true,
 )
 
 data class TrackingSnapshot(val contents: List<TrackingContent>, val failure: TrackingFailure? = null)
@@ -58,6 +59,7 @@ data class TrackingState(
     val reserveIncomplete: Boolean = false,
     val pendingIdentities: Set<TrackingIdentity> = emptySet(),
     val durableRevision: Long = 0,
+    val undoContexts: List<StoredTrackingUndo> = emptyList(),
 ) {
     val hasSession: Boolean get() = sessionStatus != TrackingSessionStatus.NONE || account != null
     val statusVisible: Boolean get() = hasSession && (loading || failure != null || pendingCount > 0 || reserveIncomplete)
@@ -65,6 +67,7 @@ data class TrackingState(
 
 interface WatchTrackingProvider {
     suspend fun account(token: String): TrackingAccount
+    suspend fun validateSession(token: String): TrackingAccount = account(token)
     suspend fun snapshot(token: String): TrackingSnapshot
     suspend fun revoke(token: String)
 }

@@ -32,6 +32,60 @@ import org.robolectric.annotation.Config
 class TrackingSettingsTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun providerDropdownPrecedesConnectAndChangingItDoesNotStartAssociation() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            show(fixture)
+            compose.onNodeWithTag("tracking-provider").assertIsFocused()
+            press(Key.Enter)
+            compose.onNodeWithTag("tracking-provider-betaseries").assertIsFocused()
+            press(Key.DirectionDown, "tracking-provider-list")
+            compose.onNodeWithTag("tracking-provider-trakt").assertIsFocused()
+            press(Key.Enter, "tracking-provider-list")
+            compose.onNodeWithTag("tracking-provider").assertIsFocused()
+            compose.onNodeWithTag("tracking-provider-list").assertDoesNotExist()
+            assertEquals("trakt", fixture.preferences.provider.value)
+            compose.onNodeWithTag("tracking-attribution").assertTextContains("Trakt", substring = true)
+            assertEquals(0, fixture.associations)
+            press(Key.DirectionDown)
+            compose.onNodeWithTag("tracking-connect").assertIsFocused()
+        } finally { fixture.close() }
+    }
+
+    @Test fun providerDropdownBackKeepsTheSavedChoiceAndHasNoWrappingEdges() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            show(fixture)
+            press(Key.Enter)
+            press(Key.DirectionUp, "tracking-provider-list")
+            compose.onNodeWithTag("tracking-provider-betaseries").assertIsFocused()
+            press(Key.DirectionDown, "tracking-provider-list")
+            press(Key.DirectionDown, "tracking-provider-list")
+            compose.onNodeWithTag("tracking-provider-trakt").assertIsFocused()
+            press(Key.DirectionLeft, "tracking-provider-list")
+            compose.onNodeWithTag("tracking-provider-trakt").assertIsFocused()
+            press(Key.Back, "tracking-provider-list")
+            compose.onNodeWithTag("tracking-provider").assertIsFocused()
+            assertEquals("betaseries", fixture.preferences.provider.value)
+            assertEquals(0, fixture.associations)
+        } finally { fixture.close() }
+    }
+
+    @Test fun connectedProviderIsLockedAndExplicitDisconnectRestoresTheSelector() = runTest {
+        val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
+        try {
+            fixture.runtime.controller.connect("fixture-token"); runCurrent()
+            show(fixture)
+            compose.onNodeWithTag("tracking-provider").assertIsNotEnabled()
+            compose.onNodeWithTag("tracking-sync").assertIsFocused()
+            fixture.viewModel.selectProvider("trakt"); runCurrent()
+            assertEquals("betaseries", fixture.preferences.provider.value)
+            compose.onNodeWithTag("tracking-provider-list").assertDoesNotExist()
+            fixture.viewModel.disconnect(); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-provider").assertIsFocused()
+        } finally { fixture.close() }
+    }
+
     @Test fun restoringAndRetryingIdentityKeepsFocusAndNeverStartsAnAssociation() = runTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
         try {
@@ -87,6 +141,8 @@ class TrackingSettingsTest {
         val fixture = Fixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler)), { testScheduler.currentTime })
         try {
             show(fixture)
+            compose.onNodeWithTag("tracking-provider").assertIsFocused()
+            press(Key.DirectionDown)
             compose.onNodeWithTag("tracking-connect").assertIsFocused()
             press(Key.Enter)
             compose.onNodeWithTag("tracking-device-code").assertTextEquals("FIXTURE")

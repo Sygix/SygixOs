@@ -19,6 +19,7 @@ class DeviceAssociation(
     val verificationUrl: String,
     val expiresAt: Long,
     val intervalMillis: Long,
+    internal val clientId: String? = null,
 ) {
     override fun toString() = "DeviceAssociation(redacted)"
 }
@@ -32,8 +33,47 @@ sealed interface DeviceAssociationState {
     data class Error(val failure: TrackingFailure) : DeviceAssociationState
 }
 
-class BetaSeriesDevice(
-    private val api: BetaSeriesApi,
+sealed interface TrackingDevicePoll {
+    data object Pending : TrackingDevicePoll
+    data object Expired : TrackingDevicePoll
+    data class SlowDown(val intervalMillis: Long) : TrackingDevicePoll
+    class Authorized(val token: String) : TrackingDevicePoll {
+        override fun toString() = "Authorized(redacted)"
+    }
+}
+
+interface TrackingDeviceProtocol {
+    suspend fun prepare(): DeviceAssociation
+    suspend fun poll(association: DeviceAssociation): TrackingDevicePoll
+}
+
+class BetaSeriesDeviceProtocol(private val api: BetaSeriesApi, private val clock: () -> Long) : TrackingDeviceProtocol {
+    override suspend fun prepare(): DeviceAssociation {
+        val response = api.request("oauth/device", method = "POST")
+        val device = response.text("device_code") ?: throw TrackingException(TrackingFailure.PROTOCOL)
+        val user = response.text("user_code") ?: throw TrackingException(TrackingFailure.PROTOCOL)
+        val url = response.text("verification_url")?.takeIf(::officialTrackingUrl) ?: throw TrackingException(TrackingFailure.PROTOCOL)
+        val uri = java.net.URI(url)
+        if (uri.host !in setOf("www.betaseries.com", "betaseries.com") || uri.path.isNullOrBlank() || uri.path == "/") throw TrackingException(TrackingFailure.PROTOCOL)
+        val expiry = response.optLong("expires_in").takeIf { it in 1..3600 } ?: throw TrackingException(TrackingFailure.PROTOCOL)
+        val interval = response.optLong("interval").takeIf { it in 1..300 } ?: throw TrackingException(TrackingFailure.PROTOCOL)
+        return DeviceAssociation(device, user, url, clock() + expiry * 1000, interval * 1000)
+    }
+
+    override suspend fun poll(association: DeviceAssociation): TrackingDevicePoll = try {
+        val access = api.request("oauth/access_token", method = "POST", fields = mapOf("code" to association.deviceCode))
+        TrackingDevicePoll.Authorized(access.text("access_token") ?: throw TrackingException(TrackingFailure.PROTOCOL))
+    } catch (error: BetaSeriesApiException) {
+        if (error.code == 2001) TrackingDevicePoll.Pending else throw error
+    }
+}
+
+class BetaSeriesDevice(api: BetaSeriesApi, controller: TrackingController, scope: CoroutineScope,
+    clock: () -> Long = { System.nanoTime() / 1_000_000 },
+) : TrackingDeviceFlow({ BetaSeriesDeviceProtocol(api, clock) }, controller, scope, clock)
+
+open class TrackingDeviceFlow(
+    private val protocol: () -> TrackingDeviceProtocol,
     private val controller: TrackingController,
     private val scope: CoroutineScope,
     private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
@@ -50,27 +90,29 @@ class BetaSeriesDevice(
         mutable.value = DeviceAssociationState.Preparing
         work = scope.launch {
             try {
-                val response = api.request("oauth/device", method = "POST")
-                val device = response.text("device_code") ?: throw TrackingException(TrackingFailure.PROTOCOL)
-                val user = response.text("user_code") ?: throw TrackingException(TrackingFailure.PROTOCOL)
-                val url = response.text("verification_url")?.takeIf(::officialTrackingUrl) ?: throw TrackingException(TrackingFailure.PROTOCOL)
-                if (java.net.URI(url).path.isNullOrBlank() || java.net.URI(url).path == "/") throw TrackingException(TrackingFailure.PROTOCOL)
-                val expiry = response.optLong("expires_in").takeIf { it in 1..3600 } ?: throw TrackingException(TrackingFailure.PROTOCOL)
-                val interval = response.optLong("interval").takeIf { it in 1..300 } ?: throw TrackingException(TrackingFailure.PROTOCOL)
-                val association = DeviceAssociation(device, user, url, clock() + expiry * 1000, interval * 1000)
+                val source = protocol()
+                val association = source.prepare()
+                var interval = association.intervalMillis
                 if (attempt != current) return@launch
                 mutable.value = DeviceAssociationState.Waiting(association)
                 while (current == attempt && clock() < association.expiresAt) {
-                    delay(minOf(association.intervalMillis, (association.expiresAt - clock()).coerceAtLeast(1)))
+                    delay(minOf(interval, (association.expiresAt - clock()).coerceAtLeast(1)))
                     if (!visible || clock() >= association.expiresAt) continue
                     try {
-                        val access = api.request("oauth/access_token", method = "POST", fields = mapOf("code" to association.deviceCode))
-                        val token = access.text("access_token") ?: throw TrackingException(TrackingFailure.PROTOCOL)
-                        if (attempt != current) return@launch
-                        controller.connect(token) { attempt == current }
-                        if (attempt == current) mutable.value = if (controller.state.value.account != null) DeviceAssociationState.Connected else DeviceAssociationState.Error(controller.state.value.failure ?: TrackingFailure.ACCESS)
-                        return@launch
-                    } catch (error: BetaSeriesApiException) { if (error.code != 2001) throw error }
+                        when (val result = source.poll(association)) {
+                            TrackingDevicePoll.Pending -> Unit
+                            TrackingDevicePoll.Expired -> {
+                                if (attempt == current) mutable.value = DeviceAssociationState.Expired
+                                return@launch
+                            }
+                            is TrackingDevicePoll.SlowDown -> interval = maxOf(minOf(interval, Long.MAX_VALUE - 5_000) + 5_000, result.intervalMillis)
+                            is TrackingDevicePoll.Authorized -> {
+                                controller.connect(result.token) { attempt == current }
+                                if (attempt == current) mutable.value = if (controller.state.value.account != null) DeviceAssociationState.Connected else DeviceAssociationState.Error(controller.state.value.failure ?: TrackingFailure.ACCESS)
+                                return@launch
+                            }
+                        }
+                    } catch (error: TrackingRetryException) { interval = maxOf(interval, error.retryAfterMillis) }
                     catch (error: TrackingException) { if (error.failure !in setOf(TrackingFailure.NETWORK, TrackingFailure.PROTOCOL)) throw error }
                 }
                 if (current == attempt) mutable.value = DeviceAssociationState.Expired

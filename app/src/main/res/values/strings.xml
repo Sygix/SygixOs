@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tracking_title">Watch tracking</string>
-    <string name="tracking_description">Keep track of your shows and movies with BetaSeries.</string>
-    <string name="tracking_connect">Connect BetaSeries</string>
+    <string name="tracking_description">Keep track of shows and movies with your tracking account.</string>
+    <string name="tracking_connect">Connect</string>
+    <string name="tracking_provider">Provider</string>
+    <string name="tracking_provider_locked">Disconnect to switch providers.</string>
+    <string name="tracking_attribution_trakt">Trakt · https://trakt.tv · This app is not endorsed or certified by Trakt.</string>
+    <string name="tracking_offer_error">Availability could not be checked. You can still choose a player.</string>
+    <string name="tracking_offer_loading">Checking availability…</string>
     <string name="tracking_disconnect">Disconnect</string>
     <string name="tracking_sync">Sync</string>
     <string name="tracking_loading">One moment…</string>
@@ -10,16 +15,16 @@
     <string name="tracking_ready">Account synced</string>
     <string name="tracking_error">Tracking unavailable</string>
     <string name="tracking_error_network">Can\'t reach the service. Try again.</string>
-    <string name="tracking_error_configuration">BetaSeries configuration unavailable. Try again.</string>
-    <string name="tracking_error_access">Account access has expired. Reconnect to continue.</string>
+    <string name="tracking_error_configuration">Service configuration unavailable. Try again.</string>
+    <string name="tracking_error_access">The service refused access to this account. Reconnect to continue.</string>
     <string name="tracking_error_storage">Secure storage is temporarily unavailable. Try again.</string>
     <string name="tracking_session_retained">Your saved connection has not been removed.</string>
     <string name="tracking_error_incomplete">Your account list is incomplete. Try again.</string>
-    <string name="tracking_error_protocol">Invalid response from BetaSeries. Try again.</string>
-    <string name="tracking_reconnect">Reconnect BetaSeries</string>
+    <string name="tracking_error_protocol">Invalid response from the service. Try again.</string>
+    <string name="tracking_reconnect">Reconnect</string>
     <string name="tracking_retry">Try again</string>
     <string name="tracking_country">Country</string>
-    <string name="tracking_revocation_unconfirmed">Couldn\'t confirm sign-out on BetaSeries</string>
+    <string name="tracking_revocation_unconfirmed">Couldn\'t confirm remote sign-out</string>
     <string name="tracking_offer_confirmed">Services confirmed for this country: %1$s</string>
     <string name="tracking_episode_seen_label">%1$s ✓</string>
     <string name="tracking_action_blocked">Finish or cancel the current action before starting another.</string>

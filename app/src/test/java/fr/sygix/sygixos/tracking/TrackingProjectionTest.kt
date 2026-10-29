@@ -18,6 +18,25 @@ class TrackingProjectionTest {
     private val parent = TrackingIdentity("fixture", TrackingType.SHOW, "1")
     private val next = TrackingContent(TrackingIdentity("fixture", TrackingType.EPISODE, "3"), parent, "Fixture", season = 2, episode = 3)
 
+    @Test fun providerPresentationIsDistinctAndTheSelectedReaderKeepsPriority() {
+        val heroes = mutableListOf<String>()
+        for (provider in TrackingProviderKind.entries) {
+            val content = next.copy(identity = next.identity.copy(provider = provider.id), parent = parent.copy(provider = provider.id))
+            val card = TrackingProjection.card(content)
+            val hero = TrackingProjection.hero(content)
+            assertEquals(provider.displayName, card.source.label)
+            assertEquals(provider.displayName, hero.sourceLabel)
+            assertEquals("", card.source.packageName)
+            assertNull(card.source.icon)
+            heroes += hero.id
+            val selected = content.copy(readerPackage = "fixture.player", readerName = "Preferred player")
+            assertEquals("Preferred player", TrackingProjection.card(selected).source.label)
+            assertEquals("Preferred player", TrackingProjection.hero(selected).sourceLabel)
+            assertEquals("fixture.player", TrackingProjection.hero(selected).sourcePackage)
+        }
+        assertEquals(2, heroes.distinct().size)
+    }
+
     @Test fun unseenResumeWinsWithoutReusingAnIntentForAnotherEpisode() {
         val resumed = next.copy(identity = next.identity.copy(id = "5"), episode = 5)
         val source = UpNextSourceEntry("fixture.player", intentUri = "fixture://episode5", targetIdentity = resumed.identity)

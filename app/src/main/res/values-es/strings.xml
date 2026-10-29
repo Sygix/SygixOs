@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="tracking_title">Seguimiento</string>
-    <string name="tracking_description">Sigue tus series y películas con BetaSeries.</string>
-    <string name="tracking_connect">Conectar BetaSeries</string>
+    <string name="tracking_description">Sigue tus series y películas desde tu cuenta de seguimiento.</string>
+    <string name="tracking_connect">Conectar</string>
+    <string name="tracking_provider">Proveedor</string>
+    <string name="tracking_provider_locked">Desconecta la cuenta para cambiar de proveedor.</string>
+    <string name="tracking_attribution_trakt">Trakt · https://trakt.tv · Esta aplicación no está avalada ni certificada por Trakt.</string>
+    <string name="tracking_offer_error">No se ha podido comprobar la disponibilidad. Puedes elegir un reproductor.</string>
+    <string name="tracking_offer_loading">Comprobando disponibilidad…</string>
     <string name="tracking_disconnect">Desconectar</string>
     <string name="tracking_sync">Sincronizar</string>
     <string name="tracking_loading">En curso…</string>
@@ -10,16 +15,16 @@
     <string name="tracking_ready">Cuenta sincronizada</string>
     <string name="tracking_error">Seguimiento no disponible</string>
     <string name="tracking_error_network">No se puede conectar con el servicio. Inténtalo de nuevo.</string>
-    <string name="tracking_error_configuration">Configuración de BetaSeries no disponible. Inténtalo de nuevo.</string>
-    <string name="tracking_error_access">El acceso a la cuenta ha caducado. Vuelve a conectarte.</string>
+    <string name="tracking_error_configuration">Configuración del servicio no disponible. Inténtalo de nuevo.</string>
+    <string name="tracking_error_access">El servicio ha denegado el acceso a la cuenta. Vuelve a conectarte.</string>
     <string name="tracking_error_storage">El almacenamiento seguro no está disponible temporalmente. Inténtalo de nuevo.</string>
     <string name="tracking_session_retained">Tu conexión guardada no se ha eliminado.</string>
     <string name="tracking_error_incomplete">La lista de la cuenta está incompleta. Inténtalo de nuevo.</string>
-    <string name="tracking_error_protocol">Respuesta de BetaSeries no válida. Inténtalo de nuevo.</string>
-    <string name="tracking_reconnect">Reconectar BetaSeries</string>
+    <string name="tracking_error_protocol">Respuesta del servicio no válida. Inténtalo de nuevo.</string>
+    <string name="tracking_reconnect">Reconectar</string>
     <string name="tracking_retry">Reintentar</string>
     <string name="tracking_country">País</string>
-    <string name="tracking_revocation_unconfirmed">Cierre de sesión en BetaSeries sin confirmar</string>
+    <string name="tracking_revocation_unconfirmed">Cierre de sesión en el servicio sin confirmar</string>
     <string name="tracking_offer_confirmed">Servicios confirmados en este país: %1$s</string>
     <string name="tracking_episode_seen_label">%1$s ✓</string>
     <string name="tracking_action_blocked">Termina o cancela la acción en curso antes de empezar otra.</string>

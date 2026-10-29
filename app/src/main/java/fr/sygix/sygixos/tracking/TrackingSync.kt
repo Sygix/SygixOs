@@ -43,7 +43,7 @@ class AndroidTrackingScheduler(context: Context) : TrackingWorkScheduler {
 
 class TrackingSyncCoordinator(
     private val repository: TrackingRepository,
-    private val provider: BetaSeriesProvider,
+    private val provider: TrackingContentProvider,
     private val store: TrackingSessionStore,
     private val allowed: (String) -> Boolean = { true },
     private val clock: () -> Long = System::currentTimeMillis,
@@ -60,12 +60,15 @@ class TrackingSyncCoordinator(
                 val account = repository.restore(token)?.takeIf { it.incarnation == incarnation && !it.accessDenied }
                     ?: return@withTimeoutOrNull true
                 if (!allowed(incarnation)) return@withTimeoutOrNull true
+                val pending = repository.pending(account.incarnation)
+                val eligible = pending.filterNot { it.undoHeld }
+                if (eligible.isEmpty() && availableReserves(incarnation).isEmpty()) return@withTimeoutOrNull true
                 if (account.retryAt > clock()) return@withTimeoutOrNull false
-                for (intent in repository.pending(account.incarnation).take(20)) {
+                for (intent in eligible.take(20)) {
                     if (!valid(incarnation, token)) return@withTimeoutOrNull true
                     if (withTimeoutOrNull(90_000) { synchronize(intent, token); true } != true) throw TrackingException(TrackingFailure.NETWORK)
                 }
-                for (reserve in repository.reserves(incarnation).take(10)) {
+                for (reserve in availableReserves(incarnation).take(10)) {
                     if (!valid(incarnation, token)) return@withTimeoutOrNull true
                     val content = repository.contents(incarnation).firstOrNull { it.parent.storageKey == reserve.parentKey } ?: continue
                     val revision = repository.account()?.revision ?: return@withTimeoutOrNull true
@@ -74,7 +77,7 @@ class TrackingSyncCoordinator(
                     if (valid(incarnation, token)) repository.fill(incarnation, content.parent, values, true, revision)
                 }
                 repository.failure(incarnation, null, token)
-                repository.pending(incarnation).isEmpty() && repository.reserves(incarnation).isEmpty()
+                repository.pending(incarnation).all { it.undoHeld } && availableReserves(incarnation).isEmpty()
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: TrackingSessionChangedException) { true }
             catch (error: Exception) {
@@ -87,6 +90,13 @@ class TrackingSyncCoordinator(
             }
         } ?: false
     } }
+
+    private suspend fun availableReserves(incarnation: String): List<StoredTrackingReserve> {
+        val held = repository.pending(incarnation).filter { it.undoHeld }.map { it.key }.toSet()
+        val parents = if (held.isEmpty()) emptySet() else repository.contents(incarnation)
+            .filter { it.identity.storageKey in held }.map { it.parent.storageKey }.toSet()
+        return repository.reserves(incarnation).filter { it.parentKey !in parents }
+    }
 
     private suspend fun synchronize(intent: StoredTrackingIntent, token: String) = permitted(intent.incarnation, token) {
         val incarnation = intent.incarnation
@@ -121,14 +131,18 @@ class TrackingSyncCoordinator(
 
 class TrackingSyncServices private constructor(context: Context) {
     val repository = TrackingRepository(TrackingDatabase.open(context))
-    val session: TrackingSessionStore = KeystoreTrackingSession(context)
+    val session = CoordinatedTrackingSessionStore(KeystoreTrackingSession(context))
     val scheduler: TrackingWorkScheduler = AndroidTrackingScheduler(context)
     private val lifecycle = TrackingAccountLifecycle(repository, session, scheduler,
         FileTrackingPurgeMarker(context.noBackupFilesDir.resolve("tracking-invalidated")))
     private val transport = BoundedTrackingTransport(TrackingHttpsTransport())
     internal val api = BetaSeriesApi(transport, BetaSeriesConfigurationSource(transport,
         context.noBackupFilesDir.resolve("tracking-configuration"), System::currentTimeMillis, Dispatchers.Default))
-    val provider = BetaSeriesProvider(api) { java.time.LocalDate.now() }
+    internal val betaProvider = BetaSeriesProvider(api) { java.time.LocalDate.now() }
+    internal val traktApi = TraktApi(transport, TraktConfigurationSource(transport,
+        context.noBackupFilesDir.resolve("tracking-configuration-trakt"), System::currentTimeMillis, Dispatchers.Default), session)
+    internal val traktProvider = TraktProvider(traktApi)
+    val provider = TrackingProviderRegistry(betaProvider, traktProvider)
     val coordinator = TrackingSyncCoordinator(repository, provider, session, allowed = { lifecycle.allowed },
         departure = { incarnation, token, block -> lifecycle.depart { repository.depart(incarnation, token, block) } })
 
