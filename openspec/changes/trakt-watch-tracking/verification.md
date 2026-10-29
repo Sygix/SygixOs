@@ -78,3 +78,7 @@ Les en-têtes numériques de pagination sont présents. Les offres Trakt renvoie
 | `ui-testing` | sélecteurs nouveaux et conservés, tests D-pad à taille TV et cinq langues | suites Compose et `TranslationCatalogTest` |
 
 Les contrôles d'APK installé, de navigation réelle et de cycle de vie sur l'émulateur restent distincts et ouverts dans le groupe 8 de `tasks.md`. La présence des tests JVM ne vaut pas observation de ces parcours sur appareil.
+
+## Revue indépendante et correction d'appartenance
+
+La revue du code `0724414` a relevé un point P2 : un historique de film ne prouve pas sa présence dans la watchlist. Le marquage vu est désormais conservé séparément et l'appartenance d'un film identifié découle seulement de sa watchlist. Le test `aWatchedMovieOutsideTheWatchlistCanBeAddedWithoutChangingItsHistory` a échoué avant correction puis réussi : Ajouter est autorisé, Retirer est refusé pour ce contenu absent, l'ajout ne modifie pas son historique. La classe `TraktProtocolTest` complète passe après correction. La relecture du diff correctif reste distincte du verdict initial.
