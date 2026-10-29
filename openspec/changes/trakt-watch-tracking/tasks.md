@@ -53,10 +53,10 @@
 
 ## 8. Vérification intégrée et validation sur cible
 
-- [ ] 8.1 Exécuter `openspec-verify-change`, `openspec validate --all --strict` et `./gradlew test` sur le head d'implémentation ; conserver les preuves et la correspondance exigences/code/tests. Réutiliser les preuves CI réussies du head exact lorsqu'elles couvrent ces vérifications, sans les répéter sans motif.
+- [x] 8.1 Exécuter `openspec-verify-change`, `openspec validate --all --strict` et `./gradlew test` sur le head d'implémentation ; conserver les preuves et la correspondance exigences/code/tests. Preuves et limites consignées dans `verification.md` : 1351 tests réussis, correspondance des 23 exigences et contrôles runtime séparés. Réutiliser les preuves CI réussies du head exact sans les répéter sans motif.
 - [ ] 8.2 Construire avec `./gradlew assembleRelease` et valider sur l'émulateur les deux associations, sélection verrouillée, migration BetaSeries, découverte froide et démarrage avec cache ancien ; relever anonymement volumes et absence de blocage observable de la navigation, sans prétendre mesurer la fluidité physique, les FPS ou le jank avec le rendu logiciel. Vérifier aussi qu'un cache valide ne déclenche aucune lecture des ressources web ; la TV physique est explicitement écartée pour cette implémentation par le propriétaire.
 - [ ] 8.3 Valider sur l'émulateur les deux fournisseurs : films/séries, réserve et frontière de saison, coupure réseau, marquage depuis menu et « Terminé ? », pauses d'Annuler, interruption/redémarrage avant échéance, absence d'envoi avant libération puis synchronisation pendant une autre app. Vérifier comptes distincts, résultat incertain, déconnexion pendant un travail et absence de double envoi, avec preuves structurelles sans historique personnel.
-- [ ] 8.4 Vérifier le rendu, focus, Retour et textes dans les réglages et au retour des lecteurs, les badges et les offres inconnues ; vérifier les états stables sur la cible et rapporter séparément toute hypothèse non exercée, sans déclarer un test TV sur la seule preuve JVM.
+- [x] 8.4 Vérifier le rendu, focus, Retour et textes dans les réglages et au retour des lecteurs, les badges et les offres inconnues ; vérifier les états stables sur la cible et rapporter séparément toute hypothèse non exercée. Preuve : parcours indépendants sur l'émulateur, lecteur contrôlé, sélecteur et panneau d'association ; compléments Annuler et redémarrage. Les limites des tâches 8.2/8.3 restent explicites dans `verification.md` ; aucune preuve physique ou GPU n'est déclarée.
 
 ## Workflow follow-up
 

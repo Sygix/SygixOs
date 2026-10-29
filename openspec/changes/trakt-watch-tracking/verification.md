@@ -82,3 +82,49 @@ Les contrôles d'APK installé, de navigation réelle et de cycle de vie sur l'�
 ## Revue indépendante et correction d'appartenance
 
 La revue du code `0724414` a relevé un point P2 : un historique de film ne prouve pas sa présence dans la watchlist. Le marquage vu est désormais conservé séparément et l'appartenance d'un film identifié découle seulement de sa watchlist. Le test `aWatchedMovieOutsideTheWatchlistCanBeAddedWithoutChangingItsHistory` a échoué avant correction puis réussi : Ajouter est autorisé, Retirer est refusé pour ce contenu absent, l'ajout ne modifie pas son historique. La classe `TraktProtocolTest` complète passe après correction. La relecture du diff correctif reste distincte du verdict initial.
+
+## Vérification finale du code
+
+- Code relu : `6e1e9d6`, verdict indépendant **MERGEABLE** après correction du point P2. La relecture incrémentale ne relève aucun nouveau défaut concret ; elle ne vaut ni CI ni autorisation de merge.
+- Suite complète du code corrigé : **1351 tests réussis, zéro échec, zéro ignoré**, en 56 secondes, avec le même script local de journalisation et sans filtrage.
+- `assembleRelease`, `assembleDebug` et `assemblePerf` ont réussi séparément de la suite. La release standard est construite ; l'installation runtime utilise un identifiant d'application isolé et un fixture débogable. Ce fixture ne fournit pas de mesure de performance de la release ni du matériel.
+
+## Parcours observés sur l'émulateur
+
+| Scénario | Preuve observée | Statut |
+| --- | --- | --- |
+| Restauration Trakt et contribution | Session chiffrée restaurée, contrôles connectés et attribution Trakt, cartes série/film, métadonnées et images visibles | Vérifié |
+| Menu et saisons | Série commencée avec Archiver plutôt que Retirer, épisodes vus distingués, retour de focus sans ouverture involontaire | Vérifié |
+| Choix du fournisseur et association BetaSeries | Liste existante au D-pad, choix sans association implicite, code/adresse complète/QR puis fermeture sans autorisation | Vérifié pour l'UI ; compte BetaSeries authentifié non exercé |
+| Marquage local retenu | Changement de prochain épisode et avis sans prise de focus ; base avec `undoHeld=1`, `possiblySent=0` | Vérifié |
+| Pause et restauration d'Annuler | Focus sur Annuler suspendant le compteur ; arrêt forcé et lancement à froid conservant intention, contexte et temps restant | Vérifié ; aucune précision de durée GPU déclarée |
+| Annuler au D-pad | Une intention retenue supprimée après validation d'Annuler ; les intentions antérieures restent présentes et aucune émission du marquage annulé n'était engagée | Vérifié |
+| Lecteur et retour | Application vidéo contrôlée ouverte avec repli applicatif explicite ; retour proposant « Terminé ? » ; absence de nouveau marquage en ignorant la proposition | Vérifié pour la délégation et le cycle de vie ; pas de décodage vidéo réel |
+| Cache après simulation de panne | Cartes et données durables conservées après changement temporaire de proxy et redémarrage | Observé ; blocage effectif de tous les appels non établi |
+| Synchronisation automatique en arrière-plan | Demandes libérées conservées ; le JobScheduler de l'émulateur attendait la contrainte CONNECTIVITY/VALIDATED malgré des appels API directs possibles | Non vérifié automatiquement dans cet état du réseau ; convergence métier et worker couverts en JVM |
+
+Deux passages indépendants ont été complétés par des contrôles du processus principal sur Annuler. Les captures utiles ont été transmises au propriétaire dans son canal privé, sans upload public et sans chemin local dans le présent rapport. Les écrans runtime ont suivi la langue du fixture ; les textes français à taille TV et les cinq catalogues sont couverts par les tests Compose et de complétude, pas par une prétendue visite runtime de chaque traduction.
+
+### Remise en état
+
+Les deux cibles distantes de test ont retrouvé leur absence initiale : watchlists, historique ciblé et masque de progression contrôlés vides. Les intentions et contextes locaux de l'installation isolée ont été nettoyés après arrêt du processus pour empêcher une réémission ultérieure. L'autorisation Trakt reste conservée dans son stockage protégé, sans nouveau code. Le proxy est revenu à son état initial et l'émulateur a été arrêté. Les anciens incidents des outils CLI temporaires ne sont pas comptés comme des crashes produit.
+
+## Rapport OpenSpec
+
+| Dimension | Résultat |
+| --- | --- |
+| Completeness | 32/34 tâches ; les 23 exigences ADDED/MODIFIED ont une implémentation identifiée. Les tâches runtime 8.2 et 8.3 restent ouvertes avec les limites ci-dessus. |
+| Correctness | Correspondance code/tests pour les 23 exigences et examen des 140 scénarios ; couverture runtime partielle, explicitement non assimilée aux preuves JVM. |
+| Coherence | Socle partagé, une base et une file Room, frontières par fournisseur, configuration et jetons séparés, composants et navigation existants réutilisés ; préférence de lecteur hors compte/fournisseur toujours réservée à l'autre session demandée. |
+
+### CRITICAL — avant archivage
+
+- Terminer 8.2 : validation complète des deux associations et des cas de migration/cache ancien sur APK installé, au-delà des preuves contrôlées et de l'UI déjà observée.
+- Terminer 8.3 : convergence automatique réelle après coupure/rétablissement du réseau pendant une autre application et autres combinaisons runtime non exercées ; ne pas assimiler l'attente de validation réseau Android à une confirmation distante.
+
+### WARNING — limites de preuve
+
+- La TV physique et les mesures FPS/jank sont écartées explicitement par le propriétaire ; elles ne sont pas une preuve manquante cachée.
+- Le fixture runtime est débogable ; la release standard est construite mais ses performances sur matériel ne sont pas évaluées.
+
+Les contrôles de code réalisés ne présentent plus de constat de revue bloquant. La PR d'implémentation peut exposer ces preuves et limites ; **le change n'est pas déclaré prêt pour archivage**, et aucun archivage ni merge n'est effectué ici.
