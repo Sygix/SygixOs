@@ -36,6 +36,81 @@ class TrackingOfflineControllerTest {
     private fun database() = Room.databaseBuilder(context, TrackingDatabase::class.java,
         context.noBackupFilesDir.resolve("${UUID.randomUUID()}.db").absolutePath).build()
 
+    @Test fun retryAfterReleaseStorageFailureKeepsTheRevisionAndDoesNotRestartUndo() = runTest {
+        val db = database()
+        try {
+            val repository = TrackingRepository(db)
+            val account = repository.bind("fixture-session", TrackingAccount("A", "Fixture"))
+            repository.snapshot(account.incarnation, 0, TrackingSnapshot(listOf(movie)))
+            val controller = TrackingController(offline, store, backgroundScope, repository = repository)
+            controller.restore()
+            val state = controller.state.first { it.account != null && !it.loading }
+            val actions = TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope,
+                clock = { testScheduler.currentTime * 1_000_000 })
+            actions.setSettingsOpen(true)
+            actions.perform(state.contents.single(), TrackingAction.SEEN)
+            val saved = actions.notice.first { it?.locallySaved == true }!!
+            db.openHelper.writableDatabase.execSQL("CREATE TRIGGER fail_undo_release BEFORE INSERT ON tracking_intent WHEN NEW.undoHeld = 0 BEGIN SELECT RAISE(ABORT, 'fixture-release'); END")
+            actions.setSettingsOpen(false); runCurrent()
+            advanceTimeBy(10_000); runCurrent()
+            withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it?.failure == TrackingFailure.STORAGE } } }
+            db.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_undo_release")
+            actions.retry(); runCurrent()
+            withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it == null || !it.busy && it.failure == null } } }
+            assertEquals(saved.intent!!.revision, repository.pending(account.incarnation).single().revision)
+            assertNull(actions.notice.value)
+            assertFalse(repository.pending(account.incarnation).single().undoHeld)
+        } finally { db.close() }
+    }
+
+    @Test fun completionPromptWaitsForHeldUndoInsteadOfStrandingTheRequest() = runTest {
+        val db = database()
+        try {
+            val repository = TrackingRepository(db)
+            val account = repository.bind("fixture-session", TrackingAccount("A", "Fixture"))
+            repository.snapshot(account.incarnation, 0, TrackingSnapshot(listOf(movie)))
+            val controller = TrackingController(offline, store, backgroundScope, repository = repository)
+            controller.restore()
+            val state = controller.state.first { it.account != null && !it.loading }
+            val actions = TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope,
+                clock = { testScheduler.currentTime * 1_000_000 })
+            actions.setSettingsOpen(true)
+            actions.perform(state.contents.single(), TrackingAction.SEEN)
+            actions.notice.first { it?.locallySaved == true }
+            actions.setSettingsOpen(false); runCurrent()
+            advanceTimeBy(3_000)
+            val other = movie.copy(identity = movie.identity.copy(id = "2"), parent = movie.parent.copy(id = "2"))
+            actions.returned(other, state.generation); runCurrent()
+            assertFalse(actions.notice.value?.returnPrompt == true)
+            advanceTimeBy(7_000); runCurrent()
+            val prompt = withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it?.returnPrompt == true } } }!!
+            assertEquals(other.identity, prompt.content.identity)
+            assertFalse(repository.pending(account.incarnation).single().undoHeld)
+        } finally { db.close() }
+    }
+
+    @Test fun restoredUndoDoesNotSpendItsRemainingTimeBeforeForegroundActivation() = runTest {
+        val db = database()
+        try {
+            val repository = TrackingRepository(db)
+            val account = repository.bind("fixture-session", TrackingAccount("A", "Fixture"))
+            val held = repository.record(account.incarnation, movie, TrackingAction.SEEN, 7_000)
+            val controller = TrackingController(offline, store, backgroundScope, repository = repository)
+            controller.restore()
+            controller.state.first { it.account != null && !it.loading }
+            val actions = TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope,
+                clock = { testScheduler.currentTime * 1_000_000 }, initialForeground = false)
+            actions.notice.first { it?.locallySaved == true }
+            advanceTimeBy(50_000); runCurrent()
+            assertEquals(7_000L, actions.notice.value?.remainingMillis)
+            assertFalse(repository.markSent(held))
+            actions.setForeground(true); runCurrent()
+            advanceTimeBy(7_000); runCurrent()
+            withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it == null } } }
+            assertFalse(repository.pending(account.incarnation).single().undoHeld)
+        } finally { db.close() }
+    }
+
     @Test fun savedAccountAndMovieCanBeMarkedAndUndoneWithoutAnyNetwork() = runTest {
         val db = database()
         val repository = TrackingRepository(db) { 1000L }
@@ -97,12 +172,59 @@ class TrackingOfflineControllerTest {
         actions.perform(restored.contents.single(), TrackingAction.SEEN)
         val saved = actions.notice.first { it?.locallySaved == true }!!
         assertFalse(saved.confirmed)
-        repository.confirm(saved.intent!!, movie.copy(seen = true, movieState = 1))
-        actions.notice.first { it?.confirmed == true }
+        assertFalse(repository.markSent(saved.intent!!))
         actions.setSettingsOpen(false)
+        runCurrent()
         advanceTimeBy(10_000)
         runCurrent()
+        withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it == null } } }
         assertNull(actions.notice.value)
+        db.close()
+    }
+
+    @Test fun activeUndoPausePersistsRemainingTimeAndRestoresNoticeAfterDatabaseRecreation() = runTest {
+        val name = "${UUID.randomUUID()}.db"
+        var db = Room.databaseBuilder(context, TrackingDatabase::class.java, context.noBackupFilesDir.resolve(name).absolutePath)
+            .addMigrations(TrackingDatabase.MIGRATION_1_2, TrackingDatabase.MIGRATION_2_3).build()
+        var repository = TrackingRepository(db)
+        val account = repository.bind("fixture-session", TrackingAccount("A", "Example"))
+        repository.snapshot(account.incarnation, 0, TrackingSnapshot(listOf(movie)))
+        var controller = TrackingController(offline, store, backgroundScope, repository = repository)
+        controller.restore()
+        val restored = controller.state.first { it.account != null && !it.loading }
+        var actions = TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope,
+            clock = { testScheduler.currentTime * 1_000_000 })
+        actions.setSettingsOpen(true)
+        actions.perform(restored.contents.single(), TrackingAction.SEEN)
+        val saved = actions.notice.first { it?.locallySaved == true }!!
+        actions.setSettingsOpen(false)
+        runCurrent()
+        advanceTimeBy(3_000)
+        actions.setSettingsOpen(true)
+        runCurrent()
+        withContext(Dispatchers.IO) { withTimeout(5000) { controller.state.first { it.undoContexts.firstOrNull()?.remainingMillis == 7_000L } } }
+        withContext(Dispatchers.IO) { withTimeout(5000) {
+            assertEquals(7_000L, repository.undoContext(account.incarnation, saved.intent!!.key, saved.intent.revision)?.remainingMillis)
+        } }
+        db.close()
+
+        db = Room.databaseBuilder(context, TrackingDatabase::class.java, context.noBackupFilesDir.resolve(name).absolutePath)
+            .addMigrations(TrackingDatabase.MIGRATION_1_2, TrackingDatabase.MIGRATION_2_3).build()
+        repository = TrackingRepository(db)
+        controller = TrackingController(offline, store, backgroundScope, repository = repository)
+        controller.restore()
+        controller.state.first { it.account != null && it.undoContexts.isNotEmpty() }
+        actions = TrackingActions(controller, { _, _, _ -> fail() }, backgroundScope,
+            clock = { testScheduler.currentTime * 1_000_000 })
+        actions.setSettingsOpen(true)
+        runCurrent()
+        val restoredNotice = withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it?.intent?.revision == saved.intent?.revision } } }!!
+        assertEquals(7_000L, restoredNotice.remainingMillis)
+        assertFalse(restoredNotice.confirmed)
+        actions.undo()
+        runCurrent()
+        withContext(Dispatchers.IO) { withTimeout(5000) { actions.notice.first { it == null } } }
+        assertTrue(repository.pending(account.incarnation).isEmpty())
         db.close()
     }
 }

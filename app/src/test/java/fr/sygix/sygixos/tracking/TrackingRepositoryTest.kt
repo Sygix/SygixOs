@@ -8,6 +8,9 @@ package fr.sygix.sygixos.tracking
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.*
 import org.junit.Test
@@ -22,7 +25,78 @@ class TrackingRepositoryTest {
     private fun episode(number: Int) = TrackingContent(TrackingIdentity("betaseries", TrackingType.EPISODE, "e$number"), show,
         "Example", season = if (number <= 3) 1 else 2, episode = if (number <= 3) number else number - 3, airDate = "2020-01-01")
     private fun database(name: String) = Room.databaseBuilder(context, TrackingDatabase::class.java,
-        context.noBackupFilesDir.resolve(name).absolutePath).build()
+        context.noBackupFilesDir.resolve(name).absolutePath).addMigrations(TrackingDatabase.MIGRATION_1_2, TrackingDatabase.MIGRATION_2_3).build()
+
+    @Test fun newlyRecordedMarkCannotBeSentWhileUndoIsAvailableEvenAfterRestart() = runTest {
+        val name = "${UUID.randomUUID()}.db"
+        var db = database(name)
+        var repository = TrackingRepository(db)
+        val account = repository.bind("session", TrackingAccount("A", "Example"))
+        val intent = repository.record(account.incarnation, episode(1), TrackingAction.SEEN, undoRemainingMillis = 10_000)
+        assertFalse(repository.markSent(intent))
+        repository.snapshot(account.incarnation, repository.account()!!.revision, TrackingSnapshot(emptyList()))
+        assertTrue(repository.contents(account.incarnation).any { it.identity == episode(1).identity })
+        assertTrue(repository.updateUndoRemaining(account.incarnation, intent.key, intent.revision, 7_000))
+        db.close()
+        db = database(name)
+        repository = TrackingRepository(db)
+        assertFalse(repository.markSent(intent))
+        assertFalse(repository.pending(account.incarnation).single().possiblySent)
+        assertEquals(7_000L, repository.undoContext(account.incarnation, intent.key, intent.revision)?.remainingMillis)
+        repository.restoreUndoReferences(account.incarnation)
+        assertEquals(intent.key, db.tracking().references(account.incarnation).single { it.owner == "undo" }.key)
+        assertTrue(repository.releaseUndo(account.incarnation, intent.key, intent.revision))
+        assertTrue(repository.markSent(intent))
+        db.close()
+    }
+
+    @Test fun undoRestoresPreviousPossiblySentRevisionAndExpirationReleasesExactlyOnce() = runTest {
+        val db = database("${UUID.randomUUID()}.db")
+        val repository = TrackingRepository(db)
+        val account = repository.bind("session", TrackingAccount("A", "Example"))
+        val old = repository.record(account.incarnation, episode(1), TrackingAction.SEEN)
+        assertTrue(repository.markSent(old))
+        val held = repository.record(account.incarnation, episode(1).copy(seen = true), TrackingAction.UNSEEN, undoRemainingMillis = 10_000)
+        assertFalse(repository.markSent(held))
+        assertTrue(repository.undo(held, episode(1).copy(seen = true)))
+        assertEquals(old.copy(possiblySent = true), repository.pending(account.incarnation).single())
+        val next = repository.record(account.incarnation, episode(1), TrackingAction.UNSEEN, undoRemainingMillis = 10_000)
+        assertTrue(repository.releaseUndo(account.incarnation, next.key, next.revision))
+        assertFalse(repository.releaseUndo(account.incarnation, next.key, next.revision))
+        assertTrue(repository.markSent(next))
+        assertFalse(repository.undo(next, episode(1)))
+        db.close()
+    }
+
+    @Test fun confirmationOfPreviousRevisionWhileNewRevisionIsHeldIsNotRestoredOnUndo() = runTest {
+        val db = database("${UUID.randomUUID()}.db")
+        val repository = TrackingRepository(db)
+        val account = repository.bind("session", TrackingAccount("A", "Example"))
+        val old = repository.record(account.incarnation, episode(1), TrackingAction.SEEN)
+        assertTrue(repository.markSent(old))
+        val newer = repository.record(account.incarnation, episode(1).copy(seen = true), TrackingAction.UNSEEN, undoRemainingMillis = 10_000)
+        repository.confirm(old, episode(1).copy(seen = true))
+        assertTrue(repository.undo(newer, episode(1)))
+        assertTrue(repository.pending(account.incarnation).isEmpty())
+        assertTrue(repository.contents(account.incarnation).single().seen)
+        db.close()
+    }
+
+    @Test fun cancellationAndExpirationHaveOneDurableWinner() = runTest {
+        val db = database("${UUID.randomUUID()}.db")
+        val repository = TrackingRepository(db)
+        val account = repository.bind("session", TrackingAccount("A", "Example"))
+        val held = repository.record(account.incarnation, episode(1), TrackingAction.SEEN, undoRemainingMillis = 10_000)
+        val outcomes = coroutineScope {
+            val cancel = async(Dispatchers.IO) { repository.undo(held, episode(1)) }
+            val release = async(Dispatchers.IO) { repository.releaseUndo(account.incarnation, held.key, held.revision) }
+            cancel.await() to release.await()
+        }
+        assertTrue(outcomes.first xor outcomes.second)
+        assertNull(repository.undoContext(account.incarnation, held.key, held.revision))
+        assertEquals(outcomes.second, repository.pending(account.incarnation).singleOrNull()?.undoHeld == false)
+        db.close()
+    }
 
     @Test fun offlineRestartRetainsSixIndividualIntentsAndAccount() = runTest {
         val name = "${UUID.randomUUID()}.db"
@@ -224,7 +298,7 @@ class TrackingRepositoryTest {
         raw.execSQL("INSERT INTO tracking_reserve VALUES(?, ?, 0, 1)", arrayOf("incarnation", show.storageKey))
         raw.version = 1
         raw.close()
-        val migrated = Room.databaseBuilder(context, TrackingDatabase::class.java, path).addMigrations(TrackingDatabase.MIGRATION_1_2).build()
+        val migrated = Room.databaseBuilder(context, TrackingDatabase::class.java, path).addMigrations(TrackingDatabase.MIGRATION_1_2, TrackingDatabase.MIGRATION_2_3).build()
         assertEquals("A", migrated.tracking().account()?.accountId)
         assertEquals(1234L, migrated.tracking().account()?.snapshotAt)
         assertTrue(migrated.tracking().intents("incarnation").single().possiblySent)
@@ -235,6 +309,39 @@ class TrackingRepositoryTest {
         assertEquals("local", migrated.tracking().references("incarnation").single().owner)
         assertTrue(migrated.tracking().reserves("incarnation").single().needsFill)
         assertEquals(0L, migrated.tracking().reserves("incarnation").single().requestedRevision)
+        migrated.close()
+    }
+
+    @Test fun migrationFromVersionTwoPreservesPossiblySentIntentWithoutCreatingUndoWindow() = runTest {
+        val name = "${UUID.randomUUID()}.db"
+        val schema = context.assets.open("fr.sygix.sygixos.tracking.TrackingDatabase/2.json").bufferedReader().use {
+            org.json.JSONObject(it.readText()).getJSONObject("database")
+        }
+        val path = context.noBackupFilesDir.resolve(name).absolutePath
+        val raw = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(path, null)
+        val entities = schema.getJSONArray("entities")
+        for (index in 0 until entities.length()) {
+            val entity = entities.getJSONObject(index)
+            raw.execSQL(entity.getString("createSql").replace("\u0024{TABLE_NAME}", entity.getString("tableName")))
+        }
+        val setup = schema.getJSONArray("setupQueries")
+        for (index in 0 until setup.length()) raw.execSQL(setup.getString(index))
+        raw.execSQL("INSERT INTO tracking_account VALUES(1, 'A', 'Example', 'incarnation', 'hash', 7, 1234, NULL, 0, 0)")
+        raw.execSQL("INSERT INTO tracking_content VALUES(?, ?, ?, ?, ?)", arrayOf<Any>("incarnation", episode(1).identity.storageKey,
+            show.storageKey, TrackingContentCodec.encode(episode(1)), 7))
+        raw.execSQL("INSERT INTO tracking_intent VALUES(?, ?, 7, 1, 0, 1)", arrayOf("incarnation", episode(1).identity.storageKey))
+        raw.execSQL("INSERT INTO tracking_reference VALUES(?, ?, 'undo')", arrayOf("incarnation", episode(1).identity.storageKey))
+        raw.execSQL("INSERT INTO tracking_reserve VALUES(?, ?, 0, 1, 4)", arrayOf("incarnation", show.storageKey))
+        raw.version = 2
+        raw.close()
+        val migrated = database(name)
+        assertEquals(7L, migrated.tracking().account()?.revision)
+        assertEquals(7L, migrated.tracking().intents("incarnation").single().revision)
+        assertTrue(migrated.tracking().intents("incarnation").single().possiblySent)
+        assertFalse(migrated.tracking().intents("incarnation").single().undoHeld)
+        assertTrue(migrated.tracking().undoContexts("incarnation").isEmpty())
+        assertEquals(4L, migrated.tracking().reserves("incarnation").single().requestedRevision)
+        assertEquals("undo", migrated.tracking().references("incarnation").single().owner)
         migrated.close()
     }
 

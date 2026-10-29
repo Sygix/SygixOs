@@ -71,7 +71,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     private val base = combine(runtime.state, runtime.device.state, runtime.preferences.country, runtime.playback.selection, runtime.actions.notice) { tracking, device, country, player, notice ->
         TrackingUiState(tracking, device, country, countryProposed, player = player, notice = notice,
             qr = (device as? DeviceAssociationState.Waiting)?.association?.verificationUrl?.let(QrCode::encode))
-    }.combine(combine(runtime.preferences.provider, providerSaving) { provider, saving -> provider to saving }) { value, provider ->
+    }.combine(combine(runtime.selectedProvider, providerSaving) { provider, saving -> provider to saving }) { value, provider ->
         value.copy(providerId = provider.first, providerSaving = provider.second)
     }
     val state = combine(base, menu, episodes, countries, status) { value, menu, episodes, countries, status -> value.copy(menu = menu, episodes = episodes, countries = countries, statusOpen = status,
@@ -79,7 +79,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
         .combine(runtime.region) { value, region ->
             val player = value.player?.let { player ->
                 val content = player.request.content
-                player.copy(request = player.request.copy(content = content.copy(offers = BetaSeriesOffers.confirm(content.offers, region?.takeIf { it.country == value.country }))))
+                player.copy(request = player.request.copy(content = content.copy(offers = runtime.confirmOffers(content, region?.takeIf { it.country == value.country }))))
             }
             value.copy(player = player, playerApps = player?.let { selection ->
                 PlaybackAppOrder.sort(selection.apps,
@@ -162,6 +162,7 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     fun synchronize() { if (state.value.tracking.failure == TrackingFailure.ACCESS) runtime.device.open() else runtime.controller.retry() }
     fun choosePlayer(packageName: String) { runtime.playback.choose(packageName) }
     fun otherApps() { runtime.playback.otherApps() }
+    fun retryOffers() { runtime.playback.refreshOffers() }
     fun noticeFocused(value: Boolean) { runtime.actions.setFocused(value) }
     fun settingsOpen(value: Boolean) { runtime.actions.setSettingsOpen(value) }
     fun dismissNotice() { runtime.actions.dismiss() }

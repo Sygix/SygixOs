@@ -7,6 +7,7 @@
     <string name="tracking_provider_locked">Disconnetti l\'account per cambiare servizio.</string>
     <string name="tracking_attribution_trakt">Trakt · https://trakt.tv · Questa app non è approvata né certificata da Trakt.</string>
     <string name="tracking_offer_error">Impossibile verificare la disponibilità. Puoi comunque scegliere un player.</string>
+    <string name="tracking_offer_loading">Verifica della disponibilità…</string>
     <string name="tracking_disconnect">Disconnetti</string>
     <string name="tracking_sync">Sincronizza</string>
     <string name="tracking_loading">In corso…</string>
@@ -15,7 +16,7 @@
     <string name="tracking_error">Monitoraggio non disponibile</string>
     <string name="tracking_error_network">Impossibile connettersi al servizio. Riprova.</string>
     <string name="tracking_error_configuration">Configurazione del servizio non disponibile. Riprova.</string>
-    <string name="tracking_error_access">L\'accesso all\'account è scaduto. Accedi di nuovo.</string>
+    <string name="tracking_error_access">Il servizio ha negato l\'accesso all\'account. Accedi di nuovo.</string>
     <string name="tracking_error_storage">L\'archiviazione protetta è temporaneamente non disponibile. Riprova.</string>
     <string name="tracking_session_retained">La connessione salvata non è stata eliminata.</string>
     <string name="tracking_error_incomplete">L\'elenco dell\'account è incompleto. Riprova.</string>

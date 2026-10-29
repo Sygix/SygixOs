@@ -7,6 +7,7 @@
     <string name="tracking_provider_locked">Déconnectez-vous pour changer de fournisseur.</string>
     <string name="tracking_attribution_trakt">Trakt · https://trakt.tv · Cette application n\'est ni approuvée ni certifiée par Trakt.</string>
     <string name="tracking_offer_error">Disponibilité impossible à vérifier. Vous pouvez choisir un lecteur.</string>
+    <string name="tracking_offer_loading">Vérification de la disponibilité…</string>
     <string name="tracking_disconnect">Déconnecter</string>
     <string name="tracking_sync">Synchroniser</string>
     <string name="tracking_loading">En cours…</string>
@@ -15,7 +16,7 @@
     <string name="tracking_error">Suivi indisponible</string>
     <string name="tracking_error_network">Connexion au service impossible. Réessayez.</string>
     <string name="tracking_error_configuration">Configuration du service indisponible. Réessayez.</string>
-    <string name="tracking_error_access">L\'accès au compte a expiré. Reconnectez-vous.</string>
+    <string name="tracking_error_access">Le service a refusé l\'accès au compte. Reconnectez-vous.</string>
     <string name="tracking_error_storage">Stockage sécurisé temporairement indisponible. Réessayez.</string>
     <string name="tracking_session_retained">Votre connexion enregistrée n\'a pas été effacée.</string>
     <string name="tracking_error_incomplete">La liste du compte est incomplète. Réessayez.</string>

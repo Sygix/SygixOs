@@ -32,6 +32,7 @@ internal fun <T> SettingsChoiceDropdown(options: List<T>, selected: T, tag: Stri
     val requesters = remember(keys) { options.map { FocusRequester() } }
     var focusedIndex by remember { mutableIntStateOf(options.indexOf(selected).coerceAtLeast(0)) }
     var focusedKey by remember { mutableStateOf(key(selected)) }
+    var initialized by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val offset = with(density) { Dimens.DropdownOffset.roundToPx() }
     val inset = with(density) { Dimens.DropdownInsetEnd.roundToPx() }
@@ -77,7 +78,9 @@ internal fun <T> SettingsChoiceDropdown(options: List<T>, selected: T, tag: Stri
             }
         }
         LaunchedEffect(keys) {
-            val target = FocusFallback.entry(keys, focusedKey, focusedIndex)
+            val target = if (!initialized) key(selected).takeIf { it in keys } ?: FocusFallback.entry(keys, null, focusedIndex)
+                else FocusFallback.entry(keys, focusedKey, focusedIndex)
+            initialized = true
             val index = keys.indexOf(target)
             if (index < 0) onClose() else requesters[index].tryRequestFocus()
         }

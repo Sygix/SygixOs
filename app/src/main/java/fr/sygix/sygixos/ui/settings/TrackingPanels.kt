@@ -30,12 +30,15 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
             val other = stringResource(R.string.tracking_other_app)
             val actions = if (player.loading) emptyList() else state.playerApps.map { app ->
                 TrackingModalAction("tracking-player-${app.packageName}", app.label) { viewModel.choosePlayer(app.packageName) }
-            } + if (!player.otherApps) listOf(TrackingModalAction("tracking-other-app", other, viewModel::otherApps)) else emptyList()
+            } + (if (!player.otherApps) listOf(TrackingModalAction("tracking-other-app", other, viewModel::otherApps)) else emptyList()) +
+                (if (player.offersFailure != null) listOf(TrackingModalAction("tracking-offers-retry", retry, viewModel::retryOffers)) else emptyList())
             TrackingModal(stringResource(R.string.tracking_player_title), "tracking-player-picker", actions + TrackingModalAction("tracking-player-close", close, viewModel::close), viewModel::close,
                 initial = actions.indexOfFirst { it.key == "tracking-player-${player.preferredPackage}" }.coerceAtLeast(0), focusModel = viewModel, loading = player.loading) {
                 Text(player.request.content.title, style = TextStyles.Row, color = SygixColors.OnDark)
                 Text(stringResource(if (player.loading) R.string.tracking_loading else if (player.failure != null) R.string.tracking_error else if (player.apps.isEmpty()) R.string.tracking_no_apps else R.string.tracking_unconfirmed), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                 if (player.failure != null) Text(stringResource(R.string.tracking_player_error), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+                if (player.offersLoading) Text(stringResource(R.string.tracking_offer_loading), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
+                if (player.offersFailure != null) Text(stringResource(R.string.tracking_offer_error), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                 if (player.missingPreferred) Text(stringResource(R.string.tracking_player_missing), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                 val services = player.request.content.offers.mapNotNull { it.name }.distinct()
                 if (services.isNotEmpty()) Text(stringResource(R.string.tracking_offer_services, services.joinToString(", ")), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, maxLines = 2)

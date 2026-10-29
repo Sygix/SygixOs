@@ -29,6 +29,8 @@ data class PlaybackSelection(
     val failure: TrackingFailure? = null,
     val preferredPackage: String? = null,
     val missingPreferred: Boolean = false,
+    val offersLoading: Boolean = false,
+    val offersFailure: TrackingFailure? = null,
 )
 
 interface PlaybackAppResolver {
@@ -52,12 +54,14 @@ class PlaybackCoordinator(
     private val tracking: TrackingController,
     private val actions: TrackingActions,
     private val scope: CoroutineScope,
+    private val loadOffers: (suspend (TrackingContent) -> TrackingOfferResult)? = null,
     private val onOpened: (PlaybackRequest) -> Unit = {},
 ) {
     private val mutable = MutableStateFlow<PlaybackSelection?>(null)
     val selection = mutable.asStateFlow()
     private var job: Job? = null
     private var catalogJob: Job? = null
+    private var offersJob: Job? = null
     private var pending: Pair<PlaybackRequest, Long>? = null
     private var departed = false
     private var requestId = 0L
@@ -87,13 +91,35 @@ class PlaybackCoordinator(
                 if (id != requestId || generation != tracking.state.value.generation) return@launch
                 val app = installed.firstOrNull { it.packageName == preferred }
                 if (!choose && app != null) launch(request, app, id, generation)
-                else mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred, missingPreferred = preferred != null && app == null)
+                else {
+                    mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred, missingPreferred = preferred != null && app == null)
+                    refreshOffers()
+                }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { if (id == requestId) mutable.value = PlaybackSelection(request, loading = false, failure = error.trackingFailure()) }
         }
     }
 
     fun otherApps() { mutable.value = mutable.value?.copy(otherApps = true) }
+
+    fun refreshOffers() {
+        val current = mutable.value?.takeUnless { it.loading } ?: return
+        val load = loadOffers ?: return
+        val id = requestId
+        val generation = tracking.state.value.generation
+        offersJob?.cancel()
+        mutable.value = current.copy(offersLoading = true, offersFailure = null)
+        offersJob = scope.launch {
+            val result = try { load(current.request.content) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Exception) { TrackingOfferResult(emptyList(), error.trackingFailure()) }
+            val latest = mutable.value
+            if (id != requestId || generation != tracking.state.value.generation || latest == null) return@launch
+            val offers = if (result.failure == null) result.offers else latest.request.content.offers.map { it.copy(confirmedCountry = null) }
+            mutable.value = latest.copy(request = latest.request.copy(content = latest.request.content.copy(offers = offers)),
+                offersLoading = false, offersFailure = result.failure)
+        }
+    }
 
     fun choose(packageName: String) {
         val current = mutable.value ?: return
@@ -151,7 +177,7 @@ class PlaybackCoordinator(
             if (generation == tracking.state.value.generation) mutable.value = PlaybackSelection(request, loading = false, failure = TrackingFailure.STORAGE)
             return
         }
-        if (id == requestId) mutable.value = null
+        if (id == requestId) { offersJob?.cancel(); mutable.value = null }
     }
 
     fun onDeparture() { departure?.cancel(); if (pending != null) departed = true }
@@ -164,5 +190,5 @@ class PlaybackCoordinator(
         if (returned != null) actions.returned(returned.first.content, returned.second)
     }
 
-    fun close() { ++requestId; job?.cancel(); catalogJob?.cancel(); mutable.value = null }
+    fun close() { ++requestId; job?.cancel(); catalogJob?.cancel(); offersJob?.cancel(); mutable.value = null }
 }

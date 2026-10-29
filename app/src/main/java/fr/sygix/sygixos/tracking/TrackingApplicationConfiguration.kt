@@ -46,7 +46,11 @@ internal class TrackingApplicationConfiguration<T : Any>(
 
     suspend fun invalidate(previous: T) = withContext(dispatcher) {
         mutex.withLock {
-            if (cached == previous) {
+            if (!restored) {
+                cached = read()
+                restored = true
+            }
+            if (cached == previous || cached == null) {
                 rejected = previous
                 cached = null
                 file?.let { target ->
