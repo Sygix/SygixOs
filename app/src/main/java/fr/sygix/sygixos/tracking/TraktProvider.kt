@@ -461,12 +461,9 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
         catch (error: Exception) {
             if (error.trackingFailure() in setOf(TrackingFailure.ACCESS, TrackingFailure.STORAGE)) throw error
-            return MovieAccountState(if (watchlisted) AccountMembership.PRESENT else AccountMembership.UNKNOWN, false, TrackingFailure.INCOMPLETE)
+            return MovieAccountState(if (watchlisted) AccountMembership.PRESENT else AccountMembership.ABSENT, false, TrackingFailure.INCOMPLETE)
         }
-        val membership = when {
-            watchlisted || history -> AccountMembership.PRESENT
-            else -> AccountMembership.ABSENT
-        }
+        val membership = if (watchlisted) AccountMembership.PRESENT else AccountMembership.ABSENT
         return MovieAccountState(membership, history, null)
     }
 

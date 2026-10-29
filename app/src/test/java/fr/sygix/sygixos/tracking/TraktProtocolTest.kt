@@ -7,6 +7,7 @@ package fr.sygix.sygixos.tracking
 
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -498,6 +499,53 @@ class TraktProtocolTest {
         assertNull(provider.identify(envelope, local))
         assertEquals(1, transport.requests.count { it.url.contains("search/movie") })
         assertFalse(transport.requests.any { it.url.contains("movies/10?") })
+    }
+
+    @Test fun aWatchedMovieOutsideTheWatchlistCanBeAddedWithoutChangingItsHistory() = runTest {
+        val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
+        val identity = TrackingIdentity("trakt", TrackingType.MOVIE, "10")
+        val movie = JSONObject().put("title", "Synthetic").put("year", 2020).put("ids", JSONObject().put("trakt", 10))
+        var watchlisted = false
+        var additions = 0
+        val transport = ScriptedTransport { request ->
+            when {
+                request.url.contains("movies/10?extended=full") -> TrackingResponse(200, movie.toString())
+                request.url.contains("sync/history/movies/10") -> TrackingResponse(200, """[{"id":1}]""")
+                request.url.contains("sync/watchlist/movies") -> TrackingResponse(200,
+                    if (watchlisted) JSONArray().put(JSONObject().put("movie", movie)).toString() else "[]", headers = paginationSingle())
+                request.url == "https://api.trakt.tv/sync/watchlist" && request.method == "POST" -> {
+                    additions++; watchlisted = true; TrackingResponse(201, "{}")
+                }
+                else -> throw AssertionError("Unexpected watchlist fixture operation")
+            }
+        }
+        val provider = TraktProvider(api(transport, CoordinatedTrackingSessionStore(MemorySession(envelope))))
+        val local = UpNextItem(1, UpNextSourceEntry("fixture.player"), UpNextContentType.MOVIE, "Synthetic", year = 2020)
+        val identified = provider.identify(envelope, local, LocalTrackingIdentity(identity, identity))!!
+        assertTrue(identified.seen)
+        assertEquals(AccountMembership.ABSENT, identified.membership)
+        val controller = TrackingController(object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
+            override suspend fun snapshot(token: String) = TrackingSnapshot(emptyList())
+            override suspend fun revoke(token: String) = Unit
+        }, object : TrackingSessionStore {
+            override suspend fun read() = envelope
+            override suspend fun write(token: String?) = Unit
+        }, backgroundScope)
+        controller.restore(); runCurrent()
+        val actions = mutableListOf<TrackingAction>()
+        val mutations = TrackingActions(controller, { token, content, action ->
+            actions += action; provider.mutate(token, content, action).forEach(controller::patch)
+        }, backgroundScope)
+        mutations.perform(identified, TrackingAction.REMOVE); runCurrent()
+        assertTrue(actions.isEmpty())
+        mutations.perform(identified, TrackingAction.ADD); runCurrent()
+        assertEquals(listOf(TrackingAction.ADD), actions)
+        assertEquals(1, additions)
+        assertTrue(watchlisted)
+        assertTrue(controller.state.value.contents.single().seen)
+        assertEquals(AccountMembership.PRESENT, controller.state.value.contents.single().membership)
+        assertTrue(transport.requests.none { it.method == "POST" && "sync/history" in it.url })
     }
 
     @Test fun startedShowRemainsAccountMemberWhenUpToDateAndAbsentFromWatchlist() = runTest {
