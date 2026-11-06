@@ -6,7 +6,6 @@
 package fr.sygix.sygixos.core.designsystem
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
@@ -18,10 +17,12 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.TraversableNode
+import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.node.findNearestAncestor
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.invalidateLayer
@@ -42,6 +43,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyInputModifierNode
 import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -80,6 +82,7 @@ private class TvLiftNode(private var shape: Shape) :
     Modifier.Node(),
     FocusEventModifierNode,
     LayoutModifierNode,
+    CompositionLocalConsumerModifierNode,
     TraversableNode {
 
     override val traverseKey: Any = TvLiftKey
@@ -104,7 +107,8 @@ private class TvLiftNode(private var shape: Shape) :
         focused = focusState.isFocused
         if (!isAttached) return
         val target = if (focused) 1f else 0f
-        coroutineScope.launch { progress.animateTo(target, tween(Motion.FOCUS_MS, easing = AppleEasing)) }
+        val fast = currentValueOf(LocalFastNavigation).active
+        coroutineScope.launch(start = CoroutineStart.UNDISPATCHED) { progress.focusTo(target, fast) }
     }
 
     override fun MeasureScope.measure(measurable: Measurable, constraints: Constraints): MeasureResult {

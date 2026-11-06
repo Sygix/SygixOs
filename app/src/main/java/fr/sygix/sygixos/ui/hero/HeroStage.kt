@@ -13,7 +13,10 @@ import androidx.compose.ui.graphics.Shadow
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.glassButton
-import androidx.compose.animation.animateColorAsState
+import fr.sygix.sygixos.core.designsystem.FocusText
+import fr.sygix.sygixos.core.designsystem.rememberFocusProgress
+import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -710,16 +713,8 @@ private fun HeroOpenButton(
     var focused by remember { mutableStateOf(false) }
     val pill = RoundedCornerShape(percent = 50)
     val anchor = remember { GlassAnchor() }
-    val progress = animateFloatAsState(
-        if (focused) 1f else 0f,
-        tween(Motion.FOCUS_MS, easing = AppleEasing),
-        label = "heroButtonFocus",
-    )
-    val content by animateColorAsState(
-        if (focused) SygixColors.OnPill else SygixColors.OnDark,
-        tween(Motion.FOCUS_MS, easing = AppleEasing),
-        label = "heroButtonContent",
-    )
+    val progress = rememberFocusProgress(focused)
+    val content = ColorProducer { lerp(SygixColors.OnDark, SygixColors.OnPill, progress.value) }
     Box(
         modifier
             .testTag("hero-open")
@@ -747,13 +742,13 @@ private fun HeroOpenButton(
         Row(verticalAlignment = Alignment.CenterVertically) {
             PlayGlyph(content)
             Spacer(Modifier.width(ButtonGap))
-            Text(label, style = TextStyles.Button, color = content, maxLines = 1)
+            FocusText(label, style = TextStyles.Button, color = content, maxLines = 1)
         }
     }
 }
 
 @Composable
-private fun PlayGlyph(color: Color) {
+private fun PlayGlyph(color: ColorProducer) {
     Canvas(Modifier.size(PlayGlyphSize)) {
         val path = Path().apply {
             moveTo(0f, 0f)
@@ -761,7 +756,7 @@ private fun PlayGlyph(color: Color) {
             lineTo(0f, size.height)
             close()
         }
-        drawPath(path, color)
+        drawPath(path, color())
     }
 }
 

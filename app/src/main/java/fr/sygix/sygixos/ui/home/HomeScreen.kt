@@ -6,7 +6,6 @@
 package fr.sygix.sygixos.ui.home
 
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.CircleShape
@@ -95,6 +94,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
+import fr.sygix.sygixos.core.designsystem.rememberFocusProgress
 import fr.sygix.sygixos.core.designsystem.Badge
 import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -264,11 +264,7 @@ private fun SettingsGear(
     val label = stringResource(R.string.settings_title)
     val badge by updateBadge.collectAsStateWithLifecycle()
     var focused by remember { mutableStateOf(false) }
-    val progress = animateFloatAsState(
-        targetValue = if (focused) 1f else 0f,
-        animationSpec = tween(Motion.FOCUS_MS, easing = AppleEasing),
-        label = "gearFocus",
-    )
+    val progress = rememberFocusProgress(focused)
     Box(
         Modifier
             .testTag("settings-gear")
