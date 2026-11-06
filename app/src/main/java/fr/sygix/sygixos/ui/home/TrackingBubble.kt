@@ -78,7 +78,15 @@ internal class TrackingBubbleFocus {
 
     fun onActionFocused(key: String) { current = key }
 
-    fun focusFirst(): Boolean = keys.firstOrNull()?.let { requester(it).tryRequestFocus() } == true
+    private var entering = false
+
+    fun admits(): Boolean = focused || entering
+
+    fun focusFirst(): Boolean {
+        entering = true
+        try { return keys.firstOrNull()?.let { requester(it).tryRequestFocus() } == true }
+        finally { entering = false }
+    }
 
     fun focusHero(): Boolean = shown == TrackingBubblePlacement.Hero && focusFirst()
 
@@ -183,19 +191,19 @@ internal fun TrackingBubbleView(
                     modifier = Modifier.weight(1f, fill = false).padding(horizontal = Dimens.TrackingBubbleTextInset).testTag("tracking-bubble-message"))
             }
             keys.forEach { key ->
-                BubbleAction(key, stringResource(bubble.label(key)), focus.requester(key), enabled, { focus.onActionFocused(key) }) { onAction(key) }
+                BubbleAction(key, stringResource(bubble.label(key)), focus.requester(key), enabled, focus::admits, { focus.onActionFocused(key) }) { onAction(key) }
             }
         }
     }
 }
 
 @Composable
-private fun BubbleAction(tag: String, label: String, requester: FocusRequester, enabled: Boolean, onFocused: () -> Unit, onClick: () -> Unit) {
+private fun BubbleAction(tag: String, label: String, requester: FocusRequester, enabled: Boolean, admits: () -> Boolean, onFocused: () -> Unit, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     val colors = rememberPillPaint(focused, rest = SygixColors.PillRest)
     Box(
         Modifier.testTag(tag)
-            .tvFocusable(onFocused = { focused = it; if (it) onFocused() }, focusRequester = requester, enabled = enabled)
+            .tvFocusable(onFocused = { focused = it; if (it) onFocused() }, focusRequester = requester, enabled = enabled, admits = admits)
             .tvClickable(onClick = onClick)
             .focusPill(colors, PillShape)
             .height(Dimens.TrackingBubblePillHeight)

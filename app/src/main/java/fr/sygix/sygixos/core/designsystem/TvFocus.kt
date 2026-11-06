@@ -54,9 +54,10 @@ fun Modifier.tvFocusable(
     onFocused: (Boolean) -> Unit = {},
     focusRequester: FocusRequester? = null,
     enabled: Boolean = true,
+    admits: () -> Boolean = { true },
 ): Modifier = this
     .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-    .focusProperties { canFocus = enabled }
+    .focusProperties { canFocus = enabled && admits() }
     .onFocusChanged { onFocused(it.isFocused) }
 
 fun Modifier.tvFocus(
