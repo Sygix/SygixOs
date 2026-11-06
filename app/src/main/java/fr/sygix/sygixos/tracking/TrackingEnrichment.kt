@@ -54,6 +54,18 @@ class TrackingEnrichment(private val controller: TrackingController, private val
         } }
     }
 
+    private suspend fun fallback(token: String, item: UpNextItem, contents: List<TrackingContent>): LocalTrackingIdentity? {
+        val query = ContentQuery.of(item)
+        val match = provider.catalogMatch(token, item)
+        val read: suspend (TrackingIdentity, Int) -> List<TrackingContent> = { show, season -> provider.episodes(token, TrackingContent(show, show, "", season = season)) }
+        return when {
+            match.missing -> AccountContentIdentity.resolve(item, contents) ?: episodeTitles.resolve(query, contents, read)
+            match.ambiguous -> episodeTitles.confirm(query, match.titled.filter { ExactContentIdentity.compatible(query, it) }.map { it.identity }, read)
+            !match.complete -> episodeTitles.resolve(query, contents, read)
+            else -> null
+        }
+    }
+
     fun local(items: List<UpNextItem>) {
         if (localConfirmed && items == local) return
         localConfirmed = true
@@ -88,9 +100,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                         }
                         val content = controller.authenticated { token ->
                             provider.identify(token, item, known) ?: if (known != null) null
-                            else (AccountContentIdentity.resolve(item, current.contents) ?: episodeTitles.resolve(ContentQuery.of(item), current.contents) { show, season ->
-                                provider.episodes(token, TrackingContent(show, show, "", season = season))
-                            })?.let { provider.identify(token, item, it) }
+                            else fallback(token, item, current.contents)?.let { provider.identify(token, item, it) }
                         }
                         if (content != null) {
                             catalogue?.put(item.key, item.cardIdentity, content)

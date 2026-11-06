@@ -56,4 +56,18 @@ class EpisodeTitleIdentityTest {
         assertEquals(0, reads)
         assertNotNull(EpisodeTitleIdentity().resolve(french, account) { show, _ -> listOf(episode(show, "Une famille de fiction")) })
     }
+
+    @Test fun genericPilotTitleDoesNotConfirmASingleTokenSharingShow() = runTest {
+        val pilot = query.copy(episodeTitle = "Pilot")
+        assertNull(EpisodeTitleIdentity().resolve(pilot, listOf(show("1", "Brumeval Witches"))) { show, _ -> listOf(episode(show, "Pilot")) })
+    }
+
+    @Test fun onlyDistinctiveEpisodeTitlesAreAccepted() {
+        listOf(null, "", "!!", "Ombre", "12", "1x04", "Pilot", "Pilote", "Episodio piloto", "Épisode 4", "Episode 12", "Folge 3", "Episodio 7",
+            "Chapter One", "Chapitre 2", "Kapitel Drei", "Capítulo uno", "Capitolo 5", "Part 2", "Partie II", "Teil 1", "Parte tres", "TBA", "TBD", "To Be Announced")
+            .forEach { assertNull(it, DistinctiveEpisodeTitle.of(it)) }
+        assertEquals("une famille de fiction", DistinctiveEpisodeTitle.of("Une famille de fiction !"))
+        assertEquals("chapter one the vanishing", DistinctiveEpisodeTitle.of("Chapter One: The Vanishing"))
+        assertEquals("partie de chasse", DistinctiveEpisodeTitle.of("Partie de chasse"))
+    }
 }

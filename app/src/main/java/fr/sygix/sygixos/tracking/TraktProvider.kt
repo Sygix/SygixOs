@@ -168,21 +168,23 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
         }
     }
 
-    private suspend fun search(query: ContentQuery): List<CatalogCandidate> {
+    override suspend fun catalogMatch(token: String, item: UpNextItem): CatalogMatch = withContext(api.dispatcher) { resolver.match(ContentQuery.of(item)) }
+
+    private suspend fun search(query: ContentQuery): CatalogSearch {
         val kind = if (query.type == TrackingType.MOVIE) "movie" else "show"
         val response = api.request("search/$kind?query=${java.net.URLEncoder.encode(query.title, "UTF-8")}&limit=10&page=1&extended=full")
         val results = response.optJSONArray("items") ?: throw TrackingException(TrackingFailure.INCOMPLETE)
         val pagination = response.optJSONObject("__pagination")
         val pageCount = pagination?.optInt("page-count", -1) ?: -1
-        if (pageCount > 1 || pagination != null && pageCount < 1 || pageCount < 0 && results.length() >= 10) return emptyList()
+        if (pageCount > 1 || pagination != null && pageCount < 1 || pageCount < 0 && results.length() >= 10) return CatalogSearch(emptyList(), complete = false)
         val found = results.objects().mapNotNull { row ->
             row.optJSONObject(kind)?.let { value -> CatalogCandidate(TrackingIdentity(id, query.type, value.traktId()), value.text("title").orEmpty(), value.optInt("year").takeIf { it > 0 }, originalTitle(value), externalIds(value)) }
         }
-        if (ExactContentIdentity.resolve(query, found) != null) return found
+        if (ExactContentIdentity.resolve(query, found) != null) return CatalogSearch(found)
         val aliases = found.filter { ExactContentIdentity.compatible(query, it) }.take(ALIAS_LOOKUPS).associate { candidate ->
             candidate.identity to aliases("${kind}s/${candidate.identity.id}/aliases")
         }
-        return found.map { candidate -> aliases[candidate.identity]?.let { candidate.copy(aliases = candidate.aliases + it) } ?: candidate }
+        return CatalogSearch(found.map { candidate -> aliases[candidate.identity]?.let { candidate.copy(aliases = candidate.aliases + it) } ?: candidate })
     }
 
     private suspend fun aliases(path: String): Set<String> {

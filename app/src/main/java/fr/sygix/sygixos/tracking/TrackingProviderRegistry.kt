@@ -28,6 +28,7 @@ class TrackingProviderRegistry(betaSeries: TrackingContentProvider, trakt: Track
         val source = forToken(token)
         return source.identify(token, item, known?.takeIf { it.identity.provider == source.id && it.parent.provider == source.id })
     }
+    override suspend fun catalogMatch(token: String, item: UpNextItem) = forToken(token).catalogMatch(token, item)
     override suspend fun platforms(country: String) = forId(id).platforms(country)
     override suspend fun episodes(token: String, content: TrackingContent) = forContent(token, content).episodes(token, content)
     override suspend fun seasons(token: String, content: TrackingContent) = forContent(token, content).seasons(token, content)

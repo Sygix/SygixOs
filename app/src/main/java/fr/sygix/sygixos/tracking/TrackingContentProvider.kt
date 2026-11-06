@@ -12,6 +12,7 @@ data class TrackingOfferResult(val offers: List<PlaybackOffer>, val failure: Tra
 interface TrackingContentProvider : WatchTrackingProvider {
     val id: String
     suspend fun identify(token: String, item: UpNextItem, known: LocalTrackingIdentity? = null): TrackingContent?
+    suspend fun catalogMatch(token: String, item: UpNextItem): CatalogMatch
     suspend fun platforms(country: String): RegionalPlatforms
     suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent>
     suspend fun seasons(token: String, content: TrackingContent): List<Int>

@@ -13,17 +13,20 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
     override suspend fun prepareRetry() = api.prepareRetry()
     private val resolver = BoundedIdentityResolver(::search)
 
-    private suspend fun search(query: ContentQuery): List<CatalogCandidate> {
+    private suspend fun search(query: ContentQuery): CatalogSearch {
         val movie = query.type == TrackingType.MOVIE
         val json = api.request(if (movie) "movies/search" else "shows/search", fields = mapOf("title" to query.title, "limit" to "5"))
         val values = json.optJSONArray(if (movie) "movies" else "shows") ?: throw TrackingException(TrackingFailure.PROTOCOL)
-        if (json.optInt("total", values.length()) > values.length()) return emptyList()
-        return (0 until values.length()).map { index ->
+        if (json.optInt("total", values.length()) > values.length()) return CatalogSearch(emptyList(), complete = false)
+        return CatalogSearch((0 until values.length()).map { index ->
             val value = values.getJSONObject(index)
             CatalogCandidate(TrackingIdentity("betaseries", query.type, value.requiredId()), value.text("title").orEmpty(),
                 value.optInt(if (movie) "production_year" else "creation").takeIf { it > 0 }, aliases(value), externalIds(value))
-        }
+        })
     }
+
+    override suspend fun catalogMatch(token: String, item: fr.sygix.sygixos.model.UpNextItem): CatalogMatch =
+        kotlinx.coroutines.withContext(api.dispatcher) { resolver.match(ContentQuery.of(item)) }
 
     override suspend fun identify(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity?): TrackingContent? =
         kotlinx.coroutines.withContext(api.dispatcher) { identifyContent(token, item, known) }

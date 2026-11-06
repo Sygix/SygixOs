@@ -19,7 +19,7 @@ class TrackingIdentityCache(private val file: File?, private val dispatcher: Cor
     private var values: JSONObject? = null
     private fun values(): JSONObject = values ?: runCatching {
         file?.takeIf { it.exists() && it.length() <= 512 * 1024 }?.readText()?.let(::JSONObject)
-    }.getOrNull()?.takeIf { it.optInt("version") == 2 }?.optJSONObject("entries").orEmptyJson().also { values = it }
+    }.getOrNull()?.takeIf { it.optInt("version") == VERSION }?.optJSONObject("entries").orEmptyJson().also { values = it }
 
     suspend fun get(key: String, fingerprint: String, provider: String = "betaseries"): LocalTrackingIdentity? = withContext(dispatcher) { mutex.withLock {
         val entry = values().optJSONObject("$provider:$key")?.takeIf { it.optString("fingerprint") == fingerprint && it.optString("provider") == provider } ?: return@withLock null
@@ -37,10 +37,14 @@ class TrackingIdentityCache(private val file: File?, private val dispatcher: Cor
         file?.let {
             val atomic = android.util.AtomicFile(it)
             val output = atomic.startWrite()
-            try { output.write(JSONObject().put("version", 2).put("entries", data).toString().toByteArray()); atomic.finishWrite(output) }
+            try { output.write(JSONObject().put("version", VERSION).put("entries", data).toString().toByteArray()); atomic.finishWrite(output) }
             catch (error: Exception) { atomic.failWrite(output); throw TrackingException(TrackingFailure.STORAGE) }
         }
     } }
 
     private fun JSONObject?.orEmptyJson() = this ?: JSONObject()
+
+    private companion object {
+        const val VERSION = 3
+    }
 }

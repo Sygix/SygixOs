@@ -23,7 +23,7 @@ class IdentityRetryBoundsTest {
     @Test fun `failed identification waits its retry delay from the failure whatever the clock origin`() = runTest {
         var now = origin
         var searches = 0
-        val resolver = BoundedIdentityResolver({ searches++; emptyList() }, { now })
+        val resolver = BoundedIdentityResolver({ searches++; CatalogSearch(emptyList()) }, { now })
         val failed = ContentQuery(TrackingType.MOVIE, "Brumeval")
         assertNull(resolver.resolve(failed))
         now = origin + IDENTITY_RETRY_MS - 1

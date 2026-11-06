@@ -42,4 +42,9 @@ class TrackingIdentityCacheTest {
         assertEquals(content.identity, TrackingIdentityCache(file, Dispatchers.Unconfined).get("local", "fingerprint", "trakt")!!.identity)
         assertNull(TrackingIdentityCache(file, Dispatchers.Unconfined).get("local", "fingerprint", "betaseries"))
     }
+
+    @Test fun identitiesSavedBeforeTheStricterFallbackRulesAreIdentifiedAgain() = runTest {
+        val file = temporary.newFile().apply { writeText("""{"version":2,"entries":{"betaseries:local":{"provider":"betaseries","fingerprint":"fingerprint","type":"SHOW","id":"1","parent":"1"}}}""") }
+        assertNull(TrackingIdentityCache(file, Dispatchers.Unconfined).get("local", "fingerprint", "betaseries"))
+    }
 }

@@ -34,7 +34,7 @@ class ContentIdentityResolverTest {
         var now = 0L
         var searches = 0
         val match = CatalogCandidate(show, "Fixture")
-        val resolver = BoundedIdentityResolver({ searches++; if (searches == 1) emptyList() else listOf(match) }, { now })
+        val resolver = BoundedIdentityResolver({ searches++; CatalogSearch(if (searches == 1) emptyList() else listOf(match)) }, { now })
         val query = ContentQuery(TrackingType.SHOW, "Fixture")
         assertNull(resolver.resolve(query))
         now = IDENTITY_RETRY_MS - 1
