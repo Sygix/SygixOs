@@ -119,10 +119,26 @@ class UpNextFeedTest {
     }
 
     @Test
-    fun `external identifiers stay inactive in P6`() {
+    fun `external identifiers alone never merge different local titles`() {
         val a = movie(1, title = "first").copy(externalIds = mapOf("imdb" to "same"))
         val b = movie(2, title = "second").copy(externalIds = a.externalIds)
         assertEquals(2, UpNextFeed.build(listOf(a, b)).size)
+    }
+
+    @Test
+    fun `app published contents stay before account only contents within the limit`() {
+        val app = (1L..4L).map { movie(100 + it, "org.jellyfin.androidtv", title = "App $it", kind = ProgramKind.WATCHLIST, engagement = it) }
+        val account = (1L..25L).map { movie(it, title = "Account $it").copy(sources = emptyList()) }
+        val shown = UpNextFeed.build(account + app)
+        assertEquals(listOf(104L, 103L, 102L, 101L), shown.take(4).map { it.id })
+        assertEquals(UpNextFeed.LIMIT, shown.size)
+    }
+
+    @Test
+    fun `account movies and series share one order`() {
+        val series = episode(2, "").copy(sources = emptyList())
+        val movies = listOf(movie(1, title = "Film 1", kind = ProgramKind.WATCHLIST), movie(3, title = "Film 3", kind = ProgramKind.WATCHLIST)).map { it.copy(sources = emptyList()) }
+        assertEquals(listOf(1L, 2L, 3L), UpNextFeed.build(movies + series).map { it.id })
     }
 
     @Test

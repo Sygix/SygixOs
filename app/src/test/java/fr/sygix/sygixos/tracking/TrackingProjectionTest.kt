@@ -49,6 +49,29 @@ class TrackingProjectionTest {
         assertNotEquals(seen.tracking?.identity, seen.sources.single().targetIdentity)
     }
 
+    @Test fun identifiedAppItemKeepsItsRankAndSourcesWhileShowingTheAccountEpisode() {
+        val local = UpNextItem(41, UpNextSourceEntry("fixture.player", intentUri = "fixture://episode3"), UpNextContentType.EPISODE, "Titre localisé",
+            season = "2", episode = "3", watchNextType = ProgramKind.WATCH_NEXT, engagement = 5_000, tracking = next)
+        val merged = TrackingProjection.merge(listOf(local), listOf(next)).single()
+        assertEquals(41L, merged.id)
+        assertEquals(5_000L, merged.engagement)
+        assertEquals(ProgramKind.WATCH_NEXT, merged.watchNextType)
+        assertEquals(local.sources, merged.sources)
+        assertEquals(next.identity, merged.tracking?.identity)
+    }
+
+    @Test fun seenLocalResumeLeavesTheAccountNextEpisodeWithItsActivityButNotAsInProgress() {
+        val watched = next.copy(identity = next.identity.copy(id = "14"), season = 1, episode = 4, seen = true)
+        val accountNext = next.copy(identity = next.identity.copy(id = "21"), season = 2, episode = 1)
+        val resume = UpNextItem(3, UpNextSourceEntry("fixture.player"), UpNextContentType.EPISODE, "Titre localisé", season = "1", episode = "4",
+            positionMillis = 600_000, watchNextType = ProgramKind.CONTINUE, engagement = 9_000, tracking = watched)
+        val merged = TrackingProjection.merge(listOf(resume), listOf(accountNext)).single()
+        assertEquals(accountNext.identity, merged.tracking?.identity)
+        assertEquals(ProgramKind.NEXT, merged.watchNextType)
+        assertEquals(9_000L, merged.engagement)
+        assertNull(merged.positionMillis)
+    }
+
     @Test fun enrichmentPreservesLegacyMemoryAndIdentitySurvivesTitleChanges() {
         val item = TrackingProjection.card(next)
         val key = UpNextContentKey.of(item)

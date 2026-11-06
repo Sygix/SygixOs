@@ -49,12 +49,20 @@ object TrackingProjection {
         val tracked = contents.map { content ->
             val candidates = remaining.filter { exactMatch(it, content) }
             remaining.removeAll(candidates.toSet())
+            val sources = candidates.flatMap { it.sources }.distinctBy { it.packageName to it.targetIdentity }
             val resume = candidates.filter { it.watchNextType == ProgramKind.CONTINUE && it.tracking?.seen != true }.maxByOrNull { it.engagement }
             if (resume != null) {
                 val sameEpisode = content.identity.type == TrackingType.MOVIE || resume.season?.toIntOrNull() == content.season && resume.episode?.toIntOrNull() == content.episode
                 val identity = resume.tracking ?: content.takeIf { sameEpisode }
-                resume.copy(tracking = identity?.copy(membership = AccountMembership.PRESENT, readerPackage = content.readerPackage, readerName = content.readerName), sources = candidates.flatMap { it.sources }.distinctBy { it.packageName to it.targetIdentity })
-            } else card(content).copy(sources = candidates.flatMap { it.sources }.distinctBy { it.packageName to it.targetIdentity })
+                resume.copy(tracking = identity?.copy(membership = AccountMembership.PRESENT, readerPackage = content.readerPackage, readerName = content.readerName), sources = sources)
+            } else {
+                val published = candidates.sortedWith(compareBy<UpNextItem> { it.tracking?.seen == true }.thenByDescending { it.engagement }).firstOrNull()
+                card(content).let { card ->
+                    if (published == null) card
+                    else card.copy(id = published.id, engagement = published.engagement,
+                        watchNextType = published.watchNextType.takeUnless { it == ProgramKind.CONTINUE } ?: ProgramKind.NEXT)
+                }.copy(sources = sources)
+            }
         }
         return remaining.filterNot { it.tracking?.membership == AccountMembership.PRESENT && it.tracking.seen } + tracked
     }

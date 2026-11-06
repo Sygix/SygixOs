@@ -61,7 +61,7 @@ object UpNextFeed {
             opened.entries.filter { it.key.matches(key) }.maxOfOrNull { it.value }
         }
         return kept.sortedWith(compareByDescending<UpNextItem> { openedAt[it] }
-            .thenBy { group(it.watchNextType) }
+            .thenBy { if (it.sources.isEmpty()) ACCOUNT_ONLY else group(it.watchNextType) }
             .thenByDescending { it.engagement }.thenBy { it.id }).take(LIMIT)
     }
 
@@ -75,6 +75,8 @@ object UpNextFeed {
     }
 
     private fun number(value: String): String = value.toIntOrNull()?.toString() ?: value
+
+    private const val ACCOUNT_ONLY = 3
 
     private fun group(kind: ProgramKind): Int = when (kind) {
         ProgramKind.CONTINUE -> 0
