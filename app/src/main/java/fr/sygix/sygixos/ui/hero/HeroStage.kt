@@ -142,8 +142,10 @@ fun HeroStage(
     visualMotion: Boolean = true,
     openAccessory: @Composable () -> Unit = {},
     glass: Boolean = true,
+    holdRotation: Boolean = false,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
+    var rotationDue by remember { mutableStateOf(false) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
     var natureIndex by remember { mutableStateOf(0) }
     var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
@@ -191,9 +193,20 @@ fun HeroStage(
     }
     val onVideoErrorState = rememberUpdatedState(onVideoError)
     val rotateState = rememberUpdatedState(rotate)
+    val holdState = rememberUpdatedState(holdRotation)
     val onVideoEndedState = rememberUpdatedState<() -> Unit>({
-        if (fallback) natureIndex = (natureIndex + 1) % fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.size else rotateState.value()
+        when {
+            fallback -> natureIndex = (natureIndex + 1) % fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.size
+            holdState.value -> rotationDue = true
+            else -> rotateState.value()
+        }
     })
+    LaunchedEffect(holdRotation) {
+        if (!holdRotation && rotationDue) {
+            rotationDue = false
+            rotateState.value()
+        }
+    }
     val onImageError: (String) -> Unit = { url ->
         failedImages = failedImages + url
     }
@@ -260,8 +273,8 @@ fun HeroStage(
             if (videos.current?.firstFrameRendered != true) mediaId?.let { onVideoErrorState.value(it) }
         }
     }
-    LaunchedEffect(current?.id, showVideo, fallback, visible, items.size) {
-        if (current == null || showVideo && !fallback || !visible || items.size < 2) return@LaunchedEffect
+    LaunchedEffect(current?.id, showVideo, fallback, visible, items.size, holdRotation) {
+        if (current == null || showVideo && !fallback || !visible || items.size < 2 || holdRotation) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 delay(Motion.HERO_DWELL_MS)

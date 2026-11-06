@@ -136,6 +136,7 @@ class HeroVideoTest {
     private var created = 0
     private var motion by mutableStateOf(true)
     private var visible by mutableStateOf(true)
+    private var hold by mutableStateOf(false)
     private val owner = object : LifecycleOwner {
         val registry = LifecycleRegistry(this).apply { currentState = Lifecycle.State.RESUMED }
         override val lifecycle: Lifecycle get() = registry
@@ -160,6 +161,7 @@ class HeroVideoTest {
                     focusRequester = FocusRequester(),
                     onOpen = { opened += it.id },
                     motion = motion,
+                    holdRotation = hold,
                 )
             }
         }
@@ -176,6 +178,11 @@ class HeroVideoTest {
         advance(millis)
         compose.runOnIdle { owner.registry.currentState = Lifecycle.State.RESUMED }
         advance(100)
+    }
+
+    private fun release() = compose.runOnIdle {
+        hold = false
+        Snapshot.sendApplyNotifications()
     }
 
     private fun press(key: Key) {
@@ -303,6 +310,34 @@ class HeroVideoTest {
         advance(Motion.HERO_DWELL_MS + Motion.HERO_CROSSFADE_MS + 500L)
         compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
         compose.onAllNodesWithText(waiting.title, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `the rotation waits while the hero bubble is shown and resumes once it goes away`() {
+        val first = picture("p1", "Premier titre fictif")
+        val second = picture("p2", "Second titre fictif")
+        hold = true
+        show(listOf(first, second))
+        advance(Motion.HERO_DWELL_MS * 3)
+        compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText(second.title, useUnmergedTree = true).assertCountEquals(0)
+        release()
+        advance(Motion.HERO_DWELL_MS + Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(second.title, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `a video ending while the hero bubble is shown moves on only once the bubble goes away`() {
+        hold = true
+        show(listOf(clip("v1", "Premier clip fictif"), clip("v2", "Second clip fictif")))
+        compose.runOnIdle { video.render("v1") }
+        advance(500)
+        compose.runOnIdle { endVideo() }
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        assertEquals(listOf("v1"), video.prepared)
+        release()
+        advance(100)
+        assertEquals(listOf("v1", "v2"), video.prepared)
     }
 
     @Test

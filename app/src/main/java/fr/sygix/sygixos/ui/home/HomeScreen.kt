@@ -571,6 +571,7 @@ internal fun LauncherHome(
                             }
                         },
                         glass = glassBlur,
+                        holdRotation = bubble != null && bubblePlacement == TrackingBubblePlacement.Hero,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
                     CompositionLocalProvider(LocalGlassBackdrop provides backdrop.takeIf { glassBlur }) {
