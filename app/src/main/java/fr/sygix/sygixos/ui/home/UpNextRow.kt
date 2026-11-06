@@ -76,7 +76,7 @@ internal fun UpNextRow(
     content: UpNextContent,
     width: Dp,
     focus: TileFocus,
-    entry: String?,
+    currentEntry: () -> String?,
     entryRequester: FocusRequester,
     focusEnabled: Boolean,
     onFocused: (String, Int) -> Unit,
@@ -91,6 +91,7 @@ internal fun UpNextRow(
     val cards = (content as? UpNextContent.Items)?.items.orEmpty()
     val identityCounts = cards.groupingBy { it.cardIdentity }.eachCount()
     val enabled by rememberUpdatedState(focusEnabled)
+    val entry = currentEntry()
     val targetIndex = cards.indexOfFirst { it.key == entry }
     val follower = remember(state) { ScrollFollower(state) }
     val navigation = LocalFastNavigation.current

@@ -6,6 +6,7 @@
 package fr.sygix.sygixos.domain
 
 import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.model.ProgramArtwork
 
 object ShelfPosters {
 
@@ -24,4 +25,7 @@ object ShelfPosters {
             .filter { it in validated }
             .distinct()
             .toList()
+
+    fun sources(programs: List<HeroItem>): Map<String, ProgramArtwork> =
+        programs.mapNotNull { item -> item.imageUrl?.let { it to item.artwork } }.toMap()
 }

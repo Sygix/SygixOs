@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -61,6 +62,7 @@ import fr.sygix.sygixos.domain.UpNextState
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.LocalFastNavigation
 import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.domain.FocusFallback
@@ -127,14 +129,17 @@ internal fun HomeGrid(
         returnHandled(target.id)
     }
     val enabled by rememberUpdatedState(focusEnabled)
-    val focusedApp = focus.focusedApp
-    val entryApp = returnFocus?.key?.takeIf { returnIndex >= 0 } ?: focus.gridEntry(sections)
+    val returnEntry = returnFocus?.key?.takeIf { returnIndex >= 0 }
+    val entry = remember(returnEntry, sections) { derivedStateOf { returnEntry ?: focus.gridEntry(sections) } }
+    val upNextEntry = remember(entry, sections) { derivedStateOf { entry.value?.takeIf { it in sections.upNextKeys || it == GridSections.ERROR_KEY } } }
+    val navigation = LocalFastNavigation.current
     LaunchedEffect(sections.upNextKeys) { focus.track(sections) }
     var shelf by remember { mutableStateOf<Shelf?>(null) }
 
     val programs by rememberUpdatedState(shelfPrograms)
     val visuals by rememberUpdatedState(validatedVisuals)
     val settled by rememberUpdatedState(checkedVisuals)
+    val shelfSources = remember { derivedStateOf { ShelfPosters.sources(programs()) } }
     fun postersOf(packageName: String?): List<String> =
         packageName?.let { ShelfPosters.forPackage(programs(), visuals(), it) }.orEmpty()
 
@@ -169,29 +174,6 @@ internal fun HomeGrid(
             )
         }
     }
-    LaunchedEffect(focusedApp, movingApp, appPackages) {
-        val target = focus.focusedApp
-        if (movingApp != null || target == null || target !in appPackages) {
-            shelf = null
-            return@LaunchedEffect
-        }
-        if (postersOf(target).isEmpty() && !pendingFor(target)) shelf = null
-        if (shelf == null) {
-            launch {
-                delay(Motion.SHELF_PREPARE_DELAY_MS)
-                val first = snapshotFlow { postersOf(target).firstOrNull() }.filterNotNull().first()
-                context.imageLoader.execute(posterRequest(context, first, posterSize, programs().firstOrNull { it.imageUrl == first }?.artwork))
-            }
-            delay(Motion.SHELF_OPEN_DELAY_MS)
-        }
-        snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
-            when {
-                posters.isEmpty() -> shelf = null
-                shelf?.app != target || !pending -> shelf = Shelf(target, posters)
-                else -> shelf = shelf?.let { it.copy(uris = it.uris.intersect(posters.toSet()).toList()) }?.takeIf { it.uris.isNotEmpty() }
-            }
-        }
-    }
     val openRow = remember(rows, shelf?.app) { rows.indexOfFirst { row -> row.any { it.packageName == shelf?.app } } }
     val sectionOpenRow = if (openRow < 0) -1 else openRow + firstAppRow
     val window by remember(geometry, sectionOpenRow, viewport, origin) {
@@ -202,13 +184,9 @@ internal fun HomeGrid(
         if (row >= 0 && viewport > 0f) onAnchor(geometry.next(anchor(), row, sectionOpenRow, viewport, origin))
         withFrameNanos { }
     }
-    LaunchedEffect(openRow, focusedApp, origin, viewport, geometry) {
-        val row = sections.rowOf(focus.focusedApp, Dimens.GridColumns)
-        if (row < 0 || viewport <= 0f) return@LaunchedEffect
-        onAnchor(geometry.next(anchor(), row, sectionOpenRow, viewport, origin))
-    }
+    val revealEntry = Snapshot.withoutReadObservation { entry.value }
     LaunchedEffect(sections.focusOrder, focusEnabled) {
-        if (focusEnabled && entryApp != null && entryApp !in sections.upNextKeys) reveal(entryApp)
+        if (focusEnabled && revealEntry != null && revealEntry !in sections.upNextKeys) reveal(revealEntry)
     }
     LaunchedEffect(movingApp, rows) {
         if (movingApp != null) reveal(movingApp)
@@ -217,12 +195,43 @@ internal fun HomeGrid(
         if (!focusEnabled) shelf = null
     }
     val appFocused by rememberUpdatedState(onAppFocused)
-    LaunchedEffect(focusedApp, focusEnabled) {
-        val target = focusedApp ?: return@LaunchedEffect
-        if (!focusEnabled) return@LaunchedEffect
-        if (target !in appPackages) return@LaunchedEffect
-        delay(Motion.SHELF_PREPARE_DELAY_MS)
-        appFocused(target)
+    WithFocusedApp(focus) { focusedApp ->
+        LaunchedEffect(focusedApp, movingApp, appPackages) {
+            val target = focus.focusedApp
+            if (movingApp != null || target == null || target !in appPackages) {
+                shelf = null
+                return@LaunchedEffect
+            }
+            if (navigation.active && shelf.let { it != null && it.app != target }) delay(Motion.SHELF_PREPARE_DELAY_MS)
+            if (postersOf(target).isEmpty() && !pendingFor(target)) shelf = null
+            if (shelf == null) {
+                launch {
+                    delay(Motion.SHELF_PREPARE_DELAY_MS)
+                    val first = snapshotFlow { postersOf(target).firstOrNull() }.filterNotNull().first()
+                    context.imageLoader.execute(posterRequest(context, first, posterSize, programs().firstOrNull { it.imageUrl == first }?.artwork))
+                }
+                delay(Motion.SHELF_OPEN_DELAY_MS)
+            }
+            snapshotFlow { postersOf(target) to pendingFor(target) }.collect { (posters, pending) ->
+                when {
+                    posters.isEmpty() -> shelf = null
+                    shelf?.app != target || !pending -> shelf = Shelf(target, posters)
+                    else -> shelf = shelf?.let { it.copy(uris = it.uris.intersect(posters.toSet()).toList()) }?.takeIf { it.uris.isNotEmpty() }
+                }
+            }
+        }
+        LaunchedEffect(openRow, focusedApp, origin, viewport, geometry) {
+            val row = sections.rowOf(focus.focusedApp, Dimens.GridColumns)
+            if (row < 0 || viewport <= 0f) return@LaunchedEffect
+            onAnchor(geometry.next(anchor(), row, sectionOpenRow, viewport, origin))
+        }
+        LaunchedEffect(focusedApp, focusEnabled) {
+            val target = focusedApp ?: return@LaunchedEffect
+            if (!focusEnabled) return@LaunchedEffect
+            if (target !in appPackages) return@LaunchedEffect
+            delay(Motion.SHELF_PREPARE_DELAY_MS)
+            appFocused(target)
+        }
     }
 
     val exitUp by rememberUpdatedState(onExitUp)
@@ -253,7 +262,7 @@ internal fun HomeGrid(
                     SectionTitle(R.string.upnext_title, "section-title-upnext", padded = true, onHeight = { titleHeight = it })
                     Box(Modifier.align(Alignment.CenterEnd).padding(bottom = Dimens.SectionTitleGap)) { trackingStatus() }
                 }
-                UpNextRow(upNextRow.content, upWidth, focus, entryApp, focusRequester, focusEnabled,
+                UpNextRow(upNextRow.content, upWidth, focus, { upNextEntry.value }, focusRequester, focusEnabled,
                     onFocused = { itemKey, index ->
                         if (enabled) {
                             focus.onFocused(itemKey, sections.cardOrderIndex(index), FocusFallback.CardVisit(index, afterApps = !sections.upNextFirst))
@@ -277,11 +286,11 @@ internal fun HomeGrid(
                     focus = focus,
                     focusEnabled = focusEnabled,
                     focusRequester = focusRequester,
-                    entryApp = entryApp?.takeIf { entry -> rowApps.any { it.packageName == entry } },
+                    entryApp = { entry.value },
                     movingApp = movingApp?.takeIf { moving -> rowApps.any { it.packageName == moving } },
                     shelfUris = if (rowIndex == openRow) shelf?.uris.orEmpty() else emptyList(),
                     posterSize = posterSize,
-                    shelfSources = programs().mapNotNull { item -> item.imageUrl?.let { it to item.artwork } }.toMap(),
+                    shelfSources = { shelfSources.value },
                     onTileClick = onTileClick,
                     onTileLongClick = onTileLongClick,
                     indexOffset = sections.appIndexOffset,
@@ -301,6 +310,11 @@ internal fun HomeGrid(
 }
 
 @Composable
+private fun WithFocusedApp(focus: TileFocus, effects: @Composable (String?) -> Unit) {
+    effects(focus.focusedApp)
+}
+
+@Composable
 private fun SectionTitle(@StringRes resource: Int, tag: String, padded: Boolean = false, onHeight: (Float) -> Unit) {
     Text(stringResource(resource), style = SygixTypography.titleLarge, color = SygixColors.OnDarkSecondary,
         modifier = Modifier.onSizeChanged { onHeight(it.height.toFloat()) }.testTag(tag)
@@ -316,11 +330,11 @@ private fun GridRow(
     focus: TileFocus,
     focusEnabled: Boolean,
     focusRequester: FocusRequester,
-    entryApp: String?,
+    entryApp: () -> String?,
     movingApp: String?,
     shelfUris: List<String>,
     posterSize: PixelSize,
-    shelfSources: Map<String, fr.sygix.sygixos.model.ProgramArtwork>,
+    shelfSources: () -> Map<String, fr.sygix.sygixos.model.ProgramArtwork>,
     onTileClick: (TvApp) -> Unit,
     onTileLongClick: (TvApp) -> Unit,
     indexOffset: Int = 0,
@@ -328,6 +342,7 @@ private fun GridRow(
     visualMotion: Boolean = true,
 ) {
     Column {
+        val rowEntry by remember(apps, entryApp) { derivedStateOf { entryApp()?.takeIf { entry -> apps.any { it.packageName == entry } } } }
         val shown = remember { MutableTransitionState(false) }
         shown.targetState = shelfUris.isNotEmpty()
         if (shown.currentState || shown.targetState) AnimatedVisibility(
@@ -337,7 +352,7 @@ private fun GridRow(
             exit = shrinkVertically(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)) +
                 fadeOut(tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)),
         ) {
-            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing), shelfSources, visualMotion)
+            ShelfPanel(shelfUris, posterSize, Modifier.padding(bottom = Dimens.GridRowSpacing), shelfSources(), visualMotion)
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(Dimens.GridSpacing),
@@ -355,7 +370,7 @@ private fun GridRow(
                                 focus.onFocused(app.packageName, indexOffset + rowIndex * Dimens.GridColumns + column)
                             }
                         },
-                        focusRequester = focus.bind(app.packageName, focusRequester.takeIf { app.packageName == entryApp }),
+                        focusRequester = focus.bind(app.packageName, focusRequester.takeIf { app.packageName == rowEntry }),
                         lifted = app.packageName == movingApp,
                         modifier = Modifier.weight(1f),
                     )

@@ -111,6 +111,26 @@ class FastNavigationHomeTest {
     }
 
     @Test
+    fun `an open shelf stays where it is during a burst and follows the focus once it rests`() {
+        showGrid()
+        press(Key.DirectionDown)
+        compose.onNodeWithTag("app-tile-com.a05").assertIsFocused()
+        compose.mainClock.advanceTimeBy(Motion.SHELF_OPEN_DELAY_MS + Motion.SHELF_EXPAND_MS + 200)
+        compose.waitForIdle()
+        assertTrue(bounds("shelf-panel").bottom <= bounds("app-tile-com.a05").top)
+        burst(Key.DirectionDown, 4)
+        compose.onNodeWithTag("app-tile-com.a25").assertIsFocused()
+        val rowTop = bounds("app-tile-com.a10").top
+        val panels = compose.onAllNodesWithTag("shelf-panel").fetchSemanticsNodes().map { it.boundsInRoot.bottom / it.layoutInfo.density.density }
+        assertTrue("$panels", panels.isNotEmpty() && panels.all { it <= rowTop.value + 1f })
+        compose.mainClock.advanceTimeBy(Motion.SHELF_PREPARE_DELAY_MS + Motion.SHELF_EXPAND_MS * 2)
+        compose.waitForIdle()
+        assertEquals(1, compose.onAllNodesWithTag("shelf-panel").fetchSemanticsNodes().size)
+        assertTrue(bounds("shelf-panel").bottom <= bounds("app-tile-com.a25").top)
+        assertTrue(bounds("shelf-panel").top >= bounds("app-tile-com.a20").bottom)
+    }
+
+    @Test
     fun `a held key in Up Next ends on the right card, fully visible, without waiting for the scroll`() {
         val source = UpNextSourceEntry("com.app", "App")
         val cards = UpNextContent.Items((1L..12L).map { UpNextItem(it, source, UpNextContentType.MOVIE, "Movie $it") })
