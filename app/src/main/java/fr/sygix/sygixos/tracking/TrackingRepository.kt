@@ -101,8 +101,8 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
         cleanup(incarnation)
     }
 
-    suspend fun patch(incarnation: String, content: TrackingContent) = database.withTransaction {
-        val account = active(incarnation) ?: return@withTransaction
+    suspend fun patch(incarnation: String, content: TrackingContent): Boolean = database.withTransaction {
+        val account = active(incarnation) ?: return@withTransaction false
         val revision = account.revision + 1
         dao.putAccount(account.copy(revision = revision))
         val siblings = dao.contents(incarnation).filter { it.parentKey == content.parent.storageKey }.map { TrackingContentCodec.decode(it.payload) }
@@ -111,11 +111,14 @@ class TrackingRepository(private val database: TrackingDatabase, private val clo
             archived = content.archived ?: sibling.archived)
         } + content
         dao.putContents(patched.map { stored(incarnation, it, revision) })
-        if (content.parent.type == TrackingType.SHOW) {
-            if (content.archived == true || content.membership == AccountMembership.ABSENT) dao.deleteReserve(incarnation, content.parent.storageKey)
-            else if (siblings.any { it.archived == true || it.membership == AccountMembership.ABSENT })
-                dao.putReserve(StoredTrackingReserve(incarnation, content.parent.storageKey, false, true, revision))
+        if (content.parent.type != TrackingType.SHOW) return@withTransaction false
+        if (content.archived == true || content.membership == AccountMembership.ABSENT) {
+            dao.deleteReserve(incarnation, content.parent.storageKey)
+            return@withTransaction false
         }
+        val refill = siblings.any { it.archived == true || it.membership == AccountMembership.ABSENT }
+        if (refill) dao.putReserve(StoredTrackingReserve(incarnation, content.parent.storageKey, false, true, revision))
+        refill
     }
 
     suspend fun record(incarnation: String, content: TrackingContent, action: TrackingAction,

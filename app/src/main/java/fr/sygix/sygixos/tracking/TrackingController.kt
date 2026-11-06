@@ -224,7 +224,7 @@ class TrackingController(
         if (repository != null) {
             val current = incarnation ?: return
             scope.launch {
-                try { repository.patch(current, content) }
+                try { if (repository.patch(current, content)) schedule() }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { mutable.value = state.value.copy(failure = TrackingFailure.STORAGE) }
             }

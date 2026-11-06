@@ -170,6 +170,28 @@ class TrackingOfflineControllerTest {
         db.close()
     }
 
+    @Test fun addingAnIdentifiedShowSchedulesItsReserveFillInsteadOfStayingIncomplete() = runTest {
+        val db = database()
+        val repository = TrackingRepository(db)
+        val account = repository.bind("fixture-session", TrackingAccount("A", "Example"))
+        repository.snapshot(account.incarnation, 0, TrackingSnapshot(emptyList()))
+        val scheduled = kotlinx.coroutines.channels.Channel<String>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+        val controller = TrackingController(offline, store, backgroundScope, repository = repository, scheduler = object : TrackingWorkScheduler {
+            override fun enqueue(incarnation: String) { scheduled.trySend(incarnation) }
+            override fun cancel(incarnation: String) = Unit
+        })
+        controller.restore()
+        val restored = withContext(Dispatchers.IO) { withTimeout(5000) { controller.state.first { it.account != null && !it.loading } } }
+        val show = TrackingIdentity("trakt", TrackingType.SHOW, "42")
+        val identified = TrackingContent(show, title = "Example", membership = AccountMembership.ABSENT, sessionGeneration = restored.generation)
+        controller.patch(identified)
+        withContext(Dispatchers.IO) { withTimeout(5000) { controller.state.first { state -> state.contents.any { it.identity == show } } } }
+        while (scheduled.tryReceive().isSuccess) Unit
+        controller.patch(identified.copy(membership = AccountMembership.PRESENT))
+        assertEquals(account.incarnation, withContext(Dispatchers.IO) { withTimeout(5000) { scheduled.receive() } })
+        db.close()
+    }
+
     @Test fun failedLocalWriteDoesNotScheduleOrChangeTheProjection() = runTest {
         val db = database()
         val repository = TrackingRepository(db)
