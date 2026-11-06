@@ -9,7 +9,7 @@ import java.time.LocalDate
 
 object ReleasedContent {
     fun released(content: TrackingContent, today: LocalDate): Boolean {
-        val date = content.airDate?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+        val date = ProviderDate.day(content.airDate)
         return if (date != null) !date.isAfter(today) else content.year?.let { it <= today.year } ?: true
     }
 }

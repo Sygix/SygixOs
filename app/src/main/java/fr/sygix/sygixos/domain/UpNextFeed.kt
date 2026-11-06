@@ -83,7 +83,7 @@ object UpNextFeed {
     private const val ACCOUNT_ONLY = 3
 
     private fun shownDate(item: UpNextItem): LocalDate? =
-        item.tracking?.airDate?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: item.year?.let { LocalDate.of(it, 1, 1) }
+        fr.sygix.sygixos.tracking.ProviderDate.day(item.tracking?.airDate) ?: item.year?.let { LocalDate.of(it, 1, 1) }
 
     private fun group(kind: ProgramKind): Int = when (kind) {
         ProgramKind.CONTINUE -> 0

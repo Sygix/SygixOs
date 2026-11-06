@@ -114,7 +114,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             val unseen = group.optJSONArray("unseen") ?: throw TrackingException(TrackingFailure.PROTOCOL)
             contents += (0 until unseen.length()).mapNotNull { index -> entry {
                 val value = unseen.getJSONObject(index)
-                val date = value.text("date")?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+                val date = ProviderDate.day(value.text("date"))
                     ?: throw TrackingException(TrackingFailure.INCOMPLETE)
                 if (date.isAfter(today())) return@entry null
                 val seen = value.optJSONObject("user")?.opt("seen") as? Boolean ?: throw TrackingException(TrackingFailure.INCOMPLETE)
@@ -134,7 +134,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
     override suspend fun episodes(token: String, content: TrackingContent): List<TrackingContent> = kotlinx.coroutines.withContext(api.dispatcher) {
         val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).getJSONObject("show")
         showEpisodes(token, content.parent.id, content.season ?: 1).filter { value ->
-            value.text("date")?.let { runCatching { !LocalDate.parse(it.take(10)).isAfter(today()) }.getOrDefault(false) } == true
+            ProviderDate.day(value.text("date"))?.isAfter(today()) == false
         }.map { episode(show, it) }
     }
 
@@ -225,7 +225,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         val show = api.request("shows/display", token, fields = mapOf("id" to content.parent.id)).getJSONObject("show")
         if (archiveState(show) != false) throw TrackingException(TrackingFailure.INCOMPLETE)
         fun candidates(values: List<JSONObject>) = values.filter { value ->
-            val date = value.text("date")?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
+            val date = ProviderDate.day(value.text("date"))
             if (date == null) throw TrackingException(TrackingFailure.INCOMPLETE)
             if (value.optInt("season", -1) < 0 || value.optInt("episode", -1) < 1 || value.optJSONObject("user")?.opt("seen") !is Boolean) throw TrackingException(TrackingFailure.INCOMPLETE)
             !date.isAfter(today()) && regular(value) && (desired[value.requiredId()]?.let { it != 1 } ?: (value.optJSONObject("user")?.opt("seen") == false))
