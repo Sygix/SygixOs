@@ -21,7 +21,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         return (0 until values.length()).map { index ->
             val value = values.getJSONObject(index)
             CatalogCandidate(TrackingIdentity("betaseries", query.type, value.requiredId()), value.text("title").orEmpty(),
-                value.optInt(if (movie) "production_year" else "creation").takeIf { it > 0 }, externalIds = externalIds(value))
+                value.optInt(if (movie) "production_year" else "creation").takeIf { it > 0 }, aliases(value), externalIds(value))
         }
     }
 
@@ -30,10 +30,10 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
 
     private suspend fun identifyContent(token: String, item: fr.sygix.sygixos.model.UpNextItem, known: LocalTrackingIdentity?): TrackingContent? {
         val movie = item.type == fr.sygix.sygixos.model.UpNextContentType.MOVIE
-        val title = if (movie) item.displayTitle else seriesTitle(item)
+        val query = ContentQuery.of(item)
+        val title = query.title
         val candidate = known?.let { CatalogCandidate(it.parent, title, item.year, externalIds = item.externalIds) }
-            ?: resolver.resolve(ContentQuery(if (movie) TrackingType.MOVIE else TrackingType.SHOW, title, item.year,
-                item.season?.toIntOrNull(), item.episode?.toIntOrNull(), item.externalIds)) ?: return null
+            ?: resolver.resolve(query) ?: return null
         if (movie) {
             val value = api.request("movies/movie", token, fields = mapOf("id" to candidate.identity.id)).optJSONObject("movie") ?: throw TrackingException(TrackingFailure.PROTOCOL)
             return movie(value).copy(membership = membership(value))
@@ -149,11 +149,6 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             ?: throw TrackingException(TrackingFailure.PROTOCOL)
         return (0 until values.length()).map { values.getJSONObject(it) }
     }
-
-    private fun seriesTitle(item: fr.sygix.sygixos.model.UpNextItem): String = item.displayTitle
-        .substringBefore(episodeMarker.find(item.displayTitle)?.value ?: "\u0000").trim().trimEnd('-', '–', '—', ':', '·').trim()
-
-    private val episodeMarker = Regex("""(?i)\bS\d{1,3}\s*E\d{1,4}\b""")
 
     override suspend fun mutate(token: String, content: TrackingContent, action: TrackingAction): List<TrackingContent> =
         kotlinx.coroutines.withTimeoutOrNull(90_000) {
@@ -280,7 +275,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             durationMillis = value.optLong("duration").takeIf { it > 0 }?.times(60_000),
             externalIds = externalIds(show), seen = value.optJSONObject("user")?.optBoolean("seen") == true,
             archived = archiveState(show),
-            offers = BetaSeriesOffers.show(show),
+            offers = BetaSeriesOffers.show(show), aliases = aliases(show),
         )
     }
 
@@ -291,16 +286,28 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         durationMillis = value.optLong("length").takeIf { it > 0 }?.times(60_000), externalIds = externalIds(value),
         movieState = value.optJSONObject("user")?.optInt("status") ?: 0,
         seen = value.optJSONObject("user")?.optInt("status") == 1,
-        offers = BetaSeriesOffers.movie(value),
+        offers = BetaSeriesOffers.movie(value), aliases = aliases(value),
     )
 
     private fun externalIds(value: JSONObject): Map<String, String> = listOf("thetvdb_id", "imdb_id", "themoviedb_id").mapNotNull { key ->
         value.text(key)?.takeUnless { it == "0" }?.let { key to it }
     }.toMap()
 
+    private fun aliases(value: JSONObject): Set<String> {
+        fun name(entry: Any?): String? = ((entry as? JSONObject)?.text("title") ?: entry as? String)?.takeUnless { it.isBlank() || it == "null" }
+        val names = when (val aliases = value.opt("aliases")) {
+            is org.json.JSONArray -> (0 until aliases.length()).map { aliases.opt(it) }
+            is JSONObject -> aliases.keys().asSequence().map { aliases.opt(it) }.toList()
+            else -> emptyList()
+        }
+        return (listOfNotNull(value.text("original_title")) + names.mapNotNull(::name)).take(MAX_ALIASES).toSet()
+    }
+
     private fun archiveState(show: JSONObject): Boolean? = when (val value = show.optJSONObject("user")?.opt("archived")) {
         is Boolean -> value
         is Number -> when (value.toInt()) { 0 -> false; 1 -> true; else -> null }
         else -> value?.toString()?.toBooleanStrictOrNull()
     }
+
+    private companion object { const val MAX_ALIASES = 32 }
 }

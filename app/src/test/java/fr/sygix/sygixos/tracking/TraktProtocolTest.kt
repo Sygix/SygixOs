@@ -403,6 +403,33 @@ class TraktProtocolTest {
         assertEquals(listOf(1, 2), requestedSeasons)
     }
 
+    @Test fun localizedTitleWithoutExternalIdResolvesThroughBoundedCatalogAliases() = runTest {
+        val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
+        val movie = JSONObject().put("title", "Synthetic Witches").put("year", 2023).put("ids", JSONObject().put("trakt", 10))
+        val others = (11L..16L).map { JSONObject().put("title", "Other $it").put("year", 2023).put("ids", JSONObject().put("trakt", it)) }
+        val transport = ScriptedTransport { request ->
+            when {
+                request.url == "https://app.trakt.tv/" -> TrackingResponse(200, """import("https://app.trakt.tv/entry/app.one.js")""")
+                request.url.endsWith("/entry/app.one.js") -> TrackingResponse(200, "\"nodes/0.bundle.js\"")
+                request.url.endsWith("/nodes/0.bundle.js") -> TrackingResponse(200, "trakt-api-key=${"a".repeat(64)}")
+                request.url.contains("search/movie") && request.url.contains("Sorci%C3%A8res") ->
+                    TrackingResponse(200, JSONArray().put(JSONObject().put("movie", movie)).toString(), headers = paginationSingle())
+                request.url.contains("search/movie") -> TrackingResponse(200, JSONArray().apply { others.forEach { put(JSONObject().put("movie", it)) } }.toString(), headers = paginationSingle())
+                request.url.endsWith("movies/10/aliases") -> TrackingResponse(200, """[{"title":"Synthetic Witches","country":"us"},{"title":"Les Sorcières synthétiques","country":"fr"}]""")
+                request.url.contains("/aliases") -> TrackingResponse(200, """[{"title":"Autre titre","country":"fr"}]""")
+                request.url.contains("movies/10?extended=full") -> TrackingResponse(200, movie.toString())
+                request.url.contains("sync/watchlist/movies") -> TrackingResponse(200, "[]", headers = paginationSingle())
+                request.url.contains("sync/history/movies/10") -> TrackingResponse(200, "[]")
+                else -> throw AssertionError(request.url)
+            }
+        }
+        val provider = TraktProvider(api(transport, CoordinatedTrackingSessionStore(MemorySession(envelope))))
+        val local = UpNextItem(1, UpNextSourceEntry("synthetic.player"), UpNextContentType.MOVIE, "Les Sorcières synthétiques", year = 2023)
+        assertEquals("10", provider.identify(envelope, local)!!.identity.id)
+        assertNull(provider.identify(envelope, local.copy(title = "Unmatched title")))
+        assertEquals(6, transport.requests.count { it.url.contains("/aliases") })
+    }
+
     @Test fun seasonUiOverlaysWatchedProgressOnUnpersonalizedSeasonMetadata() = runTest {
         val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
         val show = showJson(42, "Synthetic")

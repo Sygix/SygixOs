@@ -20,6 +20,7 @@ internal object TrackingContentCodec {
         put("membership", content.membership.name); put("movieState", content.movieState); put("airDate", content.airDate)
         put("failure", content.failure?.name)
         put("removableFromAccount", content.removableFromAccount)
+        put("aliases", JSONArray(content.aliases.toList()))
         put("offers", JSONArray().apply { content.offers.forEach { offer -> put(JSONObject().put("id", offer.id).put("name", offer.name)) } })
     }.toString()
 
@@ -34,7 +35,8 @@ internal object TrackingContentCodec {
             membership = AccountMembership.valueOf(value.getString("membership")), movieState = value.getInt("movieState"),
             offers = (0 until offers.length()).map { offers.getJSONObject(it).let { PlaybackOffer(it.text("id"), it.text("name")) } },
             failure = value.text("failure")?.let(TrackingFailure::valueOf), airDate = value.text("airDate"),
-            removableFromAccount = value.optBoolean("removableFromAccount", true))
+            removableFromAccount = value.optBoolean("removableFromAccount", true),
+            aliases = value.optJSONArray("aliases")?.let { names -> (0 until names.length()).map(names::getString).toSet() }.orEmpty())
     }
 
     private fun identity(value: TrackingIdentity) = JSONObject().put("provider", value.provider).put("type", value.type.name).put("id", value.id)

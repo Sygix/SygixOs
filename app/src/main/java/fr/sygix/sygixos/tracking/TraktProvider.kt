@@ -135,9 +135,10 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
 
     override suspend fun identify(token: String, item: UpNextItem, known: LocalTrackingIdentity?): TrackingContent? = withContext(api.dispatcher) {
         val movie = item.type == UpNextContentType.MOVIE
-        val title = if (movie) item.displayTitle else item.seriesTitle ?: item.displayTitle.substringBefore(Regex("(?i)\\bS\\d{1,3}E\\d{1,4}\\b").find(item.displayTitle)?.value ?: "\u0000").trim()
+        val query = ContentQuery.of(item)
+        val title = query.title
         val candidate = known?.let { CatalogCandidate(it.parent, title, item.year, externalIds = item.externalIds) }
-            ?: resolver.resolve(ContentQuery(if (movie) TrackingType.MOVIE else TrackingType.SHOW, title, item.year, item.season?.toIntOrNull(), item.episode?.toIntOrNull(), item.externalIds)) ?: return@withContext null
+            ?: resolver.resolve(query) ?: return@withContext null
         val detail = api.request("${if (movie) "movies" else "shows"}/${candidate.identity.id}?extended=full%2Cimages", token)
         if (movie) {
             val result = movie(detail.optJSONObject("movie") ?: detail)
@@ -167,17 +168,28 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
     }
 
     private suspend fun search(query: ContentQuery): List<CatalogCandidate> {
-        val path = if (query.type == TrackingType.MOVIE) "search/movie" else "search/show"
-        val response = api.request("$path?query=${java.net.URLEncoder.encode(query.title, "UTF-8")}&limit=10&page=1")
+        val kind = if (query.type == TrackingType.MOVIE) "movie" else "show"
+        val response = api.request("search/$kind?query=${java.net.URLEncoder.encode(query.title, "UTF-8")}&limit=10&page=1&extended=full")
         val results = response.optJSONArray("items") ?: throw TrackingException(TrackingFailure.INCOMPLETE)
         val pagination = response.optJSONObject("__pagination")
         val pageCount = pagination?.optInt("page-count", -1) ?: -1
         if (pageCount > 1 || pagination != null && pageCount < 1 || pageCount < 0 && results.length() >= 10) return emptyList()
-        return results.objects().mapNotNull { row ->
-            val key = if (query.type == TrackingType.MOVIE) "movie" else "show"
-            row.optJSONObject(key)?.let { value -> CatalogCandidate(TrackingIdentity(id, query.type, value.traktId()), value.text("title").orEmpty(), value.optInt("year").takeIf { it > 0 }, externalIds = externalIds(value)) }
+        val found = results.objects().mapNotNull { row ->
+            row.optJSONObject(kind)?.let { value -> CatalogCandidate(TrackingIdentity(id, query.type, value.traktId()), value.text("title").orEmpty(), value.optInt("year").takeIf { it > 0 }, originalTitle(value), externalIds(value)) }
         }
+        if (ExactContentIdentity.resolve(query, found) != null) return found
+        val aliases = found.filter { ExactContentIdentity.compatible(query, it) }.take(ALIAS_LOOKUPS).associate { candidate ->
+            candidate.identity to aliases("${kind}s/${candidate.identity.id}/aliases")
+        }
+        return found.map { candidate -> aliases[candidate.identity]?.let { candidate.copy(aliases = candidate.aliases + it) } ?: candidate }
     }
+
+    private suspend fun aliases(path: String): Set<String> {
+        val values = api.request(path).optJSONArray("items") ?: throw TrackingException(TrackingFailure.PROTOCOL)
+        return values.objects().mapNotNull { it.text("title") }.toSet()
+    }
+
+    private fun originalTitle(value: JSONObject): Set<String> = setOfNotNull(value.text("original_title"))
 
     override suspend fun platforms(country: String): RegionalPlatforms = RegionalPlatforms(country.uppercase(Locale.ROOT), emptySet())
 
@@ -498,7 +510,8 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
         val movie = value.optJSONObject("movie") ?: value
         return TrackingContent(TrackingIdentity(id, TrackingType.MOVIE, movie.traktId()), title = movie.text("title") ?: throw TrackingException(TrackingFailure.PROTOCOL),
             year = movie.optInt("year").takeIf { it > 0 }, image = image(movie, "fanart"), poster = image(movie, "poster"),
-            durationMillis = movie.optLong("runtime", -1).takeIf { it > 0 }?.times(60_000), externalIds = externalIds(movie), membership = AccountMembership.UNKNOWN)
+            durationMillis = movie.optLong("runtime", -1).takeIf { it > 0 }?.times(60_000), externalIds = externalIds(movie), membership = AccountMembership.UNKNOWN,
+            aliases = originalTitle(movie))
     }
 
     private fun episode(show: JSONObject, value: JSONObject, seen: Boolean?, seasonOverride: Int? = null): TrackingContent {
@@ -510,7 +523,7 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
             season = data.optInt("season", -1).takeIf { it >= 0 } ?: seasonOverride, episode = data.optInt("number", -1).takeIf { it > 0 }, airDate = data.text("first_aired"),
             durationMillis = data.optLong("runtime", show.optLong("runtime", -1)).takeIf { it > 0 }?.times(60_000),
             externalIds = externalIds(show), seen = seen ?: throw TrackingException(TrackingFailure.INCOMPLETE), membership = AccountMembership.UNKNOWN,
-            image = image(show, "fanart"), poster = image(show, "poster"))
+            image = image(show, "fanart"), poster = image(show, "poster"), aliases = originalTitle(show))
     }
 
     private fun contentFromProgress(progress: JSONObject, fallback: TrackingContent): JSONObject = progress.optJSONObject("show")
@@ -555,6 +568,8 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
 
     private fun JSONObject.traktId(): String = optJSONObject("ids")?.optLong("trakt", -1)?.takeIf { it > 0 }?.toString() ?: throw TrackingException(TrackingFailure.PROTOCOL)
     private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { optJSONObject(it) ?: throw TrackingException(TrackingFailure.PROTOCOL) }
+
+    private companion object { const val ALIAS_LOOKUPS = 5 }
 }
 
 class TraktPagesException(val items: List<JSONObject>, failure: TrackingFailure) : TrackingException(failure)

@@ -71,7 +71,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
             withTimeoutOrNull(30_000) {
                 for (item in items) {
                     val cached = identified[item.key]
-                    if (cached?.first == item.cardIdentity && clock() - cached.second < 15 * 60_000) continue
+                    if (cached?.first == item.cardIdentity && clock() - cached.second < IDENTITY_RETRY_MS) continue
                     try {
                         val known = catalogue?.get(item.key, item.cardIdentity, provider.id)
                             ?: updated[item.key]?.takeIf { cached?.first == item.cardIdentity }?.let { LocalTrackingIdentity(it.identity, it.parent) }
@@ -85,7 +85,10 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                                 continue
                             }
                         }
-                        val content = controller.authenticated { token -> provider.identify(token, item, known) }
+                        val content = controller.authenticated { token ->
+                            provider.identify(token, item, known) ?: if (known != null) null
+                            else AccountContentIdentity.resolve(item, current.contents)?.let { provider.identify(token, item, it) }
+                        }
                         if (content != null) {
                             catalogue?.put(item.key, item.cardIdentity, content)
                             val stored = controller.state.value.contents.firstOrNull { it.identity == content.identity }

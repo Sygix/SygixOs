@@ -43,6 +43,7 @@ data class TrackingContent(
     val failure: TrackingFailure? = null,
     val airDate: String? = null,
     val removableFromAccount: Boolean = true,
+    val aliases: Set<String> = emptySet(),
 )
 
 data class TrackingSnapshot(val contents: List<TrackingContent>, val failure: TrackingFailure? = null,
