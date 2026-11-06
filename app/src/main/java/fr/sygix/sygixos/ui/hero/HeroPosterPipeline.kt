@@ -27,6 +27,7 @@ import coil.request.SuccessResult
 import coil.size.Precision
 import coil.size.Scale
 import coil.transform.Transformation
+import fr.sygix.sygixos.core.designsystem.GlassBlurPx
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.domain.ImageBounds
 import fr.sygix.sygixos.domain.PixelSize
@@ -48,7 +49,7 @@ internal data class PosterSpec(val width: Int, val height: Int, val cornerWidth:
 
     companion object {
         const val BACKDROP_DIVISOR = 8
-        const val BACKDROP_BLUR_PX = 28f
+        const val BACKDROP_BLUR_PX = GlassBlurPx
         const val BACKDROP_SATURATION = 1.7f
 
         fun of(viewportWidth: Int, viewportHeight: Int, cornerWidthPx: Float, cornerHeightPx: Float): PosterSpec {

@@ -28,10 +28,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
@@ -49,8 +51,10 @@ var SemanticsPropertyReceiver.glassActive by GlassActive
 
 internal const val GlassMaterialTag = "glass-material"
 
-private val GlassBlurRadius = 28.dp
+internal const val GlassBlurPx = 28f
 private const val GlassSaturation = 1.7f
+
+internal fun glassBlurRadius(density: Density): Dp = with(density) { GlassBlurPx.toDp() }
 
 @Immutable
 data class GlassLook(
@@ -82,7 +86,8 @@ fun GlassSurface(
     val backdrop = LocalGlassBackdrop.current?.takeIf { it.ready }
     val anchor = remember { GlassAnchor() }
     val glass = (haze != null || backdrop != null) && active
-    val style = remember(look.tint, look.fallback) { frostedStyle(look.tint, look.fallback) }
+    val density = LocalDensity.current
+    val style = remember(look.tint, look.fallback, density) { frostedStyle(look.tint, look.fallback, glassBlurRadius(density)) }
     Box(
         modifier = modifier
             .semantics { glassActive = glass }
@@ -110,8 +115,8 @@ fun GlassSurface(
     }
 }
 
-private fun frostedStyle(tint: Color, fallback: Color): HazeBlurStyle = HazeBlurStyle {
-    blurRadius(GlassBlurRadius)
+private fun frostedStyle(tint: Color, fallback: Color, radius: Dp): HazeBlurStyle = HazeBlurStyle {
+    blurRadius(radius)
     noiseFactor(0f)
     colorEffects(
         listOf(

@@ -20,6 +20,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.chrisbanes.haze.hazeSource
@@ -71,6 +72,12 @@ class GlassSurfaceTest {
             GlassSurface(Modifier.testTag("glass"), active = true) { Box(Modifier.size(40.dp)) }
         }
         compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassActive, false))
+    }
+
+    @Test
+    fun `live blur radius is the 28 screen pixels of the precomputed copy at any density`() {
+        assertEquals(14f, glassBlurRadius(Density(2f)).value, 0.001f)
+        assertEquals(28f, glassBlurRadius(Density(1f)).value, 0.001f)
     }
 
     @Test
