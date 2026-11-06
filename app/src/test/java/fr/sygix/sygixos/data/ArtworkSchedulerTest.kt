@@ -35,7 +35,7 @@ class ArtworkSchedulerTest {
             val entered = CountDownLatch(1)
             val release = CountDownLatch(1)
             val first = async(start = CoroutineStart.UNDISPATCHED) {
-                scheduler.run("app", 5_000) { entered.countDown(); release.await(); 0 }
+                scheduler.run("app", 5_000) { entered.countDown(); release.await(30, TimeUnit.SECONDS); 0 }
             }
             assertTrue(entered.await(30, TimeUnit.SECONDS))
             val queued = (1..30).map { n -> async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 50) { n } } }
@@ -55,7 +55,7 @@ class ArtworkSchedulerTest {
             val entered = CountDownLatch(1)
             val release = CountDownLatch(1)
             val order = java.util.concurrent.CopyOnWriteArrayList<String>()
-            val first = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 5_000) { entered.countDown(); release.await() } }
+            val first = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 5_000) { entered.countDown(); release.await(30, TimeUnit.SECONDS) } }
             assertTrue(entered.await(30, TimeUnit.SECONDS))
             val ahead = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 1_000, priority = false) { order += "prevalidation" } }
             val cancelled = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 1_000) { error("Abandoned work started") } }
@@ -77,7 +77,7 @@ class ArtworkSchedulerTest {
             val started = (1..3).map { index -> async(start = CoroutineStart.UNDISPATCHED) {
                 scheduler.run("app$index", 3_000) {
                     entered.countDown()
-                    if (index == 1) releaseA.await() else releaseOthers.await()
+                    if (index == 1) releaseA.await(30, TimeUnit.SECONDS) else releaseOthers.await(30, TimeUnit.SECONDS)
                     index
                 }
             } }
@@ -100,7 +100,7 @@ class ArtworkSchedulerTest {
             val entered = CountDownLatch(1)
             val release = CountDownLatch(1)
             try {
-                val blocked = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("blocked", 100) { entered.countDown(); release.await(); "late" } }
+                val blocked = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("blocked", 100) { entered.countDown(); release.await(30, TimeUnit.SECONDS); "late" } }
                 assertTrue(entered.await(30, TimeUnit.SECONDS))
                 assertEquals("ready", withTimeout(30_000) { scheduler.run("healthy", 1_000) { "ready" } }.getOrThrow())
                 timer.awaitScheduled(1)
@@ -118,7 +118,7 @@ class ArtworkSchedulerTest {
         scheduler(3).use { scheduler ->
             val release = CountDownLatch(1)
             try {
-                val jobs = (1..3).map { app -> async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("$app", 100, cancel = { release.await() }) { release.await() } } }
+                val jobs = (1..3).map { app -> async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("$app", 100, cancel = { release.await(30, TimeUnit.SECONDS) }) { release.await(30, TimeUnit.SECONDS) } } }
                 timer.awaitScheduled(3)
                 timer.advance(100)
                 withTimeout(30_000) { jobs.forEach { assertTrue(it.await().exceptionOrNull() is TimeoutException) } }

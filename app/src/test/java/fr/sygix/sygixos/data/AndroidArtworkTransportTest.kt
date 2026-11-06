@@ -18,6 +18,8 @@ import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import okhttp3.tls.HandshakeCertificates
+import okhttp3.tls.HeldCertificate
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -30,7 +32,7 @@ class AndroidArtworkTransportTest {
     @get:org.junit.Rule val main = fr.sygix.sygixos.MainDispatcherRule()
     @get:org.junit.Rule val folder = org.junit.rules.TemporaryFolder()
     private val context: Context = ApplicationProvider.getApplicationContext()
-    private val transport = ProgramImageReader(context.contentResolver, okhttp3.OkHttpClient())
+    private val transport = ProgramImageReader(context.contentResolver, okhttp3.OkHttpClient.Builder().callTimeout(10, TimeUnit.SECONDS).build())
     private lateinit var server: HttpServer
     private val workers = Executors.newFixedThreadPool(2)
     private val release = CountDownLatch(1)
@@ -82,21 +84,12 @@ class AndroidArtworkTransportTest {
     }
 
     @Test fun `HTTP to HTTPS redirect is followed and retained under the published URI`() = runBlocking {
-        val file = java.io.File(folder.root, "fixture.p12")
-        val password = "fixture-only".toCharArray()
-        val process = ProcessBuilder(java.io.File(System.getProperty("java.home"), "bin/keytool").path,
-            "-genkeypair", "-alias", "fixture", "-keyalg", "RSA", "-keysize", "2048", "-dname", "CN=localhost",
-            "-ext", "SAN=dns:localhost", "-validity", "1", "-storetype", "PKCS12", "-keystore", file.path,
-            "-storepass", String(password), "-keypass", String(password), "-noprompt").redirectErrorStream(true).start()
-        process.inputStream.use { it.readBytes() }
-        assertTrue(process.waitFor(15, TimeUnit.SECONDS))
-        assertEquals(0, process.exitValue())
-        val store = java.security.KeyStore.getInstance("PKCS12").apply { file.inputStream().use { load(it, password) } }
-        val keys = javax.net.ssl.KeyManagerFactory.getInstance(javax.net.ssl.KeyManagerFactory.getDefaultAlgorithm()).apply { init(store, password) }
-        val trust = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm()).apply { init(store) }
-        val tls = javax.net.ssl.SSLContext.getInstance("TLS").apply { init(keys.keyManagers, trust.trustManagers, null) }
+        val host = server.address.hostString
+        val certificate = HeldCertificate.Builder().addSubjectAlternativeName(host).duration(1, TimeUnit.HOURS).build()
+        val serverTls = HandshakeCertificates.Builder().heldCertificate(certificate).build()
+        val clientTls = HandshakeCertificates.Builder().addTrustedCertificate(certificate.certificate).build()
         val secure = com.sun.net.httpserver.HttpsServer.create(InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0)
-        secure.httpsConfigurator = com.sun.net.httpserver.HttpsConfigurator(tls)
+        secure.httpsConfigurator = com.sun.net.httpserver.HttpsConfigurator(serverTls.sslContext())
         secure.executor = workers
         val hits = java.util.concurrent.atomic.AtomicInteger()
         secure.createContext("/image") { exchange ->
@@ -107,12 +100,12 @@ class AndroidArtworkTransportTest {
         }
         secure.start()
         server.createContext("/redirect") { exchange ->
-            exchange.responseHeaders.add("Location", "https://localhost:${secure.address.port}/image")
+            exchange.responseHeaders.add("Location", "https://$host:${secure.address.port}/image")
             exchange.sendResponseHeaders(302, -1)
             exchange.close()
         }
         try {
-            val http = okhttp3.OkHttpClient.Builder().sslSocketFactory(tls.socketFactory, trust.trustManagers.single() as javax.net.ssl.X509TrustManager).build()
+            val http = okhttp3.OkHttpClient.Builder().sslSocketFactory(clientTls.sslSocketFactory(), clientTls.trustManager).callTimeout(10, TimeUnit.SECONDS).build()
             ArtworkFixture(folder.newFolder(), ProgramImageReader(context.contentResolver, http)).use { fixture ->
                 val uri = url("/redirect")
                 val source = fr.sygix.sygixos.model.ProgramArtwork("fixture.app", listOf(uri), "fiction")

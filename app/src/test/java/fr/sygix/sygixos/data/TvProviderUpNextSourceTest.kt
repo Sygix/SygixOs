@@ -115,7 +115,7 @@ class TvProviderUpNextSourceTest {
         val entered = CountDownLatch(1)
         val latch = CountDownLatch(1)
         try {
-            val slow = TvProviderUpNextSource(context, timeoutMillis = 50, query = { entered.countDown(); latch.await(); null }, queries = blockingQueries(), io = io)
+            val slow = TvProviderUpNextSource(context, timeoutMillis = 50, query = { entered.countDown(); latch.await(30, java.util.concurrent.TimeUnit.SECONDS); null }, queries = blockingQueries(), io = io)
             val result = async(start = CoroutineStart.UNDISPATCHED) { slow.load() }
             assertTrue(entered.await(30, java.util.concurrent.TimeUnit.SECONDS))
             advanceTimeBy(49)

@@ -120,7 +120,7 @@ class TsuyuAccessTest {
         val access = TsuyuAccess(api, commandMs = 12_000)
         val release = CountDownLatch(1)
         access.connect()
-        api.reply = { release.await(); "0\n" }
+        api.reply = { release.await(30, java.util.concurrent.TimeUnit.SECONDS); "0\n" }
         try {
             assertTrue(access.execute("cmd appops write-settings").isFailure)
             assertEquals(AdbAccessState.LOST, access.state.value)

@@ -128,7 +128,8 @@ class TrackingHttpsTransportTest {
                 assertEquals(200, response.code)
                 assertEquals("{}", response.body.string())
             }
-            serving.join()
+            serving.join(10_000)
+            assertFalse(serving.isAlive)
         }
     }
 
@@ -137,7 +138,7 @@ class TrackingHttpsTransportTest {
             private val released = java.util.concurrent.CountDownLatch(1)
             override fun connect(endpoint: java.net.SocketAddress, timeout: Int) {
                 if ((endpoint as java.net.InetSocketAddress).address != silent) return super.connect(endpoint, timeout)
-                released.await()
+                released.await(10, java.util.concurrent.TimeUnit.SECONDS)
                 throw java.net.SocketException("Silent address released")
             }
             override fun close() { released.countDown(); super.close() }

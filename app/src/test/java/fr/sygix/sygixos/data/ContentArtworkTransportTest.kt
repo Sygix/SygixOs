@@ -79,7 +79,7 @@ class ContentArtworkTransportTest {
                     override fun createInputStream(): java.io.FileInputStream = object : AutoCloseInputStream(this) {
                         private var closing = false
                         override fun read(buffer: ByteArray): Int {
-                            if (blockRead) { entered.countDown(); release.await() }
+                            if (blockRead) { entered.countDown(); release.await(30, java.util.concurrent.TimeUnit.SECONDS) }
                             return super.read(buffer)
                         }
                         override fun close() {
@@ -90,7 +90,7 @@ class ContentArtworkTransportTest {
                         }
                     }.also { streams += it }
                 }
-                if (blockOpen) { entered.countDown(); release.await() }
+                if (blockOpen) { entered.countDown(); release.await(30, java.util.concurrent.TimeUnit.SECONDS) }
                 return descriptor
             }
         }

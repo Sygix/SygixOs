@@ -151,6 +151,7 @@ dependencies {
     implementation(libs.aboutlibraries.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.zxing.core)
+    testImplementation(libs.okhttp.tls)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.test.junit)

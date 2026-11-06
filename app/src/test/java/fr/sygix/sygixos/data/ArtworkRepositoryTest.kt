@@ -243,7 +243,7 @@ class ArtworkRepositoryTest {
         val closes = AtomicInteger()
         val local = ImageBytesReader { uri, cancellation ->
             val input = if (uri.path == "/blocked") object : java.io.InputStream() {
-                override fun read(): Int { entered.countDown(); closed.await(); exited.countDown(); return -1 }
+                override fun read(): Int { entered.countDown(); closed.await(30, java.util.concurrent.TimeUnit.SECONDS); exited.countDown(); return -1 }
                 override fun close() { closes.incrementAndGet(); closed.countDown() }
             } else java.io.ByteArrayInputStream(pixels)
             try { readImageBytes(cancellation.own(input), cancellation) } finally { cancellation.release() }
@@ -280,7 +280,7 @@ class ArtworkRepositoryTest {
         val reads = AtomicInteger()
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
-        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); entered.countDown(); release.await(); pixels }).use { f ->
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); entered.countDown(); release.await(30, java.util.concurrent.TimeUnit.SECONDS); pixels }).use { f ->
             val hero = async { f.repository.resolve(source, ArtworkPolicy.Hero) }
             val card = async { f.repository.resolve(source, ArtworkPolicy.Card(396)) }
             val shelf = async { f.repository.resolve(source, ArtworkPolicy.Shelf(1728)) }
@@ -299,7 +299,7 @@ class ArtworkRepositoryTest {
         val reads = AtomicInteger()
         val entered = CountDownLatch(1)
         val release = CountDownLatch(1)
-        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); entered.countDown(); release.await(); pixels }).use { f ->
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); entered.countDown(); release.await(30, java.util.concurrent.TimeUnit.SECONDS); pixels }).use { f ->
             val first = async { f.repository.resolve(source, ArtworkPolicy.Hero) }
             val second = async { f.repository.resolve(source, ArtworkPolicy.Card(396)) }
             val unblock = async(kotlinx.coroutines.Dispatchers.IO) { assertTrue(entered.await(30, TimeUnit.SECONDS)); first.cancel(); release.countDown() }
