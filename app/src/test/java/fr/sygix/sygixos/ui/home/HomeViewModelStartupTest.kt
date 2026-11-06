@@ -77,10 +77,11 @@ class HomeViewModelStartupTest {
         motion: FakeMotionSource = FakeMotionSource(),
         dispatcher: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
         io: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
+        artwork: AppArtworkSource = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
     ) = mainDispatcher.track(HomeViewModel(
         apps = repo,
         hero = HeroRepository(EmptyFeed(), EmptyFeed()),
-        artwork = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
+        artwork = artwork,
         validator = VisualValidator(context, NoImageLoader(), mainDispatcher.dispatcher),
         clockSource = object : ClockSource {
             override fun current() = ""
@@ -167,6 +168,23 @@ class HomeViewModelStartupTest {
         assertEquals(StartupPhase.FadingOut, vm.startup.value)
         vm.onSplashFadeFinished()
         assertEquals(StartupPhase.Done, vm.startup.value)
+    }
+
+    @Test
+    fun `the splash keeps running until the dock and first grid row icons are prepared`() = runTest {
+        val icons = kotlinx.coroutines.test.TestCoroutineScheduler()
+        val vm = viewModel(StartupSession(), artwork = AppArtworkSource(context.packageManager, StandardTestDispatcher(icons)))
+        repo.refreshApps()
+        vm.state.first { it is HomeState.Ready }
+        runCurrent()
+        vm.onSplashShown()
+        vm.onMascotShown()
+        vm.onHeroVisualReady()
+        advanceTimeBy(1_000)
+        assertEquals(StartupPhase.Splash, vm.startup.value)
+        icons.runCurrent()
+        runCurrent()
+        assertEquals(StartupPhase.FadingOut, vm.startup.value)
     }
 
     @Test

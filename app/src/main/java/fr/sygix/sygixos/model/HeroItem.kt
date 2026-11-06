@@ -29,6 +29,7 @@ data class HeroItem(
     val episodeArtwork: Boolean = season != null || episode != null,
     val seriesId: String? = null,
     val artworkFailed: Boolean = false,
+    val artworkPending: Boolean = false,
     val tracking: fr.sygix.sygixos.tracking.TrackingContent? = null,
     val playbackTargets: List<fr.sygix.sygixos.tracking.PlaybackTarget> = emptyList(),
     val artworkOverride: ProgramArtwork? = null,

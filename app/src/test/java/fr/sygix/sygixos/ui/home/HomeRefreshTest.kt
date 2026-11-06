@@ -94,7 +94,7 @@ class HomeRefreshTest {
         withTimeout(5_000) { entered.await() }
         feed = listOf(item.copy(positionMillis = 1_000, durationMillis = 4_000))
         home.refreshHero()
-        home.state.await { (it as? HomeState.Ready)?.hero?.items.isNullOrEmpty() }
+        home.state.await { (it as? HomeState.Ready)?.hero?.items?.singleOrNull()?.let { shown -> shown.artworkPending && !shown.artworkFailed } == true }
         release.complete(Unit)
         home.state.await { (it as? HomeState.Ready)?.hero?.items?.singleOrNull()?.let { shown -> shown.artworkFailed && shown.positionMillis == 1_000L } == true }
         assertEquals(2, attempts[item.imageUrl])
