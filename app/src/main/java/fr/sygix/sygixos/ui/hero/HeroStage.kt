@@ -136,6 +136,7 @@ fun HeroStage(
     onDisplayed: (String?) -> Unit = {},
     generations: Map<String, Long> = emptyMap(),
     visualMotion: Boolean = true,
+    openAccessory: @Composable () -> Unit = {},
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -366,6 +367,7 @@ fun HeroStage(
             focusEnabled = active && launchable,
             onOpen = { shown?.let(onOpen) },
             onButtonFocused = { buttonFocused = it },
+            accessory = openAccessory,
         )
     }
 }
@@ -531,6 +533,7 @@ private fun HeroOverlay(
     focusEnabled: Boolean,
     onOpen: () -> Unit,
     onButtonFocused: (Boolean) -> Unit,
+    accessory: @Composable () -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -543,16 +546,15 @@ private fun HeroOverlay(
             SequentialFade(target = current, durationMillis = Motion.HERO_CROSSFADE_MS, identity = { it.artwork.identity }) { item ->
                 HeroMetadata(item, icons)
             }
-            if (launchable && current != null) {
+            if (launchable && current != null) fr.sygix.sygixos.ui.home.BesideAnchor(accessory, Modifier.padding(top = ButtonExtraGap)) {
                 HeroOpenButton(
                     label = stringResource(if (current.progress != null) R.string.hero_resume else R.string.hero_open),
                     focusRequester = buttonFocusRequester,
                     enabled = focusEnabled,
                     onClick = onOpen,
                     onFocused = onButtonFocused,
-                    modifier = Modifier.padding(top = ButtonExtraGap),
                 )
-            }
+            } else Box(Modifier.padding(top = ButtonExtraGap)) { accessory() }
         }
     }
 }

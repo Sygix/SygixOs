@@ -81,7 +81,7 @@ internal class TrackingBubbleFocus {
 
     fun focusHero(): Boolean = shown == TrackingBubblePlacement.Hero && focusFirst()
 
-    fun move(step: Int) { keys.getOrNull(keys.indexOf(current) + step)?.let { requester(it).tryRequestFocus() } }
+    fun move(step: Int): Boolean = keys.getOrNull(keys.indexOf(current) + step)?.let { requester(it).tryRequestFocus() } == true
 
     fun update(placement: TrackingBubblePlacement?, actions: List<String>): TrackingBubbleRestore? {
         anchor = when (placement) {
@@ -126,6 +126,18 @@ internal fun UpNextBubbleAnchor(index: Int, row: LazyListState, content: @Compos
 }
 
 @Composable
+internal fun BesideAnchor(accessory: @Composable () -> Unit, modifier: Modifier = Modifier, anchor: @Composable () -> Unit) {
+    Layout({ anchor(); accessory() }, modifier) { measurables, constraints ->
+        val placedAnchor = measurables.first().measure(constraints)
+        val placedAccessory = measurables.getOrNull(1)?.measure(Constraints())
+        layout(placedAnchor.width, placedAnchor.height) {
+            placedAnchor.place(0, 0)
+            placedAccessory?.place(placedAnchor.width + Dimens.TrackingBubbleSideGap.roundToPx(), (placedAnchor.height - placedAccessory.height) / 2)
+        }
+    }
+}
+
+@Composable
 internal fun TrackingBubbleView(
     bubble: TrackingBubble,
     focus: TrackingBubbleFocus,
@@ -135,6 +147,7 @@ internal fun TrackingBubbleView(
     onExit: () -> Unit,
     onFocused: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    beside: Boolean = false,
 ) {
     val keys = bubble.actions
     val focusChanged by rememberUpdatedState(onFocused)
@@ -147,10 +160,10 @@ internal fun TrackingBubbleView(
             .onPreviewKeyEvent { event ->
                 val down = event.type == KeyEventType.KeyDown
                 when (event.key) {
-                    Key.DirectionUp -> { if (down) onExit(); true }
+                    Key.DirectionUp -> { if (down && !beside) onExit(); true }
                     Key.Back -> { if (down) { onBack(); onExit() }; true }
                     Key.DirectionDown -> true
-                    Key.DirectionLeft -> { if (down) focus.move(-1); true }
+                    Key.DirectionLeft -> { if (down && !focus.move(-1) && beside) onExit(); true }
                     Key.DirectionRight -> { if (down) focus.move(1); true }
                     else -> false
                 }

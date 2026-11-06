@@ -117,8 +117,8 @@ class TrackingHomeNavigationTest {
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
             press(Key.Back)
             compose.onNodeWithTag("hero-open").assertIsFocused()
-            assertBubbleUnder("hero-open")
-            press(Key.DirectionDown)
+            assertBubbleBeside("hero-open")
+            press(Key.DirectionRight)
             compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
             press(Key.Back)
             compose.onNodeWithTag("hero-open").assertIsFocused()
@@ -140,22 +140,32 @@ class TrackingHomeNavigationTest {
             fixture.runtime.actions.returned(content, fixture.runtime.controller.state.value.generation, PlaybackOrigin.HERO)
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag("hero-open").assertIsFocused()
-            assertBubbleUnder("hero-open")
-            press(Key.DirectionDown)
+            assertBubbleBeside("hero-open")
+            press(Key.DirectionRight)
             compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
-            press(Key.DirectionUp)
+            press(Key.DirectionRight)
+            compose.onNodeWithTag(TrackingBubble.LATER).assertIsFocused()
+            press(Key.DirectionRight)
+            compose.onNodeWithTag(TrackingBubble.LATER).assertIsFocused()
+            press(Key.DirectionUp); press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.LATER).assertIsFocused()
+            press(Key.DirectionLeft)
+            compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
+            press(Key.DirectionLeft)
             compose.onNodeWithTag("hero-open").assertIsFocused()
-            press(Key.DirectionDown); press(Key.Enter); runCurrent(); compose.waitForIdle()
+            press(Key.DirectionRight); press(Key.Enter); runCurrent(); compose.waitForIdle()
             assertEquals(1, fixture.writes)
             compose.onNodeWithTag("hero-open").assertIsFocused()
-            assertBubbleUnder("hero-open")
-            press(Key.DirectionDown)
+            assertBubbleBeside("hero-open")
+            press(Key.DirectionRight)
             compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
             press(Key.Back)
             compose.onNodeWithTag("hero-open").assertIsFocused()
             compose.onNodeWithTag(TrackingBubble.UNDO).assertExists()
         } finally { store.clear() }
     }
+            press(Key.DirectionDown)
+            compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
 
     @Test fun integratedUndoFocusPausesDeletionAndLeavingResumesOnlyRemainingTime() = runTest {
         val fixture = TrackingMovieFixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
@@ -168,11 +178,11 @@ class TrackingHomeNavigationTest {
             fixture.runtime.actions.perform(content, TrackingAction.REMOVE)
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
-            press(Key.Back); press(Key.DirectionDown)
+            press(Key.Back); press(Key.DirectionRight)
             compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
             advanceTimeBy(20_000); runCurrent()
             assertEquals(0, fixture.removals)
-            press(Key.DirectionUp)
+            press(Key.DirectionLeft)
             compose.onNodeWithTag("hero-open").assertIsFocused()
             advanceTimeBy(9999); runCurrent(); assertEquals(0, fixture.removals)
             advanceTimeBy(1); runCurrent(); compose.waitForIdle()
@@ -262,6 +272,14 @@ class TrackingHomeNavigationTest {
 
     private fun press(key: Key, tag: String? = null) {
         val node = if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag)
+    private fun assertBubbleBeside(anchor: String) {
+        val origin = compose.onNodeWithTag(anchor).getBoundsInRoot()
+        val bubble = compose.onNodeWithTag("tracking-bubble").getBoundsInRoot()
+        assertTrue(bubble.left >= origin.right)
+        assertTrue(bubble.left - origin.right < 24.dp)
+        assertTrue(kotlin.math.abs(((bubble.top + bubble.bottom) - (origin.top + origin.bottom)).value / 2) < 2f)
+    }
+
         node.performKeyInput { keyDown(key); keyUp(key) }
         compose.waitForIdle()
     }

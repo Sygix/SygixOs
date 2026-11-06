@@ -105,6 +105,7 @@ object Dimens {
     val TrackingCountryWidth = 320.dp
     val TrackingCountryHeight = 240.dp
     val TrackingBubbleGap = 6.dp
+    val TrackingBubbleSideGap = 14.dp
     val TrackingBubbleMaxWidth = 340.dp
     val TrackingBubblePadding = 4.dp
     val TrackingBubbleCorner = 18.dp

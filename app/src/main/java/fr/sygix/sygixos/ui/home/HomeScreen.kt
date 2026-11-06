@@ -506,11 +506,11 @@ internal fun LauncherHome(
                 when (e.key) {
                     Key.DirectionDown -> when {
                         zone == Zone.HERO && gearFocused -> { heroFocus.tryRequestFocus(); true }
-                        zone == Zone.HERO && bubbleFocus.focusHero() -> true
                         zone == Zone.HERO -> { zone = if (dockAvailable) Zone.DOCK else Zone.GRID; true }
                         zone == Zone.DOCK -> { zone = Zone.GRID; true }
                         else -> false
                     }
+                    Key.DirectionRight -> zone == Zone.HERO && !gearFocused && bubbleFocus.focusHero()
                     Key.DirectionUp -> when {
                         zone == Zone.HERO && !gearFocused -> { gearFocus.tryRequestFocus(); true }
                         zone == Zone.HERO -> true
@@ -563,6 +563,13 @@ internal fun LauncherHome(
                         motion = interactive,
                         visualMotion = visualMotion,
                         backdrop = backdrop,
+                        openAccessory = {
+                            if (bubble != null && trackingViewModel != null && bubblePlacement == TrackingBubblePlacement.Hero) CompositionLocalProvider(
+                                LocalHazeState provides null, LocalGlassBackdrop provides backdrop.takeIf { glassBlur }) {
+                                TrackingBubbleView(bubble, bubbleFocus, interactive && zone == Zone.HERO && !menuOpen && !launcherOverlay,
+                                    trackingViewModel::bubbleAction, trackingViewModel::dismissNotice, { heroFocus.tryRequestFocus() }, trackingViewModel::noticeFocused, beside = true)
+                            }
+                        },
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
                     CompositionLocalProvider(LocalGlassBackdrop provides backdrop.takeIf { glassBlur }) {
@@ -592,11 +599,6 @@ internal fun LauncherHome(
                                     .padding(top = Dimens.CapsuleTop, end = Dimens.CapsuleEnd),
                             )
                         }
-                        if (bubble != null && trackingViewModel != null && bubblePlacement == TrackingBubblePlacement.Hero) TrackingBubbleView(
-                            bubble, bubbleFocus, interactive && zone == Zone.HERO && !menuOpen && !launcherOverlay,
-                            trackingViewModel::bubbleAction, trackingViewModel::dismissNotice, { heroFocus.tryRequestFocus() }, trackingViewModel::noticeFocused,
-                            Modifier.align(Alignment.TopStart).padding(start = Dimens.ScreenMarginH, top = viewportHeight - Dimens.HeroTextBottom + Dimens.TrackingBubbleGap),
-                        )
                     }
                 }
                 Box(

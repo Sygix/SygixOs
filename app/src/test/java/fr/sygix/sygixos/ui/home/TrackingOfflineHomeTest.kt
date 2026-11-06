@@ -47,7 +47,7 @@ class TrackingOfflineHomeTest {
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag(card).assertDoesNotExist()
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
-            press(Key.Back); press(Key.DirectionDown)
+            press(Key.Back); press(Key.DirectionRight)
             compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
             press(Key.Enter)
             fixture.runtime.controller.state.first { it.pendingCount == 0 }
