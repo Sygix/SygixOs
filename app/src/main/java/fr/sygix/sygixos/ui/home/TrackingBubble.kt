@@ -43,7 +43,8 @@ import fr.sygix.sygixos.core.designsystem.GlassLook
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
-import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.FocusText
+import fr.sygix.sygixos.core.designsystem.rememberPillPaint
 import fr.sygix.sygixos.core.designsystem.focusPill
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
@@ -191,7 +192,7 @@ internal fun TrackingBubbleView(
 @Composable
 private fun BubbleAction(tag: String, label: String, requester: FocusRequester, enabled: Boolean, onFocused: () -> Unit, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused, rest = SygixColors.PillRest)
+    val colors = rememberPillPaint(focused, rest = SygixColors.PillRest)
     Box(
         Modifier.testTag(tag)
             .tvFocusable(onFocused = { focused = it; if (it) onFocused() }, focusRequester = requester, enabled = enabled)
@@ -201,7 +202,7 @@ private fun BubbleAction(tag: String, label: String, requester: FocusRequester, 
             .padding(horizontal = Dimens.TrackingBubblePillPadding),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1)
+        FocusText(label, style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1)
     }
 }
 
