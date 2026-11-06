@@ -65,7 +65,7 @@ class PlaybackCoordinatorTest {
         assertNull(coordinator.selection.value)
     }
 
-    @Test fun firstChoiceIsRequiredForSingleAppAndPreferenceIsSharedAcrossSurfaces() = runTest {
+    @Test fun accountOnlyContentRequiresAFirstChoiceAndPreferenceIsSharedAcrossSurfaces() = runTest {
         val controller = controller(backgroundScope)
         controller.restore(); runCurrent()
         var saved: String? = null
@@ -108,6 +108,54 @@ class PlaybackCoordinatorTest {
         assertNull(actions.notice.value)
         assertNotNull(coordinator.selection.value?.failure)
     }
+
+    @Test fun localSourceOpensItsWinningAppDirectlyWithoutStoredPreference() = runTest {
+        val controller = controller(backgroundScope)
+        controller.restore(); runCurrent()
+        val launched = mutableListOf<String>()
+        var saved: String? = null
+        val coordinator = direct(controller, backgroundScope, launched, { saved = it })
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT, listOf(PlaybackTarget("fixture.jellyfin", content.identity), PlaybackTarget("fixture.other", content.identity)))); runCurrent()
+        assertEquals(listOf("fixture.jellyfin"), launched)
+        assertEquals("fixture.jellyfin", saved)
+        assertNull(coordinator.selection.value)
+    }
+
+    @Test fun onlyPublishingAppOpensDirectlyWhenTheItemCarriesNoSource() = runTest {
+        val controller = controller(backgroundScope)
+        controller.restore(); runCurrent()
+        val launched = mutableListOf<String>()
+        var publishers = setOf("fixture.jellyfin")
+        val coordinator = direct(controller, backgroundScope, launched, {}) { publishers }
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.HERO)); runCurrent()
+        assertEquals(listOf("fixture.jellyfin"), launched)
+        publishers = setOf("fixture.jellyfin", "fixture.other")
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.HERO)); runCurrent()
+        assertEquals(listOf("fixture.jellyfin"), launched)
+        assertNotNull(coordinator.selection.value)
+    }
+
+    @Test fun openWithStillShowsThePickerForContentPublishedLocally() = runTest {
+        val controller = controller(backgroundScope)
+        controller.restore(); runCurrent()
+        val launched = mutableListOf<String>()
+        val coordinator = direct(controller, backgroundScope, launched, {}) { setOf("fixture.jellyfin") }
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT, listOf(PlaybackTarget("fixture.jellyfin", content.identity))), choose = true); runCurrent()
+        assertTrue(launched.isEmpty())
+        assertEquals(listOf("fixture.jellyfin", "fixture.other", "fixture.alpha"), coordinator.selection.value?.apps?.map { it.packageName })
+        coordinator.choose("fixture.other"); runCurrent()
+        assertEquals(listOf("fixture.other"), launched)
+    }
+
+    private fun direct(controller: TrackingController, scope: kotlinx.coroutines.CoroutineScope, launched: MutableList<String>, remember: (String) -> Unit,
+        publishers: (TrackingIdentity) -> Set<String> = { emptySet() }) = PlaybackCoordinator(object : PlaybackAppResolver {
+            override suspend fun installed() = listOf(PlaybackApp("fixture.jellyfin", "Jellyfin", true), PlaybackApp("fixture.other", "Other", true), PlaybackApp("fixture.alpha", "Alpha", true))
+        }, object : PlaybackLauncher {
+            override fun launch(app: PlaybackApp, request: PlaybackRequest): PlaybackPrecision { launched += app.packageName; return PlaybackPrecision.CONTENT }
+        }, object : PlaybackPreferences {
+            override suspend fun preferred(content: TrackingIdentity): String? = null
+            override suspend fun remember(content: TrackingIdentity, packageName: String) = remember(packageName)
+        }, controller, TrackingActions(controller, { _, _, _ -> fail() }, scope), scope, publishers = publishers)
 
     private fun controller(scope: kotlinx.coroutines.CoroutineScope) = TrackingController(object : WatchTrackingProvider {
         override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")

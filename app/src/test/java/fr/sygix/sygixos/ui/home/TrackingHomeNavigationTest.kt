@@ -31,7 +31,7 @@ import org.robolectric.annotation.Config
 class TrackingHomeNavigationTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun publisherLeadsPickerAndFirstTrackedCardRegainsFocusAfterRealControllerReturn() = runTest {
+    @Test fun localSourceOpensDirectlyAndOpenWithKeepsThePublisherFirst() = runTest {
         val scope = CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))
         val fixture = TrackingMovieFixture(scope) { testScheduler.currentTime }
         fixture.runtime.controller.restore(); runCurrent()
@@ -65,9 +65,7 @@ class TrackingHomeNavigationTest {
             val firstTag = "upnext-card-$firstKey"
             compose.onNodeWithTag(firstTag).assertIsFocused()
             press(Key.Enter); runCurrent(); compose.waitForIdle()
-            assertEquals(listOf("org.jellyfin.androidtv", "fixture.alpha"), vm.state.value.playerApps.map { it.packageName })
-            compose.onNodeWithTag("tracking-player-org.jellyfin.androidtv").assertIsFocused()
-            press(Key.Enter, "tracking-player-picker"); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-player-picker").assertDoesNotExist()
             assertEquals(1, fixture.launches.size)
             fixture.runtime.onBackground()
             compose.onNodeWithTag("upnext-card-${second.key}").performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.RequestFocus) { it() }
@@ -75,6 +73,13 @@ class TrackingHomeNavigationTest {
             fixture.runtime.onForeground(); row.refresh(); runCurrent(); compose.waitForIdle()
             assertEquals(firstKey, (row.state.value!!.content as UpNextContent.Items).items.first().key)
             compose.onNodeWithTag(firstTag).assertIsFocused()
+            fixture.runtime.actions.dismissReturn(); runCurrent(); compose.waitForIdle()
+            press(Key.Menu)
+            compose.onNodeWithTag("tracking-action-player").assertIsFocused()
+            press(Key.Enter, "upnext-menu"); runCurrent(); compose.waitForIdle()
+            assertEquals(listOf("org.jellyfin.androidtv", "fixture.alpha"), vm.state.value.playerApps.map { it.packageName })
+            compose.onNodeWithTag("tracking-player-org.jellyfin.androidtv").assertIsFocused()
+            assertEquals(1, fixture.launches.size)
         } finally { store.clear() }
     }
 

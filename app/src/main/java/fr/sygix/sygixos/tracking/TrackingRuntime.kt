@@ -98,7 +98,7 @@ class TrackingRuntime(context: Context, catalog: AppCatalogRepository, scope: Co
             val country = preferences.country.first()
             if (country == null) TrackingOfferResult(content.offers.map { it.copy(confirmedCountry = null) })
             else controller.authenticated { token -> provider.offers(token, content, country) }
-        }, onOpened = { opened.tryEmit(it) })
+        }, onOpened = { opened.tryEmit(it) }, publishers = enrichment::publishers)
     private var confirmedArtwork = emptyList<Pair<fr.sygix.sygixos.model.ProgramArtwork, String>>()
     val state = combine(controller.state, actions.excluded, preferences.players, readers, region) { current, excluded, players, readers, region ->
         current.copy(contents = TrackingProjection.candidates(current.contents).filter { it.parent !in excluded }.map { content ->

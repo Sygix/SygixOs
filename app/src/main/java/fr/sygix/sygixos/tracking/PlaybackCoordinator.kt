@@ -56,6 +56,7 @@ class PlaybackCoordinator(
     private val scope: CoroutineScope,
     private val loadOffers: (suspend (TrackingContent) -> TrackingOfferResult)? = null,
     private val onOpened: (PlaybackRequest) -> Unit = {},
+    private val publishers: (TrackingIdentity) -> Set<String> = { emptySet() },
 ) {
     private val mutable = MutableStateFlow<PlaybackSelection?>(null)
     val selection = mutable.asStateFlow()
@@ -89,10 +90,10 @@ class PlaybackCoordinator(
                 val installed = apps.installed()
                 val preferred = preferences.preferred(request.content.parent)
                 if (id != requestId || generation != tracking.state.value.generation) return@launch
-                val app = installed.firstOrNull { it.packageName == preferred }
-                if (!choose && app != null) launch(request, app, id, generation)
+                val direct = if (choose) null else PlaybackDirectApp.resolve(installed, preferred, request.targets, publishers(request.content.parent))
+                if (direct != null) launch(request, direct, id, generation)
                 else {
-                    mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred, missingPreferred = preferred != null && app == null)
+                    mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred, missingPreferred = preferred != null && installed.none { it.packageName == preferred })
                     refreshOffers()
                 }
             } catch (cancelled: CancellationException) { throw cancelled }
