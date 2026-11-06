@@ -54,7 +54,6 @@
     <string name="setup_finish">"Fine"</string>
     <string name="setup_more_title">"Un'ultima scelta"</string>
     <string name="setup_more_description">"Su questa TV, la schermata Home di Google TV resta quella di sistema. SygixOs può mantenerla o sostituirla completamente. Potrai cambiare idea in Impostazioni › Schermata Home."</string>
-    <string name="setup_more_home_detail">"La schermata Home di Google TV resta quella di sistema"</string>
     <string name="setup_keep">"Mantieni la schermata Home di Google TV (consigliato)"</string>
     <string name="setup_disable">"Disattiva la schermata Home di Google TV"</string>
     <string name="setup_disable_title">"Disattivare la schermata Home di Google TV?"</string>

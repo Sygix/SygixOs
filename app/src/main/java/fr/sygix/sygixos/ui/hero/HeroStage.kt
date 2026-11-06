@@ -283,7 +283,7 @@ fun HeroStage(
                 snapshotFlow { videos.current?.renderedItem }.first { it == mediaId }
                 shownId = targetId
             }
-            posterUrl == null || shownId == null || lastShown[0] == current?.id -> shownId = targetId
+            posterUrl == null || shownId == null || lastShown[0] == current.id -> shownId = targetId
         }
     }
     LaunchedEffect(targetId, posterUrl, showVideo, visible) {

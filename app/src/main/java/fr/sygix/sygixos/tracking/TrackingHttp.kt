@@ -65,7 +65,7 @@ class TrackingHttpsTransport(private val client: Call.Factory = trackingHttpClie
                 override fun onResponse(call: Call, response: Response) {
                     try {
                         val result = response.use {
-                            val bytes = it.body?.byteStream()?.use { stream -> stream.readNBytes(request.maxBytes + 1) } ?: byteArrayOf()
+                            val bytes = it.body.byteStream().use { stream -> stream.readNBytes(request.maxBytes + 1) }
                             if (bytes.size > request.maxBytes) throw TrackingException(TrackingFailure.PROTOCOL)
                             val retryAfter = it.header("Retry-After")?.let { header ->
                                 header.toLongOrNull()?.takeIf { seconds -> seconds in 0..Long.MAX_VALUE / 1000 }?.times(1000)

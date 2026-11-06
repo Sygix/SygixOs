@@ -54,7 +54,6 @@
     <string name="setup_finish">"Fertig"</string>
     <string name="setup_more_title">"Noch eine Entscheidung"</string>
     <string name="setup_more_description">"Auf diesem Fernseher bleibt der Google TV-Startbildschirm der Startbildschirm des Systems. SygixOs kann ihn behalten oder vollständig ersetzen. Du kannst das später unter Einstellungen › Startbildschirm ändern."</string>
-    <string name="setup_more_home_detail">"Der Google TV-Startbildschirm bleibt der Startbildschirm des Systems"</string>
     <string name="setup_keep">"Google TV-Startbildschirm behalten (empfohlen)"</string>
     <string name="setup_disable">"Google TV-Startbildschirm deaktivieren"</string>
     <string name="setup_disable_title">"Google TV-Startbildschirm deaktivieren?"</string>

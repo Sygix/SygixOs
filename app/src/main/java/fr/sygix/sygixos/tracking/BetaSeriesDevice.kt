@@ -69,11 +69,7 @@ class BetaSeriesDeviceProtocol(private val api: BetaSeriesApi, private val clock
     }
 }
 
-class BetaSeriesDevice(api: BetaSeriesApi, controller: TrackingController, scope: CoroutineScope,
-    clock: () -> Long = { System.nanoTime() / 1_000_000 },
-) : TrackingDeviceFlow({ BetaSeriesDeviceProtocol(api, clock) }, controller, scope, clock)
-
-open class TrackingDeviceFlow(
+class TrackingDeviceFlow(
     private val protocol: () -> TrackingDeviceProtocol,
     private val controller: TrackingController,
     private val scope: CoroutineScope,

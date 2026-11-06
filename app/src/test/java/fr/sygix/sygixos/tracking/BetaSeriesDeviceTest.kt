@@ -29,7 +29,7 @@ class BetaSeriesDeviceTest {
                     else -> if (success) TrackingResponse(200, """{"access_token":"fixture-token"}""") else throw TrackingException(TrackingFailure.NETWORK)
                 }
             } })
-            val device = BetaSeriesDevice(api, controller(backgroundScope), backgroundScope) { testScheduler.currentTime }
+            val device = device(api, controller(backgroundScope))
             device.open(); runCurrent()
             repeat(2) { advanceTimeBy(1000); runCurrent(); assertTrue(device.state.value is DeviceAssociationState.Waiting) }
             advanceTimeBy(6000); runCurrent()
@@ -48,7 +48,7 @@ class BetaSeriesDeviceTest {
             }
         }
         val api = trackingApi(transport)
-        val device = BetaSeriesDevice(api, controller(backgroundScope), backgroundScope) { testScheduler.currentTime }
+        val device = device(api, controller(backgroundScope))
         device.open(); runCurrent()
         val waiting = device.state.value as DeviceAssociationState.Waiting
         assertEquals("https://www.betaseries.com/device", waiting.association.verificationUrl)
@@ -75,7 +75,7 @@ class BetaSeriesDeviceTest {
                 else -> { ++polls; TrackingResponse(400, "{\"errors\":[{\"code\":2001}]}") }
             }
         }
-        val device = BetaSeriesDevice(trackingApi(transport), controller(backgroundScope), backgroundScope) { testScheduler.currentTime }
+        val device = device(trackingApi(transport), controller(backgroundScope))
         device.open(); runCurrent(); advanceTimeBy(5000); runCurrent()
         assertEquals(1, polls)
         assertEquals(DeviceAssociationState.Expired, device.state.value)
@@ -84,6 +84,9 @@ class BetaSeriesDeviceTest {
         assertEquals(DeviceAssociationState.Error(TrackingFailure.PROTOCOL), device.state.value)
         assertEquals(1, polls)
     }
+
+    private fun kotlinx.coroutines.test.TestScope.device(api: BetaSeriesApi, controller: TrackingController) =
+        TrackingDeviceFlow({ BetaSeriesDeviceProtocol(api) { testScheduler.currentTime } }, controller, backgroundScope) { testScheduler.currentTime }
 
     private fun controller(scope: kotlinx.coroutines.CoroutineScope) = TrackingController(object : WatchTrackingProvider {
         override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
@@ -102,7 +105,7 @@ class BetaSeriesDeviceTest {
             else -> { ++polls; assertEquals("fixture-device", request.fields["code"]); assertFalse(request.fields.containsKey("device_code")); TrackingResponse(200, "{\"access_token\":\"fixture-token\",\"token_type\":\"Bearer\"}") }
         } }
         val controller = controller(backgroundScope)
-        val device = BetaSeriesDevice(trackingApi(transport), controller, backgroundScope) { testScheduler.currentTime }
+        val device = device(trackingApi(transport), controller)
         device.open(); runCurrent()
         assertNull(controller.state.value.account)
         advanceTimeBy(1000); runCurrent()
@@ -120,7 +123,7 @@ class BetaSeriesDeviceTest {
             request.url.endsWith("oauth/device") -> { ++attempts; TrackingResponse(200, "{\"device_code\":\"fixture-device-$attempts\",\"user_code\":\"FIXTURE-$attempts\",\"verification_url\":\"https://www.betaseries.com/device\",\"expires_in\":30,\"interval\":1}") }
             else -> { ++polls; TrackingResponse(400, "{\"errors\":[{\"code\":2002}]}") }
         } }
-        val device = BetaSeriesDevice(trackingApi(transport), controller(backgroundScope), backgroundScope) { testScheduler.currentTime }
+        val device = device(trackingApi(transport), controller(backgroundScope))
         device.open(); runCurrent(); advanceTimeBy(1000); runCurrent()
         assertEquals(DeviceAssociationState.Error(TrackingFailure.ACCESS), device.state.value)
         advanceTimeBy(10_000); runCurrent(); assertEquals(1, polls)

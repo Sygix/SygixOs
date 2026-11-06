@@ -54,7 +54,6 @@
     <string name="setup_finish">"Done"</string>
     <string name="setup_more_title">"One last choice"</string>
     <string name="setup_more_description">"On this TV, the Google TV home screen is still the system home screen. SygixOs can keep it or replace it completely. You can change your mind later in Settings › Home screen."</string>
-    <string name="setup_more_home_detail">"The Google TV home screen stays the system home screen"</string>
     <string name="setup_keep">"Keep the Google TV home screen (recommended)"</string>
     <string name="setup_disable">"Turn off the Google TV home screen"</string>
     <string name="setup_disable_title">"Turn off the Google TV home screen?"</string>

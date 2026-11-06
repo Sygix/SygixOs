@@ -102,7 +102,7 @@ internal class ProgramImageReader(private val resolver: ContentResolver, private
                     cancellation.own(call)
                     val response = cancellation.own(call.execute())
                     if (!response.isSuccessful) throw java.io.IOException("Artwork HTTP ${response.code}")
-                    cancellation.own(response.body?.byteStream() ?: throw FileNotFoundException("Artwork body absent"))
+                    cancellation.own(response.body.byteStream())
                 }
                 else -> throw FileNotFoundException("Unsupported program image")
             }

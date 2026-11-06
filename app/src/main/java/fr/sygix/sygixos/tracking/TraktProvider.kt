@@ -527,9 +527,6 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
             image = image(show, "fanart"), poster = image(show, "poster"), aliases = originalTitle(show))
     }
 
-    private fun contentFromProgress(progress: JSONObject, fallback: TrackingContent): JSONObject = progress.optJSONObject("show")
-        ?: JSONObject().put("title", fallback.title).put("ids", JSONObject().put("trakt", fallback.parent.id.toLongOrNull()))
-
     private fun externalIds(value: JSONObject): Map<String, String> {
         val ids = value.optJSONObject("ids") ?: return emptyMap()
         return linkedMapOf<String, String>().apply {
