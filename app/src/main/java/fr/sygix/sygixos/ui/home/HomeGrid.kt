@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.zIndex
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.SygixTypography
@@ -101,6 +103,9 @@ internal fun HomeGrid(
     onRetryUpNext: () -> Unit = {},
     onUpNextReturnHandled: (Long) -> Unit = {},
     trackingStatus: @Composable () -> Unit = {},
+    upNextOverlay: @Composable (LazyListState) -> Unit = {},
+    overlayFocused: () -> Boolean = { false },
+    overlayEntry: (String?) -> Boolean = { false },
     visualMotion: Boolean = true,
 ) {
     val rows = remember(catalog.grid) { catalog.grid.chunked(Dimens.GridColumns) }
@@ -230,6 +235,8 @@ internal fun HomeGrid(
     Column(
         modifier.fillMaxWidth().padding(vertical = Dimens.GridTopMargin).focusGroup()
             .onPreviewKeyEvent { event ->
+                if (overlayFocused()) return@onPreviewKeyEvent false
+                if (event.key == Key.DirectionDown) return@onPreviewKeyEvent event.type == KeyEventType.KeyDown && overlayEntry(focus.focusedApp)
                 if (event.key != Key.DirectionUp) return@onPreviewKeyEvent false
                 when (val up = sections.upFrom(focus.focusedApp, Dimens.GridColumns, focus.lastCard)) {
                     GridSections.Up.Default -> false
@@ -241,7 +248,7 @@ internal fun HomeGrid(
     ) {
         @Composable fun UpNextSection() {
             if (upNextRow == null) return
-            Column {
+            Column(Modifier.zIndex(1f)) {
                 Box(Modifier.fillMaxWidth().padding(end = Dimens.ScreenMarginH)) {
                     SectionTitle(R.string.upnext_title, "section-title-upnext", padded = true, onHeight = { titleHeight = it })
                     Box(Modifier.align(Alignment.CenterEnd).padding(bottom = Dimens.SectionTitleGap)) { trackingStatus() }
@@ -253,6 +260,7 @@ internal fun HomeGrid(
                         }
                     },
                     onOpen = onOpenUpNext, onMenu = onUpNextMenu, onRetry = onRetryUpNext, state = upNextScroll, returnId = returnFocus?.id)
+                upNextOverlay(upNextScroll)
             }
         }
         if (sections.upNextFirst) UpNextSection()

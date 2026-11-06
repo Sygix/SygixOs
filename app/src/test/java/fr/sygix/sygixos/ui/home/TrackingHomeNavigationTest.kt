@@ -8,6 +8,7 @@ package fr.sygix.sygixos.ui.home
 import androidx.compose.runtime.*
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.*
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -31,7 +32,7 @@ import org.robolectric.annotation.Config
 class TrackingHomeNavigationTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun localSourceOpensDirectlyAndOpenWithKeepsThePublisherFirst() = runTest {
+    @Test fun localSourceOpensDirectlyAndReturnShowsTheBubbleUnderTheOriginCard() = runTest {
         val scope = CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))
         val fixture = TrackingMovieFixture(scope) { testScheduler.currentTime }
         fixture.runtime.controller.restore(); runCurrent()
@@ -73,7 +74,22 @@ class TrackingHomeNavigationTest {
             fixture.runtime.onForeground(); row.refresh(); runCurrent(); compose.waitForIdle()
             assertEquals(firstKey, (row.state.value!!.content as UpNextContent.Items).items.first().key)
             compose.onNodeWithTag(firstTag).assertIsFocused()
-            fixture.runtime.actions.dismissReturn(); runCurrent(); compose.waitForIdle()
+            assertBubbleUnder(firstTag)
+            compose.onNodeWithTag(TrackingBubble.SEEN).assertIsNotFocused()
+            press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
+            press(Key.DirectionRight)
+            compose.onNodeWithTag(TrackingBubble.LATER).assertIsFocused()
+            press(Key.DirectionRight)
+            compose.onNodeWithTag(TrackingBubble.LATER).assertIsFocused()
+            press(Key.DirectionUp)
+            compose.onNodeWithTag(firstTag).assertIsFocused()
+            assertNotNull(fixture.runtime.actions.notice.value?.takeIf { it.returnPrompt })
+            press(Key.DirectionDown); press(Key.Back); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-bubble").assertDoesNotExist()
+            compose.onNodeWithTag(firstTag).assertIsFocused()
+            assertNull(fixture.runtime.actions.notice.value)
+            assertEquals(0, fixture.writes)
             press(Key.Menu)
             compose.onNodeWithTag("tracking-action-player").assertIsFocused()
             press(Key.Enter, "upnext-menu"); runCurrent(); compose.waitForIdle()
@@ -95,18 +111,49 @@ class TrackingHomeNavigationTest {
             fixture.runtime.actions.returned(content, fixture.runtime.controller.state.value.generation)
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag(card).assertIsFocused()
+            assertBubbleUnder(card)
             fixture.removed = true
             fixture.runtime.controller.refresh(); runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
-            press(Key.Back); press(Key.DirectionUp)
-            compose.onNodeWithTag("settings-gear").assertIsFocused()
-            press(Key.DirectionRight)
-            compose.onNodeWithTag("tracking-return-prompt").assertIsFocused()
             press(Key.Back)
-            compose.onNodeWithTag("settings-gear").assertIsFocused()
+            compose.onNodeWithTag("hero-open").assertIsFocused()
+            assertBubbleUnder("hero-open")
+            press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
+            press(Key.Back)
+            compose.onNodeWithTag("hero-open").assertIsFocused()
             assertNull(fixture.runtime.actions.notice.value)
             assertEquals(0, fixture.removals)
             assertEquals(0, fixture.writes)
+        } finally { store.clear() }
+    }
+
+    @Test fun heroLaunchReturnBubbleSitsUnderOpenAndMarkingKeepsUndoThere() = runTest {
+        val fixture = TrackingMovieFixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
+        fixture.runtime.controller.restore(); runCurrent()
+        val content = fixture.content
+        val store = ViewModelStore()
+        try {
+            show(viewModel(store, fixture))
+            press(Key.Back)
+            compose.onNodeWithTag("hero-open").assertIsFocused()
+            fixture.runtime.actions.returned(content, fixture.runtime.controller.state.value.generation, PlaybackOrigin.HERO)
+            runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("hero-open").assertIsFocused()
+            assertBubbleUnder("hero-open")
+            press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
+            press(Key.DirectionUp)
+            compose.onNodeWithTag("hero-open").assertIsFocused()
+            press(Key.DirectionDown); press(Key.Enter); runCurrent(); compose.waitForIdle()
+            assertEquals(1, fixture.writes)
+            compose.onNodeWithTag("hero-open").assertIsFocused()
+            assertBubbleUnder("hero-open")
+            press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
+            press(Key.Back)
+            compose.onNodeWithTag("hero-open").assertIsFocused()
+            compose.onNodeWithTag(TrackingBubble.UNDO).assertExists()
         } finally { store.clear() }
     }
 
@@ -121,17 +168,18 @@ class TrackingHomeNavigationTest {
             fixture.runtime.actions.perform(content, TrackingAction.REMOVE)
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
-            press(Key.Back); press(Key.DirectionUp); press(Key.DirectionRight)
-            compose.onNodeWithTag("tracking-undo").assertIsFocused()
+            press(Key.Back); press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
             advanceTimeBy(20_000); runCurrent()
             assertEquals(0, fixture.removals)
-            press(Key.DirectionLeft)
-            compose.onNodeWithTag("settings-gear").assertIsFocused()
+            press(Key.DirectionUp)
+            compose.onNodeWithTag("hero-open").assertIsFocused()
             advanceTimeBy(9999); runCurrent(); assertEquals(0, fixture.removals)
             advanceTimeBy(1); runCurrent(); compose.waitForIdle()
             assertEquals(1, fixture.removals)
             assertNull(fixture.runtime.actions.notice.value)
-            compose.onNodeWithTag("settings-gear").assertIsFocused()
+            compose.onNodeWithTag("tracking-bubble").assertDoesNotExist()
+            compose.onNodeWithTag("hero-open").assertIsFocused()
         } finally { store.clear() }
     }
 
@@ -202,6 +250,14 @@ class TrackingHomeNavigationTest {
         compose.waitForIdle()
         compose.onNodeWithTag("zone-upnext").assertExists()
         press(Key.DirectionDown)
+    }
+
+    private fun assertBubbleUnder(anchor: String) {
+        val origin = compose.onNodeWithTag(anchor).getBoundsInRoot()
+        val bubble = compose.onNodeWithTag("tracking-bubble").getBoundsInRoot()
+        assertTrue(bubble.top >= origin.bottom)
+        assertTrue(bubble.top - origin.bottom < 16.dp)
+        assertTrue(kotlin.math.abs((bubble.left - origin.left).value) < 12f)
     }
 
     private fun press(key: Key, tag: String? = null) {

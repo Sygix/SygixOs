@@ -53,6 +53,7 @@ data class TrackingUiState(
     val providerId: String = "betaseries",
     val providerSaving: Boolean = false,
 ) {
+    val bubble: TrackingBubble? get() = TrackingBubble.of(notice)
     val modal: Boolean get() = statusOpen || player != null || menu != null || episodes != null || device != DeviceAssociationState.Closed && device != DeviceAssociationState.Connected
 }
 
@@ -169,9 +170,11 @@ class TrackingViewModel(val runtime: TrackingRuntime, private val remove: (UpNex
     fun noticeFocused(value: Boolean) { runtime.actions.setFocused(value) }
     fun settingsOpen(value: Boolean) { runtime.actions.setSettingsOpen(value) }
     fun dismissNotice() { runtime.actions.dismiss() }
-    fun noticeAction() {
-        val notice = state.value.notice ?: return
+    fun bubbleAction(key: String) {
+        val notice = runtime.actions.notice.value ?: return
+        if (TrackingBubble.of(notice)?.actions?.contains(key) != true) return
         when {
+            key == TrackingBubble.LATER -> runtime.actions.dismiss()
             notice.returnPrompt -> runtime.actions.confirmReturn()
             notice.failure.requiresReconnection -> { runtime.actions.dismiss(); runtime.device.open() }
             notice.failure != null -> runtime.actions.retry()

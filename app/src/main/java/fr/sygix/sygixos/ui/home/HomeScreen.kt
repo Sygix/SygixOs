@@ -116,6 +116,8 @@ import fr.sygix.sygixos.model.HeroItem
 import fr.sygix.sygixos.model.TvApp
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
+import fr.sygix.sygixos.domain.UpNextContent
+import fr.sygix.sygixos.tracking.TrackingBubblePlacement
 import fr.sygix.sygixos.ui.hero.AmbientGradient
 import fr.sygix.sygixos.ui.hero.HeroStage
 import fr.sygix.sygixos.ui.settings.SettingsActions
@@ -409,18 +411,8 @@ internal fun LauncherHome(
     var gearFocused by remember { mutableStateOf(false) }
     val dockAvailable = catalog.dock.isNotEmpty()
     val gridAvailable = GridSections.hasFocusTarget(catalog.grid.size, upNext)
-    var notificationActive by remember { mutableStateOf(false) }
-    val notificationFocus = remember { FocusRequester() }
     var trackingReturnGear by remember { mutableStateOf(false) }
-    val menuOpen = menuApp != null || menuItem != null || trackingUi?.modal == true || notificationActive
-    LaunchedEffect(trackingUi?.notice) {
-        if (trackingUi?.notice == null && notificationActive) {
-            notificationActive = false; gearFocused = true
-            trackingViewModel?.noticeFocused(false)
-            withFrameNanos { }; gearFocus.tryRequestFocus()
-        }
-    }
-    LaunchedEffect(notificationActive) { if (notificationActive) { withFrameNanos { }; notificationFocus.tryRequestFocus() } }
+    val menuOpen = menuApp != null || menuItem != null || trackingUi?.modal == true
     LaunchedEffect(trackingUi?.modal) {
         if (trackingUi?.modal != true && trackingReturnGear) {
             trackingReturnGear = false; gearFocused = true; withFrameNanos { }; gearFocus.tryRequestFocus()
@@ -432,12 +424,15 @@ internal fun LauncherHome(
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { upNextUpdates.collect() }
     }
     val launcherOverlay = launcherState.guideShown
+    val bubbleFocus = remember { TrackingBubbleFocus() }
+    val bubble = trackingUi?.bubble?.takeIf { trackingViewModel != null && !settingsOpen && !trackingUi.modal && !launcherOverlay }
+    val upNextCards = (upNext?.content as? UpNextContent.Items)?.items.orEmpty()
+    val bubblePlacement = TrackingBubblePlacement.of(bubble, upNextCards.map { it.tracking?.parent }, bubbleFocus.anchor)
+    TrackingBubbleRestoreEffect(bubbleFocus.update(bubblePlacement, bubble?.actions.orEmpty()), menuOpen || settingsOpen, gridFocus, heroFocus)
     var handledHome by remember { mutableStateOf(launcherState.homeRequest) }
     LaunchedEffect(launcherState.homeRequest) {
         if (handledHome == launcherState.homeRequest) return@LaunchedEffect
         handledHome = launcherState.homeRequest
-        notificationActive = false
-        trackingViewModel?.noticeFocused(false)
         trackingViewModel?.close()
         settingsOpen = false
         menuApp = null
@@ -489,18 +484,7 @@ internal fun LauncherHome(
                 if (!homeHandlesBack && e.key == Key.Back) return@onPreviewKeyEvent false
                 if (settingsOpen) return@onPreviewKeyEvent false
                 if (trackingUi?.modal == true) return@onPreviewKeyEvent false
-                if (notificationActive) return@onPreviewKeyEvent when (e.key) {
-                    Key.DirectionLeft, Key.DirectionUp, Key.Back -> {
-                        if (e.key == Key.Back) trackingViewModel?.dismissNotice()
-                        notificationActive = false; gearFocused = true; trackingViewModel?.noticeFocused(false); true
-                    }
-                    Key.DirectionRight, Key.DirectionDown -> true
-                    else -> false
-                }
-                if (e.key == Key.DirectionRight && zone == Zone.HERO && gearFocused && trackingUi?.notice != null) {
-                    notificationActive = true
-                    return@onPreviewKeyEvent true
-                }
+                if (bubbleFocus.focused) return@onPreviewKeyEvent false
                 if (e.key == Key.DirectionRight && zone == Zone.HERO && gearFocused && trackingUi?.tracking?.failure != null) {
                     trackingReturnGear = true; trackingViewModel?.showStatus(); return@onPreviewKeyEvent true
                 }
@@ -522,6 +506,7 @@ internal fun LauncherHome(
                 when (e.key) {
                     Key.DirectionDown -> when {
                         zone == Zone.HERO && gearFocused -> { heroFocus.tryRequestFocus(); true }
+                        zone == Zone.HERO && bubbleFocus.focusHero() -> true
                         zone == Zone.HERO -> { zone = if (dockAvailable) Zone.DOCK else Zone.GRID; true }
                         zone == Zone.DOCK -> { zone = Zone.GRID; true }
                         else -> false
@@ -607,6 +592,11 @@ internal fun LauncherHome(
                                     .padding(top = Dimens.CapsuleTop, end = Dimens.CapsuleEnd),
                             )
                         }
+                        if (bubble != null && trackingViewModel != null && bubblePlacement == TrackingBubblePlacement.Hero) TrackingBubbleView(
+                            bubble, bubbleFocus, interactive && zone == Zone.HERO && !menuOpen && !launcherOverlay,
+                            trackingViewModel::bubbleAction, trackingViewModel::dismissNotice, { heroFocus.tryRequestFocus() }, trackingViewModel::noticeFocused,
+                            Modifier.align(Alignment.TopStart).padding(start = Dimens.ScreenMarginH, top = viewportHeight - Dimens.HeroTextBottom + Dimens.TrackingBubbleGap),
+                        )
                     }
                 }
                 Box(
@@ -645,6 +635,20 @@ internal fun LauncherHome(
                                 style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary,
                                 modifier = Modifier.testTag("tracking-status"),
                             ) }
+                        },
+                        upNextOverlay = { row ->
+                            val card = bubblePlacement as? TrackingBubblePlacement.Card
+                            if (bubble != null && card != null && trackingViewModel != null) CompositionLocalProvider(LocalHazeState provides null) {
+                                UpNextBubbleAnchor(card.index, row) {
+                                    TrackingBubbleView(bubble, bubbleFocus, interactive && zone == Zone.GRID && !menuOpen && !launcherOverlay,
+                                        trackingViewModel::bubbleAction, trackingViewModel::dismissNotice, { gridFocus.tryRequestFocus() }, trackingViewModel::noticeFocused)
+                                }
+                            }
+                        },
+                        overlayFocused = { bubbleFocus.focused },
+                        overlayEntry = { key ->
+                            val card = bubblePlacement as? TrackingBubblePlacement.Card
+                            card != null && key == upNextCards.getOrNull(card.index)?.key && bubbleFocus.focusFirst()
                         },
                         visualMotion = visualMotion,
                         modifier = Modifier.testTag("home-grid"),
@@ -713,10 +717,6 @@ internal fun LauncherHome(
         }
         if (trackingUi != null && trackingViewModel != null) CompositionLocalProvider(LocalHazeState provides overlayHaze) {
             fr.sygix.sygixos.ui.settings.TrackingPanels(trackingUi, trackingViewModel)
-            if (!settingsOpen && !trackingUi.modal && !launcherOverlay) trackingUi.notice?.let { notice ->
-                fr.sygix.sygixos.ui.settings.TrackingNotification(notice, trackingViewModel, notificationActive, notificationFocus,
-                    Modifier.align(Alignment.BottomEnd).padding(end = Dimens.ScreenMarginH, bottom = Dimens.TrackingNotificationBottom).zIndex(12f))
-            }
         }
         if (launcherState.guideShown) CompositionLocalProvider(LocalHazeState provides overlayHaze) { DefaultLauncherPanel(launcherState, launcherActions) }
     }

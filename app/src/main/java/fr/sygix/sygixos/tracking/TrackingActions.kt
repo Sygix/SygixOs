@@ -26,6 +26,7 @@ data class TrackingNotice(
     val locallySaved: Boolean = false,
     val intent: StoredTrackingIntent? = null,
     val confirmed: Boolean = false,
+    val origin: PlaybackOrigin = PlaybackOrigin.UP_NEXT,
 )
 
 class TrackingActions(
@@ -64,7 +65,7 @@ class TrackingActions(
         }
     }
 
-    fun perform(content: TrackingContent, action: TrackingAction) {
+    fun perform(content: TrackingContent, action: TrackingAction, origin: PlaybackOrigin = PlaybackOrigin.UP_NEXT) {
         if (controller.state.value.account == null || content.sessionGeneration?.let { it != controller.state.value.generation } == true) return
         if (mutable.value == null && controller.state.value.undoContexts.isNotEmpty()) { restoreNotice(controller.state.value); return }
         if (work?.isActive == true || mutable.value?.let { !it.returnPrompt } == true) {
@@ -82,7 +83,7 @@ class TrackingActions(
         if (!applicable) return
         pendingReturn = null
         timer?.cancel()
-        val notice = TrackingNotice(content.copy(sessionGeneration = controller.state.value.generation), action, controller.state.value.generation, busy = action != TrackingAction.REMOVE)
+        val notice = TrackingNotice(content.copy(sessionGeneration = controller.state.value.generation), action, controller.state.value.generation, busy = action != TrackingAction.REMOVE, origin = origin)
         mutable.value = notice
         if (action == TrackingAction.REMOVE) {
             excludedMutable.value = excludedMutable.value + content.parent
@@ -221,14 +222,14 @@ class TrackingActions(
         }
     }
 
-    fun returned(content: TrackingContent, generation: Long) {
+    fun returned(content: TrackingContent, generation: Long, origin: PlaybackOrigin = PlaybackOrigin.UP_NEXT) {
         if (generation != controller.state.value.generation || controller.state.value.account == null) return
-        pendingReturn = TrackingNotice(content, TrackingAction.SEEN, generation, returnPrompt = true)
+        pendingReturn = TrackingNotice(content, TrackingAction.SEEN, generation, returnPrompt = true, origin = origin)
         val current = mutable.value
         if (current?.busy != true && (current == null || current.action != TrackingAction.REMOVE && !current.locallySaved && current.failure == null)) finishNotice()
     }
 
-    fun confirmReturn() { val current = mutable.value ?: return; if (current.returnPrompt) { mutable.value = null; perform(current.content, TrackingAction.SEEN) } }
+    fun confirmReturn() { val current = mutable.value ?: return; if (current.returnPrompt) { mutable.value = null; perform(current.content, TrackingAction.SEEN, current.origin) } }
     fun dismiss() {
         val current = mutable.value ?: return
         if (current.returnPrompt || current.failure != null && !current.locallySaved) finishNotice()

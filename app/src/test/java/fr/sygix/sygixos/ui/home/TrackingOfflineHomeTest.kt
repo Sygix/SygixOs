@@ -47,13 +47,14 @@ class TrackingOfflineHomeTest {
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag(card).assertDoesNotExist()
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
-            press(Key.Back); press(Key.DirectionUp); press(Key.DirectionRight)
-            compose.onNodeWithTag("tracking-undo").assertIsFocused()
+            press(Key.Back); press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
             press(Key.Enter)
             fixture.runtime.controller.state.first { it.pendingCount == 0 }
             runCurrent(); compose.waitForIdle()
             compose.onNodeWithTag(card).assertExists()
-            compose.onNodeWithTag("settings-gear").assertIsFocused()
+            compose.onNodeWithTag("tracking-bubble").assertDoesNotExist()
+            compose.onNodeWithTag("hero-open").assertIsFocused()
             assertEquals(0, fixture.movieFixture.writes)
         } finally { fixture.close(); runCurrent() }
     }
@@ -74,7 +75,46 @@ class TrackingOfflineHomeTest {
             assertTrue(fixture.runtime.controller.state.value.contents.filter { it.episode != 1 }.none { it.seen })
             assertEquals(1, fixture.runtime.controller.state.value.pendingCount)
             compose.onNodeWithTag("tracking-status").assertDoesNotExist()
+            compose.onNodeWithText("Enregistré sur la TV · En attente de synchronisation").assertDoesNotExist()
             assertEquals(0, fixture.movieFixture.writes)
+        } finally { fixture.close(); runCurrent() }
+    }
+
+    @Test fun returnBubbleMarksFromUnderTheCardAndUndoStaysUnderTheReplacingCard() = runTest {
+        val parent = TrackingIdentity("betaseries", TrackingType.SHOW, "show")
+        val episodes = (1..3).map { number -> TrackingContent(TrackingIdentity("betaseries", TrackingType.EPISODE, "episode-$number"),
+            parent, "Example", season = 1, episode = number, airDate = "2020-01-01") }
+        val fixture = fixture(this, episodes)
+        try {
+            show(fixture)
+            val first = TrackingProjection.candidates(fixture.runtime.controller.state.value.contents).single()
+            val card = "upnext-card-${TrackingProjection.card(first).key}"
+            compose.onNodeWithTag(card).assertIsFocused()
+            fixture.runtime.actions.returned(first, fixture.runtime.controller.state.value.generation)
+            runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag(card).assertIsFocused()
+            val origin = compose.onNodeWithTag(card).getBoundsInRoot()
+            val prompt = compose.onNodeWithTag("tracking-bubble").getBoundsInRoot()
+            assertTrue(prompt.top >= origin.bottom)
+            press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.SEEN).assertIsFocused()
+            press(Key.Enter)
+            fixture.runtime.actions.notice.first { it?.locallySaved == true }
+            runCurrent(); compose.waitForIdle()
+            val next = TrackingProjection.candidates(fixture.runtime.controller.state.value.contents).single()
+            assertEquals(2, next.episode)
+            compose.onNodeWithTag("upnext-card-${TrackingProjection.card(next).key}").assertIsFocused()
+            press(Key.DirectionDown)
+            compose.onNodeWithTag(TrackingBubble.UNDO).assertIsFocused()
+            val undo = compose.onNodeWithTag("tracking-bubble").getBoundsInRoot()
+            assertEquals(prompt.left.value, undo.left.value, 0.5f)
+            assertEquals(prompt.top.value, undo.top.value, 0.5f)
+            press(Key.Enter)
+            fixture.runtime.controller.state.first { it.pendingCount == 0 }
+            runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-bubble").assertDoesNotExist()
+            compose.onNodeWithTag(card).assertIsFocused()
+            assertFalse(fixture.runtime.controller.state.value.contents.single { it.episode == 1 }.seen)
         } finally { fixture.close(); runCurrent() }
     }
 

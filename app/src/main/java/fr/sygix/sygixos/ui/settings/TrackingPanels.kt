@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import fr.sygix.sygixos.R
@@ -100,29 +99,6 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
                 } else Text(stringResource(if (device == DeviceAssociationState.Expired) R.string.tracking_device_expired else if (device is DeviceAssociationState.Error) R.string.tracking_error else R.string.tracking_loading), style = TextStyles.Row, color = SygixColors.OnDarkSecondary)
                 if (device is DeviceAssociationState.Error) Text(stringResource(trackingFailureLabel(device.failure)), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
             }
-        }
-    }
-}
-
-@Composable
-internal fun TrackingNotification(notice: TrackingNotice, viewModel: TrackingViewModel, focusEnabled: Boolean, focus: FocusRequester, modifier: Modifier = Modifier) {
-    val text = when {
-        notice.returnPrompt -> R.string.tracking_return
-        notice.busy -> R.string.tracking_loading
-        notice.failure != null && notice.undoing -> R.string.tracking_undo_error
-        notice.failure != null -> R.string.tracking_error
-        notice.action == TrackingAction.REMOVE -> R.string.tracking_remove_pending
-        notice.locallySaved && notice.confirmed -> R.string.tracking_synced
-        notice.locallySaved -> R.string.tracking_saved_pending
-        else -> R.string.tracking_success
-    }
-    GlassSurface(modifier.widthIn(min = Dimens.TrackingNotificationMinWidth, max = Dimens.TrackingNotificationMaxWidth).testTag("tracking-notification"), shape = androidx.compose.foundation.shape.RoundedCornerShape(Dimens.MenuCorner), look = GlassLook.Menu) {
-        Column(Modifier.padding(Dimens.MenuPadding)) {
-            Text(stringResource(text), style = TextStyles.Row, color = SygixColors.OnDark)
-            Text(notice.content.title, style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, maxLines = 1)
-            if (notice.blocked) Text(stringResource(R.string.tracking_action_blocked), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
-            TrackingRow(stringResource(if (notice.returnPrompt) R.string.tracking_seen else if (notice.failure.requiresReconnection) R.string.tracking_reconnect else if (notice.failure != null) R.string.tracking_retry else if (notice.busy) R.string.tracking_loading else R.string.tracking_undo),
-                if (notice.returnPrompt) "tracking-return-prompt" else "tracking-undo", focusEnabled, focus, viewModel::noticeFocused, viewModel::noticeAction)
         }
     }
 }

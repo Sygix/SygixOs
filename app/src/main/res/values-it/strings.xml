@@ -54,9 +54,9 @@
     <string name="tracking_episode_back">Torna agli episodi</string>
     <string name="tracking_return">Hai finito?</string>
     <string name="tracking_undo">Annulla</string>
+    <string name="tracking_bubble_seen">Visto</string>
+    <string name="tracking_bubble_later">Non ancora</string>
     <string name="tracking_undo_error">Impossibile annullare</string>
-    <string name="tracking_success">Monitoraggio aggiornato</string>
-    <string name="tracking_remove_pending">Rimozione in attesa</string>
     <string name="tracking_fallback_app">Apertura dell\'app in corso: scegli il contenuto direttamente lì.</string>
     <string name="upnext_title">Prossimi</string>
     <string name="applications_title">App</string>
@@ -173,6 +173,5 @@
     <string name="language_system">Lingua della TV</string>
     <string name="language_system_unsupported">Lingua della TV non supportata · %1$s</string>
     <string name="tracking_saved_pending">Salvato sulla TV · In attesa di sincronizzazione</string>
-    <string name="tracking_synced">Sincronizzato</string>
     <string name="tracking_error_reconnect">Non è stato possibile rinnovare la sessione. Accedi di nuovo per riprendere la sincronizzazione; i dati salvati vengono conservati.</string>
 </resources>

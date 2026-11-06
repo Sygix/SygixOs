@@ -54,9 +54,9 @@
     <string name="tracking_episode_back">Zurück zu den Folgen</string>
     <string name="tracking_return">Fertig geschaut?</string>
     <string name="tracking_undo">Rückgängig</string>
+    <string name="tracking_bubble_seen">Gesehen</string>
+    <string name="tracking_bubble_later">Noch nicht</string>
     <string name="tracking_undo_error">Rückgängigmachen fehlgeschlagen</string>
-    <string name="tracking_success">Tracking aktualisiert</string>
-    <string name="tracking_remove_pending">Wird entfernt</string>
     <string name="tracking_fallback_app">App wird geöffnet – wähle den Inhalt dort aus.</string>
     <string name="upnext_title">Als Nächstes</string>
     <string name="applications_title">Apps</string>
@@ -171,6 +171,5 @@
     <string name="language_system">Sprache des Fernsehers</string>
     <string name="language_system_unsupported">Sprache des Fernsehers nicht übersetzt · %1$s</string>
     <string name="tracking_saved_pending">Auf diesem TV gespeichert · Synchronisierung ausstehend</string>
-    <string name="tracking_synced">Synchronisiert</string>
     <string name="tracking_error_reconnect">Die Sitzung konnte nicht erneuert werden. Melde dich erneut an, um die Synchronisierung fortzusetzen. Deine gespeicherten Daten bleiben erhalten.</string>
 </resources>

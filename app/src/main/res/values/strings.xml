@@ -54,9 +54,9 @@
     <string name="tracking_episode_back">Back to episodes</string>
     <string name="tracking_return">Done watching?</string>
     <string name="tracking_undo">Undo</string>
+    <string name="tracking_bubble_seen">Watched</string>
+    <string name="tracking_bubble_later">Not yet</string>
     <string name="tracking_undo_error">Couldn\'t undo</string>
-    <string name="tracking_success">Tracking updated</string>
-    <string name="tracking_remove_pending">Removal pending</string>
     <string name="tracking_fallback_app">Opening the app. Select the title from there.</string>
     <string name="upnext_title">Up Next</string>
     <string name="applications_title">Apps</string>
@@ -171,6 +171,5 @@
     <string name="language_system">TV language</string>
     <string name="language_system_unsupported">TV language not translated · %1$s</string>
     <string name="tracking_saved_pending">Saved on this TV · Waiting to sync</string>
-    <string name="tracking_synced">Synced</string>
     <string name="tracking_error_reconnect">The session could not be renewed. Reconnect to resume syncing; your saved data is kept.</string>
 </resources>
