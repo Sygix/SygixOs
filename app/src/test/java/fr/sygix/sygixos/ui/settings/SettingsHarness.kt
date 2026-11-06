@@ -53,6 +53,8 @@ internal class SettingsHarness(
     val updates: UpdateController = FakeUpdateController(),
     private val track: (SettingsViewModel) -> SettingsViewModel = { it },
     dispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
+    val languages: FakeLanguageGateway = FakeLanguageGateway(),
+    io: CoroutineDispatcher = dispatcher,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
     private val context: Context = ApplicationProvider.getApplicationContext()
@@ -61,7 +63,6 @@ internal class SettingsHarness(
     var now = 1_000L
     val prefs = LauncherPrefs(testDataStore(scope)) { now }
     val repo = AppCatalogRepository(InstalledAppsSource(context), prefs, dispatcher)
-    val languages = FakeLanguageGateway()
     val toggled = mutableListOf<String>()
     val restored = mutableListOf<UpNextContentKey>()
     var unhideAllCalls = 0
@@ -79,6 +80,7 @@ internal class SettingsHarness(
                 selfPackage = context.packageName,
                 updates = updates,
                 languages = languages,
+                io = io,
             ) as T
         }
         track(ViewModelProvider(store, factory)[SettingsViewModel::class.java])

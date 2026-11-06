@@ -38,7 +38,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SourceRow(val app: TvApp, val enabled: Boolean)
 
@@ -127,6 +130,7 @@ class SettingsViewModel(
     private val selfPackage: String,
     private val updates: UpdateController,
     private val languages: AppLanguageGateway,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
     private val labelOf: (String) -> String? = { pkg ->
         runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrNull()
     },
@@ -174,7 +178,7 @@ class SettingsViewModel(
         }
     }
 
-    private val language = MutableStateFlow(languages.current())
+    private val language = MutableStateFlow(LanguageState())
 
     private val updateMapper = AboutUpdateMapper()
 
@@ -209,6 +213,7 @@ class SettingsViewModel(
         .stateIn(viewModelScope, SharingStarted.Eagerly, SettingsState())
 
     init {
+        refreshLanguage()
         viewModelScope.launch {
             val loaded = library.filterNotNull().first()
             hiddenOrder.update { it ?: hiddenSnapshot(loaded) }
@@ -216,7 +221,6 @@ class SettingsViewModel(
     }
 
     fun enterCategory(category: SettingsCategory) {
-        language.value = languages.current()
         when (category) {
             SettingsCategory.SOURCES -> sourceCounts.value = counts.value
             SettingsCategory.HIDDEN -> {
@@ -226,8 +230,13 @@ class SettingsViewModel(
                 hiddenFocusedIndex = 0
                 hiddenVisit.update { it + 1 }
             }
-            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING, SettingsCategory.LANGUAGE -> Unit
+            SettingsCategory.LANGUAGE -> refreshLanguage()
+            SettingsCategory.ABOUT, SettingsCategory.HOME_SCREEN, SettingsCategory.TRACKING -> Unit
         }
+    }
+
+    private fun refreshLanguage() {
+        viewModelScope.launch { language.value = withContext(io) { languages.current() } }
     }
 
     fun refreshHiddenRows() {
@@ -279,7 +288,7 @@ class SettingsViewModel(
     fun selectLanguage(selected: AppLanguage?) {
         if (selected == language.value.selected) return
         language.update { it.copy(selected = selected) }
-        languages.select(selected)
+        viewModelScope.launch { language.value = withContext(io) { languages.select(selected); languages.current() } }
     }
 
     fun restoreUpNext(key: UpNextContentKey) {

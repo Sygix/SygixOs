@@ -242,4 +242,27 @@ class SettingsViewModelTest {
         assertEquals(2, starts)
         back.cancel()
     }
+
+    @Test
+    fun `browsing categories reads the TV language only for its pane and never on the main thread`() = runTest(mainDispatcher.dispatcher) {
+        val io = RecordingDispatcher()
+        val h = SettingsHarness(languages = FakeLanguageGateway(inBackground = io::running), io = io, track = mainDispatcher::track).also { harnesses += it }
+        val vm = h.viewModel
+        SettingsCategory.entries.filter { it != SettingsCategory.LANGUAGE }.forEach(vm::enterCategory)
+        assertEquals(listOf(true), h.languages.reads)
+        vm.enterCategory(SettingsCategory.LANGUAGE)
+        assertEquals(listOf(true, true), h.languages.reads)
+        vm.selectLanguage(fr.sygix.sygixos.domain.AppLanguage.GERMAN)
+        assertEquals(listOf(true), h.languages.writes)
+        assertEquals(fr.sygix.sygixos.domain.AppLanguage.GERMAN, vm.state.await { it.language.selected != null }.language.selected)
+    }
+
+    private class RecordingDispatcher : kotlinx.coroutines.CoroutineDispatcher() {
+        private var depth = 0
+        fun running(): Boolean = depth > 0
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) {
+            depth++
+            try { block.run() } finally { depth-- }
+        }
+    }
 }
