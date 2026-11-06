@@ -10,6 +10,8 @@ import com.google.zxing.EncodeHintType
 import com.google.zxing.qrcode.QRCodeWriter
 import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 
+data class QrGrid(val module: Int, val origin: Int)
+
 class QrCode private constructor(val size: Int, private val dark: BooleanArray) {
 
     operator fun get(x: Int, y: Int): Boolean = dark[y * size + x]
@@ -17,6 +19,11 @@ class QrCode private constructor(val size: Int, private val dark: BooleanArray) 
     override fun equals(other: Any?): Boolean = other is QrCode && other.size == size && other.dark.contentEquals(dark)
 
     override fun hashCode(): Int = 31 * size + dark.contentHashCode()
+
+    fun grid(sizePx: Int): QrGrid {
+        val module = (sizePx / size).coerceAtLeast(1)
+        return QrGrid(module, ((sizePx - module * size) / 2).coerceAtLeast(0))
+    }
 
     companion object {
         const val QUIET_ZONE = 4

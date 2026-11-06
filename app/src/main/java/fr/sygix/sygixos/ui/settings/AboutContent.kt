@@ -5,7 +5,6 @@
 
 package fr.sygix.sygixos.ui.settings
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,8 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
@@ -42,9 +39,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.FocusTargets
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.unit.Dp
 import com.mikepenz.aboutlibraries.entity.Library
 import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.util.withJson
@@ -233,20 +227,7 @@ private fun ReleaseNotesQr(qr: QrCode) {
         Modifier.testTag("update-release-notes-qr"),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Canvas(
-            Modifier
-                .size(Dimens.QrSize)
-                .clip(RoundedCornerShape(qrCorner(qr)))
-                .testTag("update-release-notes-qr-code"),
-        ) {
-            drawRect(SygixColors.QrLight)
-            val module = size.width / qr.size
-            for (y in 0 until qr.size) {
-                for (x in 0 until qr.size) {
-                    if (qr[x, y]) drawRect(SygixColors.QrDark, Offset(x * module, y * module), Size(module, module))
-                }
-            }
-        }
+        QrCodeImage(qr, Modifier.testTag("update-release-notes-qr-code"))
         Spacer(Modifier.height(6.dp))
         Text(stringResource(R.string.update_release_notes), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
     }
@@ -291,5 +272,3 @@ private fun LicenseRow(
         )
     }
 }
-
-internal fun qrCorner(qr: QrCode): Dp = Dimens.QrSize * QrCode.QUIET_ZONE / qr.size

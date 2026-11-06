@@ -5,7 +5,6 @@
 
 package fr.sygix.sygixos.ui.settings
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -16,9 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -30,7 +26,6 @@ import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.*
-import fr.sygix.sygixos.domain.QrCode
 import fr.sygix.sygixos.tracking.*
 
 internal fun trackingFailureLabel(failure: TrackingFailure): Int = when (failure) {
@@ -207,14 +202,5 @@ internal fun TrackingModal(title: String, tag: String, actions: List<TrackingMod
                 if (requesters[focusedKey]?.tryRequestFocus() == true) focusModel.panelRestored(focusedKey)
             }
         }
-    }
-}
-
-@Composable
-internal fun TrackingQr(code: QrCode) {
-    Canvas(Modifier.size(Dimens.QrSize).testTag("tracking-device-qr")) {
-        drawRect(Color.White)
-        val cell = size.minDimension / code.size
-        for (y in 0 until code.size) for (x in 0 until code.size) if (code[x, y]) drawRect(Color.Black, Offset(x * cell, y * cell), Size(cell, cell))
     }
 }

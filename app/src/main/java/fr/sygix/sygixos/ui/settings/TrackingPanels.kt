@@ -91,7 +91,7 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
                 if (device is DeviceAssociationState.Waiting) {
                     Text(stringResource(R.string.tracking_device_description), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
                     Column(verticalArrangement = Arrangement.spacedBy(Dimens.OnboardingSpacing)) {
-                        state.qr?.let { TrackingQr(it) }
+                        state.qr?.let { QrCodeImage(it, Modifier.testTag("tracking-device-qr")) }
                         Column {
                             Text(device.association.userCode, style = TextStyles.HeroTitle, color = SygixColors.OnDark, modifier = Modifier.testTag("tracking-device-code"))
                             Text(device.association.verificationUrl, style = TextStyles.Row, color = SygixColors.OnDark)
