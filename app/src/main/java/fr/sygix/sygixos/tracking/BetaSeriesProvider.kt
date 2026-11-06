@@ -284,7 +284,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         identity = TrackingIdentity("betaseries", TrackingType.MOVIE, value.requiredId()),
         title = value.text("title") ?: throw TrackingException(TrackingFailure.PROTOCOL),
         year = value.optInt("production_year").takeIf { it > 0 }, image = value.text("backdrop"), poster = value.text("poster"),
-        durationMillis = value.optLong("length").takeIf { it > 0 }?.times(60_000), externalIds = externalIds(value),
+        durationMillis = value.optLong("length").takeIf { it > 0 }?.times(1_000), externalIds = externalIds(value),
         movieState = value.optJSONObject("user")?.optInt("status") ?: 0,
         seen = value.optJSONObject("user")?.optInt("status") == 1,
         offers = BetaSeriesOffers.movie(value), aliases = aliases(value),

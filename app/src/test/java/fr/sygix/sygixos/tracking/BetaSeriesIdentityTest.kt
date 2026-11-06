@@ -88,4 +88,8 @@ class BetaSeriesIdentityTest {
     @Test fun snapshotSkipsSpecialsAndPlaceholderEpisodes() = runTest {
         assertEquals(listOf("32"), snapshot().filter { it.identity.type == TrackingType.EPISODE }.map { it.identity.id })
     }
+
+    @Test fun snapshotReadsTheMovieLengthInSeconds() = runTest {
+        assertEquals(8_220_000L, snapshot().single { it.identity.type == TrackingType.MOVIE }.durationMillis)
+    }
 }
