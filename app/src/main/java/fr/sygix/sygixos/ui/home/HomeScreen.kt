@@ -85,7 +85,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.emptyFlow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -95,6 +95,8 @@ import dev.chrisbanes.haze.rememberHazeState
 import dev.chrisbanes.haze.hazeSource
 import fr.sygix.sygixos.core.designsystem.AppleEasing
 import fr.sygix.sygixos.core.designsystem.rememberFocusProgress
+import fr.sygix.sygixos.core.designsystem.LocalFastNavigation
+import fr.sygix.sygixos.core.designsystem.ScrollFollower
 import fr.sygix.sygixos.core.designsystem.Badge
 import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
@@ -467,6 +469,8 @@ internal fun LauncherHome(
     SideEffect { if (heroVisible) hiddenHeroVisuals = hero.validated }
     val heroVisuals = if (heroVisible) hero.validated else hiddenHeroVisuals
     val pageScroll = rememberScrollState()
+    val pageFollower = remember(pageScroll) { ScrollFollower(pageScroll) }
+    val navigation = LocalFastNavigation.current
     var gridAnchor by remember { mutableStateOf<GridScroll.Anchor?>(null) }
     val density = LocalDensity.current
 
@@ -529,15 +533,15 @@ internal fun LauncherHome(
             snapshotFlow {
                 val gridActive = zone == Zone.GRID
                 gridActive to HomePage.target(gridActive, gridAnchor, viewport)
-            }.collectLatest { (gridActive, target) ->
+            }.collect { (gridActive, target) ->
                 val transition = HomePage.transition(previous, gridActive)
                 previous = gridActive
-                val position = target.roundToInt()
-                when (transition) {
-                    HomePage.Transition.SNAP -> pageScroll.scrollTo(position)
-                    HomePage.Transition.ZONE -> pageScroll.animateScrollTo(position, tween(Motion.PAGE_SCROLL_MS, easing = AppleEasing))
-                    HomePage.Transition.SAME_ZONE -> pageScroll.animateScrollTo(position, tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing))
+                val spec = when {
+                    transition == HomePage.Transition.SNAP || navigation.active -> null
+                    transition == HomePage.Transition.ZONE -> tween<Float>(Motion.PAGE_SCROLL_MS, easing = AppleEasing)
+                    else -> tween(Motion.SHELF_EXPAND_MS, easing = AppleEasing)
                 }
+                launch { pageFollower.follow(spec) { (target.roundToInt() - pageScroll.value).toFloat() } }
             }
         }
         CompositionLocalProvider(LocalBringIntoViewSpec provides NoAutoScroll) {

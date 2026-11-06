@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
@@ -56,6 +55,8 @@ import fr.sygix.sygixos.domain.UpNextCardText
 import fr.sygix.sygixos.domain.UpNextContent
 import fr.sygix.sygixos.domain.UpNextScroll
 import fr.sygix.sygixos.model.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -91,18 +92,24 @@ internal fun UpNextRow(
     val identityCounts = cards.groupingBy { it.cardIdentity }.eachCount()
     val enabled by rememberUpdatedState(focusEnabled)
     val targetIndex = cards.indexOfFirst { it.key == entry }
-    suspend fun show(index: Int) {
+    val follower = remember(state) { ScrollFollower(state) }
+    val navigation = LocalFastNavigation.current
+    var stepJob by remember { mutableStateOf<Job?>(null) }
+    fun revealDistance(index: Int): Float {
         val layout = state.layoutInfo
-        val anchor = layout.visibleItemsInfo.firstOrNull { it.index == index } ?: layout.visibleItemsInfo.firstOrNull()
-        if (anchor == null) {
-            state.scrollToItem(index)
-            return
-        }
+        val anchor = layout.visibleItemsInfo.firstOrNull { it.index == index } ?: layout.visibleItemsInfo.first()
         val offset = UpNextScroll.offsetOf(index, anchor.index, anchor.offset, anchor.size, layout.mainAxisItemSpacing)
         val overflow = UpNextScroll.focusOverflow(anchor.size, Dimens.TileFocusScale)
         val inset = UpNextScroll.endInset(index, cards.size, overflow, layout.afterContentPadding)
-        val delta = UpNextScroll.revealDelta(offset, anchor.size, layout.viewportEndOffset, inset)
-        if (delta != 0) state.animateScrollBy(delta.toFloat(), tween(Motion.FOCUS_MS, easing = AppleEasing))
+        return UpNextScroll.revealDelta(offset, anchor.size, layout.viewportEndOffset, inset).toFloat()
+    }
+    suspend fun show(index: Int) {
+        if (state.layoutInfo.visibleItemsInfo.isEmpty()) {
+            state.scrollToItem(index)
+            return
+        }
+        if (revealDistance(index) == 0f) return
+        follower.follow(if (navigation.active) null else tween(Motion.FOCUS_MS, easing = AppleEasing)) { revealDistance(index) }
     }
     LaunchedEffect(cards.map { it.key }, focusEnabled, content == UpNextContent.Error, returnId) {
         if (!focusEnabled) return@LaunchedEffect
@@ -127,19 +134,15 @@ internal fun UpNextRow(
                     modifier = Modifier.width(width)
                         .onPreviewKeyEvent { event ->
                             val step = when (event.key) { Key.DirectionLeft -> -1; Key.DirectionRight -> 1; else -> return@onPreviewKeyEvent false }
-                            if (event.type == KeyEventType.KeyDown) scope.launch {
-                                val next = UpNextScroll.neighbor(index, step, cards.size)
-                                val key = cards[next].key
-                                if (focus.focus(key)) return@launch
-                                val reveal = launch { show(next) }
-                                while (!focus.focus(key)) {
-                                    withFrameNanos { }
-                                    if (!reveal.isActive) {
-                                        withFrameNanos { }
-                                        focus.focus(key)
-                                        break
-                                    }
-                                }
+                            if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent true
+                            val next = UpNextScroll.neighbor(index, step, cards.size)
+                            val key = cards[next].key
+                            stepJob?.cancel()
+                            if (focus.focus(key)) return@onPreviewKeyEvent true
+                            scope.launch { show(next) }
+                            stepJob = scope.launch {
+                                snapshotFlow { state.layoutInfo.visibleItemsInfo.any { it.index == next } }.first { it }
+                                focus.focus(key)
                             }
                             true
                         },
