@@ -45,14 +45,14 @@ internal fun artworkBytes(width: Int = 800, height: Int = 450, color: Int = andr
 
 internal class ArtworkFixture(directory: java.io.File, val read: ImageBytesReader, val now: AtomicLong = AtomicLong(1_000), localReader: ImageBytesReader? = null,
     timeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS, onRendered: (coil.request.SuccessResult) -> Unit = {}, dispatcher: kotlinx.coroutines.CoroutineDispatcher? = null,
-    executors: ArtworkExecutors? = null, onQuery: ((String) -> Unit)? = null) : Closeable {
+    executors: ArtworkExecutors? = null, onQuery: ((String) -> Unit)? = null, capacity: Int = 64) : Closeable {
     val context: Context = ApplicationProvider.getApplicationContext()
     val disk = DiskCache.Builder().directory(directory).build()
     val db = Room.inMemoryDatabaseBuilder(context, ArtworkDatabase::class.java).apply {
         dispatcher?.let { setQueryCoroutineContext(it); allowMainThreadQueries() }
         onQuery?.let { setQueryCallback({ sql, _ -> it(sql) }, Runnable::run) }
     }.build()
-    val repository = if (dispatcher == null) ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(executors = executors ?: ArtworkExecutors.threads(3)), clock = now::get, requestTimeoutMillis = timeoutMillis,
+    val repository = if (dispatcher == null) ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(capacity = capacity, executors = executors ?: ArtworkExecutors.threads(3)), clock = now::get, requestTimeoutMillis = timeoutMillis,
         localReader = localReader ?: LocalProgramImageReader(context.contentResolver))
     else ArtworkRepository(context, db, disk, read, scheduler = ArtworkScheduler(executors = virtualExecutors(dispatcher)), clock = now::get,
         io = dispatcher, decode = kotlinx.coroutines.Dispatchers.Unconfined, scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + dispatcher),
@@ -152,6 +152,30 @@ class ArtworkRepositoryTest {
                 assertEquals(3, fixture.db.artwork().images().count { it.state == "generic" })
                 sources.forEach { assertNull(fixture.repository.resolve(it, ArtworkPolicy.Hero).first) }
             }
+        }
+    }
+
+    @Test fun aFullArtworkQueueIsNeitherAFailureNorRecorded() = runBlocking {
+        val reads = AtomicInteger()
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); pixels }, capacity = 0).use { busy ->
+            assertEquals(null to ArtworkFailure.BUSY, busy.repository.resolve(source, ArtworkPolicy.Hero))
+            assertEquals(VisualCheck(null, retryable = false, busy = true),
+                VisualValidator(busy.context).also { it.repository = busy.repository }.validate(source, ArtworkPolicy.Hero, visible = true))
+            assertNull(busy.db.artwork().image(source.packageName, source.candidates.single()))
+            assertEquals(0, reads.get())
+        }
+    }
+
+    @Test fun submittedConfirmationsRunInTheBackgroundKeepingTheLatestOfEachTable() = runBlocking {
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> pixels }).use { f ->
+            val latest = source.copy(identity = "film-2", publicationId = "preview-2")
+            val changed = async(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                f.repository.events.first { it is ArtworkEvent.ProgramsChanged && fingerprint(latest) in it.identities }
+            }
+            f.repository.submit("preview", listOf(source to "first"))
+            f.repository.submit("preview", listOf(latest to "latest"))
+            withTimeout(30_000) { changed.await() }
+            assertEquals(listOf(fingerprint(latest)), f.db.artwork().programs("preview").map { it.imageFingerprint })
         }
     }
 

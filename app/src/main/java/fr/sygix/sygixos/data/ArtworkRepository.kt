@@ -67,6 +67,8 @@ internal class ArtworkRepository(
     val events = mutableEvents.asSharedFlow()
     private var timer: Job? = null
     private val scheduleRequests = Channel<Unit>(Channel.CONFLATED)
+    private val submitted = LinkedHashMap<String, List<Pair<ProgramArtwork, String>>>()
+    private val confirmations = Channel<Unit>(Channel.CONFLATED)
     var imageLoader: (() -> coil.ImageLoader)? = null
     private val initialized = scope.async {
         val name = database.openHelper.databaseName
@@ -87,6 +89,16 @@ internal class ArtworkRepository(
     }
 
     init {
+        scope.launch {
+            for (signal in confirmations) {
+                while (true) {
+                    val (table, programs) = synchronized(this@ArtworkRepository) { submitted.entries.firstOrNull()?.also { submitted.remove(it.key) }?.toPair() } ?: break
+                    try { confirm(table, programs) } catch (cancelled: CancellationException) { throw cancelled } catch (error: Exception) {
+                        android.util.Log.w("ProgramArtwork", "cause=confirm-failed", error)
+                    }
+                }
+            }
+        }
         scope.launch {
             initialized.await()
             for (request in scheduleRequests) {
@@ -134,7 +146,7 @@ internal class ArtworkRepository(
                 continue
             }
             if (known != null && known.retryAt > clock() && !rejectedWithoutIdentityEvidence(known)) { failure = known.failure(); continue }
-            val image = fetch(source, uri, visible)
+            val image = try { fetch(source, uri, visible) } catch (_: ArtworkBusyException) { return@withContext null to ArtworkFailure.BUSY }
             if (image != null && compatible(image, source) && policy.accepts(ArtworkDimensions(image.width, image.height))) return@withContext image to null
             failure = if (image != null) ArtworkFailure.QUALITY else dao.image(source.packageName, uri)?.failure() ?: ArtworkFailure.TRANSPORT
         }
@@ -144,7 +156,11 @@ internal class ArtworkRepository(
     private suspend fun local(source: ProgramArtwork, uri: String, policy: ArtworkPolicy): Pair<ArtworkImage?, ArtworkFailure?> {
         val cancellation = ImageCancellation()
         val result = scheduler.run(source.packageName, requestTimeoutMillis, cancellation::cancel) { localReader.read(Uri.parse(uri), cancellation) }
-        val bytes = result.getOrElse { return null to if (it is java.util.concurrent.TimeoutException) ArtworkFailure.TIMEOUT else ArtworkFailure.TRANSPORT }
+        val bytes = result.getOrElse { return null to when (it) {
+            is ArtworkBusyException -> ArtworkFailure.BUSY
+            is java.util.concurrent.TimeoutException -> ArtworkFailure.TIMEOUT
+            else -> ArtworkFailure.TRANSPORT
+        } }
         val dimensions = try { withContext(decode) { verifiedDimensions(bytes) } }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) { return null to ArtworkFailure.QUALITY }
@@ -200,6 +216,7 @@ internal class ArtworkRepository(
                 coil.decode.DecodeResult(android.graphics.drawable.ShapeDrawable().apply { intrinsicWidth = image.width; intrinsicHeight = image.height }, false)
             } }).build()
         val result = loader.execute(request)
+        if ((result as? coil.request.ErrorResult)?.throwable is ArtworkBusyException) throw ArtworkBusyException()
         return if (result is coil.request.SuccessResult) dao.image(source.packageName, uri)?.takeIf { it.state == "valid" } else null
     }
 
@@ -207,9 +224,13 @@ internal class ArtworkRepository(
         val cancellation = ImageCancellation()
         val result = scheduler.run(source.packageName, requestTimeoutMillis, cancellation::cancel, visible, uri) { reader.read(Uri.parse(uri), cancellation) }
         val bytes = result.getOrElse { error ->
+            if (error is ArtworkBusyException) {
+                imageFailure(source.packageName, Uri.parse(uri), ArtworkFailure.BUSY.name)
+                throw error
+            }
             val cause = when (error) {
                 is SecurityException -> ArtworkFailure.DENIED
-                is java.util.concurrent.TimeoutException, is ArtworkBusyException -> ArtworkFailure.TIMEOUT
+                is java.util.concurrent.TimeoutException -> ArtworkFailure.TIMEOUT
                 is android.os.RemoteException -> ArtworkFailure.PROVIDER
                 is java.io.FileNotFoundException -> ArtworkFailure.ABSENT
                 else -> ArtworkFailure.TRANSPORT
@@ -280,7 +301,7 @@ internal class ArtworkRepository(
 
     @Synchronized private fun refreshInBackground(source: ProgramArtwork, uri: String) {
         if (!foreground || refreshes[source.identity]?.isActive == true) return
-        refreshes[source.identity] = scope.launch { fetch(source, uri, true) }
+        refreshes[source.identity] = scope.launch { try { fetch(source, uri, true) } catch (_: ArtworkBusyException) { schedule() } }
     }
 
     private fun schedule() {
@@ -317,6 +338,11 @@ internal class ArtworkRepository(
 
     fun onForeground() { foreground = true; scope.launch { initialized.await(); checkExpiry() } }
     @Synchronized fun onBackground() { foreground = false; refreshes.values.forEach { it.cancel() }; refreshes.clear() }
+
+    fun submit(table: String, programs: List<Pair<ProgramArtwork, String>>) {
+        synchronized(this) { submitted[table] = programs }
+        confirmations.trySend(Unit)
+    }
 
     suspend fun confirm(table: String, programs: List<Pair<ProgramArtwork, String>>) = withContext(io) {
         initialized.await()

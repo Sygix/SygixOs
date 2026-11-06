@@ -31,7 +31,7 @@ import okio.Buffer
 import okio.ForwardingSource
 import okio.buffer
 
-data class VisualCheck(val visual: String?, val retryable: Boolean = false) {
+data class VisualCheck(val visual: String?, val retryable: Boolean = false, val busy: Boolean = false) {
     val usable get() = visual != null
 }
 
@@ -40,16 +40,21 @@ private val YouTubeThumbnail = Regex("""^https?://(?:i\d?\.ytimg\.com|img\.youtu
 fun visualCandidates(uri: String): List<String> =
     listOfNotNull(YouTubeThumbnail.find(uri)?.let { "https://i.ytimg.com/vi/${it.groupValues[1]}/maxresdefault.jpg" }, uri).distinct()
 
+fun interface VisualChecker {
+    suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean): VisualCheck
+}
+
 class VisualValidator(
     private val context: Context,
     private val imageLoader: ImageLoader = context.imageLoader,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
+) : VisualChecker {
     internal var repository: ArtworkRepository? = null
-    suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy): VisualCheck {
+    override suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean): VisualCheck {
         repository?.let {
-            val (image, failure) = it.resolve(source, policy, visible = false)
-            return VisualCheck(image?.uri, image == null && failure != ArtworkFailure.QUALITY && source.candidates.isNotEmpty())
+            val (image, failure) = it.resolve(source, policy, visible)
+            val busy = image == null && failure == ArtworkFailure.BUSY
+            return VisualCheck(image?.uri, image == null && !busy && failure != ArtworkFailure.QUALITY && source.candidates.isNotEmpty(), busy)
         }
         return validateWithinBudget(source, policy)
     }
@@ -63,10 +68,14 @@ class VisualValidator(
             val result = imageLoader.execute(request)
             val drawable = (result as? SuccessResult)?.drawable
             if (drawable != null && policy.accepts(ArtworkDimensions(drawable.intrinsicWidth, drawable.intrinsicHeight))) return@withContext VisualCheck(candidate)
-            retryable = retryable || (result as? ErrorResult)?.throwable?.isTransient() == true
+            val error = (result as? ErrorResult)?.throwable
+            if (error.isBusy()) return@withContext VisualCheck(null, busy = true)
+            retryable = retryable || error?.isTransient() == true
         }
         VisualCheck(null, retryable)
     }
+
+    private fun Throwable?.isBusy() = this is ArtworkBusyException || this is ArtworkLoadException && reason == ArtworkFailure.BUSY
 
     suspend fun validate(uri: String): VisualCheck = withContext(dispatcher) {
         var retryable = false

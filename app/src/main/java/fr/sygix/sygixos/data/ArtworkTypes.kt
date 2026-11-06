@@ -7,7 +7,7 @@ package fr.sygix.sygixos.data
 
 import java.security.MessageDigest
 
-internal enum class ArtworkFailure { ABSENT, QUALITY, DENIED, TIMEOUT, PROVIDER, TRANSPORT }
+internal enum class ArtworkFailure { ABSENT, QUALITY, DENIED, TIMEOUT, PROVIDER, TRANSPORT, BUSY }
 internal const val IMAGE_REQUEST_TIMEOUT_MS = 8_000L
 internal val ArtworkDecodeDispatcher = kotlinx.coroutines.Dispatchers.IO.limitedParallelism(2)
 internal fun artworkHash(value: String): String = artworkHash(value.toByteArray())

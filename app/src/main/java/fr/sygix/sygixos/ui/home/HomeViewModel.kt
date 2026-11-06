@@ -433,7 +433,7 @@ class HomeViewModel(
                 group.forEach { item ->
                     if (projectedPublications.none { it.artwork.identity == item.artwork.identity }) return@forEach
                     val policy = if (shelf) ArtworkPolicy.Shelf(shelfWidth) else ArtworkPolicy.Hero
-                    val check = validator.validate(item.artwork, policy)
+                    val check = validator.validate(item.artwork, policy, false)
                     val current = projectedPublications.firstOrNull { it.artwork.identity == item.artwork.identity } ?: return@forEach
                     checks[current.id] = current.artwork
                     retries.update { if (check.retryable) it + current.id else it - current.id }
