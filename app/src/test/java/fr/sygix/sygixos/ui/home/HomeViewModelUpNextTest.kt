@@ -81,12 +81,11 @@ class HomeViewModelUpNextTest {
     }
 
     @Before
-    fun setup() = runBlocking {
+    fun setup() = runBlocking<Unit> {
         repo = AppCatalogRepository(InstalledAppsSource(context), LauncherPrefs(inlineDataStore()), Dispatchers.Unconfined)
         vm = viewModel(source, "home")
         repo.refreshApps()
         vm.state.await { it is HomeState.Ready }
-        Unit
     }
 
     @After
@@ -172,7 +171,6 @@ class HomeViewModelUpNextTest {
         assertEquals(listOf(changed), (awaitItems(listOf(changed)).upNext!!.content as UpNextContent.Items).items)
         watching.cancel()
         assertEquals(1, source.notifications.subscriptionCount.value)
-        Unit
     }
 
     @Test
@@ -189,7 +187,6 @@ class HomeViewModelUpNextTest {
         vm.state.await { it is HomeState.Ready && it.upNext == null }
         repo.toggleSource(item.source.packageName)
         awaitItems(listOf(item))
-        Unit
     }
 
     @Test
@@ -201,7 +198,6 @@ class HomeViewModelUpNextTest {
         source.result = Result.success(listOf(item))
         vm.refreshUpNext()
         awaitItems(listOf(item))
-        Unit
     }
 
     @Test
@@ -214,6 +210,5 @@ class HomeViewModelUpNextTest {
         val watching = launch { home.upNextUpdates.collect() }
         awaitItems(listOf(item), home)
         watching.cancel()
-        Unit
     }
 }

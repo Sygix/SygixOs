@@ -140,6 +140,5 @@ class HomeViewModelSourceToggleTest {
         vm.state.await { (it as? HomeState.Ready)?.hero?.items?.size == 26 }
 
         vm.state.await { "https://x/a.jpg" in ((it as? HomeState.Ready)?.hero?.checked ?: emptySet()) }
-        Unit
     }
 }

@@ -430,7 +430,7 @@ class UpNextCardsTest {
             menu = rememberIconBitmap(icon, Dimens.MenuEntryIcon)
         }
         compose.waitForIdle()
-        assertEquals(36 to 36, card!!.width to card!!.height)
-        assertEquals(44 to 44, menu!!.width to menu!!.height)
+        assertEquals(36 to 36, card!!.let { it.width to it.height })
+        assertEquals(44 to 44, menu!!.let { it.width to it.height })
     }
 }

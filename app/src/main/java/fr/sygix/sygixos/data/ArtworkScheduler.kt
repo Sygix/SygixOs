@@ -38,7 +38,11 @@ internal class ArtworkExecutors(
             return ArtworkExecutors(
                 workers = workers,
                 cancellations = cancellations,
-                schedule = { delay, action -> deadlines.schedule(action, delay, TimeUnit.MILLISECONDS).let { future -> { future.cancel(false); Unit } } },
+                schedule = { delay, action ->
+                    val future = deadlines.schedule(action, delay, TimeUnit.MILLISECONDS)
+                    val cancel: () -> Unit = { future.cancel(false) }
+                    cancel
+                },
                 shutdown = { deadlines.shutdownNow(); workers.shutdownNow(); cancellations.shutdownNow() },
             )
         }

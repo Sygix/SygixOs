@@ -260,9 +260,9 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
 
     private fun membership(value: JSONObject): AccountMembership {
         val user = value.optJSONObject("user") ?: return AccountMembership.UNKNOWN
-        return when (val present = user.opt("in_account")) {
-            true, 1, "1", "true" -> AccountMembership.PRESENT
-            false, 0, "0", "false" -> AccountMembership.ABSENT
+        return when (user.opt("in_account")?.toString()) {
+            "1", "true" -> AccountMembership.PRESENT
+            "0", "false" -> AccountMembership.ABSENT
             else -> if (value.has("auth_user") && value.optBoolean("auth_user") && user.optInt("status", -1) in 0..2) AccountMembership.PRESENT else AccountMembership.UNKNOWN
         }
     }
@@ -298,14 +298,17 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
     }.toMap()
 
     private fun regular(episode: JSONObject): Boolean = RegularEpisode.eligible(episode.optInt("season", -1), episode.text("title"),
-        when (val special = episode.opt("special")) { is Boolean -> special; is Number -> special.toInt() == 1; else -> special?.toString() == "1" })
+        episode.opt("special")?.toString() in SPECIAL_FLAGS)
 
     private fun aliases(value: JSONObject): Set<String> {
         fun name(entry: Any?): String? = ((entry as? JSONObject)?.text("title") ?: entry as? String)?.takeUnless { it.isBlank() || it == "null" }
-        val names = when (val aliases = value.opt("aliases")) {
-            is org.json.JSONArray -> (0 until aliases.length()).map { aliases.opt(it) }
-            is JSONObject -> aliases.keys().asSequence().map { aliases.opt(it) }.toList()
-            else -> emptyList()
+        val aliases = value.opt("aliases")
+        val names = if (aliases is org.json.JSONArray) {
+            (0 until aliases.length()).map { aliases.opt(it) }
+        } else if (aliases is JSONObject) {
+            aliases.keys().asSequence().map { aliases.opt(it) }.toList()
+        } else {
+            emptyList()
         }
         return (listOfNotNull(value.text("original_title")) + names.mapNotNull(::name)).take(MAX_ALIASES).toSet()
     }
@@ -316,5 +319,8 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         else -> value?.toString()?.toBooleanStrictOrNull()
     }
 
-    private companion object { const val MAX_ALIASES = 32 }
+    private companion object {
+        const val MAX_ALIASES = 32
+        val SPECIAL_FLAGS = setOf("1", "true")
+    }
 }

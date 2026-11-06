@@ -117,7 +117,7 @@ class TrackingHttpsTransportTest {
             val serving = kotlin.concurrent.thread {
                 server.accept().use { socket ->
                     val reader = socket.getInputStream().bufferedReader()
-                    while (!reader.readLine().isNullOrEmpty()) Unit
+                    while (!reader.readLine().isNullOrEmpty()) continue
                     socket.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".toByteArray())
                 }
             }

@@ -186,7 +186,7 @@ class TrackingOfflineControllerTest {
         val identified = TrackingContent(show, title = "Example", membership = AccountMembership.ABSENT, sessionGeneration = restored.generation)
         controller.patch(identified)
         withContext(Dispatchers.IO) { withTimeout(5000) { controller.state.first { state -> state.contents.any { it.identity == show } } } }
-        while (scheduled.tryReceive().isSuccess) Unit
+        while (scheduled.tryReceive().isSuccess) continue
         controller.patch(identified.copy(membership = AccountMembership.PRESENT))
         assertEquals(account.incarnation, withContext(Dispatchers.IO) { withTimeout(5000) { scheduled.receive() } })
         db.close()

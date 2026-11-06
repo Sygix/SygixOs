@@ -23,13 +23,13 @@ class TrackingAccountLifecycleTest {
         val repository = TrackingRepository(database)
         val account = repository.bind("fixture-session", TrackingAccount("A", "Example"))
         repository.record(account.incarnation, TrackingContent(TrackingIdentity("betaseries", TrackingType.MOVIE, "1"), title = "Example"), TrackingAction.SEEN)
-        var token: String? = "fixture-session"
+        var stored: String? = "fixture-session"
         var failClear = true
         val session = object : TrackingSessionStore {
-            override suspend fun read() = token
-            override suspend fun write(value: String?) {
+            override suspend fun read() = stored
+            override suspend fun write(token: String?) {
                 if (failClear) throw TrackingException(TrackingFailure.STORAGE)
-                token = value
+                stored = token
             }
         }
         var cancellations = 0
