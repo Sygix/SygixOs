@@ -72,6 +72,12 @@ class TrackingProjectionTest {
         assertNull(merged.positionMillis)
     }
 
+    @Test fun specialsAndPlaceholderEpisodesAreNeverTheNextEpisode() {
+        val special = next.copy(identity = next.identity.copy(id = "1"), season = 0, episode = 1)
+        val placeholder = next.copy(identity = next.identity.copy(id = "2"), season = 2, episode = 1, episodeTitle = "TBA")
+        assertEquals(listOf(next.identity), TrackingProjection.candidates(listOf(special, placeholder, next)).map { it.identity })
+    }
+
     @Test fun enrichmentPreservesLegacyMemoryAndIdentitySurvivesTitleChanges() {
         val item = TrackingProjection.card(next)
         val key = UpNextContentKey.of(item)

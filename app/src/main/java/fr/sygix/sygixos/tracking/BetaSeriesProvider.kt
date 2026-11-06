@@ -118,7 +118,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
                     ?: throw TrackingException(TrackingFailure.INCOMPLETE)
                 if (date.isAfter(today())) return@entry null
                 val seen = value.optJSONObject("user")?.opt("seen") as? Boolean ?: throw TrackingException(TrackingFailure.INCOMPLETE)
-                if (seen) return@entry null
+                if (seen || !regular(value)) return@entry null
                 episode(show, value).also {
                     if (it.season == null || it.episode == null) throw TrackingException(TrackingFailure.INCOMPLETE)
                 }
@@ -228,7 +228,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
             val date = value.text("date")?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
             if (date == null) throw TrackingException(TrackingFailure.INCOMPLETE)
             if (value.optInt("season", -1) < 0 || value.optInt("episode", -1) < 1 || value.optJSONObject("user")?.opt("seen") !is Boolean) throw TrackingException(TrackingFailure.INCOMPLETE)
-            !date.isAfter(today()) && (desired[value.requiredId()]?.let { it != 1 } ?: (value.optJSONObject("user")?.opt("seen") == false))
+            !date.isAfter(today()) && regular(value) && (desired[value.requiredId()]?.let { it != 1 } ?: (value.optJSONObject("user")?.opt("seen") == false))
         }.map { episode(show, it) }.sortedWith(compareBy<TrackingContent> { it.season }.thenBy { it.episode })
         val initial = candidates((0 until (values?.length() ?: 0)).map { values!!.getJSONObject(it) })
         if (initial.size >= 6) return@withTimeoutOrNull initial.take(6)
@@ -245,10 +245,11 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
     } ?: throw TrackingException(TrackingFailure.NETWORK)
 
     private suspend fun next(token: String, content: TrackingContent): TrackingContent? {
-        val groups = api.request("episodes/list", token, fields = mapOf("showId" to content.parent.id, "limit" to "1", "showsLimit" to "1", "released" to "1")).optJSONArray("shows")
+        val groups = api.request("episodes/list", token, fields = mapOf("showId" to content.parent.id, "limit" to "6", "showsLimit" to "1", "released" to "1")).optJSONArray("shows")
             ?: throw TrackingException(TrackingFailure.PROTOCOL)
         val show = (0 until groups.length()).map { groups.getJSONObject(it) }.firstOrNull { it.requiredId() == content.parent.id } ?: return null
-        val value = show.optJSONArray("unseen")?.optJSONObject(0) ?: return null
+        val unseen = show.optJSONArray("unseen") ?: return null
+        val value = (0 until unseen.length()).mapNotNull { unseen.optJSONObject(it) }.firstOrNull { regular(it) } ?: return null
         if (value.optJSONObject("user")?.optBoolean("seen") == true) return null
         return content.copy(identity = content.identity.copy(id = value.requiredId()), episodeTitle = value.text("title"),
             season = value.optInt("season"), episode = value.optInt("episode"), seen = false)
@@ -292,6 +293,9 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
     private fun externalIds(value: JSONObject): Map<String, String> = listOf("thetvdb_id", "imdb_id", "themoviedb_id").mapNotNull { key ->
         value.text(key)?.takeUnless { it == "0" }?.let { key to it }
     }.toMap()
+
+    private fun regular(episode: JSONObject): Boolean = RegularEpisode.eligible(episode.optInt("season", -1), episode.text("title"),
+        when (val special = episode.opt("special")) { is Boolean -> special; is Number -> special.toInt() == 1; else -> special?.toString() == "1" })
 
     private fun aliases(value: JSONObject): Set<String> {
         fun name(entry: Any?): String? = ((entry as? JSONObject)?.text("title") ?: entry as? String)?.takeUnless { it.isBlank() || it == "null" }

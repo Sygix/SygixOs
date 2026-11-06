@@ -84,4 +84,8 @@ class BetaSeriesIdentityTest {
     @Test fun snapshotKeepsTheShowAliasesOnItsEpisodes() = runTest {
         assertEquals(setOf("Brumeval Witches", "Les Sorcières de Brumeval"), snapshot().first { it.identity.type == TrackingType.EPISODE }.aliases)
     }
+
+    @Test fun snapshotSkipsSpecialsAndPlaceholderEpisodes() = runTest {
+        assertEquals(listOf("32"), snapshot().filter { it.identity.type == TrackingType.EPISODE }.map { it.identity.id })
+    }
 }

@@ -255,13 +255,13 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
             if (aired < 0 || completedCount < 0) throw TrackingException(TrackingFailure.INCOMPLETE)
             val seasonComplete = season.opt("completed") is Boolean && season.optBoolean("completed") || aired > 0 && completedCount >= aired
             val includeForDesired = number in desiredSeasons
-            if (seasonComplete && !includeForDesired) continue
+            if (!RegularEpisode.eligible(number, null) || seasonComplete && !includeForDesired) continue
             if (requests >= 20) throw TrackingException(TrackingFailure.INCOMPLETE)
             requests++
             val seasonItems = seasonDetails(token, content.parent.id, number)
             for (value in seasonItems) {
                 val airedAt = airedAt(value.text("first_aired")) ?: continue
-                if (airedAt > wallClock()) continue
+                if (airedAt > wallClock() || !RegularEpisode.eligible(number, value.text("title"))) continue
                 val episodeNumber = value.optInt("number", -1).takeIf { it > 0 } ?: throw TrackingException(TrackingFailure.INCOMPLETE)
                 val episodeId = value.optJSONObject("ids")?.optLong("trakt", -1)?.takeIf { it > 0 }?.toString() ?: throw TrackingException(TrackingFailure.INCOMPLETE)
                 val targetSeen = desired[episodeId]?.let { it == 1 } ?: statuses[number to episodeNumber] ?: throw TrackingException(TrackingFailure.INCOMPLETE)

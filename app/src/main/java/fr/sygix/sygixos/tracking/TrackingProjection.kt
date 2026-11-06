@@ -13,7 +13,7 @@ import fr.sygix.sygixos.model.UpNextSourceEntry
 
 object TrackingProjection {
     fun candidates(contents: List<TrackingContent>): List<TrackingContent> = contents.filter {
-        it.membership == AccountMembership.PRESENT && !it.seen && it.archived != true && it.failure == null && it.identity.type != TrackingType.SHOW &&
+        it.membership == AccountMembership.PRESENT && !it.seen && it.archived != true && it.failure == null && it.identity.type != TrackingType.SHOW && RegularEpisode.eligible(it) &&
             (it.identity.type != TrackingType.MOVIE || it.movieState == 0)
     }.groupBy { it.parent }.values.map { entries -> entries.minWith(compareBy<TrackingContent> { it.season ?: 0 }.thenBy { it.episode ?: 0 }) }
 

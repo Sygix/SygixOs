@@ -403,6 +403,31 @@ class TraktProtocolTest {
         assertEquals(listOf(1, 2), requestedSeasons)
     }
 
+    @Test fun reserveSkipsSpecialsAndPlaceholderEpisodesWhenChoosingTheNextEpisode() = runTest {
+        val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
+        val progress = JSONObject().put("seasons", JSONArray().put(progressSeason(0, 1, 0, 1)).put(progressSeason(1, 2, 0, 2)))
+        val season = JSONArray().put(episodeJson(101, 1, "2026-01-01T00:00:00Z").put("title", "TBA")).put(episodeJson(102, 2, "2026-01-08T00:00:00Z"))
+        val requestedSeasons = mutableListOf<Int>()
+        val transport = ScriptedTransport { request ->
+            when {
+                request.url.contains("users/hidden/progress_watched") -> TrackingResponse(200, "[]", headers = paginationSingle())
+                request.url.contains("shows/42/progress/watched") -> TrackingResponse(200, progress.toString())
+                request.url.contains("shows/42?extended=full") -> TrackingResponse(200, showJson(42, "Synthetic").toString())
+                request.url.contains("shows/42/seasons/") -> {
+                    requestedSeasons += request.url.substringAfter("shows/42/seasons/").substringBefore('?').toInt()
+                    TrackingResponse(200, season.toString())
+                }
+                else -> throw AssertionError(request.url)
+            }
+        }
+        val provider = TraktProvider(api(transport, CoordinatedTrackingSessionStore(MemorySession(envelope)))) {
+            Instant.parse("2026-10-28T12:00:00Z").toEpochMilli()
+        }
+        val reserve = provider.reserve(envelope, TrackingContent(TrackingIdentity("trakt", TrackingType.SHOW, "42"), title = "Synthetic"), emptyMap())
+        assertEquals(listOf("102"), reserve.map { it.identity.id })
+        assertEquals(listOf(1), requestedSeasons)
+    }
+
     @Test fun localizedTitleWithoutExternalIdResolvesThroughBoundedCatalogAliases() = runTest {
         val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
         val movie = JSONObject().put("title", "Synthetic Witches").put("year", 2023).put("ids", JSONObject().put("trakt", 10))
