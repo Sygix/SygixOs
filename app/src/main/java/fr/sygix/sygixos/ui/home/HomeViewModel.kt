@@ -494,7 +494,7 @@ class HomeViewModel(
                 session = app.startupSession,
                 motion = SettingsMotionSource(app.contentResolver),
                 mascot = app.mascotAnimation,
-                upNextSource = TvProviderUpNextSource(app, onSnapshot = { items -> app.tracking.enrichment.local(items); app.programArtwork.confirm("watchnext", items.map { it.artwork to it.toString() }) }),
+                upNextSource = TvProviderUpNextSource(app, onSnapshot = { items -> app.tracking.enrichment.local(items); app.programArtwork.confirm(fr.sygix.sygixos.data.UP_NEXT_ARTWORK_TABLE, items.map { it.artwork to it.toString() }) }),
                 upNextMemory = app.launcherPrefs,
                 onArtworkForeground = app.programArtwork::onForeground,
                 onArtworkBackground = app.programArtwork::onBackground,

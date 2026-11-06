@@ -155,6 +155,48 @@ class ArtworkRepositoryTest {
         }
     }
 
+    @Test fun aVerifiedImageIsServedFromTheIndexWithoutWaitingForAnEarlierUnreachableCandidate() = runBlocking {
+        val first = "content://fixture/first"
+        val second = "content://fixture/second"
+        val reads = java.util.concurrent.ConcurrentHashMap<String, Int>()
+        val offline = AtomicInteger()
+        val release = CountDownLatch(1)
+        val entered = CountDownLatch(1)
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { uri, _ ->
+            reads.merge(uri.toString(), 1, Int::plus)
+            if (uri.toString() == first) {
+                if (offline.getAndIncrement() == 0) throw java.io.IOException("unreachable")
+                entered.countDown()
+                release.await(30, TimeUnit.SECONDS)
+                throw java.io.IOException("still unreachable")
+            }
+            pixels
+        }).use { f ->
+            val program = source.copy(candidates = listOf(first, second))
+            f.repository.confirm("preview", listOf(program to "full"))
+            assertEquals(second, f.repository.resolve(program, ArtworkPolicy.Hero).first?.uri)
+            f.now.addAndGet(60_000)
+            try {
+                assertEquals(second, withTimeout(5_000) { f.repository.resolve(program, ArtworkPolicy.Hero) }.first?.uri)
+                assertEquals(1, reads[second])
+                assertTrue(entered.await(30, TimeUnit.SECONDS))
+            } finally { release.countDown() }
+        }
+    }
+
+    @Test fun anUpNextConfirmationOfTheSameRowKeepsTheHeroImageLink() = runBlocking {
+        val reads = AtomicInteger()
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); pixels }).use { f ->
+            val hero = ProgramArtwork("app", listOf("content://fixture/episode"), "hero-identity", "watchnext-5")
+            val card = ProgramArtwork("app", listOf("content://fixture/episode"), "card-identity", "watchnext-5")
+            f.repository.confirm("watchnext", listOf(hero to "hero"))
+            assertNotNull(f.repository.resolve(hero, ArtworkPolicy.Hero).first)
+            f.repository.confirm(UP_NEXT_ARTWORK_TABLE, listOf(card to "card"))
+            assertNotNull(f.repository.resolve(hero, ArtworkPolicy.Hero).first)
+            assertEquals(1, reads.get())
+        }
+    }
+
     @Test fun aFullArtworkQueueIsNeitherAFailureNorRecorded() = runBlocking {
         val reads = AtomicInteger()
         ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); pixels }, capacity = 0).use { busy ->

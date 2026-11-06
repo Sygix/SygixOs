@@ -126,7 +126,9 @@ internal class ArtworkRepository(
     suspend fun resolve(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean = true): Pair<ArtworkImage?, ArtworkFailure?> = withContext(io) {
         initialized.await()
         var failure = ArtworkFailure.ABSENT
-        for (uri in source.candidates.flatMap(::visualCandidates).distinct()) {
+        val uris = source.candidates.flatMap(::visualCandidates).distinct()
+        indexed(source, policy, uris)?.let { return@withContext it to null }
+        for (uri in uris) {
             val parsed = Uri.parse(uri)
             if (parsed.scheme == "android.resource" && parsed.authority != context.packageName) {
                 recordFailure(source, uri, ArtworkFailure.QUALITY, generic = true)
@@ -151,6 +153,27 @@ internal class ArtworkRepository(
             failure = if (image != null) ArtworkFailure.QUALITY else dao.image(source.packageName, uri)?.failure() ?: ArtworkFailure.TRANSPORT
         }
         null to failure
+    }
+
+    private suspend fun indexed(source: ProgramArtwork, policy: ArtworkPolicy, uris: List<String>): ArtworkImage? {
+        for ((rank, uri) in uris.withIndex()) {
+            if (Uri.parse(uri).scheme !in IndexedSchemes) return null
+            val known = dao.image(source.packageName, uri) ?: continue
+            if (!compatible(known, source) || !usable(known) || !policy.accepts(ArtworkDimensions(known.width, known.height))) continue
+            associate(known, source)
+            val stale = !ArtworkAge.fresh(known.fetchedAt, clock()) && known.retryAt <= clock()
+            val better = uris.take(rank).firstOrNull { retryDue(source, it) }
+            (if (stale) uri else better)?.let { refreshInBackground(source, it) }
+            schedule()
+            return known
+        }
+        return null
+    }
+
+    private suspend fun retryDue(source: ProgramArtwork, uri: String): Boolean {
+        val known = dao.image(source.packageName, uri) ?: return true
+        if (compatible(known, source) && usable(known)) return false
+        return known.retryAt <= clock()
     }
 
     private suspend fun local(source: ProgramArtwork, uri: String, policy: ArtworkPolicy): Pair<ArtworkImage?, ArtworkFailure?> {
@@ -384,6 +407,7 @@ internal class ArtworkRepository(
         scheduler.close()
     }
     companion object {
+        private val IndexedSchemes = setOf("http", "https", "content")
         const val GENERIC_RETRY_MS = 60 * 60_000L
         const val SCHEDULE_DEBOUNCE_MS = 250L
     }
