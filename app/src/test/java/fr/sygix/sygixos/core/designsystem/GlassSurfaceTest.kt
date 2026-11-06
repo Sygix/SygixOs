@@ -75,13 +75,26 @@ class GlassSurfaceTest {
 
     @Test
     fun `fallback surface does not cut a child larger than itself`() {
+        assertChildNotCut(active = false)
+    }
+
+    @Test
+    fun `blurred surface does not cut a child larger than itself`() {
+        assertChildNotCut(active = true)
+    }
+
+    private fun assertChildNotCut(active: Boolean) {
         compose.setContent {
-            Box(Modifier.size(400.dp)) {
-                GlassSurface(Modifier.offset(100.dp, 100.dp).size(100.dp), active = false) {
-                    Box(Modifier.requiredSize(140.dp).testTag("child"))
+            val haze = rememberHazeState()
+            CompositionLocalProvider(LocalHazeState provides haze) {
+                Box(Modifier.size(400.dp).hazeSource(haze)) {
+                    GlassSurface(Modifier.testTag("glass").offset(100.dp, 100.dp).size(100.dp), active = active) {
+                        Box(Modifier.requiredSize(140.dp).testTag("child"))
+                    }
                 }
             }
         }
+        compose.onNodeWithTag("glass").assert(SemanticsMatcher.expectValue(GlassActive, active))
         val bounds = compose.onNodeWithTag("child").fetchSemanticsNode().boundsInWindow
         val expected = compose.onNodeWithTag("child").fetchSemanticsNode().size
         assertEquals(expected.width.toFloat(), bounds.width, 0.5f)

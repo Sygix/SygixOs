@@ -12,12 +12,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.InspectableValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.hasParent
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.HazeState
+import fr.sygix.sygixos.core.designsystem.GlassMaterialTag
 import fr.sygix.sygixos.data.AppArtworkSource
 import fr.sygix.sygixos.data.Catalog
 import fr.sygix.sygixos.model.HeroItem
@@ -131,15 +135,16 @@ internal fun ComposeContentTestRule.span(tag: String): Span {
     return Span(top, top + node.size.height)
 }
 
-private fun ComposeContentTestRule.modifiers(tag: String) =
-    onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode().layoutInfo.getModifierInfo().map { it.modifier }
+private fun SemanticsNodeInteraction.modifiers() =
+    fetchSemanticsNode().layoutInfo.getModifierInfo().map { it.modifier }
 
 internal fun ComposeContentTestRule.isHazeSource(tag: String, state: HazeState?): Boolean =
-    state != null && Modifier.hazeSource(state) in modifiers(tag)
+    state != null && Modifier.hazeSource(state) in onNodeWithTag(tag, useUnmergedTree = true).modifiers()
 
-internal fun ComposeContentTestRule.blurredHaze(tag: String): HazeState? = modifiers(tag).firstNotNullOfOrNull { modifier ->
-    (modifier as? InspectableValue)?.inspectableElements?.firstNotNullOfOrNull { (it.value as? HazeInput.Sources)?.state }
-}
+internal fun ComposeContentTestRule.blurredHaze(tag: String): HazeState? =
+    onNode(hasTestTag(GlassMaterialTag) and hasParent(hasTestTag(tag)), useUnmergedTree = true).modifiers().firstNotNullOfOrNull { modifier ->
+        (modifier as? InspectableValue)?.inspectableElements?.firstNotNullOfOrNull { (it.value as? HazeInput.Sources)?.state }
+    }
 
 internal fun ComposeContentTestRule.screenHeight(): Float = onRoot().fetchSemanticsNode().size.height.toFloat()
 

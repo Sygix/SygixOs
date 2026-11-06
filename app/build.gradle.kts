@@ -147,7 +147,7 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.media3.exoplayer)
     implementation(libs.haze)
-    implementation(libs.haze.glass)
+    implementation(libs.haze.blur)
     implementation(libs.aboutlibraries.core)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.zxing.core)
