@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import fr.sygix.sygixos.core.designsystem.FocusText
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import fr.sygix.sygixos.core.designsystem.Badge
@@ -12,7 +13,7 @@ import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
-import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.rememberPillPaint
 import fr.sygix.sygixos.core.designsystem.focusPill
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.ui.hero.AmbientGradient
@@ -243,7 +244,7 @@ private fun SettingsCategoryRow(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused, selected, restContent = SygixColors.OnDarkRest)
+    val colors = rememberPillPaint(focused, selected, restContent = SygixColors.OnDarkRest)
     Box(
         modifier
             .fillMaxWidth()
@@ -258,9 +259,9 @@ private fun SettingsCategoryRow(
             .padding(horizontal = RowPadding),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Text(
+        FocusText(
             label,
-            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
+            style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row,
             color = colors.content,
             maxLines = 1,
         )

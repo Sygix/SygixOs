@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.home
 
+import fr.sygix.sygixos.core.designsystem.FocusText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -42,7 +43,7 @@ import fr.sygix.sygixos.core.designsystem.GlassLook
 import fr.sygix.sygixos.core.designsystem.GlassSurface
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
-import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.rememberPillPaint
 import fr.sygix.sygixos.core.designsystem.focusPill
 import fr.sygix.sygixos.core.designsystem.tryRequestFocus
 import fr.sygix.sygixos.core.designsystem.tvClickable
@@ -144,7 +145,7 @@ private fun MenuAction(
     unavailable: String? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
+    val colors = rememberPillPaint(focused)
     Column(
         Modifier
             .testTag("menu-action-$action")
@@ -157,15 +158,15 @@ private fun MenuAction(
             .padding(horizontal = Dimens.MenuPadding, vertical = UnavailablePadding),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text(
+        FocusText(
             text,
-            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
+            style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row,
             color = if (unavailable != null) colors.secondary else colors.content,
             maxLines = 1,
             softWrap = false,
         )
         if (unavailable != null) {
-            Text(
+            FocusText(
                 unavailable,
                 style = TextStyles.RowSecondary,
                 color = colors.secondary,

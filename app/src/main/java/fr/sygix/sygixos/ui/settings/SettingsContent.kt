@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import fr.sygix.sygixos.core.designsystem.FocusText
 import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.items
@@ -25,7 +26,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import fr.sygix.sygixos.core.designsystem.Dimens
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
-import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.rememberPillPaint
 import fr.sygix.sygixos.core.designsystem.focusPill
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import androidx.compose.foundation.background
@@ -303,7 +304,7 @@ internal fun HiddenContentLine(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
+    val colors = rememberPillPaint(focused)
     val key = row.key.serialized
     val type = stringResource(
         if (row.key.type == UpNextContentType.EPISODE) R.string.hidden_content_series else R.string.hidden_content_movie,
@@ -334,12 +335,12 @@ internal fun HiddenContentLine(
         ContentThumbnail(row.imageUrl, "hidden-content-thumbnail-$key", row.sourcePackage)
         Spacer(Modifier.width(RowGap))
         Column(Modifier.weight(1f)) {
-            Text(row.title, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(detail, style = TextStyles.RowSecondary, color = colors.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FocusText(row.title, style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            FocusText(detail, style = TextStyles.RowSecondary, color = colors.secondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (focused) {
             Spacer(Modifier.width(RowGap))
-            Text(
+            FocusText(
                 stringResource(R.string.hidden_content_restore),
                 style = TextStyles.RowState,
                 color = colors.tertiary,
@@ -404,7 +405,7 @@ internal fun HiddenRowLine(
         onFocused = { if (it) onFocused() },
         leading = { AppThumbnail(row.app); Spacer(Modifier.width(RowGap)) },
     ) { colors ->
-        Text(state, style = TextStyles.RowState, color = colors.tertiary, modifier = Modifier.clearAndSetSemantics { })
+        FocusText(state, style = TextStyles.RowState, color = colors.tertiary, modifier = Modifier.clearAndSetSemantics { })
         Spacer(Modifier.width(RowGap))
         AppleSwitch(checked = row.hidden, tag = "hidden-switch-${row.app.packageName}")
     }
@@ -420,7 +421,7 @@ internal fun SettingsEntryButton(
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused, rest = SygixColors.PillRest)
+    val colors = rememberPillPaint(focused, rest = SygixColors.PillRest)
     Box(
         modifier
             .fillMaxWidth()
@@ -438,7 +439,7 @@ internal fun SettingsEntryButton(
             .padding(horizontal = RowPadding),
         contentAlignment = Alignment.CenterStart,
     ) {
-        Text(label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
+        FocusText(label, style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
     }
 }
 

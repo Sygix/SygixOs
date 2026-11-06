@@ -42,7 +42,7 @@ internal fun <T> SettingsChoiceDropdown(options: List<T>, selected: T, tag: Stri
     } }
     Popup(popupPositionProvider = position, onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
         GlassSurface(shape = RoundedCornerShape(Dimens.DropdownCorner), look = GlassLook.Menu,
-            modifier = Modifier.width(Dimens.DropdownWidth).testTag("$tag-list").onPreviewKeyEvent {
+            modifier = Modifier.width(Dimens.DropdownWidth).testTag("$tag-list").fastNavigationKeys(LocalFastNavigation.current).onPreviewKeyEvent {
                 when (it.key) {
                     Key.Back, Key.Escape -> { if (it.type == KeyEventType.KeyUp) onClose(); true }
                     Key.DirectionLeft, Key.DirectionRight -> true
@@ -59,7 +59,7 @@ internal fun <T> SettingsChoiceDropdown(options: List<T>, selected: T, tag: Stri
             Column(Modifier.padding(Dimens.DropdownPadding), verticalArrangement = Arrangement.spacedBy(Dimens.DropdownOptionGap)) {
                 options.forEachIndexed { index, option ->
                     var focused by remember(keys[index]) { mutableStateOf(false) }
-                    val colors = animatedPillColors(focused)
+                    val colors = rememberPillPaint(focused)
                     Row(Modifier.fillMaxWidth().height(Dimens.DropdownOptionHeight).testTag("$tag-${key(option)}")
                         .tvFocusable(focusRequester = requesters[index], onFocused = {
                             focused = it
@@ -72,7 +72,7 @@ internal fun <T> SettingsChoiceDropdown(options: List<T>, selected: T, tag: Stri
                             if (option == selected) CheckGlyph(colors.content, Modifier.fillMaxSize().testTag("$tag-check"))
                         }
                         Spacer(Modifier.width(Dimens.DropdownCheckGap))
-                        Text(label(option), style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
+                        FocusText(label(option), style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
                     }
                 }
             }

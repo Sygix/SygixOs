@@ -84,7 +84,7 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
                 focusRequester = providerFocus, selected = providerDropdown,
                 detail = if (state.tracking.hasSession) stringResource(R.string.tracking_provider_locked) else null,
                 dimmed = state.tracking.hasSession, onFocused = { if (it) returnToConnect = false }) { colors ->
-                Text(if (state.providerSaving) stringResource(R.string.tracking_loading) else provider.displayName, style = TextStyles.RowState, color = colors.tertiary)
+                FocusText(if (state.providerSaving) stringResource(R.string.tracking_loading) else provider.displayName, style = TextStyles.RowState, color = colors.tertiary)
                 if (!state.tracking.hasSession) Chevron(providerDropdown, colors.tertiary, Modifier.padding(start = Dimens.SettingsChevronGap).size(Dimens.SettingsChevron))
             }
             if (providerDropdown) SettingsChoiceDropdown(TrackingProviderKind.entries, provider, "tracking-provider", { it.id }, { it.displayName },
@@ -114,7 +114,7 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
             Box {
                 PreferenceRow(stringResource(R.string.tracking_country), enabled, { dropdown = true },
                     Modifier.testTag("tracking-country"), focusRequester = countryFocus, selected = dropdown) { colors ->
-                    Text(state.countries.firstOrNull { it.code == (state.country ?: state.countryProposed) }?.label ?: stringResource(R.string.tracking_country_proposed), style = TextStyles.RowState, color = colors.tertiary)
+                    FocusText(state.countries.firstOrNull { it.code == (state.country ?: state.countryProposed) }?.label ?: stringResource(R.string.tracking_country_proposed), style = TextStyles.RowState, color = colors.tertiary)
                     Chevron(dropdown, colors.tertiary, Modifier.padding(start = Dimens.SettingsChevronGap).size(Dimens.SettingsChevron))
                 }
                 if (dropdown) TrackingCountryDropdown(state, { dropdown = false; countryFocus.tryRequestFocus() }) { code ->
@@ -144,7 +144,7 @@ private fun TrackingCountryDropdown(state: TrackingUiState, onClose: () -> Unit,
             IntOffset(anchorBounds.right - popupContentSize.width, minOf(anchorBounds.bottom, windowSize.height - popupContentSize.height))
     } }
     Popup(popupPositionProvider = position, onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
-        GlassSurface(Modifier.width(Dimens.TrackingCountryWidth).testTag("tracking-country-list").onPreviewKeyEvent {
+        GlassSurface(Modifier.width(Dimens.TrackingCountryWidth).testTag("tracking-country-list").fastNavigationKeys(LocalFastNavigation.current).onPreviewKeyEvent {
             when (it.key) {
                 Key.DirectionLeft, Key.DirectionRight -> true
                 Key.Back, Key.Escape -> { if (it.type == KeyEventType.KeyUp) onClose(); true }
@@ -175,7 +175,7 @@ internal fun TrackingModal(title: String, tag: String, actions: List<TrackingMod
     val focusedKey by focusModel.panelFocus.collectAsState()
     LaunchedEffect(tag, keys, loading) { focusModel.panelActions(tag, keys, index, focusFallbackKey, loading) }
     Popup(onDismissRequest = onClose, properties = PopupProperties(focusable = true)) {
-        fr.sygix.sygixos.ui.home.ContextMenuPanel(Modifier.testTag(tag).onPreviewKeyEvent {
+        fr.sygix.sygixos.ui.home.ContextMenuPanel(Modifier.testTag(tag).fastNavigationKeys(LocalFastNavigation.current).onPreviewKeyEvent {
             when (it.key) {
                 Key.DirectionLeft, Key.DirectionRight -> true
                 Key.Back, Key.Escape -> { if (it.type == KeyEventType.KeyUp) onClose(); true }

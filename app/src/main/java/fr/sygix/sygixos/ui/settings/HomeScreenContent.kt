@@ -16,6 +16,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -85,7 +86,7 @@ internal fun HomeScreenContent(
                 selected = dropdown,
             ) { colors ->
                 Spacer(Modifier.width(RowGap))
-                Text(stringResource(position.label()), style = TextStyles.RowState, color = colors.tertiary, modifier = Modifier.testTag("setting-upnext-position-value"))
+                FocusText(stringResource(position.label()), style = TextStyles.RowState, color = colors.tertiary, modifier = Modifier.testTag("setting-upnext-position-value"))
                 Spacer(Modifier.width(Dimens.SettingsChevronGap))
                 Chevron(up = dropdown, color = colors.tertiary, modifier = Modifier.size(Dimens.SettingsChevron).testTag("setting-upnext-position-chevron"))
             }
@@ -116,21 +117,23 @@ private fun UpNextPosition.label() = when (this) {
 }
 
 @Composable
-internal fun Chevron(up: Boolean, color: Color, modifier: Modifier) {
+internal fun Chevron(up: Boolean, color: ColorProducer, modifier: Modifier) {
     Canvas(modifier) {
+        val tint = color()
         val top = if (up) size.height * .65f else size.height * .35f
         val bottom = size.height - top
-        drawLine(color, Offset(size.width * .2f, top), Offset(size.width * .5f, bottom), GlyphStroke.toPx(), StrokeCap.Round)
-        drawLine(color, Offset(size.width * .5f, bottom), Offset(size.width * .8f, top), GlyphStroke.toPx(), StrokeCap.Round)
+        drawLine(tint, Offset(size.width * .2f, top), Offset(size.width * .5f, bottom), GlyphStroke.toPx(), StrokeCap.Round)
+        drawLine(tint, Offset(size.width * .5f, bottom), Offset(size.width * .8f, top), GlyphStroke.toPx(), StrokeCap.Round)
     }
 }
 
 @Composable
-internal fun CheckGlyph(color: Color, modifier: Modifier) {
+internal fun CheckGlyph(color: ColorProducer, modifier: Modifier) {
     Canvas(modifier) {
+        val tint = color()
         val stroke = GlyphStroke.toPx()
-        drawLine(color, Offset(size.width * .15f, size.height * .55f), Offset(size.width * .4f, size.height * .8f), stroke, StrokeCap.Round)
-        drawLine(color, Offset(size.width * .4f, size.height * .8f), Offset(size.width * .85f, size.height * .25f), stroke, StrokeCap.Round)
+        drawLine(tint, Offset(size.width * .15f, size.height * .55f), Offset(size.width * .4f, size.height * .8f), stroke, StrokeCap.Round)
+        drawLine(tint, Offset(size.width * .4f, size.height * .8f), Offset(size.width * .85f, size.height * .25f), stroke, StrokeCap.Round)
     }
 }
 

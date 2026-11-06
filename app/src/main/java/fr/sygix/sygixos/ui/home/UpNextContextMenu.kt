@@ -17,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -59,9 +60,9 @@ internal fun UpNextMenuHeader(item: UpNextItem, subtitle: String) {
 }
 
 @Composable
-private fun MenuEntry(tag: String, label: String, onClick: () -> Unit, focusRequester: FocusRequester? = null, icon: @Composable (Color) -> Unit) {
+private fun MenuEntry(tag: String, label: String, onClick: () -> Unit, focusRequester: FocusRequester? = null, icon: @Composable (ColorProducer) -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
+    val colors = rememberPillPaint(focused)
     Row(
         Modifier.testTag(tag).fillMaxWidth()
             .tvFocusable(focusRequester = focusRequester, onFocused = { focused = it })
@@ -71,13 +72,14 @@ private fun MenuEntry(tag: String, label: String, onClick: () -> Unit, focusRequ
         horizontalArrangement = Arrangement.spacedBy(Dimens.MenuEntryGap),
     ) {
         icon(colors.content)
-        Text(label, style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        FocusText(label, style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row, color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
 @Composable
-private fun HiddenEyeGlyph(color: Color, modifier: Modifier) {
+private fun HiddenEyeGlyph(color: ColorProducer, modifier: Modifier) {
     Canvas(modifier) {
+        val tint = color()
         val unit = size.minDimension / EyeGrid
         val stroke = Stroke(unit * EyeStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
         val eye = Path().apply {
@@ -86,9 +88,9 @@ private fun HiddenEyeGlyph(color: Color, modifier: Modifier) {
             quadraticTo(unit * 12, unit * 22, unit * 2, unit * 12)
             close()
         }
-        drawPath(eye, color, style = stroke)
-        drawCircle(color, unit * EyePupil, Offset(unit * 12, unit * 12), style = stroke)
-        drawLine(color, Offset(unit * 4, unit * 4), Offset(unit * 20, unit * 20), unit * EyeStroke, StrokeCap.Round)
+        drawPath(eye, tint, style = stroke)
+        drawCircle(tint, unit * EyePupil, Offset(unit * 12, unit * 12), style = stroke)
+        drawLine(tint, Offset(unit * 4, unit * 4), Offset(unit * 20, unit * 20), unit * EyeStroke, StrokeCap.Round)
     }
 }
 

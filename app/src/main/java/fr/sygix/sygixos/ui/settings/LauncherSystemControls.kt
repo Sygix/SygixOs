@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import fr.sygix.sygixos.core.designsystem.FocusText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorProducer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -46,12 +48,12 @@ class LauncherSystemActions(
 )
 
 @Composable
-internal fun StateLabel(label: String, dot: Color?, color: Color, tag: String) {
+internal fun StateLabel(label: String, dot: Color?, color: ColorProducer, tag: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Dimens.StateDotGap)) {
         dot?.let {
             Box(Modifier.testTag("$tag-dot").size(Dimens.Badge).background(it, CircleShape))
         }
-        Text(label, style = TextStyles.RowState, color = color, modifier = Modifier.testTag("$tag-state"))
+        FocusText(label, style = TextStyles.RowState, color = color, modifier = Modifier.testTag("$tag-state"))
     }
 }
 

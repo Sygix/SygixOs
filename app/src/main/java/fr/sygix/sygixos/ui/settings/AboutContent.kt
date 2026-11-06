@@ -5,6 +5,7 @@
 
 package fr.sygix.sygixos.ui.settings
 
+import fr.sygix.sygixos.core.designsystem.FocusText
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,7 +50,7 @@ import kotlinx.coroutines.withContext
 import fr.sygix.sygixos.R
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
-import fr.sygix.sygixos.core.designsystem.animatedPillColors
+import fr.sygix.sygixos.core.designsystem.rememberPillPaint
 import fr.sygix.sygixos.core.designsystem.focusPill
 import fr.sygix.sygixos.core.designsystem.tvFocusable
 import fr.sygix.sygixos.domain.QrCode
@@ -249,7 +250,7 @@ private fun LicenseRow(
     focusEnabled: Boolean,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused)
+    val colors = rememberPillPaint(focused)
     val licenses = library.licenses.joinToString { it.name }
     Column(
         Modifier
@@ -260,12 +261,12 @@ private fun LicenseRow(
             .focusPill(colors, RowShape)
             .padding(horizontal = RowPadding, vertical = 8.dp),
     ) {
-        Text(
+        FocusText(
             listOfNotNull(library.name, library.artifactVersion).joinToString(" "),
-            style = if (focused) TextStyles.RowFocused else TextStyles.Row,
+            style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row,
             color = colors.content,
         )
-        Text(
+        FocusText(
             licenses.ifEmpty { stringResource(R.string.about_license_unknown) },
             style = TextStyles.RowSecondary,
             color = colors.secondary,

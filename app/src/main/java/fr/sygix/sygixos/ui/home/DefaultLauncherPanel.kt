@@ -123,7 +123,7 @@ private fun SetupStaticRow(row: SetupRow) {
             Text(stringResource(row.label), style = TextStyles.Row, color = SygixColors.OnDark)
             rowDetail(row)?.let { Text(it, style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary, modifier = Modifier.testTag("${row.tag}-detail")) }
         }
-        if (row.status != 0) SetupStateLabel(row, SygixColors.OnDarkSecondary)
+        if (row.status != 0) SetupStateLabel(row, StaticState)
     }
 }
 
@@ -138,22 +138,25 @@ private fun rowDetail(row: SetupRow): String? {
 }
 
 @Composable
-private fun SetupStateLabel(row: SetupRow, color: androidx.compose.ui.graphics.Color) {
+private fun SetupStateLabel(row: SetupRow, color: androidx.compose.ui.graphics.ColorProducer) {
     val dot = when (row.status) {
         R.string.setup_state_done, R.string.setup_state_active, R.string.setup_state_active_summary, R.string.tsuyu_state_active, R.string.tsuyu_state_installed -> SygixColors.SwitchOn
         R.string.setup_state_pending, R.string.setup_state_running, R.string.tsuyu_state_downloading, R.string.tsuyu_state_verifying, R.string.tsuyu_state_installing -> SygixColors.Badge
         else -> null
     }
-    StateLabel(stringResource(row.status, *row.statusArgs.toTypedArray()), dot, if (row.status == R.string.setup_state_failed) SygixColors.Error else color, row.tag)
+    StateLabel(stringResource(row.status, *row.statusArgs.toTypedArray()), dot, if (row.status == R.string.setup_state_failed) FailedState else color, row.tag)
 }
 
 @Composable
 private fun SetupPanelButton(button: SetupButton, requester: FocusRequester, onFocused: () -> Unit, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val colors = animatedPillColors(focused, rest = SygixColors.PillRest)
+    val colors = rememberPillPaint(focused, rest = SygixColors.PillRest)
     Box(Modifier.testTag(button.tag).tvFocusable(focusRequester = requester, onFocused = { focused = it; if (it) onFocused() })
         .tvClickable(onClick = onClick).focusPill(colors, RoundedCornerShape(Dimens.PillCorner))
         .height(Dimens.MenuActionHeight).padding(horizontal = Dimens.OnboardingButtonPaddingH), contentAlignment = Alignment.Center) {
-        Text(stringResource(button.label), style = if (focused) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
+        FocusText(stringResource(button.label), style = if (colors.emphasized) TextStyles.RowFocused else TextStyles.Row, color = colors.content)
     }
 }
+
+private val FailedState = androidx.compose.ui.graphics.ColorProducer { SygixColors.Error }
+private val StaticState = androidx.compose.ui.graphics.ColorProducer { SygixColors.OnDarkSecondary }
