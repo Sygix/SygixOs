@@ -124,10 +124,12 @@ class TrackingHttpsTransportTest {
             val client = trackingHttpClient().newBuilder().proxy(java.net.Proxy.NO_PROXY)
                 .dns { listOf(silent, loopback) }
                 .socketFactory(SilentAddressSockets(silent)).build()
+            val started = System.nanoTime()
             client.newCall(Request.Builder().url("http://fixture.invalid:${server.localPort}/").build()).execute().use { response ->
                 assertEquals(200, response.code)
                 assertEquals("{}", response.body.string())
             }
+            assertTrue(System.nanoTime() - started < java.util.concurrent.TimeUnit.SECONDS.toNanos(3))
             serving.join(10_000)
             assertFalse(serving.isAlive)
         }
@@ -138,7 +140,7 @@ class TrackingHttpsTransportTest {
             private val released = java.util.concurrent.CountDownLatch(1)
             override fun connect(endpoint: java.net.SocketAddress, timeout: Int) {
                 if ((endpoint as java.net.InetSocketAddress).address != silent) return super.connect(endpoint, timeout)
-                released.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                if (!released.await(timeout.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)) throw java.net.SocketTimeoutException("Silent address timed out")
                 throw java.net.SocketException("Silent address released")
             }
             override fun close() { released.countDown(); super.close() }

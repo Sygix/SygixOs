@@ -137,7 +137,7 @@ class TrackingHomeNavigationTest {
         } finally { store.clear() }
     }
 
-    @Test fun heroLaunchReturnBubbleSitsUnderOpenAndMarkingKeepsUndoThere() = runTest {
+    @Test fun heroLaunchReturnBubbleSitsBesideOpenAndMarkingKeepsUndoThere() = runTest {
         val fixture = TrackingMovieFixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
         fixture.runtime.controller.restore(); runCurrent()
         val content = fixture.content
@@ -173,6 +173,26 @@ class TrackingHomeNavigationTest {
             compose.onNodeWithTag(TrackingBubble.UNDO).assertExists()
             press(Key.DirectionDown)
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
+        } finally { store.clear() }
+    }
+
+    @Test fun notFinishedOnTheReturnBubbleDismissesItWithoutMarking() = runTest {
+        val fixture = TrackingMovieFixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
+        fixture.runtime.controller.restore(); runCurrent()
+        val store = ViewModelStore()
+        try {
+            show(viewModel(store, fixture))
+            press(Key.Back)
+            fixture.runtime.actions.returned(fixture.content, fixture.runtime.controller.state.value.generation, PlaybackOrigin.HERO)
+            runCurrent(); compose.waitForIdle()
+            press(Key.DirectionRight); press(Key.DirectionRight)
+            compose.onNodeWithTag(TrackingBubble.LATER).assertIsFocused()
+            press(Key.Enter); runCurrent(); compose.waitForIdle()
+            compose.onNodeWithTag("tracking-bubble").assertDoesNotExist()
+            assertNull(fixture.runtime.actions.notice.value)
+            advanceTimeBy(60_000); runCurrent()
+            assertEquals(0, fixture.writes)
+            assertEquals(0, fixture.removals)
         } finally { store.clear() }
     }
 
