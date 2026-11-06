@@ -216,15 +216,15 @@ Vu/non vu SHALL proposer Annuler dès sa sauvegarde locale et rester non envoyab
 - **THEN** la libération et l'annulation sont ordonnées par une seule décision durable ; seul le marquage libéré peut être synchronisé et aucun déclencheur manuel, au premier plan ou en arrière-plan ne peut envoyer une révision encore annulable
 
 ### Requirement: Confirmation manuelle au retour
-Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur, dans une bulle attachée à l'origine du lancement (carte d'À suivre ou bouton du héro) ; seul un accord explicite SHALL marquer le contenu demandé. Aucun accès aux notifications ou aux sessions média SHALL être demandé dans P9.
+Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur, dans une bulle attachée à l'origine du lancement (sous la carte d'À suivre ou à droite du bouton du héro) ; seul un accord explicite SHALL marquer le contenu demandé. Aucun accès aux notifications ou aux sessions média SHALL être demandé dans P9.
 
 #### Scenario: bulle sous l'origine
 - **WHEN** l'utilisateur revient d'un lecteur lancé depuis une carte d'À suivre
 - **THEN** le focus revient sur la carte d'origine et une bulle « Terminé ? » avec « Vu » et « Pas fini » apparaît juste sous elle ; Bas y mène en un appui, « Vu » marque le contenu demandé, « Pas fini », Haut ou Retour la quittent sans rien changer ; la bulle ne prend jamais le focus d'elle-même et aucune notice n'est affichée en bas à droite
 
-#### Scenario: bulle sous le bouton du héro
+#### Scenario: bulle à côté du bouton du héro
 - **WHEN** le lecteur avait été lancé depuis le héro
-- **THEN** la même bulle apparaît sous le bouton « Ouvrir », atteinte par Bas depuis le bouton, avec les mêmes actions
+- **THEN** la même bulle apparaît à droite du bouton « Ouvrir », centrée sur lui pour ne pas chevaucher le dock ; Droite depuis le bouton l'atteint, Gauche y revient, Bas mène toujours au dock ; mêmes actions
 
 
 #### Scenario: confirmation au retour
