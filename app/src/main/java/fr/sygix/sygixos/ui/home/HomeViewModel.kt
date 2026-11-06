@@ -143,6 +143,7 @@ class HomeViewModel(
     private var disabledHeroSources = emptySet<String>()
     private val validating = java.util.concurrent.ConcurrentHashMap.newKeySet<Pair<Boolean, String>>()
     private val validationBatches = java.util.concurrent.ConcurrentHashMap<Job, Boolean>()
+    private val busyRetries = java.util.concurrent.ConcurrentHashMap<String, Job>()
 
     private val upNext = upNextSource?.let {
         UpNextController(it, apps.upNextVisible, apps.upNextPosition, apps.disabledSources, viewModelScope, upNextMemory,
@@ -404,7 +405,8 @@ class HomeViewModel(
         val checkedIdentities = checks.values.mapTo(HashSet()) { it.identity }
         val retries = results.value.failed
         val pending = items.filter { item ->
-            item.artwork.candidates.isNotEmpty() && (item.artwork.identity !in checkedIdentities || item.id in retries) && validating.add(shelf to item.artwork.identity)
+            item.artwork.candidates.isNotEmpty() && (item.artwork.identity !in checkedIdentities || item.id in retries) &&
+                (shelf || busyRetries[item.artwork.identity]?.isActive != true) && validating.add(shelf to item.artwork.identity)
         }
         if (pending.isEmpty()) return null
         val visible = if (shelf) emptySet() else items.take(VisualQuality.HERO_VISIBLE).mapTo(HashSet()) { it.artwork.identity }
@@ -416,10 +418,8 @@ class HomeViewModel(
                     if (identity !in projected) return@forEach
                     val check = checkVisual(item, policy, identity in visible)
                     validating.remove(shelf to identity)
-                    if (check.busy) return@forEach
-                    val current = projected[identity] ?: return@forEach
-                    checks[current.id] = current.artwork
-                    results.update { it.record(current.id, item.artwork.candidates, check) }
+                    if (check.busy) { if (!shelf) retryBusyHero(item, identity in visible); return@forEach }
+                    recordCheck(item, check, results, checks)
                     if (holdAfterFirstDuringStartup && check.usable) startup.first { it == StartupPhase.Done }
                 }
             } } } } finally { pending.forEach { validating.remove(shelf to it.artwork.identity) } }
@@ -428,6 +428,31 @@ class HomeViewModel(
         job.invokeOnCompletion { validationBatches.remove(job) }
         job.start()
         return job
+    }
+
+    private fun recordCheck(item: HeroItem, check: fr.sygix.sygixos.data.VisualCheck, results: MutableStateFlow<VisualResults>,
+        checks: MutableMap<String, fr.sygix.sygixos.model.ProgramArtwork>) {
+        val current = projected[item.artwork.identity] ?: return
+        checks[current.id] = current.artwork
+        results.update { it.record(current.id, item.artwork.candidates, check) }
+    }
+
+    private fun retryBusyHero(item: HeroItem, visible: Boolean) {
+        val identity = item.artwork.identity
+        if (busyRetries[identity]?.isActive == true) return
+        val job = viewModelScope.launch {
+            while (true) {
+                delay(BUSY_HERO_RETRY_MS)
+                if (lastHeroItems.none { it.artwork.identity == identity } || identity !in projected) return@launch
+                val check = validator.validate(item.artwork, ArtworkPolicy.Hero, visible)
+                if (check.busy) continue
+                recordCheck(item, check, heroVisuals, heroChecks)
+                return@launch
+            }
+        }
+        busyRetries[identity] = job
+        validationBatches[job] = false
+        job.invokeOnCompletion { busyRetries.remove(identity, job); validationBatches.remove(job) }
     }
 
     private suspend fun recordIndexed(item: HeroItem, policy: ArtworkPolicy, results: MutableStateFlow<VisualResults>,
@@ -526,6 +551,7 @@ class HomeViewModel(
 internal const val HERO_TTL_MS = 15 * 60_000L
 private const val BUSY_RETRIES = 4
 private const val BUSY_RETRY_MS = 1_000L
+private const val BUSY_HERO_RETRY_MS = 30_000L
 
 private val SplashTimings = StartupTimings(
     minMs = Motion.SPLASH_MIN_MS,

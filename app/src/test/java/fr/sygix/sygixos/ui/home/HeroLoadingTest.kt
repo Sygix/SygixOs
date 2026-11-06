@@ -158,6 +158,40 @@ class HeroLoadingTest {
     }
 
     @Test
+    fun `a hero program still busy after the bounded retries is tried again every thirty seconds while it stays in the hero`() = runTest(main.dispatcher) {
+        val program = heroItem("preview-1", "Busy fiction", "https://example.invalid/busy.jpg", "com.example")
+        var calls = 0
+        val home = home(Programs { listOf(program) }, checker { uri -> if (++calls <= 6) VisualCheck(null, busy = true) else VisualCheck(uri) })
+        home.refreshHero()
+        advanceTimeBy(15_001)
+        assertEquals(5, calls)
+        advanceTimeBy(30_000)
+        assertEquals(6, calls)
+        assertEquals(listOf("preview-1"), home.hero()?.items?.map { it.id })
+        advanceTimeBy(30_000)
+        home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(program.imageUrl) }
+        assertEquals(7, calls)
+        advanceTimeBy(120_000)
+        assertEquals(7, calls)
+    }
+
+    @Test
+    fun `a busy hero program stops being retried once it leaves the hero`() = runTest(main.dispatcher) {
+        val program = heroItem("preview-1", "Busy fiction", "https://example.invalid/busy.jpg", "com.example")
+        var listed = true
+        var calls = 0
+        val home = home(Programs { if (listed) listOf(program) else emptyList() }, checker { calls++; VisualCheck(null, busy = true) })
+        home.refreshHero()
+        advanceTimeBy(45_001)
+        assertEquals(6, calls)
+        listed = false
+        home.refreshHero()
+        runCurrent()
+        advanceTimeBy(120_000)
+        assertEquals(6, calls)
+    }
+
+    @Test
     fun `a real image failure shows the program on the fallback while a quality rejection excludes it`() = runTest(main.dispatcher) {
         val failed = heroItem("preview-1", "Failed fiction", "https://example.invalid/failed.jpg", "com.example")
         val rejected = heroItem("preview-2", "Rejected fiction", "https://example.invalid/portrait.jpg", "com.other")
