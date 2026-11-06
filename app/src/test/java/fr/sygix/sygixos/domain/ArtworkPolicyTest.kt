@@ -21,6 +21,10 @@ class ArtworkPolicyTest {
         assertFalse(ArtworkPolicy.Hero.accepts(portrait))
         assertFalse(ArtworkPolicy.Shelf(396).accepts(portrait))
         assertTrue(ArtworkPolicy.Hero.accepts(ArtworkDimensions(3840, 2160)))
+        val square = ArtworkDimensions(1080, 1080)
+        assertTrue(ArtworkPolicy.Hero.accepts(square))
+        assertTrue(ArtworkPolicy.Shelf(640).accepts(square))
+        assertFalse(ArtworkPolicy.Card(0).accepts(portrait))
     }
 
     @Test fun `reads never renew freshness or retention`() {
