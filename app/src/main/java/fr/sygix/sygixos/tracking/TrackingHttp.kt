@@ -39,9 +39,11 @@ fun interface TrackingTransport {
     suspend fun execute(request: TrackingRequest): TrackingResponse
 }
 
-class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS).callTimeout(15, TimeUnit.SECONDS)
-        .followRedirects(false).followSslRedirects(false).build(),
+fun trackingHttpClient(): OkHttpClient = OkHttpClient.Builder().connectTimeout(5, TimeUnit.SECONDS)
+    .readTimeout(10, TimeUnit.SECONDS).callTimeout(15, TimeUnit.SECONDS).fastFallback(true)
+    .followRedirects(false).followSslRedirects(false).build()
+
+class TrackingHttpsTransport(private val client: Call.Factory = trackingHttpClient(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val dispatcher: kotlinx.coroutines.CoroutineDispatcher = Dispatchers.IO,
 ) : TrackingTransport {
@@ -59,7 +61,7 @@ class TrackingHttpsTransport(private val client: Call.Factory = OkHttpClient.Bui
         suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation { call.cancel() }
             val callback = object : Callback {
-                override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(TrackingException(TrackingFailure.NETWORK)) }
+                override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(TrackingException(TrackingFailure.NETWORK, e)) }
                 override fun onResponse(call: Call, response: Response) {
                     try {
                         val result = response.use {

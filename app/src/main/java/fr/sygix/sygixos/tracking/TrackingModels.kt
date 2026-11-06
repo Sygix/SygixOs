@@ -17,7 +17,7 @@ enum class TrackingFailure { NETWORK, PROTOCOL, ACCESS, CONFIGURATION, STORAGE, 
 val TrackingFailure?.requiresReconnection: Boolean get() = this == TrackingFailure.ACCESS || this == TrackingFailure.RECONNECT
 enum class TrackingSessionStatus { NONE, RESTORING, SAVED }
 
-open class TrackingException(val failure: TrackingFailure) : Exception(failure.name)
+open class TrackingException(val failure: TrackingFailure, cause: Throwable? = null) : Exception(failure.name, cause)
 class TrackingRetryException(val retryAfterMillis: Long) : TrackingException(TrackingFailure.NETWORK)
 
 data class TrackingContent(

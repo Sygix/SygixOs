@@ -99,6 +99,55 @@ class TrackingHttpsTransportTest {
         assertFalse(enqueued)
     }
 
+    @Test fun transportFailureKeepsItsUnderlyingCause() = runTest {
+        val failure = java.io.IOException("fixture")
+        val transport = TrackingHttpsTransport(Call.Factory { request -> TestCall(request) { call, callback -> callback.onFailure(call, failure) } },
+            dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler))
+        try { transport.execute(TrackingRequest("https://api.trakt.tv/fixture")); fail() }
+        catch (error: TrackingException) {
+            assertEquals(TrackingFailure.NETWORK, error.failure)
+            assertSame(failure, error.cause)
+        }
+    }
+
+    @Test fun silentIpv6AddressFallsBackToIpv4BeforeTheConnectTimeout() {
+        val loopback = java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
+        val silent = java.net.InetAddress.getByName("2001:db8::1")
+        java.net.ServerSocket(0, 1, loopback).use { server ->
+            val serving = kotlin.concurrent.thread {
+                server.accept().use { socket ->
+                    val reader = socket.getInputStream().bufferedReader()
+                    while (!reader.readLine().isNullOrEmpty()) Unit
+                    socket.getOutputStream().write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".toByteArray())
+                }
+            }
+            val client = trackingHttpClient().newBuilder().proxy(java.net.Proxy.NO_PROXY)
+                .dns { listOf(silent, loopback) }
+                .socketFactory(SilentAddressSockets(silent)).build()
+            client.newCall(Request.Builder().url("http://fixture.invalid:${server.localPort}/").build()).execute().use { response ->
+                assertEquals(200, response.code)
+                assertEquals("{}", response.body.string())
+            }
+            serving.join()
+        }
+    }
+
+    private class SilentAddressSockets(private val silent: java.net.InetAddress) : javax.net.SocketFactory() {
+        override fun createSocket(): java.net.Socket = object : java.net.Socket() {
+            private val released = java.util.concurrent.CountDownLatch(1)
+            override fun connect(endpoint: java.net.SocketAddress, timeout: Int) {
+                if ((endpoint as java.net.InetSocketAddress).address != silent) return super.connect(endpoint, timeout)
+                released.await()
+                throw java.net.SocketException("Silent address released")
+            }
+            override fun close() { released.countDown(); super.close() }
+        }
+        override fun createSocket(host: String, port: Int): java.net.Socket = throw UnsupportedOperationException()
+        override fun createSocket(host: String, port: Int, localHost: java.net.InetAddress, localPort: Int): java.net.Socket = throw UnsupportedOperationException()
+        override fun createSocket(host: java.net.InetAddress, port: Int): java.net.Socket = throw UnsupportedOperationException()
+        override fun createSocket(address: java.net.InetAddress, port: Int, localAddress: java.net.InetAddress, localPort: Int): java.net.Socket = throw UnsupportedOperationException()
+    }
+
     private class TestCall(private val value: Request, private val enqueue: (Call, Callback) -> Unit) : Call {
         private val cancelled = AtomicBoolean()
         override fun request() = value
@@ -108,6 +157,11 @@ class TrackingHttpsTransportTest {
         override fun isExecuted() = true
         override fun isCanceled() = cancelled.get()
         override fun timeout(): Timeout = Timeout.NONE
+        override fun addEventListener(eventListener: okhttp3.EventListener) = Unit
+        override fun <T : Any> tag(type: kotlin.reflect.KClass<T>): T? = null
+        override fun <T> tag(type: Class<out T>): T? = null
+        override fun <T : Any> tag(type: kotlin.reflect.KClass<T>, computeIfAbsent: () -> T): T = computeIfAbsent()
+        override fun <T : Any> tag(type: Class<T>, computeIfAbsent: () -> T): T = computeIfAbsent()
         override fun clone(): Call = TestCall(value, enqueue)
     }
 }

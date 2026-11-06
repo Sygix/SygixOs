@@ -144,6 +144,7 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.okhttp)
     implementation(libs.media3.exoplayer)
     implementation(libs.haze)
     implementation(libs.haze.glass)
