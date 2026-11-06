@@ -33,7 +33,7 @@ data class HeroItem(
     val playbackTargets: List<fr.sygix.sygixos.tracking.PlaybackTarget> = emptyList(),
     val artworkOverride: ProgramArtwork? = null,
 ) {
-    val artwork: ProgramArtwork get() = artworkOverride ?: tracking?.let { content -> ProgramArtwork(
+    val artwork: ProgramArtwork by lazy(LazyThreadSafetyMode.PUBLICATION) { artworkOverride ?: tracking?.let { content -> ProgramArtwork(
         content.identity.provider, listOfNotNull(imageUrl, thumbnailUrl, posterUrl).distinct(),
         listOf(content.identity, title, season, episode, imageUrl, thumbnailUrl, posterUrl).joinToString("\u0000"),
         publicationId = "tracking-hero-${content.identity.type}-${content.identity.id}",
@@ -43,8 +43,8 @@ data class HeroItem(
         listOf(sourcePackage, id.substringBefore('-'), title, launchUri, internalProviderId, contentId, releaseDate, season, episode, seriesId, episodeArtwork, posterUrl ?: imageUrl, thumbnailUrl, videoUrl.takeIf { sourcePackage == null }).joinToString("\u0000"),
         publicationId = id,
         sharedIdentity = sharedArtworkIdentity(episodeArtwork, seriesId, contentId, internalProviderId, launchUri, title, releaseDate),
-    )
-    val fullFingerprint: String get() = listOf(artwork.identity, positionMillis, durationMillis, engagement, kind, sourceLabel).joinToString("\u0000")
+    ) }
+    val fullFingerprint: String by lazy(LazyThreadSafetyMode.PUBLICATION) { listOf(artwork.identity, positionMillis, durationMillis, engagement, kind, sourceLabel).joinToString("\u0000") }
     val progress: Float?
         get() = playbackRatio(positionMillis, durationMillis)
 }

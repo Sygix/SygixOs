@@ -23,6 +23,14 @@ class ArtworkFingerprintTest {
         assertEquals(original, order.arrange(listOf(other, republished)).map { it.artwork.identity })
     }
 
+    @Test fun artworkFingerprintAndPublicationsAreComputedOncePerInstance() {
+        assertSame(item.artwork, item.artwork)
+        assertSame(item.fullFingerprint, item.fullFingerprint)
+        val feed = HeroFeed(listOf(item), fromApps = true, shelfItems = listOf(item.copy(id = "preview-2")))
+        assertSame(feed.publications, feed.publications)
+        assertEquals(listOf("preview-1", "preview-2"), feed.publications.map { it.id })
+    }
+
     @Test fun publishedUriChangesIdentityButChosenCandidateDoesNot() {
         assertNotEquals(item.artwork.identity, item.copy(posterUrl = "content://fixture/changed").artwork.identity)
         assertEquals(item.artwork.identity, item.copy(imageUrl = "content://fixture/selected").artwork.identity)
