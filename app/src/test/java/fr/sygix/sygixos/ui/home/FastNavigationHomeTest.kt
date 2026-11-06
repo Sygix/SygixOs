@@ -131,6 +131,18 @@ class FastNavigationHomeTest {
     }
 
     @Test
+    fun `the shelf opening after a burst moves the page with its animation`() {
+        showGrid()
+        burst(Key.DirectionDown, 5)
+        compose.onNodeWithTag("app-tile-com.a25").assertIsFocused()
+        val tops = (0 until 100).mapNotNull {
+            compose.mainClock.advanceTimeBy(50)
+            compose.onAllNodesWithTag("shelf-panel").fetchSemanticsNodes().singleOrNull()?.let { it.boundsInRoot.top / it.layoutInfo.density.density }
+        }
+        assertTrue("$tops", tops.distinct().size >= 4)
+    }
+
+    @Test
     fun `a held key in Up Next ends on the right card, fully visible, without waiting for the scroll`() {
         val source = UpNextSourceEntry("com.app", "App")
         val cards = UpNextContent.Items((1L..12L).map { UpNextItem(it, source, UpNextContentType.MOVIE, "Movie $it") })

@@ -22,26 +22,44 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 
 class FastNavigation(private val window: Long = Motion.FOCUS_MS.toLong()) {
     var active: Boolean = false
         private set
     private var lastDirectionDown: Long? = null
+    private var lastDirection: Long? = null
+    private val presses = MutableStateFlow(0L)
 
-    fun record(direction: Boolean, down: Boolean, repeatCount: Int, eventTime: Long) {
-        if (!down) return
-        if (!direction) {
+    fun record(direction: Long?, down: Boolean, repeatCount: Int, eventTime: Long) {
+        if (!down) {
+            if (direction != null && direction == lastDirection) active = false
+            return
+        }
+        if (direction == null) {
             active = false
             lastDirectionDown = null
+            lastDirection = null
             return
         }
         val previous = lastDirectionDown
         active = repeatCount > 0 || (previous != null && eventTime - previous in 1 until window)
         lastDirectionDown = eventTime
+        lastDirection = direction
+        presses.value++
     }
 
     fun onKeyEvent(event: KeyEvent) {
-        record(event.key in Directions, event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, event.nativeKeyEvent.eventTime)
+        record(event.key.takeIf { it in Directions }?.keyCode, event.type == KeyEventType.KeyDown, event.nativeKeyEvent.repeatCount, event.nativeKeyEvent.eventTime)
+    }
+
+    suspend fun expireAfterPauses() {
+        presses.collectLatest {
+            delay(window)
+            active = false
+        }
     }
 
     private companion object {
@@ -56,6 +74,7 @@ fun Modifier.fastNavigationKeys(navigation: FastNavigation): Modifier = onPrevie
 @Composable
 fun FastNavigationHost(content: @Composable () -> Unit) {
     val navigation = remember { FastNavigation() }
+    LaunchedEffect(navigation) { navigation.expireAfterPauses() }
     CompositionLocalProvider(LocalFastNavigation provides navigation) {
         Box(Modifier.fastNavigationKeys(navigation), propagateMinConstraints = true) { content() }
     }
