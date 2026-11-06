@@ -34,9 +34,7 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
     val first = remember { FocusRequester() }
     LaunchedEffect(item.key) { withFrameNanos { }; first.tryRequestFocus() }
     ContextMenuPanel(modifier.testTag("upnext-menu")) {
-        ContextMenuHeader(item.displayTitle, stringResource(R.string.upnext_open_with), "upnext-menu") {
-            UpNextArtwork(item, Modifier.aspectRatio(16f / 9f).clip(RoundedCornerShape(Dimens.MenuThumbnailCorner)).testTag("upnext-menu-thumbnail"))
-        }
+        UpNextMenuHeader(item, stringResource(R.string.upnext_open_with))
         item.sources.distinctBy { it.packageName }.forEachIndexed { index, entry ->
             key(entry.packageName) {
                 MenuEntry("upnext-menu-entry-${entry.packageName}", entry.label, { onOpen(entry) }, if (index == 0) first else null) {
@@ -50,6 +48,13 @@ internal fun UpNextContextMenu(item: UpNextItem, onOpen: (UpNextSourceEntry) -> 
         MenuEntry("upnext-menu-remove", stringResource(R.string.upnext_remove), onRemove) { color ->
             HiddenEyeGlyph(color, Modifier.size(Dimens.MenuEntryIcon).testTag("upnext-menu-remove-icon"))
         }
+    }
+}
+
+@Composable
+internal fun UpNextMenuHeader(item: UpNextItem, subtitle: String) {
+    ContextMenuHeader(item.displayTitle, subtitle, "upnext-menu") {
+        UpNextArtwork(item, Modifier.aspectRatio(16f / 9f).clip(RoundedCornerShape(Dimens.MenuThumbnailCorner)).testTag("upnext-menu-thumbnail"))
     }
 }
 

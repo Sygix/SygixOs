@@ -92,6 +92,8 @@ class TrackingHomeNavigationTest {
             assertEquals(0, fixture.writes)
             press(Key.Menu)
             compose.onNodeWithTag("tracking-action-player").assertIsFocused()
+            compose.onNodeWithTag("upnext-menu-thumbnail").assertExists()
+            compose.onNodeWithTag("upnext-menu-title").assertTextEquals(original.displayTitle)
             press(Key.Enter, "upnext-menu"); runCurrent(); compose.waitForIdle()
             assertEquals(listOf("org.jellyfin.androidtv", "fixture.alpha"), vm.state.value.playerApps.map { it.packageName })
             compose.onNodeWithTag("tracking-player-org.jellyfin.androidtv").assertIsFocused()
@@ -162,10 +164,10 @@ class TrackingHomeNavigationTest {
             press(Key.Back)
             compose.onNodeWithTag("hero-open").assertIsFocused()
             compose.onNodeWithTag(TrackingBubble.UNDO).assertExists()
-        } finally { store.clear() }
-    }
             press(Key.DirectionDown)
             compose.onNodeWithTag("app-tile-fixture.grid").assertIsFocused()
+        } finally { store.clear() }
+    }
 
     @Test fun integratedUndoFocusPausesDeletionAndLeavingResumesOnlyRemainingTime() = runTest {
         val fixture = TrackingMovieFixture(CoroutineScope(backgroundScope.coroutineContext + UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
@@ -270,8 +272,6 @@ class TrackingHomeNavigationTest {
         assertTrue(kotlin.math.abs((bubble.left - origin.left).value) < 12f)
     }
 
-    private fun press(key: Key, tag: String? = null) {
-        val node = if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag)
     private fun assertBubbleBeside(anchor: String) {
         val origin = compose.onNodeWithTag(anchor).getBoundsInRoot()
         val bubble = compose.onNodeWithTag("tracking-bubble").getBoundsInRoot()
@@ -280,6 +280,8 @@ class TrackingHomeNavigationTest {
         assertTrue(kotlin.math.abs(((bubble.top + bubble.bottom) - (origin.top + origin.bottom)).value / 2) < 2f)
     }
 
+    private fun press(key: Key, tag: String? = null) {
+        val node = if (tag == null) compose.onRoot() else compose.onNodeWithTag(tag)
         node.performKeyInput { keyDown(key); keyUp(key) }
         compose.waitForIdle()
     }

@@ -84,6 +84,8 @@ internal fun AppContextMenu(
 
 @Composable
 internal fun ContextMenuPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    var shadow by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { withFrameNanos { }; withFrameNanos { }; shadow = true }
     Box(
         modifier
             .fillMaxSize()
@@ -94,6 +96,7 @@ internal fun ContextMenuPanel(modifier: Modifier = Modifier, content: @Composabl
             modifier = Modifier.testTag("menu-glass").width(Dimens.MenuWidth),
             shape = MenuShape,
             look = GlassLook.Menu,
+            shadow = shadow,
         ) {
             Column(
                 Modifier

@@ -172,7 +172,8 @@ private fun TrackingCountryDropdown(state: TrackingUiState, onClose: () -> Unit,
 internal data class TrackingModalAction(val key: String, val label: String, val click: () -> Unit)
 
 @Composable
-internal fun TrackingModal(title: String, tag: String, actions: List<TrackingModalAction>, onClose: () -> Unit, initial: Int = 0, onFocusedAction: (String) -> Unit = {}, focusFallbackKey: String? = null, focusModel: TrackingFocusViewModel, loading: Boolean = false, body: @Composable ColumnScope.() -> Unit = {}) {
+internal fun TrackingModal(title: String, tag: String, actions: List<TrackingModalAction>, onClose: () -> Unit, initial: Int = 0, onFocusedAction: (String) -> Unit = {}, focusFallbackKey: String? = null, focusModel: TrackingFocusViewModel, loading: Boolean = false,
+    header: (@Composable () -> Unit)? = null, body: @Composable ColumnScope.() -> Unit = {}) {
     val index = initial.coerceIn(0, actions.lastIndex.coerceAtLeast(0))
     val list = rememberLazyListState(index)
     val keys = actions.map { it.key }
@@ -188,7 +189,7 @@ internal fun TrackingModal(title: String, tag: String, actions: List<TrackingMod
             }
         }) {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.OnboardingSpacing)) {
-                    Text(title, style = TextStyles.MenuTitle, color = SygixColors.OnDark)
+                    if (header != null) header() else Text(title, style = TextStyles.MenuTitle, color = SygixColors.OnDark)
                     body()
                     LazyColumn(Modifier.heightIn(max = Dimens.TrackingListHeight), state = list) {
                         itemsIndexed(actions, key = { _, action -> action.key }) { i, action ->

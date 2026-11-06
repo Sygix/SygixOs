@@ -67,6 +67,7 @@ fun GlassSurface(
     shape: RoundedCornerShape = RoundedCornerShape(Dimens.DockCorner),
     active: Boolean = true,
     look: GlassLook = GlassLook.Dock,
+    shadow: Boolean = true,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val haze = LocalHazeState.current
@@ -82,7 +83,7 @@ fun GlassSurface(
     Box(
         modifier = modifier
             .semantics { glassActive = glass }
-            .dropShadow(shape, Shadow(radius = look.shadowRadius, color = look.shadow, offset = DpOffset(0.dp, look.shadowOffset)))
+            .then(if (shadow) Modifier.dropShadow(shape, Shadow(radius = look.shadowRadius, color = look.shadow, offset = DpOffset(0.dp, look.shadowOffset))) else Modifier)
             .border(Dimens.Hairline, SygixColors.GlassBorder, shape)
             .then(
                 if (backdrop != null && active) {

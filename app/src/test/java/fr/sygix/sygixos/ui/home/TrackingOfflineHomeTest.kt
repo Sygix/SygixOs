@@ -121,6 +121,7 @@ class TrackingOfflineHomeTest {
     private fun markSeen() {
         press(Key.Menu)
         compose.onNodeWithTag("tracking-action-player").assertIsFocused()
+        compose.onNodeWithTag("upnext-menu-thumbnail").assertExists()
         press(Key.DirectionDown, "upnext-menu")
         compose.onNodeWithTag("tracking-action-seen").assertIsFocused()
         press(Key.Enter, "upnext-menu")

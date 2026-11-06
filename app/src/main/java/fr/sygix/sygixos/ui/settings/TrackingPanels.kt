@@ -81,7 +81,8 @@ internal fun TrackingPanels(state: TrackingUiState, viewModel: TrackingViewModel
         state.menu != null -> {
             val item = state.menu
             val actions = state.menuActions.map { action -> TrackingModalAction(action.tag, stringResource(action.label)) { viewModel.menuAction(action.tag) } }
-            TrackingModal(item.displayTitle, "upnext-menu", actions, viewModel::close, focusModel = viewModel)
+            TrackingModal(item.displayTitle, "upnext-menu", actions, viewModel::close, focusModel = viewModel,
+                header = { fr.sygix.sygixos.ui.home.UpNextMenuHeader(item, item.source.label) })
         }
         state.device != DeviceAssociationState.Closed && state.device != DeviceAssociationState.Connected -> {
             val device = state.device
