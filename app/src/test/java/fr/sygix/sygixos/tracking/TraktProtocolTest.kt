@@ -237,6 +237,22 @@ class TraktProtocolTest {
         assertEquals(TrackingFailure.INCOMPLETE, partial.failure)
     }
 
+    @Test fun snapshotSkipsWatchlistMoviesNotReleasedYet() = runTest {
+        val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
+        val movies = JSONArray()
+            .put(JSONObject().put("movie", JSONObject().put("title", "Released").put("released", "2025-06-01").put("ids", JSONObject().put("trakt", 1))))
+            .put(JSONObject().put("movie", JSONObject().put("title", "Future").put("released", "2031-12-18").put("ids", JSONObject().put("trakt", 2))))
+        val transport = ScriptedTransport { request ->
+            when {
+                request.url.contains("sync/watchlist/movies") -> TrackingResponse(200, movies.toString(), headers = paginationSingle())
+                request.url.contains("sync/history/movies/2") -> throw AssertionError(request.url)
+                else -> TrackingResponse(200, "[]", headers = paginationSingle())
+            }
+        }
+        val provider = TraktProvider(api(transport, CoordinatedTrackingSessionStore(MemorySession(envelope)))) { Instant.parse("2026-11-06T00:00:00Z").toEpochMilli() }
+        assertEquals(listOf("1"), provider.snapshot(envelope).contents.map { it.identity.id })
+    }
+
     @Test fun snapshotRequestsArtworkAndExcludesMoviesAlreadySeenInTheirTargetedHistory() = runTest {
         val envelope = TraktSessionEnvelope("client", "access", "refresh", 1_000_000, "binding").encode()
         fun movieRow(id: Int) = JSONObject().put("movie", JSONObject().put("ids", JSONObject().put("trakt", id))

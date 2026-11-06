@@ -97,7 +97,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         movies.forEach { value -> entry {
             val status = value.optJSONObject("user")?.optInt("status", -1) ?: -1
             if (status < 0) throw TrackingException(TrackingFailure.PROTOCOL)
-            if (status == 0) contents += movie(value)
+            if (status == 0) movie(value).takeIf { ReleasedContent.released(it, today()) }?.let { contents += it }
         } }
         val issuesBeforePages = issues
         val episodes = pages("episodes/list", "shows", mapOf("released" to "1", "showsLimit" to "100", "limit" to "6"))

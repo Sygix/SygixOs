@@ -78,6 +78,7 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
             progress.forEach { it.optJSONObject("show")?.let { show -> showRows[show.traktId()] = show } }
             for (item in movies) try {
                 val movie = movie(item.optJSONObject("movie") ?: throw TrackingException(TrackingFailure.PROTOCOL))
+                if (!ReleasedContent.released(movie, Instant.ofEpochMilli(wallClock()).atZone(java.time.ZoneOffset.UTC).toLocalDate())) continue
                 val history = api.request("sync/history/movies/${movie.identity.id}?limit=1", token).optJSONArray("items")
                     ?: throw TrackingException(TrackingFailure.INCOMPLETE)
                 if (history.length() == 0) content += movie.copy(membership = AccountMembership.PRESENT)

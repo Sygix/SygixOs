@@ -94,7 +94,8 @@ class BetaSeriesIdentityTest {
         request.url.endsWith("/") -> TrackingResponse(200, """{"apiHost":"https://api.betaseries.com","apiKey":"fixture-client"}""")
         request.url.contains("shows/member") -> TrackingResponse(200,
             """{"shows":[{"id":1,"title":"Brumeval Witches","original_title":"Brumeval Witches","aliases":["Les Sorcières de Brumeval"],"user":{"archived":false}}],"total":1}""")
-        request.url.contains("movies/member") -> TrackingResponse(200, """{"movies":[{"id":9,"title":"Fixture movie","length":8220,"user":{"status":0}}],"total":1}""")
+        request.url.contains("movies/member") -> TrackingResponse(200,
+            """{"movies":[{"id":9,"title":"Fixture movie","length":8220,"user":{"status":0}},{"id":10,"title":"Future movie","release_date":"2031-12-18","user":{"status":0}}],"total":2}""")
         request.url.contains("episodes/list") -> TrackingResponse(200, """{"shows":[{"id":1,"unseen":[
             {"id":30,"season":0,"episode":1,"title":"Special","date":"2025-01-01","special":1,"user":{"seen":false}},
             {"id":31,"season":2,"episode":1,"title":"TBA","date":"2025-01-02","user":{"seen":false}},
@@ -112,5 +113,9 @@ class BetaSeriesIdentityTest {
 
     @Test fun snapshotReadsTheMovieLengthInSeconds() = runTest {
         assertEquals(8_220_000L, snapshot().single { it.identity.type == TrackingType.MOVIE }.durationMillis)
+    }
+
+    @Test fun snapshotSkipsMoviesNotReleasedYet() = runTest {
+        assertEquals(listOf("9"), snapshot().filter { it.identity.type == TrackingType.MOVIE }.map { it.identity.id })
     }
 }
