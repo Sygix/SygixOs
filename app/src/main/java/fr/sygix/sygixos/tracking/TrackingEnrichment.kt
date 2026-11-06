@@ -40,6 +40,7 @@ class TrackingEnrichment(private val controller: TrackingController, private val
     private var job: Job? = null
     private var generation = -1L
     private val identified = mutableMapOf<String, Pair<String, Long>>()
+    private val episodeTitles = EpisodeTitleIdentity(clock)
 
     init {
         scope.launch { controller.state.collect { state ->
@@ -87,7 +88,9 @@ class TrackingEnrichment(private val controller: TrackingController, private val
                         }
                         val content = controller.authenticated { token ->
                             provider.identify(token, item, known) ?: if (known != null) null
-                            else AccountContentIdentity.resolve(item, current.contents)?.let { provider.identify(token, item, it) }
+                            else (AccountContentIdentity.resolve(item, current.contents) ?: episodeTitles.resolve(ContentQuery.of(item), current.contents) { show, season ->
+                                provider.episodes(token, TrackingContent(show, show, "", season = season))
+                            })?.let { provider.identify(token, item, it) }
                         }
                         if (content != null) {
                             catalogue?.put(item.key, item.cardIdentity, content)

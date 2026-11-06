@@ -13,7 +13,7 @@ import kotlinx.coroutines.sync.withLock
 
 const val IDENTITY_RETRY_MS = 15 * 60_000L
 
-data class ContentQuery(val type: TrackingType, val title: String, val year: Int? = null, val season: Int? = null, val episode: Int? = null, val externalIds: Map<String, String> = emptyMap()) {
+data class ContentQuery(val type: TrackingType, val title: String, val year: Int? = null, val season: Int? = null, val episode: Int? = null, val externalIds: Map<String, String> = emptyMap(), val episodeTitle: String? = null) {
     companion object {
         private val EpisodeMarker = Regex("""(?i)\bS\d{1,3}\s*E\d{1,4}\b""")
 
@@ -21,7 +21,8 @@ data class ContentQuery(val type: TrackingType, val title: String, val year: Int
             val movie = item.type == UpNextContentType.MOVIE
             val title = if (movie) item.displayTitle else item.displayTitle.substringBefore(EpisodeMarker.find(item.displayTitle)?.value ?: "\u0000")
                 .trim().trimEnd('-', '–', '—', ':', '·').trim()
-            return ContentQuery(if (movie) TrackingType.MOVIE else TrackingType.SHOW, title, item.year, item.season?.toIntOrNull(), item.episode?.toIntOrNull(), item.externalIds)
+            return ContentQuery(if (movie) TrackingType.MOVIE else TrackingType.SHOW, title, item.year, item.season?.toIntOrNull(), item.episode?.toIntOrNull(), item.externalIds,
+                item.episodeTitle.takeUnless { movie })
         }
     }
 }

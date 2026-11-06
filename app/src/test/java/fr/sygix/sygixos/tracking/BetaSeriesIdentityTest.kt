@@ -20,13 +20,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class BetaSeriesIdentityTest {
     private val localized = UpNextItem(7, UpNextSourceEntry("fixture.player"), UpNextContentType.EPISODE, "Les Sorcières de Brumeval - S1 E4",
-        seriesTitle = "Les Sorcières de Brumeval", season = "1", episode = "4")
+        seriesTitle = "Les Sorcières de Brumeval", season = "1", episode = "4", episodeTitle = "Une famille de fiction")
     private val today = java.time.LocalDate.of(2026, 1, 1)
 
     private fun details(request: TrackingRequest): TrackingResponse? = when {
         request.url.endsWith("/") -> TrackingResponse(200, """{"apiHost":"https://api.betaseries.com","apiKey":"fixture-client"}""")
         request.url.contains("shows/display") -> TrackingResponse(200, """{"show":{"id":1,"title":"Brumeval Witches","user":{"in_account":true,"archived":false}}}""")
-        request.url.contains("shows/episodes") -> TrackingResponse(200, """{"episodes":[{"id":14,"season":1,"episode":4}]}""")
+        request.url.contains("shows/episodes") -> TrackingResponse(200, """{"episodes":[{"id":14,"season":1,"episode":4,"title":"Une famille de fiction","date":"2023-01-29"}]}""")
         request.url.contains("episodes/display") -> TrackingResponse(200, """{"episode":{"id":14,"season":1,"episode":4,"user":{"seen":true}}}""")
         else -> null
     }
@@ -67,6 +67,27 @@ class BetaSeriesIdentityTest {
         assertEquals(parent, tracking.parent)
         assertEquals("14", tracking.identity.id)
         assertTrue(tracking.seen)
+    }
+
+    @Test fun seriesWithoutAnyAliasIsConfirmedByTheLocalEpisodeTitle() = runTest {
+        val provider = BetaSeriesProvider(trackingApi(TrackingTransport { request ->
+            details(request) ?: if (request.url.contains("shows/search")) TrackingResponse(200, """{"shows":[],"total":0}""")
+            else error("Unexpected fixture endpoint")
+        })) { today }
+        val parent = TrackingIdentity("betaseries", TrackingType.SHOW, "1")
+        val next = TrackingContent(TrackingIdentity("betaseries", TrackingType.EPISODE, "21"), parent, "Brumeval Witches", season = 2, episode = 1)
+        val controller = TrackingController(object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
+            override suspend fun snapshot(token: String) = TrackingSnapshot(listOf(next))
+            override suspend fun revoke(token: String) = Unit
+        }, object : TrackingSessionStore {
+            override suspend fun read() = "fixture-token"
+            override suspend fun write(token: String?) = Unit
+        }, backgroundScope, { testScheduler.currentTime })
+        controller.restore(); runCurrent()
+        val enrichment = TrackingEnrichment(controller, provider, backgroundScope, { testScheduler.currentTime })
+        enrichment.local(listOf(localized, localized.copy(id = 8, episodeTitle = "Autre titre"))); runCurrent()
+        assertEquals(listOf(parent, null), enrichment.items().map { it.tracking?.parent })
     }
 
     private suspend fun kotlinx.coroutines.test.TestScope.snapshot(): List<TrackingContent> = BetaSeriesProvider(trackingApi(TrackingTransport { request -> when {
