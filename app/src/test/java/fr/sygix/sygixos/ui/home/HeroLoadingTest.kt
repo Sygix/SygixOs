@@ -27,6 +27,7 @@ import fr.sygix.sygixos.inlineDataStore
 import fr.sygix.sygixos.model.HeroItem
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.TestScope
@@ -119,6 +120,26 @@ class HeroLoadingTest {
         assertEquals(listOf("preview-1"), shown.hero.items.map { it.id })
         assertFalse(shown.hero.items.single().artworkPending)
         assertTrue(shown.hero.fromApps)
+    }
+
+    @Test
+    fun `an image already verified in the index is ready without waiting behind a network check of the same app`() = runTest(main.dispatcher) {
+        val first = heroItem("preview-1", "Unverified fiction", "https://example.invalid/first.jpg", "com.example")
+        val second = heroItem("preview-2", "Verified fiction", "https://example.invalid/second.jpg", "com.example")
+        val network = ConcurrentHashMap<String, Int>()
+        val checker = object : VisualChecker {
+            override suspend fun validate(source: fr.sygix.sygixos.model.ProgramArtwork, policy: fr.sygix.sygixos.domain.ArtworkPolicy, visible: Boolean): VisualCheck {
+                network.merge(source.candidates.first(), 1, Int::plus)
+                return awaitCancellation()
+            }
+            override suspend fun indexed(source: fr.sygix.sygixos.model.ProgramArtwork, policy: fr.sygix.sygixos.domain.ArtworkPolicy) =
+                source.candidates.first().takeIf { it == second.imageUrl }
+        }
+        val home = home(Programs { listOf(first, second) }, checker)
+        home.refreshHero()
+        val shown = home.state.await { (it as? HomeState.Ready)?.hero?.validated == setOf(second.imageUrl) } as HomeState.Ready
+        assertEquals(listOf(true, false), shown.hero.items.map { it.artworkPending })
+        assertEquals(mapOf(first.imageUrl to 1), network.toMap())
     }
 
     @Test

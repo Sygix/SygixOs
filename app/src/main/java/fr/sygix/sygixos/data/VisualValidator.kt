@@ -42,6 +42,7 @@ fun visualCandidates(uri: String): List<String> =
 
 fun interface VisualChecker {
     suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean): VisualCheck
+    suspend fun indexed(source: ProgramArtwork, policy: ArtworkPolicy): String? = null
 }
 
 class VisualValidator(
@@ -50,6 +51,7 @@ class VisualValidator(
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : VisualChecker {
     internal var repository: ArtworkRepository? = null
+    override suspend fun indexed(source: ProgramArtwork, policy: ArtworkPolicy): String? = repository?.indexed(source, policy)?.uri
     override suspend fun validate(source: ProgramArtwork, policy: ArtworkPolicy, visible: Boolean): VisualCheck {
         repository?.let {
             val (image, failure) = it.resolve(source, policy, visible)

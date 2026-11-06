@@ -155,6 +155,11 @@ internal class ArtworkRepository(
         null to failure
     }
 
+    suspend fun indexed(source: ProgramArtwork, policy: ArtworkPolicy): ArtworkImage? = withContext(io) {
+        initialized.await()
+        indexed(source, policy, source.candidates.flatMap(::visualCandidates).distinct())
+    }
+
     private suspend fun indexed(source: ProgramArtwork, policy: ArtworkPolicy, uris: List<String>): ArtworkImage? {
         for ((rank, uri) in uris.withIndex()) {
             if (Uri.parse(uri).scheme !in IndexedSchemes) return null

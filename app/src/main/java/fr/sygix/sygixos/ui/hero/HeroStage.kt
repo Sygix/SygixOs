@@ -147,8 +147,10 @@ fun HeroStage(
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
     var natureIndex by remember { mutableStateOf(0) }
     var slowVisuals by remember { mutableStateOf(emptySet<String>()) }
+    var visualShown by remember { mutableStateOf(false) }
     val lastIndex = remember { IntArray(1) }
-    val index = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 }
+    val firstReady = if (currentId == null && !visualShown) HeroOpening.firstReady(items) else null
+    val index = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 } ?: firstReady
         ?: lastIndex[0].coerceAtMost(items.lastIndex).coerceAtLeast(0)
     lastIndex[0] = index
     val current = items.getOrNull(index)
@@ -181,6 +183,7 @@ fun HeroStage(
     val step: (Int) -> Unit = { delta -> stepTo(delta, skipPending = false) }
     val rotate: () -> Unit = { stepTo(1, skipPending = true) }
     val stepState = rememberUpdatedState(step)
+    LaunchedEffect(visualShown) { if (visualShown && currentId == null) currentId = current?.id }
     val onVideoError: (String) -> Unit = { id ->
         val uri = (if (fallback) natureUrl else current?.videoUrl)?.let(android.net.Uri::parse)
         Log.w(TAG, "app=${current?.sourcePackage ?: "nature"} scheme=${uri?.scheme} authority=${uri?.let { fr.sygix.sygixos.data.diagnosticAuthority(it) }} cause=video-unavailable")
@@ -220,7 +223,10 @@ fun HeroStage(
     val onVisualReadyState = rememberUpdatedState(onVisualReady)
     LaunchedEffect(player) {
         if (player == null) return@LaunchedEffect
-        snapshotFlow { player.firstFrameRendered }.filter { it }.collect { onVisualReadyState.value() }
+        snapshotFlow { player.firstFrameRendered }.filter { it }.collect {
+            visualShown = true
+            onVisualReadyState.value()
+        }
     }
     LaunchedEffect(player) {
         if (player == null) return@LaunchedEffect
@@ -352,6 +358,7 @@ fun HeroStage(
             animated = motion,
             zooms = visualMotion,
             onReady = { url ->
+                visualShown = true
                 onVisualReadyState.value()
                 val (id, poster) = currentPoster
                 if (url == poster) shownId = id
@@ -776,3 +783,9 @@ private val PlayGlyphSize = 13.dp
 private val ButtonExtraGap = 3.dp
 private val TitleShadow = Shadow(Color.Black.copy(alpha = 0.45f), Offset(0f, 2f), 12f)
 private val SmallTextShadow = Shadow(Color.Black.copy(alpha = 0.5f), Offset(0f, 1f), 3f)
+
+internal object HeroOpening {
+    fun firstReady(items: List<HeroItem>): Int? =
+        items.indexOfFirst { !it.artworkPending && !it.artworkFailed && it.videoUrl == null && it.artwork.candidates.isNotEmpty() }.takeIf { it >= 0 }
+            ?: items.indexOfFirst { it.videoUrl != null }.takeIf { it >= 0 }
+}

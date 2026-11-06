@@ -197,6 +197,21 @@ class ArtworkRepositoryTest {
         }
     }
 
+    @Test fun theIndexAnswersFromVerifiedImagesWithoutAnyNetworkRead() = runBlocking {
+        val reads = AtomicInteger()
+        ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); pixels }).use { f ->
+            val verified = source.copy(candidates = listOf("content://fixture/verified"))
+            val unknown = source.copy(identity = "other", publicationId = "preview-2", candidates = listOf("content://fixture/unknown"))
+            f.repository.confirm("preview", listOf(verified to "verified", unknown to "unknown"))
+            assertNotNull(f.repository.resolve(verified, ArtworkPolicy.Hero).first)
+            assertEquals(1, reads.get())
+            assertEquals("content://fixture/verified", f.repository.indexed(verified, ArtworkPolicy.Hero)?.uri)
+            assertEquals("content://fixture/verified", VisualValidator(f.context).also { it.repository = f.repository }.indexed(verified, ArtworkPolicy.Hero))
+            assertNull(f.repository.indexed(unknown, ArtworkPolicy.Hero))
+            assertEquals(1, reads.get())
+        }
+    }
+
     @Test fun aFullArtworkQueueIsNeitherAFailureNorRecorded() = runBlocking {
         val reads = AtomicInteger()
         ArtworkFixture(folder.newFolder(), ImageBytesReader { _, _ -> reads.incrementAndGet(); pixels }, capacity = 0).use { busy ->

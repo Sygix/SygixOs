@@ -410,7 +410,7 @@ class HomeViewModel(
         val visible = if (shelf) emptySet() else items.take(VisualQuality.HERO_VISIBLE).mapTo(HashSet()) { it.artwork.identity }
         val policy = if (shelf) ArtworkPolicy.Shelf(shelfWidth) else ArtworkPolicy.Hero
         val job = viewModelScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
-            try { kotlinx.coroutines.coroutineScope { pending.groupBy { it.sourcePackage }.values.forEach { group -> launch {
+            try { kotlinx.coroutines.coroutineScope { pending.filter { item -> !recordIndexed(item, policy, results, checks, shelf) }.groupBy { it.sourcePackage }.values.forEach { group -> launch {
                 group.forEach { item ->
                     val identity = item.artwork.identity
                     if (identity !in projected) return@forEach
@@ -428,6 +428,17 @@ class HomeViewModel(
         job.invokeOnCompletion { validationBatches.remove(job) }
         job.start()
         return job
+    }
+
+    private suspend fun recordIndexed(item: HeroItem, policy: ArtworkPolicy, results: MutableStateFlow<VisualResults>,
+        checks: MutableMap<String, fr.sygix.sygixos.model.ProgramArtwork>, shelf: Boolean): Boolean {
+        val identity = item.artwork.identity
+        val uri = validator.indexed(item.artwork, policy) ?: return false
+        validating.remove(shelf to identity)
+        val current = projected[identity] ?: return true
+        checks[current.id] = current.artwork
+        results.update { it.record(current.id, item.artwork.candidates, fr.sygix.sygixos.data.VisualCheck(uri)) }
+        return true
     }
 
     private suspend fun checkVisual(item: HeroItem, policy: ArtworkPolicy, visible: Boolean): fr.sygix.sygixos.data.VisualCheck {

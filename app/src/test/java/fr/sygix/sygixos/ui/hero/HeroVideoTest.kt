@@ -195,7 +195,7 @@ class HeroVideoTest {
     @Test
     fun `three fallback programs keep one nature preparation then ending advances the clip and image resets it`() {
         val fallback = (1..3).map { HeroItem("failed$it", "Fiction $it", imageUrl = "content://fixture/failed$it", sourcePackage = "fixture.app", launchUri = "fixture://film/$it", artworkFailed = true) }
-        show(fallback + picture("healthy", "Healthy fiction"))
+        show(fallback + picture("healthy", "Healthy fiction").copy(artworkPending = true))
         compose.runOnIdle { video.render("nature-0") }
         advance(500)
         advance(Motion.HERO_DWELL_MS + 200)
@@ -217,7 +217,7 @@ class HeroVideoTest {
     @Test
     fun `nature then neutral fallback preserve program texts opening target and navigation`() {
         val program = HeroItem("unavailable", "Unavailable fiction", sourcePackage = "com.example.player", launchUri = "intent://fiction")
-        val healthy = picture("healthy", "Healthy fiction")
+        val healthy = picture("healthy", "Healthy fiction").copy(artworkPending = true)
         show(listOf(program, healthy))
         compose.onNodeWithTag("hero-fallback-neutral").assertExists()
         compose.onNodeWithText(program.title, useUnmergedTree = true).assertExists()
@@ -238,6 +238,38 @@ class HeroVideoTest {
         compose.onNodeWithText(healthy.title, useUnmergedTree = true).assertExists()
         press(Key.Enter)
         assertEquals(listOf(program.id, program.id, healthy.id), opened)
+    }
+
+    @Test
+    fun `the hero opens on a program whose image is ready when the first one is still pending`() {
+        val waiting = picture("a", "Programme en attente").copy(artworkPending = true)
+        val ready = picture("b", "Programme prêt")
+        show(listOf(waiting, ready))
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(ready.title, useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("hero-poster").assertExists()
+        compose.onAllNodesWithText(waiting.title, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `once a poster is shown the opening program no longer follows readiness`() {
+        var items by mutableStateOf(listOf(picture("a", "Programme en attente").copy(artworkPending = true), picture("b", "Programme prêt")))
+        Coil.setImageLoader(ReadyLoader())
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            CompositionLocalProvider(
+                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, _, _ -> video },
+                LocalLifecycleOwner provides owner,
+            ) {
+                HeroStage(items = items, validatedVisuals = emptySet(), active = true, visible = true, focusRequester = FocusRequester(), onOpen = {})
+            }
+        }
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText("Programme prêt", useUnmergedTree = true).assertExists()
+        compose.runOnIdle { items = listOf(items[0].copy(artworkPending = false), items[1]) }
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText("Programme prêt", useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText("Programme en attente", useUnmergedTree = true).assertCountEquals(0)
     }
 
     @Test
