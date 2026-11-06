@@ -37,6 +37,55 @@ class TrackingProjectionTest {
         assertEquals(2, heroes.distinct().size)
     }
 
+    @Test fun accountMoviesAndEpisodesKeepTheirOwnCardShape() {
+        val movie = TrackingContent(TrackingIdentity("fixture", TrackingType.MOVIE, "slug-7"), title = "Brumeval", poster = "https://fixture/poster.jpg")
+        val movieCard = TrackingProjection.card(movie)
+        assertEquals(UpNextContentType.MOVIE, movieCard.type)
+        assertEquals(ProgramKind.WATCHLIST, movieCard.watchNextType)
+        assertNull(movieCard.seriesTitle)
+        assertTrue(movieCard.portrait)
+        assertEquals("https://fixture/poster.jpg", movieCard.imageUrl)
+        assertEquals(movie.identity.hashCode().toLong(), movieCard.id)
+        assertEquals(ProgramKind.WATCHLIST, TrackingProjection.hero(movie).kind)
+        val episodeCard = TrackingProjection.card(next.copy(image = "https://fixture/still.jpg", poster = "https://fixture/poster.jpg"))
+        assertEquals(UpNextContentType.EPISODE, episodeCard.type)
+        assertEquals(ProgramKind.NEXT, episodeCard.watchNextType)
+        assertEquals("Fixture", episodeCard.seriesTitle)
+        assertFalse(episodeCard.portrait)
+        assertEquals("https://fixture/still.jpg", episodeCard.imageUrl)
+        assertEquals(3L, episodeCard.id)
+        assertEquals(ProgramKind.NEXT, TrackingProjection.hero(next).kind)
+    }
+
+    @Test fun watchedMoviesAreNoLongerAccountCandidates() {
+        val movie = TrackingContent(TrackingIdentity("fixture", TrackingType.MOVIE, "7"), title = "Brumeval")
+        assertEquals(listOf(movie), TrackingProjection.candidates(listOf(movie)))
+        assertEquals(emptyList<TrackingContent>(), TrackingProjection.candidates(listOf(movie.copy(movieState = 1))))
+    }
+
+    @Test fun seenAccountEpisodePublishedByAnAppLeavesTheRow() {
+        val seen = next.copy(seen = true)
+        val local = UpNextItem(9, UpNextSourceEntry("fixture.player"), UpNextContentType.EPISODE, "Fixture", tracking = seen)
+        assertEquals(emptyList<UpNextItem>(), TrackingProjection.merge(listOf(local), emptyList()))
+        val unknown = local.copy(tracking = seen.copy(membership = AccountMembership.UNKNOWN))
+        assertEquals(listOf(unknown), TrackingProjection.merge(listOf(unknown), emptyList()))
+    }
+
+    @Test fun unidentifiedResumeTakesTheAccountIdentityOnlyForTheSameEpisode() {
+        val tracked = next.copy(externalIds = mapOf("tvdb" to "42"))
+        fun resume(episode: String) = UpNextItem(1, UpNextSourceEntry("fixture.player"), UpNextContentType.EPISODE, "Fixture", season = "2", episode = episode,
+            watchNextType = ProgramKind.CONTINUE, externalIds = mapOf("tvdb" to "42"))
+        val same = TrackingProjection.merge(listOf(resume("3")), listOf(tracked)).single().tracking
+        assertEquals(tracked.identity, same?.identity)
+        assertEquals(AccountMembership.PRESENT, same?.membership)
+        assertNull(TrackingProjection.merge(listOf(resume("4")), listOf(tracked)).single().tracking)
+    }
+
+    @Test fun unrelatedAppItemStaysBesideTheAccountContent() {
+        val other = UpNextItem(9, UpNextSourceEntry("fixture.player"), UpNextContentType.EPISODE, "Autre fiction", externalIds = mapOf("tvdb" to "99"))
+        assertEquals(listOf(other, TrackingProjection.card(next)), TrackingProjection.merge(listOf(other), listOf(next)))
+    }
+
     @Test fun unseenResumeWinsWithoutReusingAnIntentForAnotherEpisode() {
         val resumed = next.copy(identity = next.identity.copy(id = "5"), episode = 5)
         val source = UpNextSourceEntry("fixture.player", intentUri = "fixture://episode5", targetIdentity = resumed.identity)

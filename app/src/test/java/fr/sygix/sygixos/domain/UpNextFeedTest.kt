@@ -160,6 +160,24 @@ class UpNextFeedTest {
         assertEquals(listOf("app.b", "app.a"), merged.sources.map { it.packageName })
     }
 
+    @Test
+    fun `identified contents merge by account identity whatever title each app publishes`() {
+        fun tracked(item: UpNextItem, type: TrackingType, id: String, parent: String = id) = item.copy(tracking = TrackingContent(
+            TrackingIdentity("fixture", type, id), TrackingIdentity("fixture", if (type == TrackingType.MOVIE) type else TrackingType.SHOW, parent), title = item.title))
+        fun episode(id: Long, pkg: String, number: String, title: String) = episode(id, pkg, number = number).copy(seriesTitle = title)
+        val sameAppMovie = listOf(tracked(movie(1, "app", title = "Brumeval"), TrackingType.MOVIE, "7"),
+            tracked(movie(2, "app", title = "Les Brumes de Val"), TrackingType.MOVIE, "7"))
+        val sameAppSeries = listOf(tracked(episode(1, "app", "2", "Brumeval"), TrackingType.EPISODE, "e2", "s"),
+            tracked(episode(2, "app", "3", "Les Brumes de Val"), TrackingType.EPISODE, "e3", "s"))
+        val acrossAppsEpisode = listOf(tracked(episode(1, "app.a", "2", "Brumeval"), TrackingType.EPISODE, "e2", "s"),
+            tracked(episode(2, "app.b", "2", "Les Brumes de Val"), TrackingType.EPISODE, "e2", "s"))
+        val acrossAppsMovie = listOf(tracked(movie(1, "app.a", title = "Brumeval"), TrackingType.MOVIE, "7"),
+            tracked(movie(2, "app.b", title = "Les Brumes de Val"), TrackingType.MOVIE, "7"))
+        for (items in listOf(sameAppMovie, sameAppSeries, acrossAppsEpisode, acrossAppsMovie)) {
+            assertEquals(1, UpNextFeed.build(items).size)
+        }
+    }
+
     private fun <T> permutations(items: List<T>): List<List<T>> =
         if (items.isEmpty()) listOf(emptyList()) else items.indices.flatMap { index ->
             permutations(items.filterIndexed { i, _ -> i != index }).map { listOf(items[index]) + it }

@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.*
@@ -92,6 +93,43 @@ class ArtworkSchedulerTest {
                 assertEquals(listOf("app4", "app1"), order)
             } finally { releaseA.countDown(); releaseOthers.countDown() }
             started.forEach { assertTrue(it.await().isSuccess) }
+        }
+    }
+
+    @Test fun `a full queue refuses new work without reading it`() = runBlocking {
+        ArtworkScheduler(parallelism = 1, capacity = 2, executors = timer.executors(1)).use { scheduler ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            try {
+                val running = async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 5_000) { entered.countDown(); release.await(30, TimeUnit.SECONDS); 0 } }
+                assertTrue(entered.await(30, TimeUnit.SECONDS))
+                val queued = (1..2).map { n -> async(start = CoroutineStart.UNDISPATCHED) { scheduler.run("app", 5_000) { n } } }
+                var read = false
+                assertTrue(scheduler.run("app", 5_000) { read = true }.exceptionOrNull() is ArtworkBusyException)
+                assertFalse(read)
+                release.countDown()
+                assertEquals(listOf(1, 2), withTimeout(30_000) { queued.map { it.await().getOrThrow() } })
+                assertEquals(0, running.await().getOrThrow())
+            } finally { release.countDown() }
+        }
+    }
+
+    @Test fun `an abandoned running read is cancelled and keeps its app out until it returns`() = runBlocking {
+        scheduler(2).use { scheduler ->
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val cancelled = CountDownLatch(1)
+            try {
+                val running = async(start = CoroutineStart.UNDISPATCHED) {
+                    scheduler.run("stuck", 5_000, cancel = { cancelled.countDown() }) { entered.countDown(); release.await(30, TimeUnit.SECONDS); "late" }
+                }
+                assertTrue(entered.await(30, TimeUnit.SECONDS))
+                running.cancelAndJoin()
+                assertTrue(cancelled.await(30, TimeUnit.SECONDS))
+                var reopened = false
+                assertTrue(scheduler.run("stuck", 1_000) { reopened = true }.exceptionOrNull() is ArtworkBusyException)
+                assertFalse(reopened)
+            } finally { release.countDown() }
         }
     }
 
