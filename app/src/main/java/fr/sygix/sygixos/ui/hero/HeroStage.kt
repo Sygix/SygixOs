@@ -151,26 +151,29 @@ fun HeroStage(
     val imageVersion = (imageEvent as? fr.sygix.sygixos.data.ArtworkEvent.ImageReady)?.version.orEmpty()
     var failedImages by remember(current?.artwork?.identity, imageVersion) { mutableStateOf(emptySet<String>()) }
     val programVideo = current?.videoUrl != null && current.id !in failedVideos
+    val pending = current?.artworkPending == true
     val imageCandidate = current?.artwork?.candidates?.firstOrNull()
-    val fallback = current != null && !programVideo && (current.artworkFailed || imageCandidate == null || imageCandidate in failedImages)
+    val fallback = current != null && !programVideo && !pending && (current.artworkFailed || imageCandidate == null || imageCandidate in failedImages)
     val natureUrl = fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.getOrNull(natureIndex)
     val mediaId = if (fallback) "nature-$natureIndex" else current?.id
     val mediaUrl = if (fallback) natureUrl else current?.videoUrl
-    val showVideo = programVideo || fallback && natureUrl != null
+    val showVideo = programVideo || fallback && natureUrl != null && motion
 
     fun viable(item: HeroItem): Boolean =
         item.id !in slowVisuals
 
-    val step: (Int) -> Unit = { delta ->
+    fun stepTo(delta: Int, skipPending: Boolean) {
         var i = index
         for (attempt in items.indices) {
             i = (i + delta).mod(items.size)
-            if (viable(items[i])) {
+            if (viable(items[i]) && !(skipPending && items[i].artworkPending)) {
                 currentId = items[i].id
                 break
             }
         }
     }
+    val step: (Int) -> Unit = { delta -> stepTo(delta, skipPending = false) }
+    val rotate: () -> Unit = { stepTo(1, skipPending = true) }
     val stepState = rememberUpdatedState(step)
     val onVideoError: (String) -> Unit = { id ->
         val uri = (if (fallback) natureUrl else current?.videoUrl)?.let(android.net.Uri::parse)
@@ -178,8 +181,9 @@ fun HeroStage(
         if (fallback && id.startsWith("nature-")) natureIndex += 1 else failedVideos = failedVideos + id
     }
     val onVideoErrorState = rememberUpdatedState(onVideoError)
+    val rotateState = rememberUpdatedState(rotate)
     val onVideoEndedState = rememberUpdatedState<() -> Unit>({
-        if (fallback) natureIndex = (natureIndex + 1) % fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.size else stepState.value(1)
+        if (fallback) natureIndex = (natureIndex + 1) % fr.sygix.sygixos.data.NatureFallbackProvider.CLIPS.size else rotateState.value()
     })
     val onImageError: (String) -> Unit = { url ->
         failedImages = failedImages + url
@@ -195,23 +199,29 @@ fun HeroStage(
     val providedIcons = LocalSourceIcons.current
     val icons = remember(providedIcons) { providedIcons ?: AppIconCache.squareFor(context.packageManager) }
     val videoFactory = LocalHeroVideoFactory.current
-    val player = remember(videoFactory) {
-        videoFactory.create(
-            context.applicationContext,
-            { onVideoEndedState.value() },
-            { onVideoErrorState.value(it) },
-        )
+    val videos = remember(videoFactory) {
+        HeroVideoSlot {
+            videoFactory.create(
+                context.applicationContext,
+                { onVideoEndedState.value() },
+                { onVideoErrorState.value(it) },
+            )
+        }
     }
-    LifecycleStartEffect(player) { onStopOrDispose { player.release() } }
+    val player = videos.current
+    LifecycleStartEffect(player) { onStopOrDispose { player?.release() } }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val onVisualReadyState = rememberUpdatedState(onVisualReady)
     LaunchedEffect(player) {
+        if (player == null) return@LaunchedEffect
         snapshotFlow { player.firstFrameRendered }.filter { it }.collect { onVisualReadyState.value() }
     }
     LaunchedEffect(player) {
+        if (player == null) return@LaunchedEffect
         snapshotFlow { player.readyItem }.collect { id -> if (id != null) slowVisuals = slowVisuals - id }
     }
     LaunchedEffect(player) {
+        if (player == null) return@LaunchedEffect
         var loaded: String? = null
         snapshotFlow { player.loadedItem }.collect { id ->
             loaded?.let { slowVisuals = slowVisuals - it }
@@ -220,11 +230,13 @@ fun HeroStage(
     }
 
     LifecycleStartEffect(mediaId, showVideo, visible, motion, items.size, keepVideo) {
+        val shown = videos.current
         when {
-            visible && mediaId != null && mediaUrl != null && showVideo -> player.show(mediaId, mediaUrl, play = motion, loop = !fallback && items.size == 1)
-            visible && player.loadedItem in slowVisuals -> player.park()
-            keepVideo && showVideo && player.loadedItem == mediaId -> player.park()
-            else -> player.clear()
+            visible && mediaId != null && mediaUrl != null && showVideo -> videos.obtain().show(mediaId, mediaUrl, play = motion, loop = !fallback && items.size == 1)
+            shown == null -> Unit
+            visible && shown.loadedItem in slowVisuals -> shown.park()
+            keepVideo && showVideo && shown.loadedItem == mediaId -> shown.park()
+            else -> shown.clear()
         }
         onStopOrDispose { }
     }
@@ -233,19 +245,22 @@ fun HeroStage(
         if (!showVideo || !visible) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             delay(Motion.HERO_VIDEO_START_TIMEOUT_MS)
-            if (!player.firstFrameRendered) mediaId?.let { onVideoErrorState.value(it) }
+            if (videos.current?.firstFrameRendered != true) mediaId?.let { onVideoErrorState.value(it) }
         }
     }
     LaunchedEffect(current?.id, showVideo, fallback, visible, items.size) {
         if (current == null || showVideo && !fallback || !visible || items.size < 2) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
-            delay(Motion.HERO_DWELL_MS)
-            stepState.value(1)
+            while (true) {
+                delay(Motion.HERO_DWELL_MS)
+                rotateState.value()
+            }
         }
     }
 
-    val posterUrl = imageCandidate?.takeIf { !showVideo && it !in failedImages }
+    val posterUrl = imageCandidate?.takeIf { !showVideo && !fallback && !pending }
     var shownId by remember { mutableStateOf<String?>(null) }
+    val lastShown = remember { arrayOfNulls<String>(1) }
     val targetId = current?.artwork?.identity
     val currentPoster by rememberUpdatedState(targetId to posterUrl)
     LaunchedEffect(targetId, mediaId, showVideo, posterUrl, fallback) {
@@ -253,10 +268,10 @@ fun HeroStage(
             targetId == null -> shownId = null
             fallback -> shownId = targetId
             showVideo -> {
-                snapshotFlow { player.renderedItem }.first { it == mediaId }
+                snapshotFlow { videos.current?.renderedItem }.first { it == mediaId }
                 shownId = targetId
             }
-            posterUrl == null -> shownId = targetId
+            posterUrl == null || shownId == null || lastShown[0] == current?.id -> shownId = targetId
         }
     }
     LaunchedEffect(targetId, posterUrl, showVideo, visible) {
@@ -273,10 +288,13 @@ fun HeroStage(
         }
     }
     val shown = items.firstOrNull { it.artwork.identity == shownId }
-    LaunchedEffect(shown?.id) { onDisplayed(shown?.id) }
+    LaunchedEffect(shown?.id) {
+        shown?.let { lastShown[0] = it.id }
+        onDisplayed(shown?.id)
+    }
     var buttonFocused by remember { mutableStateOf(false) }
     val launchable = shown != null && shown.title.isNotEmpty() && (shown.launchUri != null || shown.sourcePackage != null || shown.tracking != null)
-    val hasVisual = showVideo && player.firstFrameRendered || posterUrl != null
+    val hasVisual = showVideo && player?.firstFrameRendered == true || posterUrl != null
     LaunchedEffect(launchable, active, claimFocus) {
         if (!active || !claimFocus) return@LaunchedEffect
         withFrameNanos { }
@@ -306,8 +324,9 @@ fun HeroStage(
             deferred = !motion,
             covered = { backdrop.covered || videoCovers.value },
         )
-        if (fallback) Spacer(Modifier.fillMaxSize().testTag(if (showVideo && player.firstFrameRendered) "hero-fallback-nature" else "hero-fallback-neutral"))
-        if (showVideo) {
+        if (fallback) Spacer(Modifier.fillMaxSize().testTag(if (showVideo && player?.firstFrameRendered == true) "hero-fallback-nature" else "hero-fallback-neutral"))
+        if (pending) Spacer(Modifier.fillMaxSize().testTag("hero-artwork-pending"))
+        if (showVideo && player != null) {
             HeroVideoLayer(player, visible = player.firstFrameRendered, covers = videoCovers)
         }
         val density = LocalDensity.current

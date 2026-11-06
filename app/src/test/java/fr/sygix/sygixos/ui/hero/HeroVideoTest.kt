@@ -20,6 +20,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -132,6 +133,7 @@ class HeroVideoTest {
     private var failVideo: (String) -> Unit = {}
     private var endVideo: () -> Unit = {}
     private val opened = mutableListOf<String>()
+    private var created = 0
     private var motion by mutableStateOf(true)
     private var visible by mutableStateOf(true)
     private val owner = object : LifecycleOwner {
@@ -147,7 +149,7 @@ class HeroVideoTest {
         compose.mainClock.autoAdvance = false
         compose.setContent {
             CompositionLocalProvider(
-                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, ended, error -> endVideo = ended; failVideo = error; video },
+                LocalHeroVideoFactory provides HeroVideoFactory { _: Context, ended, error -> created++; endVideo = ended; failVideo = error; video },
                 LocalLifecycleOwner provides owner,
             ) {
                 HeroStage(
@@ -236,6 +238,68 @@ class HeroVideoTest {
         compose.onNodeWithText(healthy.title, useUnmergedTree = true).assertExists()
         press(Key.Enter)
         assertEquals(listOf(program.id, program.id, healthy.id), opened)
+    }
+
+    @Test
+    fun `a pending program shows its texts on the gradient without poster, fallback or player`() {
+        val pending = picture("p1", "Titre en attente").copy(launchUri = "intent://p1", artworkPending = true)
+        show(listOf(pending))
+        compose.onNodeWithText(pending.title, useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag("hero-artwork-pending").assertExists()
+        compose.onAllNodesWithTag("hero-poster").assertCountEquals(0)
+        compose.onAllNodesWithTag("hero-fallback-neutral").assertCountEquals(0)
+        compose.onAllNodesWithTag("hero-fallback-nature").assertCountEquals(0)
+        assertEquals(0, created)
+        press(Key.Enter)
+        assertEquals(listOf(pending.id), opened)
+    }
+
+    @Test
+    fun `a picture program never builds the video player`() {
+        show(listOf(picture("p1", "Titre fictif")))
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithTag("hero-poster").assertExists()
+        assertEquals(0, created)
+    }
+
+    @Test
+    fun `the rotation skips pending programs while another is ready and otherwise stays`() {
+        val first = picture("p1", "Premier titre fictif")
+        val waiting = picture("p2", "Titre en attente").copy(artworkPending = true)
+        val third = picture("p3", "Troisième titre fictif")
+        show(listOf(first, waiting, third))
+        advance(Motion.HERO_DWELL_MS + Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(third.title, useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText(waiting.title, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun `a pending program stays on screen while no other program is ready`() {
+        val first = picture("p1", "Premier titre fictif").copy(artworkPending = true)
+        val second = picture("p2", "Second titre fictif").copy(artworkPending = true)
+        show(listOf(first, second))
+        advance(Motion.HERO_DWELL_MS * 2 + Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(first.title, useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText(second.title, useUnmergedTree = true).assertCountEquals(0)
+        press(Key.DirectionRight)
+        advance(Motion.HERO_CROSSFADE_MS + 500L)
+        compose.onNodeWithText(second.title, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun `a failed program image waits for the end of the startup screen before the nature video`() {
+        motion = false
+        val failed = picture("f1", "Titre sans image").copy(artworkFailed = true)
+        show(listOf(failed))
+        assertEquals(emptyList<String>(), video.prepared)
+        assertEquals(0, created)
+        compose.onNodeWithText(failed.title, useUnmergedTree = true).assertExists()
+        compose.runOnIdle {
+            motion = true
+            Snapshot.sendApplyNotifications()
+        }
+        advance(100)
+        assertEquals(listOf("nature-0"), video.prepared)
     }
 
     @Test

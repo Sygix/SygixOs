@@ -44,6 +44,13 @@ internal fun interface HeroVideoFactory {
     fun create(context: Context, onEnded: () -> Unit, onError: (itemId: String) -> Unit): HeroVideo
 }
 
+internal class HeroVideoSlot(private val create: () -> HeroVideo) {
+    var current by mutableStateOf<HeroVideo?>(null)
+        private set
+
+    fun obtain(): HeroVideo = current ?: create().also { current = it }
+}
+
 internal val SystemHeroVideo = HeroVideoFactory { context, onEnded, onError ->
     (context.applicationContext as? fr.sygix.sygixos.SygixOsApp)?.createHeroVideo(onEnded, onError) ?: HeroPlayer(context, onEnded, onError)
 }
