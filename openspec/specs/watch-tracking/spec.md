@@ -39,6 +39,10 @@ La correspondance d'un contenu local avec le suivi SHALL reposer sur une identit
 - **WHEN** une app publie un contenu sans identifiant externe sous un titre traduit
 - **THEN** le titre normalisé est comparé strictement au titre, au titre original et aux alias que le fournisseur publie pour ses candidats, puis aux contenus déjà présents dans le compte ; un seul candidat correspondant est retenu, sinon aucun
 
+#### Scenario: titre traduit absent du fournisseur
+- **WHEN** un épisode publié par une app n'est retrouvé ni par son titre ni par un alias, mais qu'une à trois séries du compte partagent un mot significatif de son titre
+- **THEN** la série est retenue seulement si une seule de ces séries a, pour la même saison, le même numéro d'épisode avec le même titre d'épisode normalisé que celui publié par l'app ; sinon aucune n'est retenue
+
 #### Scenario: échec d'identification
 - **WHEN** aucun candidat unique n'a été trouvé pour un contenu local
 - **THEN** cet échec est mémorisé pour ce contenu seul et réessayé après la même validité de 15 minutes, jamais conservé jusqu'au redémarrage de l'application

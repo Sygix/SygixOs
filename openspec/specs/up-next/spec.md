@@ -211,7 +211,7 @@ Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts S
 
 #### Scenario: films et séries du compte
 - **WHEN** le compte apporte des séries à suivre et des films à voir qu'aucune app ne publie
-- **THEN** ils sont triés ensemble par date de diffusion de l'épisode ou de sortie du film affiché, la plus récente d'abord, les dates inconnues en dernier, sans placer tous les films après toutes les séries
+- **THEN** ils sont triés ensemble par date de diffusion de l'épisode ou de sortie du film affiché, la plus récente d'abord, les dates inconnues en dernier, sans placer tous les films après toutes les séries ; un film dont la sortie est à venir n'apparaît pas, comme un épisode non diffusé
 
 #### Scenario: contenus ouverts avant les groupes
 - **WHEN** deux contenus de la rangée ont été ouverts depuis SygixOs, l'un `WATCHLIST` hier, l'autre `NEXT` il y a une heure, et que d'autres contenus `CONTINUE` n'ont jamais été ouverts depuis SygixOs
