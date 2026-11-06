@@ -104,7 +104,6 @@ internal fun TrackingSettingsContent(state: TrackingUiState, viewModel: Tracking
                 Text(stringResource(R.string.tracking_session_retained), style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary)
             }
             val action = when {
-                state.tracking.loading -> R.string.tracking_loading
                 state.tracking.failure.requiresReconnection -> R.string.tracking_reconnect
                 state.tracking.failure != null -> R.string.tracking_retry
                 else -> R.string.tracking_sync

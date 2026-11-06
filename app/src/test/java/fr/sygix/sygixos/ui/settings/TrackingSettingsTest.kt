@@ -130,6 +130,9 @@ class TrackingSettingsTest {
             show(fixture)
             compose.onNodeWithTag("tracking-sync").assertIsFocused()
             compose.onNodeWithTag("tracking-connect").assertDoesNotExist()
+            assertTrue(fixture.runtime.controller.state.value.loading)
+            compose.onAllNodesWithText("En cours…").assertCountEquals(1)
+            compose.onNode(hasText("Synchroniser") and hasAnyAncestor(hasTestTag("tracking-sync")), useUnmergedTree = true).assertExists()
             press(Key.Enter)
             assertEquals(1, fixture.accountReads)
             fixture.accountFailure = TrackingFailure.NETWORK
