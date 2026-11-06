@@ -511,7 +511,7 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
         return TrackingContent(TrackingIdentity(id, TrackingType.MOVIE, movie.traktId()), title = movie.text("title") ?: throw TrackingException(TrackingFailure.PROTOCOL),
             year = movie.optInt("year").takeIf { it > 0 }, image = image(movie, "fanart"), poster = image(movie, "poster"),
             durationMillis = movie.optLong("runtime", -1).takeIf { it > 0 }?.times(60_000), externalIds = externalIds(movie), membership = AccountMembership.UNKNOWN,
-            aliases = originalTitle(movie))
+            aliases = originalTitle(movie), airDate = movie.text("released"))
     }
 
     private fun episode(show: JSONObject, value: JSONObject, seen: Boolean?, seasonOverride: Int? = null): TrackingContent {

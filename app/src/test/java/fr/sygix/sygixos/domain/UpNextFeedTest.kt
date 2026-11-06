@@ -9,6 +9,9 @@ import fr.sygix.sygixos.model.ProgramKind
 import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import fr.sygix.sygixos.model.UpNextSourceEntry
+import fr.sygix.sygixos.tracking.TrackingContent
+import fr.sygix.sygixos.tracking.TrackingIdentity
+import fr.sygix.sygixos.tracking.TrackingType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -135,10 +138,17 @@ class UpNextFeedTest {
     }
 
     @Test
-    fun `account movies and series share one order`() {
-        val series = episode(2, "").copy(sources = emptyList())
-        val movies = listOf(movie(1, title = "Film 1", kind = ProgramKind.WATCHLIST), movie(3, title = "Film 3", kind = ProgramKind.WATCHLIST)).map { it.copy(sources = emptyList()) }
-        assertEquals(listOf(1L, 2L, 3L), UpNextFeed.build(movies + series).map { it.id })
+    fun `account series and movies share one order by shown date newest first with unknown dates last`() {
+        fun account(item: UpNextItem, type: TrackingType, date: String?) = item.copy(sources = emptyList(),
+            tracking = TrackingContent(TrackingIdentity("fixture", type, item.id.toString()), title = item.title, airDate = date))
+        val items = listOf(
+            account(movie(1, title = "Film sans date", kind = ProgramKind.WATCHLIST), TrackingType.MOVIE, null),
+            account(movie(2, title = "Film année", year = 2026, kind = ProgramKind.WATCHLIST), TrackingType.MOVIE, null),
+            account(movie(3, title = "Film ancien", kind = ProgramKind.WATCHLIST), TrackingType.MOVIE, "2025-01-01"),
+            account(movie(5, title = "Film récent", kind = ProgramKind.WATCHLIST), TrackingType.MOVIE, "2026-11-01"),
+            account(episode(9, ""), TrackingType.EPISODE, "2026-10-01T02:00:00Z"),
+        )
+        assertEquals(listOf(5L, 9L, 2L, 3L, 1L), UpNextFeed.build(items).map { it.id })
     }
 
     @Test

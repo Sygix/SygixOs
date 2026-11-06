@@ -9,6 +9,7 @@ import fr.sygix.sygixos.model.ProgramKind
 import fr.sygix.sygixos.model.UpNextContentType
 import fr.sygix.sygixos.model.UpNextItem
 import java.text.Normalizer
+import java.time.LocalDate
 import java.util.Locale
 
 object UpNextFeed {
@@ -60,8 +61,11 @@ object UpNextFeed {
             val key = keys.getValue(item)
             opened.entries.filter { it.key.matches(key) }.maxOfOrNull { it.value }
         }
+        val shown = kept.associateWith(::shownDate)
+        val newestFirst = compareBy<UpNextItem, LocalDate?>(nullsFirst(naturalOrder())) { shown[it] }.reversed()
         return kept.sortedWith(compareByDescending<UpNextItem> { openedAt[it] }
             .thenBy { if (it.sources.isEmpty()) ACCOUNT_ONLY else group(it.watchNextType) }
+            .then(Comparator { a, b -> if (a.sources.isEmpty()) newestFirst.compare(a, b) else 0 })
             .thenByDescending { it.engagement }.thenBy { it.id }).take(LIMIT)
     }
 
@@ -77,6 +81,9 @@ object UpNextFeed {
     private fun number(value: String): String = value.toIntOrNull()?.toString() ?: value
 
     private const val ACCOUNT_ONLY = 3
+
+    private fun shownDate(item: UpNextItem): LocalDate? =
+        item.tracking?.airDate?.take(10)?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: item.year?.let { LocalDate.of(it, 1, 1) }
 
     private fun group(kind: ProgramKind): Int = when (kind) {
         ProgramKind.CONTINUE -> 0

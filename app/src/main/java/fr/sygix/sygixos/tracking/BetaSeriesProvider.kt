@@ -287,7 +287,7 @@ class BetaSeriesProvider(private val api: BetaSeriesApi, private val today: () -
         durationMillis = value.optLong("length").takeIf { it > 0 }?.times(1_000), externalIds = externalIds(value),
         movieState = value.optJSONObject("user")?.optInt("status") ?: 0,
         seen = value.optJSONObject("user")?.optInt("status") == 1,
-        offers = BetaSeriesOffers.movie(value), aliases = aliases(value),
+        offers = BetaSeriesOffers.movie(value), aliases = aliases(value), airDate = value.text("release_date"),
     )
 
     private fun externalIds(value: JSONObject): Map<String, String> = listOf("thetvdb_id", "imdb_id", "themoviedb_id").mapNotNull { key ->
