@@ -182,7 +182,7 @@ La navigation héro, dock et grille, À suivre et titres compris, SHALL rester t
 - **THEN** la préférence est commune ; le retour restaure le bon contexte et le signal de lecture vise le contenu demandé, pas un épisode suivant affiché entre-temps
 
 #### Scenario: rafale de touches
-- **WHEN** le test envoie 8 touches droite répétées (`repeatCount` croissant) dans la grille, À suivre puis les catégories des réglages, sans avancer l'horloge d'animation entre elles
+- **WHEN** le test envoie 8 touches répétées (`repeatCount` croissant) vers le bas dans la grille et les catégories des réglages, puis vers la droite dans À suivre, en n'avançant l'horloge que de 50 ms entre deux touches (rythme d'une touche maintenue, plus court que toute animation)
 - **THEN** l'élément visé par la dernière touche a le focus, apparaît déjà soulevé ou en pilule, et la position de défilement est déjà celle de sa cible, sans attendre la fin d'une animation
 
 ### Requirement: Épinglage depuis la grille
