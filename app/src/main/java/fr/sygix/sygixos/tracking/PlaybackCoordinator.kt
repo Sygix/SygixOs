@@ -91,7 +91,7 @@ class PlaybackCoordinator(
                 val preferred = preferences.preferred(request.content.parent)
                 if (id != requestId || generation != tracking.state.value.generation) return@launch
                 val direct = if (choose) null else PlaybackDirectApp.resolve(installed, preferred, request.targets, publishers(request.content.parent))
-                if (direct != null) launch(request, direct, id, generation)
+                if (direct != null) launch(request, direct, id, generation, remember = false)
                 else {
                     mutable.value = PlaybackSelection(request, installed, loading = false, preferredPackage = preferred, missingPreferred = preferred != null && installed.none { it.packageName == preferred })
                     refreshOffers()
@@ -136,7 +136,7 @@ class PlaybackCoordinator(
                 if (id != requestId || generation != tracking.state.value.generation) return@launch
                 val app = installed.firstOrNull { it.packageName == packageName }
                 if (app == null) mutable.value = current.copy(apps = installed, missingPreferred = true)
-                else launch(current.request, app, id, generation)
+                else launch(current.request, app, id, generation, remember = true)
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (error: Exception) { if (id == requestId) mutable.value = current.copy(loading = false, failure = error.trackingFailure()) }
         }
@@ -158,7 +158,7 @@ class PlaybackCoordinator(
         }
     }
 
-    private suspend fun launch(request: PlaybackRequest, app: PlaybackApp, id: Long, generation: Long) {
+    private suspend fun launch(request: PlaybackRequest, app: PlaybackApp, id: Long, generation: Long, remember: Boolean) {
         if (generation != tracking.state.value.generation || id != requestId || tracking.state.value.account == null || request.content.sessionGeneration?.let { it != generation } == true) return
         val result = launcher.launch(app, request)
         if (result == null) {
@@ -172,7 +172,7 @@ class PlaybackCoordinator(
         departure?.cancel()
         departure = scope.launch { kotlinx.coroutines.delay(15_000); if (!departed) pending = null }
         onOpened(request)
-        try { preferences.remember(request.content.parent, app.packageName) }
+        if (remember) try { preferences.remember(request.content.parent, app.packageName) }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) {
             if (generation == tracking.state.value.generation) mutable.value = PlaybackSelection(request, loading = false, failure = TrackingFailure.STORAGE)

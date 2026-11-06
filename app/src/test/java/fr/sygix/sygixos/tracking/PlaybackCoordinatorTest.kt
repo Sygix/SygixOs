@@ -117,8 +117,11 @@ class PlaybackCoordinatorTest {
         val coordinator = direct(controller, backgroundScope, launched, { saved = it })
         coordinator.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT, listOf(PlaybackTarget("fixture.jellyfin", content.identity), PlaybackTarget("fixture.other", content.identity)))); runCurrent()
         assertEquals(listOf("fixture.jellyfin"), launched)
-        assertEquals("fixture.jellyfin", saved)
+        assertNull(saved)
         assertNull(coordinator.selection.value)
+        coordinator.open(PlaybackRequest(content, PlaybackOrigin.UP_NEXT, listOf(PlaybackTarget("fixture.jellyfin", content.identity))), choose = true); runCurrent()
+        coordinator.choose("fixture.other"); runCurrent()
+        assertEquals("fixture.other", saved)
     }
 
     @Test fun onlyPublishingAppOpensDirectlyWhenTheItemCarriesNoSource() = runTest {
