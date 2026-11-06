@@ -73,6 +73,7 @@ class TrackingOfflineHomeTest {
             compose.onNodeWithTag("upnext-card-${TrackingProjection.card(next).key}").assertIsFocused()
             assertTrue(fixture.runtime.controller.state.value.contents.filter { it.episode != 1 }.none { it.seen })
             assertEquals(1, fixture.runtime.controller.state.value.pendingCount)
+            compose.onNodeWithTag("tracking-status").assertDoesNotExist()
             assertEquals(0, fixture.movieFixture.writes)
         } finally { fixture.close(); runCurrent() }
     }

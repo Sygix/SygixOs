@@ -640,11 +640,11 @@ internal fun LauncherHome(
                         onRetryUpNext = onRetryUpNext,
                         onUpNextReturnHandled = onUpNextReturnHandled,
                         trackingStatus = {
-                            if (trackingUi?.tracking?.statusVisible == true) Text(
-                                stringResource(fr.sygix.sygixos.ui.settings.trackingStateLabel(trackingUi.tracking)),
+                            trackingUi?.tracking?.takeIf { it.actionRequired }?.failure?.let { failure -> Text(
+                                stringResource(fr.sygix.sygixos.ui.settings.trackingIndicatorLabel(failure)),
                                 style = TextStyles.RowSecondary, color = SygixColors.OnDarkSecondary,
                                 modifier = Modifier.testTag("tracking-status"),
-                            )
+                            ) }
                         },
                         visualMotion = visualMotion,
                         modifier = Modifier.testTag("home-grid"),

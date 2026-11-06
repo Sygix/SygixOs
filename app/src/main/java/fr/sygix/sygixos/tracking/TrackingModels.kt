@@ -65,7 +65,7 @@ data class TrackingState(
     val undoContexts: List<StoredTrackingUndo> = emptyList(),
 ) {
     val hasSession: Boolean get() = sessionStatus != TrackingSessionStatus.NONE || account != null
-    val statusVisible: Boolean get() = hasSession && (loading || failure != null || pendingCount > 0 || reserveIncomplete)
+    val actionRequired: Boolean get() = hasSession && failure != null
 }
 
 interface WatchTrackingProvider {

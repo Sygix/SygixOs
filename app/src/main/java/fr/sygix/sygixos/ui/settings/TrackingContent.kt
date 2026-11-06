@@ -54,6 +54,9 @@ internal fun trackingStateLabel(state: TrackingState): Int = when {
     else -> R.string.tracking_ready
 }
 
+internal fun trackingIndicatorLabel(failure: TrackingFailure): Int =
+    if (failure.requiresReconnection) R.string.tracking_reconnect else trackingFailureLabel(failure)
+
 internal fun trackingStatusDetailLabel(state: TrackingState): Int? = state.failure?.let(::trackingFailureLabel)
     ?.takeUnless { it == trackingStateLabel(state) }
 
