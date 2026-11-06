@@ -378,23 +378,31 @@ Après visibilité/position d'À suivre, « Launcher système » non focusable S
 **Détails.** — État de la ligne launcher : État/détail SHALL être recalculés au retour au premier plan, à la fermeture du panneau et en fin de séquence. Le détail SHALL être « Automatique : <état> · Par autorisations : <état> », états en minuscules. À droite : « Actif » avec point vert si une voie active, sinon « Bloqué » si voie bloquée, sinon « En partie » si partielle, sinon « À configurer ». Cas « libellés des états des voies » : quand la ligne est relue, la voie automatique donne « actif », « à configurer » ou « indisponible sur cette TV », la voie par autorisations « active », « en partie », « bloquée », « non utilisée » ou « à faire », selon launcher-shell ; le premier contrôle reste « Afficher À suivre », et aucune autre ligne rôle HOME, allumage, accessibilité, débogage ou accueil d'origine n'est ajoutée.
 
 ### Requirement: Réglages du suivi de visionnage
-La catégorie Suivi de visionnage SHALL exposer BetaSeries, connexion ou déconnexion, état du compte, synchronisation, réessai et pays confirmé. Aucun fournisseur non implémenté SHALL être proposé ; erreurs et révocation distante non confirmée SHALL être distinguées d'un compte vide.
+La catégorie Suivi de visionnage SHALL exposer le fournisseur choisi (BetaSeries ou Trakt), connexion ou déconnexion, état du compte, synchronisation, réessai et pays. Elle SHALL distinguer état local durable, demandes en attente, confirmation distante et reconnexion. Une session en restauration ou conservée après panne SHALL proposer un réessai sans nouvelle association ; un renouvellement Trakt incertain non récupérable SHALL proposer Reconnecter (« Session et renouvellement Trakt »).
 
 #### Scenario: sans compte
-- **WHEN** la catégorie est ouverte sans compte
-- **THEN** Connecter BetaSeries est son premier contrôle ; OK ouvre l'association, dont Retour restaure ce contrôle sans connexion implicite
+- **WHEN** la catégorie est ouverte avec une absence de session confirmée
+- **THEN** le sélecteur de fournisseur précède Connecter, adapté au fournisseur choisi ; OK sur Connecter ouvre son association et Retour restaure ce contrôle sans connexion implicite
 
 #### Scenario: compte connecté
 - **WHEN** la catégorie est ouverte avec un compte
-- **THEN** son identité et son état sont affichés avec Synchroniser, pays et Déconnecter ; aucune donnée d'une session précédente n'est présentée comme courante
+- **THEN** son fournisseur, son identité et son état sont affichés avec Synchroniser, pays et Déconnecter ; l'identité persistée de la session liée peut être présentée hors ligne, mais aucune donnée d'une autre session n'est présentée comme courante
 
 #### Scenario: état du chargement
 - **WHEN** une synchronisation charge, est vide, échoue ou n'est plus autorisée
-- **THEN** le contrôle expose respectivement En cours, compte sans contenu, cause avec Réessayer ou Reconnecter, sans empêcher les autres réglages ni présenter un échec comme succès
+- **THEN** le contrôle expose respectivement En cours, compte sans contenu, cause avec Réessayer ou Reconnecter, sans empêcher les autres réglages ni présenter un échec comme succès ; une panne n'efface pas les données locales du compte et une file en attente reste distincte d'une synchronisation terminée
+
+#### Scenario: restauration sans identité chargée
+- **WHEN** la session est en cours de restauration ou que son identité n'a pas pu être chargée
+- **THEN** son fournisseur reste celui de la session, le sélecteur reste verrouillé et le premier contrôle utilisable conserve une place et un focus stables avec chargement ou Réessayer ; Connecter n'est pas proposé par supposition ; Réessayer relit le stockage ou le compte avec la session conservée, sans code ni QR ; Reconnecter est réservé au refus de session confirmé ou au renouvellement Trakt incertain non récupérable selon son contrat
+
+#### Scenario: stockage temporairement indisponible
+- **WHEN** la lecture sécurisée échoue sans perte définitive confirmée
+- **THEN** le message explique que la connexion est conservée et propose de réessayer, sans demander de se reconnecter ni autoriser un changement de fournisseur
 
 #### Scenario: navigation
 - **WHEN** droite entre dans le volet
-- **THEN** le premier contrôle utilisable a le focus ; haut/bas parcourent les contrôles sans boucle, gauche retourne à la catégorie et Retour ferme d'abord un panneau actif sinon les réglages ; un contrôle disparu transmet le focus à son voisin sinon à la catégorie
+- **THEN** le premier contrôle utilisable a le focus : le sélecteur sans session, Synchroniser ou son état de chargement/réessai/reconnexion avec session ; haut/bas parcourent les contrôles sans boucle, gauche retourne à la catégorie et Retour ferme d'abord un panneau actif sinon les réglages ; un contrôle disparu transmet le focus à son voisin sinon à la catégorie
 
 #### Scenario: pays
 - **WHEN** le pays est ouvert puis validé ou annulé
@@ -406,7 +414,19 @@ La catégorie Suivi de visionnage SHALL exposer BetaSeries, connexion ou déconn
 
 #### Scenario: attribution
 - **WHEN** le fournisseur est présenté dans les réglages
-- **THEN** BetaSeries est identifié et son adresse officielle est consultable, conformément à l'attribution de la source ; aucun identifiant d'application ni jeton n'est affiché
+- **THEN** son nom, son adresse officielle et son attribution requise sont présentés pour le fournisseur concerné ; aucun identifiant d'application ni jeton n'est affiché et l'attribution ne présente pas SygixOs comme une application officielle du service
+
+#### Scenario: demandes hors ligne et réessai
+- **WHEN** des vu/non vu d'épisodes ou films sont sauvegardés mais non confirmés
+- **THEN** leur attente est visible dans le statut existant ; Synchroniser ou Réessayer sollicite le même travail partagé sans double envoi ni contournement d'une fenêtre Annuler ; fermer les réglages ne supprime pas la file et son exécution peut continuer en arrière-plan pour les demandes libérées
+
+#### Scenario: retour au premier plan
+- **WHEN** l'utilisateur revient dans les réglages après une synchronisation en arrière-plan
+- **THEN** le statut reflète les confirmations et demandes restantes du dépôt courant, sans relancer une lecture complète pour le seul affichage du statut ni déplacer le focus d'un contrôle toujours présent
+
+#### Scenario: déconnexion avec attente
+- **WHEN** Déconnecter est validé avec des demandes non synchronisées
+- **THEN** les données et demandes de ce compte sont supprimées selon le contrat de fin de session du fournisseur ; aucune conservation du compte déconnecté n'est promise et les contrôles disponibles reprennent le focus selon le repli existant
 
 ### Requirement: Langue de l'interface
 Tous les textes de SygixOs SHALL s'afficher dans la langue de l'interface : français, anglais, allemand, espagnol ou italien. Sans choix explicite, SygixOs SHALL suivre la langue de la TV : la première langue du système qui est traduite, sinon l'anglais. Un texte cité par une spec désigne le texte du catalogue français ; les autres langues en portent la traduction. Les données externes (titres, résumés, services) restent dans la langue de leur source.
@@ -503,3 +523,30 @@ OK sur une ligne SHALL appliquer ce choix à SygixOs seul, sans changer la langu
 #### Scenario: sélecteur stable
 - **WHEN** un test cherche la ligne
 - **THEN** elle porte le testTag `setting-visual-motion` et son switch reflète l'état persisté
+
+### Requirement: Sélecteur du fournisseur de suivi
+Le fournisseur SHALL se choisir par la liste déroulante existante, avant Connecter, avec BetaSeries puis Trakt. Le dernier choix SHALL être persisté sur la TV ; sans compte ni choix, BetaSeries SHALL être initial. Une session existante SHALL imposer son fournisseur et verrouiller le sélecteur avec « Déconnectez-vous pour changer de fournisseur ». Aucun changement implicite de compte ne SHALL résulter d'un choix.
+
+#### Scenario: première ouverture et choix mémorisé
+- **WHEN** les réglages s'ouvrent sans session ni choix, ou après un choix précédent
+- **THEN** la valeur initiale est respectivement BetaSeries ou le dernier fournisseur choisi ; le sélecteur est le premier contrôle utilisable et les textes, l'attribution et l'association de Connecter correspondent à cette valeur
+
+#### Scenario: ouverture et choix dans la liste
+- **WHEN** OK ouvre le sélecteur puis l'utilisateur parcourt ou valide ses valeurs
+- **THEN** le composant ancré de « Position d'À suivre » est réutilisé avec les mêmes matériau, coche, focus, bords sans boucle et règles Retour ; OK persiste le choix et referme sur le sélecteur ; Retour referme sans modifier le choix ; choisir une valeur ne lance ni découverte ni association
+
+#### Scenario: session active ou restauration
+- **WHEN** une session est active, en restauration ou conservée après une panne
+- **THEN** le sélecteur reste visible sur son fournisseur, non modifiable et avec son explication ; le premier contrôle utilisable est Synchroniser ou son état adapté ; aucune tentative de changement ne purge les demandes ou ne remplace la session
+
+#### Scenario: connexion et déconnexion
+- **WHEN** l'association réussit ou qu'une déconnexion est effectuée
+- **THEN** le sélecteur est verrouillé sur la session confirmée puis redevient modifiable après déconnexion effective ; le focus suit le contrôle utilisable de l'état obtenu, sans ouvrir automatiquement une nouvelle liste ni association
+
+#### Scenario: liste ouverte et changement de contexte
+- **WHEN** les réglages passent en arrière-plan, sont fermés ou changent de session pendant que la liste est ouverte
+- **THEN** la liste ferme sans choix implicite ; au retour, la valeur persistée ou le fournisseur imposé par la session est affiché et le contrôle encore utilisable sinon son repli reçoit le focus
+
+#### Scenario: option disparue et sélecteurs
+- **WHEN** l'option focusée disparaît ou qu'un test cible le choix de fournisseur
+- **THEN** le repli suivant puis précédent du composant existant s'applique, sinon la liste ferme sur son contrôle ; les tags tracking-provider, tracking-provider-list, tracking-provider-betaseries et tracking-provider-trakt identifient le parcours sans donnée de compte

@@ -152,7 +152,7 @@ La rangée SHALL conserver les niveaux exact dans une app, série/app, épisode 
 - **THEN** une seule carte de cette série est retenue et les possibilités d'ouverture sont conservées sans attribuer l'intent d'un épisode à un autre
 
 ### Requirement: Gagnant d'un doublon
-Une reprise non vue SHALL primer sur le prochain épisode du compte ; une reprise déjà vue SHALL être écartée au profit du prochain non vu diffusé. Entre reprises admissibles, activité récente puis préférence locale existante SHALL trancher. Sans suivi identifié, l'ordre SHALL rester CONTINUE, NEXT/NEW ou absent, WATCHLIST, puis activité et préférence d'app.
+Une reprise non vue SHALL primer sur le prochain épisode du compte ; une reprise déjà vue SHALL être écartée au profit du prochain non vu diffusé. Le statut effectif SHALL intégrer les intentions locales persistantes de `watch-tracking`, pour épisodes et films. Entre reprises admissibles, activité récente puis préférence locale existante SHALL trancher. Sans suivi identifié, l'ordre SHALL rester CONTINUE, NEXT/NEW ou absent, WATCHLIST, puis activité et préférence d'app.
 
 #### Scenario: reprise en cours
 - **WHEN** un contenu existe en CONTINUE et dans un groupe à suivre ou mis de côté
@@ -175,12 +175,16 @@ Une reprise non vue SHALL primer sur le prochain épisode du compte ; une repris
 - **THEN** S02E05 est affiché sans marquer S02E03 ou S02E04 comme vus
 
 #### Scenario: reprise ancienne déjà vue
-- **WHEN** l'épisode repris par une app est confirmé vu dans le compte
-- **THEN** cette reprise ne masque pas le prochain non vu ; si aucun épisode diffusé ne reste à regarder, le fournisseur n'apporte pas de carte de série
+- **WHEN** l'épisode repris par une app est vu selon l'état effectif du compte, confirmé à distance ou enregistré localement en attente
+- **THEN** cette reprise ne masque pas le prochain non vu disponible ; sans prochain épisode en cache, aucune suite n'est inventée et la réserve épuisée reste distincte d'une série confirmée à jour
 
 #### Scenario: statut de reprise inconnu
-- **WHEN** l'identité ou le statut de l'épisode local n'est pas confirmé
+- **WHEN** l'identité ou le statut de l'épisode local n'est pas confirmé et qu'aucune intention locale ne l'établit
 - **THEN** l'absence dans la liste des épisodes à voir ne vaut pas preuve de visionnage ; la reprise locale reste admissible sans mutation automatique du compte
+
+#### Scenario: film marqué localement
+- **WHEN** une app publie encore la reprise d'un film marqué vu localement en attente de synchronisation
+- **THEN** le même statut effectif s'applique à la contribution identifiée, sans réapparition due à un ancien résultat distant ; annuler ou marquer non vu recalcule la contribution avec les données disponibles
 
 ### Requirement: Tri et limite
 Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts SygixOs par ouverture décroissante, puis CONTINUE, NEXT/NEW (type absent compris), WATCHLIST ; dans chaque groupe, activité décroissante puis `_ID` croissant. La limite SHALL être 20 items. « En cours » SHALL désigner CONTINUE, la progression servant seulement à la barre.
@@ -243,11 +247,11 @@ La dernière ouverture locale SHALL rester mémorisée par contenu, depuis carte
 **Détails.** — Les anciennes clés locales restent reconnues : titre normalisé de série, ou titre/année de film avec les règles existantes d'année inconnue. Un identifiant externe confirmé enrichit cette clé sans perdre ouvertures ni retraits. L'enregistrement exige toujours un lancement réussi depuis carte ou menu ; l'ouverture depuis le héro conserve son origine et ne change pas cette règle. La purge exige une lecture fiable de toutes les sources concernées, TV Provider et compte compris ; les erreurs, permissions manquantes, filtres et pannes ne valent pas absence.
 
 ### Requirement: Contenus retirés d'À suivre
-« Retirer d'À suivre » SHALL masquer localement la série entière ou le film pour toutes les sources de la rangée, sans modifier le compte. Identité, titre, type, sources, image et date SHALL être persistés. Le retrait SHALL aussi exclure les candidats BetaSeries du héro ; seul Réafficher dans settings l'annule, sans purge automatique.
+« Retirer d'À suivre » SHALL masquer localement la série entière ou le film pour toutes les sources de la rangée, sans modifier le compte. Identité, titre, type, sources, image et date SHALL être persistés. Le retrait SHALL aussi exclure les candidats du fournisseur actif du héro ; seul Réafficher dans settings l'annule, sans purge automatique.
 
 #### Scenario: retrait d'une série
 - **WHEN** une série présente via deux apps et le suivi est retirée
-- **THEN** ses épisodes présents et futurs disparaissent de la rangée sans confirmation, même après redémarrage, et son apport BetaSeries quitte le héro
+- **THEN** ses épisodes présents et futurs disparaissent de la rangée sans confirmation, même après redémarrage, et son apport du fournisseur actif quitte le héro
 
 #### Scenario: retrait d'un film
 - **WHEN** un film est retiré
@@ -292,7 +296,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 - **THEN** les deux zones l'affichent, sans filtrage entre elles
 
 ### Requirement: Carte Up Next
-« À suivre » SHALL désigner la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes 7.1 à 7.5 et Carte Up Next, avec rendu et qualité décrits ci-dessous et focus intégral selon « Focus tvOS ». Un contenu du compte SHALL montrer le badge du lecteur choisi, sinon du fournisseur ; une carte locale conserve l'icône réelle d'app. La progression SHALL provenir uniquement d'une lecture connue.
+« À suivre » SHALL désigner la rangée de tous les groupes, pas une catégorie. Les cartes SHALL suivre les maquettes 7.1 à 7.5 et Carte Up Next, avec rendu et qualité décrits ci-dessous et focus intégral selon « Focus tvOS ». Un contenu du compte SHALL montrer le badge du lecteur choisi, sinon du fournisseur actif ; une carte locale conserve l'icône réelle d'app. La progression SHALL provenir uniquement d'une lecture connue.
 
 #### Scenario: largeur et débordement
 - **WHEN** au moins cinq cartes sont affichées à 960 dp de large
@@ -320,7 +324,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 
 #### Scenario: badge et image
 - **WHEN** une carte est affichée
-- **THEN** une carte locale montre en haut à droite l'icône réelle de son app via PackageManager, sans logo embarqué ; une carte de suivi montre au même emplacement celle du lecteur choisi, sinon le badge BetaSeries ; si le badge applicable est indisponible, il est omis sans libellé texte de substitution
+- **THEN** une carte locale montre en haut à droite l'icône réelle de son app via PackageManager, sans logo embarqué ; une carte de suivi montre au même emplacement celle du lecteur choisi, sinon le badge du fournisseur actif BetaSeries ou Trakt ; si le badge applicable est indisponible, il est omis sans libellé texte de substitution
 
 #### Scenario: poster portrait
 - **WHEN** seul un poster portrait exploitable existe
@@ -348,7 +352,7 @@ La rangée Up Next SHALL être affichée sans dédoublonnage par rapport au hér
 
 #### Scenario: image locale pendant une panne
 - **WHEN** une copie reste utilisable selon le contrat d'images et le contenu est encore valide
-- **THEN** elle est affichée sans attendre le fournisseur ; à expiration le placeholder la remplace ; une image en cache ne réintroduit pas un contenu BetaSeries retiré pour panne
+- **THEN** elle est affichée sans attendre le fournisseur ; à expiration le placeholder la remplace ; une image en cache ne réintroduit pas un contenu dont l'apport du compte n'est plus autorisé ou a été retiré, tandis qu'une panne temporaire conserve le contenu durable selon son contrat
 
 **Détails.** — Barre : CONTINUE avec progression SHALL montrer une barre de hauteur `Dimens.ProgressHeight`, piste `SygixColors.ProgressTrack`, remplissage `SygixColors.OnDark`, placée à `Dimens.UpNextTextBottom` du bas ; ses textes sont à `Dimens.UpNextTextAboveProgress` au-dessus. Sans barre, les textes sont à `Dimens.UpNextTextBottom` sans réserve de progression. Badge : en haut à droite à `Dimens.UpNextBadgeInset`, taille `Dimens.HeroSourceIcon`, coins `Dimens.UpNextBadgeCorner` concentriques avec la carte selon « Thème » ; l'exception fournisseur ci-dessus remplace seulement l'obligation d'un package pour un contenu du compte, sans autoriser de logo embarqué à la place de l'icône PackageManager d'une carte locale. Géométrie : largeur (contenu des rangées d'apps − 3 × `Dimens.GridSpacing`) / 4, départ `Dimens.ScreenMarginH`, pas de marge droite, fin symétrique hors zoom ; seul le demi-agrandissement du zoom peut déborder. Médias : 16:9, coins `Dimens.TileCorner`, fond `SygixColors.TileBackground` continu avec la grille, paysage sinon portrait centré à pleine hauteur sinon `Dimens.UpNextPlaceholderIcon` / `SygixColors.PlaceholderGlyph` centré dans la moitié haute ; dégradé transparent à `Dimens.CardScrimStart` jusqu'à `SygixColors.CardScrimEnd` en bas. Textes : en bas à gauche à `Dimens.UpNextTextInset`, `TextStyles.Row` / `SygixColors.OnDark`, détails `TextStyles.RowSecondary` / `SygixColors.OnDarkDetails`, sans texte supplémentaire, action ni nom d'app. Qualité : largeur réelle au moins égale à la carte en pixels hors zoom, portrait accepté, dimensions issues du parcours partagé de launcher-shell sans hériter du verdict d'une autre zone ; essayer alternatives et copies utilisables avant placeholder.
 
@@ -413,11 +417,11 @@ L'appui long SHALL toujours ouvrir le menu. Le menu local conserve sources et re
 **Détails.** — Le menu local SHALL être centré sous voile `SygixColors.Scrim`, verre `GlassLook.Menu`, largeur `Dimens.MenuWidth`, coins `Dimens.MenuCorner`, padding `Dimens.MenuPadding`. Son en-tête garde une vignette 16:9 `Dimens.MenuThumbnailWidth`, image sinon placeholder, titre `TextStyles.MenuTitle`, sous-titre « Ouvrir avec… » en `TextStyles.MenuSubtitle` / `SygixColors.MenuSubtitle`. Les entrées gardent `Dimens.PillCorner`, hauteur minimale `Dimens.MenuActionHeight`, retrait `Dimens.MenuEntryPadding`, vraie icône `Dimens.MenuEntryIcon` aux coins `Dimens.MenuEntryIconCorner`, écart `Dimens.MenuEntryGap`, nom `TextStyles.Row` au repos et `TextStyles.RowFocused` au focus. Le retrait local suit la dernière app sans séparateur, même pilule et œil barré de `Dimens.MenuEntryIcon` dans la couleur du texte, conformément à 7.6. La passe Penpot complète ce composant pour Ajouter et les actions du compte sans modifier ces règles locales.
 
 ### Requirement: États de la rangée
-La rangée SHALL distinguer chargement, vide, erreur et accès refusé par source, sans bloquer le home. Les programmes locaux SHALL garder leur contrat de validité ; l'apport du suivi en échec SHALL être retiré immédiatement avec son indicateur. Focus et disparition SHALL suivre « Navigation 3 paliers ».
+La rangée SHALL distinguer chargement, vide, erreur et accès refusé par source, sans bloquer le home. Les programmes locaux SHALL garder leur contrat de validité. Une panne temporaire du suivi SHALL conserver son état local durable avec indicateur ; refus d'accès et déconnexion SHALL retirer son apport. Focus et disparition SHALL suivre « Navigation 3 paliers ».
 
 #### Scenario: permission refusée
 - **WHEN** READ_TV_LISTINGS n'est pas accordée
-- **THEN** seules les données locales deviennent indisponibles ; les contenus de suivi accessibles restent affichés ; sans eux la rangée est masquée sans invitation à configurer la permission
+- **THEN** seules les données locales deviennent indisponibles ; les contenus de suivi accessibles, y compris leur cache lié, restent affichés ; sans eux la rangée est masquée sans invitation à configurer la permission
 
 #### Scenario: erreur
 - **WHEN** la lecture locale échoue au premier chargement et qu'aucune autre source n'apporte de contenu
@@ -433,23 +437,27 @@ La rangée SHALL distinguer chargement, vide, erreur et accès refusé par sourc
 
 #### Scenario: rechargement
 - **WHEN** la rangée se recharge avec du contenu encore valide
-- **THEN** elle conserve ce contenu pendant l'attente sans squelette ni prolongation de validité ; une réponse du suivi en échec retire son apport
+- **THEN** elle conserve ce contenu pendant l'attente sans squelette ni prolongation de validité ; une panne temporaire du suivi maintient son cache selon `watch-tracking`, sans le déclarer fraîchement confirmé
 
 #### Scenario: erreur au rechargement
 - **WHEN** une relecture locale échoue
-- **THEN** ses programmes précédents restent affichés jusqu'à expiration sans carte d'erreur ni saut, sans renouveler leur confirmation ; cette rétention ne s'applique pas à la contribution BetaSeries en échec
+- **THEN** ses programmes précédents restent affichés jusqu'à expiration sans carte d'erreur ni saut, sans renouveler leur confirmation ; le cache BetaSeries suit sa propre persistance et ne dépend pas du plafond des programmes du TV Provider
 
 #### Scenario: vide
-- **WHEN** toutes les sources accessibles réussissent sans item et qu'aucune autre n'apporte de contenu
-- **THEN** la rangée est masquée et les images en cache ne la repeuplent pas
+- **WHEN** toutes les sources accessibles réussissent sans item après application des intentions locales et qu'aucune autre n'apporte de contenu
+- **THEN** la rangée est masquée et les images en cache ne la repeuplent pas ; une réserve épuisée sans réseau n'est pas annoncée comme un résultat distant complet
 
 #### Scenario: non-blocage
 - **WHEN** une source est dans n'importe quel état
-- **THEN** le D-pad du home reste utilisable ; les actions de compte restent tentables pendant une panne et exposent leur propre résultat
+- **THEN** le D-pad du home reste utilisable ; vu/non vu peut être enregistré hors ligne selon `watch-tracking` et les autres actions gardent leur résultat propre
 
 #### Scenario: expiration du dernier résultat après une erreur
 - **WHEN** les programmes locaux atteignent leur plafond sans confirmation
-- **THEN** ils sont retirés ; s'il reste des contenus de suivi, ils restent affichés, sinon l'erreur locale réessayable apparaît ; le focus est restauré selon la navigation existante ; aucune mémoire de retrait ou d'ouverture n'est effacée sur cette erreur
+- **THEN** ils sont retirés ; s'il reste des contenus de suivi affichables selon leur propre contrat, ils restent affichés, sinon l'erreur locale réessayable apparaît ; le focus est restauré selon la navigation existante ; aucune mémoire de retrait ou d'ouverture n'est effacée sur cette erreur
+
+#### Scenario: redémarrage hors ligne et reconnexion
+- **WHEN** la rangée est recréée sans réseau avec un cache du compte lié puis que le réseau revient
+- **THEN** les films et candidats d'épisodes effectifs restent navigables ; la synchronisation partagée met à jour leurs états sans dupliquer de carte par série ni relire le TV Provider pour ce seul événement
 
 ### Requirement: Rafraîchissement
 La rangée SHALL recharger le TV Provider sur notification, octroi de `READ_TV_LISTINGS` ou échéance de « Contenu héro TV Provider » de launcher-shell au premier plan. Au retour, les scénarios ci-dessous et « Contenus ouverts depuis SygixOs » SHALL déterminer la relecture. Les résultats SHALL suivre « Validité des programmes publiés ». L'apport du compte SHALL suivre sa source et son rafraîchissement propres (watch-tracking), et ses changements SHALL être projetés sans relire le TV Provider.

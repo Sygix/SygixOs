@@ -845,7 +845,7 @@ Les contrats de suivi SHALL être testés en JUnit avec transport, stockage, com
 - **THEN** il compte respectivement zéro lecture de liste, une relecture ciblée, une lecture complète et zéro requête au TV Provider
 
 ### Requirement: Couverture des parcours de suivi TV
-Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key events physiques et données fictives : connexion, pays, sélecteur, épisodes, actions et erreur. Rendu et navigation SHALL suivre les parcours fonctionnels et la passe Penpot validée, sans capture comparative.
+Les parcours SHALL être testés en Compose TV avec testTags, key events physiques et données fictives : connexion, pays, sélecteur, épisodes, actions, erreur et état hors ligne. Rendu et navigation SHALL suivre les parcours fonctionnels et les composants existants, sans capture comparative. Les tests SHALL distinguer une action enregistrée localement d'une confirmation distante.
 
 #### Scenario: association
 - **WHEN** le test ouvre puis ferme une association, laisse expirer son code et demande un nouveau code
@@ -869,7 +869,7 @@ Les nouveaux parcours SHALL être testés en Compose TV avec testTags, key event
 
 #### Scenario: saisons à la demande
 - **WHEN** la saison courante s'affiche puis qu'Autres saisons est ouvert et qu'une autre saison est validée
-- **THEN** aucun épisode des autres saisons n'est chargé avant cette validation ; seuls les appels avec season explicite sont utilisés ; les tags tracking-seasons, tracking-season-picker, tracking-season-<number>, tracking-seasons-retry et tracking-season-back identifient le parcours sans texte ni donnée personnelle
+- **THEN** le sélecteur ne charge que les saisons demandées avec season explicite, sans interdire le préchargement indépendant de la réserve du compte ; six épisodes en réserve ne sont jamais présentés comme une saison entièrement chargée ; les tags tracking-seasons, tracking-season-picker, tracking-season-<number>, tracking-seasons-retry et tracking-season-back identifient le parcours sans texte ni donnée personnelle
 
 #### Scenario: badge et masquage
 - **WHEN** une carte de suivi n'a pas de lecteur choisi puis en reçoit un et est masquée/réaffichée
@@ -893,3 +893,126 @@ Les langues de l'interface SHALL être couvertes par la task `test` : tests JUni
 #### Scenario: catégorie « Langue »
 - **WHEN** les tests Compose TV parcourent la catégorie « Langue »
 - **THEN** ils vérifient l'ordre des lignes, la coche, le focus initial sur la ligne retenue, les bords sans boucle, gauche vers la catégorie, l'application d'un choix une seule fois et le texte de la langue de la TV non traduite
+
+### Requirement: Couverture de la conservation de session
+La restauration BetaSeries SHALL être testée avec stockage chiffré, fournisseur de clés, transport et horloge contrôlés, puis en Compose à la taille TV. Les assertions SHALL distinguer absence de session, erreur temporaire et refus explicite, et compter les écritures, révocations et associations.
+
+#### Scenario: panne du stockage sécurisé
+- **WHEN** le fournisseur de clés retourne une erreur temporaire ou une exception de récupération de cause inconnue, puis redevient disponible
+- **THEN** le fichier chiffré reste présent et le même jeton est relu ; une clé confirmée absente ou un déchiffrement définitivement invalide terminent au contraire la restauration sans boucle
+
+#### Scenario: panne d'identité et reprise
+- **WHEN** le premier chargement d'identité échoue, puis Réessayer est activé ou le launcher revient au premier plan après le délai prévu
+- **THEN** le même jeton charge le compte et ses contenus sans écriture de remplacement, révocation ni association ; les réponses d'une ancienne session restent ignorées
+
+#### Scenario: refus générique et refus explicite
+- **WHEN** le transport renvoie 401/403 sans erreur BetaSeries de jeton, avec corps JSON ou non JSON, puis un refus explicite de jeton
+- **THEN** seuls les derniers refus imposent la reconnexion ; une panne générique conserve les contenus déjà chargés et autorise leur rafraîchissement
+
+#### Scenario: réessai dans les réglages
+- **WHEN** le test Compose TV ouvre les réglages pendant la restauration, fait échouer l'identité puis presse OK sur Réessayer
+- **THEN** le contrôle stable `tracking-sync` conserve le focus, `tracking-connect` et le code/QR sont absents ; après reprise le compte est affiché ; Retour et la navigation suivent settings
+
+#### Scenario: indicateur sans identité
+- **WHEN** une session ne peut être restaurée avant identification du compte
+- **THEN** le parcours de détail depuis l'engrenage reste utilisable selon launcher-shell, même sans carte BetaSeries, et son réessai ne produit pas d'association
+
+### Requirement: Couverture de la persistance hors ligne du suivi
+La persistance, la projection et le nettoyage du suivi SHALL être testés avec dépôt réel sur stockage de test et transport, session, ordonnanceur et horloges contrôlés. Les tests SHALL exercer recréation, révisions concurrentes et nettoyage référentiel pour épisodes et films sans utiliser le réseau réel.
+
+#### Scenario: redémarrage sans réseau
+- **WHEN** un cache et plusieurs vu/non vu sont enregistrés puis que dépôt et contrôleur sont recréés sans réseau
+- **THEN** compte, candidats et intentions effectifs sont restaurés avant lecture distante, isolés par compte et sans faux succès de synchronisation
+
+#### Scenario: réserve inter-saisons et épuisement
+- **WHEN** une série compte plus de six épisodes diffusés dont une frontière de saison, puis que six sont marqués vus hors ligne
+- **THEN** courant et cinq suivants ont été enregistrés et un seul candidat par série est projeté ; chaque demande reste isolée et durable ; après épuisement, aucun suivant n'est inventé ni fin distante déclarée, puis le complément en ligne rétablit la réserve
+
+#### Scenario: nettoyage après confirmation
+- **WHEN** des demandes sont confirmées avec épisodes consommés hors fenêtre, puis que leurs références d'annulation et de reprise locale sont libérées
+- **THEN** les demandes acquittées et entrées inutiles disparaissent de la base ; les six candidats disponibles restent, ainsi que toute entrée encore protégée ; un échec ou résultat partiel ne purge pas les absents supposés
+
+#### Scenario: film et annulation
+- **WHEN** un film passe vu puis non vu ou est annulé sans réseau, puis est confirmé vu sans référence restante
+- **THEN** l'état exact et les métadonnées nécessaires survivent à la recréation ; aucune requête de suivant ni suppression distante du film n'a lieu ; la confirmation finale supprime demande et entrée inutiles, sans réapparition depuis une vieille reprise locale
+
+#### Scenario: réponse perdue et nouvelle intention
+- **WHEN** une réponse est perdue après envoi puis que la même cible reçoit une intention plus récente pendant la reprise
+- **THEN** une lecture précède la répétition ; un état déjà conforme évite le renvoi et la confirmation ancienne ne supprime pas la nouvelle révision ; le rafraîchissement concurrent n'écrase pas l'état effectif récent
+
+#### Scenario: complément en échec après mutation réussie
+- **WHEN** la lecture individuelle confirme le marquage mais que la récupération des suivants échoue
+- **THEN** la demande est acquittée et n'est jamais renvoyée pour ce seul échec ; seul le complément reste à reprendre et le statut incomplet est observable
+
+#### Scenario: arrière-plan et travail unique
+- **WHEN** le double Android exécute le travail sans Activity puis simule interruption, redémarrage et déclenchement simultané d'un essai manuel
+- **THEN** la file est reprise avec contraintes et backoff sans envoi concurrent ; l'envoi respecte les budgets, la file vide arrête le travail et aucune lecture TV Provider ni initialisation de lecteur n'est déclenchée
+
+#### Scenario: déconnexion pendant envoi et purge interrompue
+- **WHEN** A est déconnecté pendant un envoi, que B est associé puis que l'ancienne réponse arrive, y compris après interruption de la purge locale
+- **THEN** aucun nouvel envoi de A ne part, aucune réponse ne recrée A ni ne modifie B ; cache et file de A sont purgés et ne sont pas rejoués à sa reconnexion ; les préférences indépendantes du compte restent présentes
+
+#### Scenario: erreurs de stockage et migrations
+- **WHEN** une écriture ou migration échoue, puis que le stockage redevient disponible
+- **THEN** aucun succès local non durable n'est publié, aucune file n'est effacée par migration destructive et le réessai peut retrouver les intentions conservées
+
+### Requirement: Couverture des parcours TV hors ligne
+Les états hors ligne du suivi SHALL être testés en Compose TV à la taille prescrite, avec les sélecteurs existants et événements D-pad physiques. La projection commune SHALL couvrir films et épisodes, sans nouveau palier ni vol de focus par les messages de synchronisation.
+
+#### Scenario: épisode suivant et film disparu
+- **WHEN** le test marque un épisode puis un film vu sans réseau depuis À suivre et depuis le héro
+- **THEN** le suivant connu et le retrait du candidat film sont cohérents entre zones ; l'annulation demeure accessible, le focus reste sur la série ou suit le repli de contenu disparu et aucun succès distant n'est annoncé
+
+#### Scenario: attente sans carte et réglages
+- **WHEN** la dernière carte disparaît alors qu'une demande reste en attente puis que les réglages sont ouverts et refermés
+- **THEN** l'état reste accessible depuis l'engrenage et Synchroniser ; focus initial, bords sans boucle, Retour et restauration suivent leurs contrats ; fermer une notice ou les réglages ne supprime pas la demande
+
+#### Scenario: reprise et état du stockage
+- **WHEN** le compte est restauré hors ligne, puis que le transport confirme certaines demandes et refuse l'accès ou que le stockage échoue dans d'autres cas
+- **THEN** les tests distinguent cache affichable, travail en attente, confirmation partielle, reconnexion et erreur de stockage ; le contrôle toujours présent garde son focus et une disparition applique le repli existant
+
+### Requirement: Couverture du suivi multi-fournisseurs
+Les contrats communs de suivi SHALL être exercés avec BetaSeries et Trakt, à frontières et horloges contrôlées, sans réseau réel dans la suite JVM. Les tests SHALL vérifier que l'ajout de Trakt conserve session, intentions et comportement BetaSeries, sans duplication des projections ni confusion entre configuration d'application et jetons utilisateur.
+
+#### Scenario: configuration persistante et refus
+- **WHEN** des fixtures officielles anonymisées simulent découverte, imports, cache âgé, refus explicite, appels concurrents, refus générique et second rejet
+- **THEN** l'extraction reste bornée et non exécutante, le cache survit sans échéance et au redémarrage, seule l'invalidité prouvée lance une récupération mutualisée, et aucun refus ambigu n'efface la session ni ne boucle
+
+#### Scenario: jetons Trakt et migration BetaSeries
+- **WHEN** le test migre une ancienne session BetaSeries puis simule expiration Trakt, renouvellements concurrents, réponse perdue, erreur disque et déconnexion pendant le renouvellement
+- **THEN** le compte BetaSeries et sa file restent liés ; Trakt ne renouvelle qu'à la demande, ne remplace pas une session plus récente et ne réattribue pas un jeton à un autre client ; la session n'est déclarée renouvelée qu'après sauvegarde atomique
+
+#### Scenario: compte, réserve et mutations natives
+- **WHEN** le test simule compte paginé, séries masquées, réserve inter-saisons, film vu, relectures multiples, mutation incertaine et endpoint d'offres refusé
+- **THEN** fusion, cache, réserve et nettoyage respectent leurs contrats communs ; seules les actions natives applicables sont exposées, le statut déjà vu ne crée pas de lecture, Non vu ne touche que sa cible et aucune suppression globale d'historique ni disponibilité régionale inventée n'est envoyée
+
+#### Scenario: Annuler avant envoi
+- **WHEN** un vu/non vu manuel ou confirmé au retour est enregistré pour chacun des deux fournisseurs, puis que l'horloge avance dans la fenêtre avec focus, réglages, arrière-plan, redémarrage et synchronisation concurrente
+- **THEN** la projection locale est immédiate mais le nombre de mutations réseau reste nul tant que l'intention est retenue ; Annuler restaure sans envoi, l'échéance libère une seule fois et un travail déjà planifié ne contourne pas la retenue
+
+#### Scenario: révisions et nettoyage
+- **WHEN** une ancienne révision potentiellement envoyée, une nouvelle intention annulable et un résultat tardif se croisent
+- **THEN** la confirmation n'acquitte pas la nouvelle intention, son annulation ne perd pas l'état antérieur encore utile et le nettoyage conserve les données référencées par une fenêtre restaurable
+
+### Requirement: Couverture TV du choix de fournisseur
+Le sélecteur de fournisseur et les parcours adaptés SHALL être testés en Compose à taille TV selon « Tests UI sans capture d'image », avec données fictives et événements D-pad physiques. Les composants existants SHALL conserver leur rendu et navigation ; les badges, attributions et contrôles SHALL correspondre au fournisseur actif sans nouvelle surface d'accueil.
+
+#### Scenario: choix initial, persistance et fermeture
+- **WHEN** le test ouvre Suivi de visionnage sans compte, choisit Trakt, rouvre la liste puis annule ou passe en arrière-plan
+- **THEN** tracking-provider précède tracking-connect et reçoit le focus initial ; tracking-provider-list contient BetaSeries puis Trakt avec les tags tracking-provider-betaseries et tracking-provider-trakt ; coche, validation, fermeture, persistance, bords et repli suivent settings sans connexion automatique
+
+#### Scenario: compte existant et fournisseur verrouillé
+- **WHEN** une session BetaSeries ou Trakt est active, en restauration ou conservée après panne
+- **THEN** le fournisseur exact est affiché et verrouillé avec son explication, Synchroniser ou son état adapté est le premier contrôle utilisable, et aucun changement de sélection n'efface une demande ; après déconnexion effective le choix redevient disponible
+
+#### Scenario: association et retour de focus
+- **WHEN** l'association du fournisseur sélectionné charge, attend, expire, échoue, est refusée ou ferme par Retour
+- **THEN** les sélecteurs tracking-device existants sont réutilisés, le code, l'adresse et le QR concernent le bon fournisseur et la même tentative ; le panneau garde sa navigation, sans vol de focus ni réponse tardive restaurant une session fermée
+
+#### Scenario: restauration d'Annuler
+- **WHEN** un marquage encore annulable est restauré après interruption puis annulé ou libéré
+- **THEN** tracking-notification et tracking-undo réapparaissent dans le composant existant sans prendre le focus ; le temps actif restant et ses pauses sont respectés, le focus d'origine reste utilisable et aucun marquage automatique n'est introduit
+
+#### Scenario: badges, masquage et langues
+- **WHEN** les deux fournisseurs alimentent séparément les mêmes scénarios de cartes, héro, erreurs, retrait local et réaffichage
+- **THEN** les noms et badges correspondent au fournisseur actif sinon au lecteur choisi ; le retrait reste local et couvre aussi les candidats du héro ; tous les nouveaux textes existent dans les cinq langues selon « Couverture des langues »

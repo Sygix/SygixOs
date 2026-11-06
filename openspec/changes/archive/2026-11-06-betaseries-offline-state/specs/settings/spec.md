@@ -42,3 +42,13 @@ La catégorie Suivi de visionnage SHALL exposer BetaSeries, connexion ou déconn
 #### Scenario: déconnexion avec attente
 - **WHEN** Déconnecter est validé avec des demandes non synchronisées
 - **THEN** les données et demandes de ce compte sont supprimées selon « Fin de session BetaSeries » ; aucune conservation du compte déconnecté n'est promise et le contrôle Connecter remplace les contrôles disparus avec le repli de focus existant
+
+#### Scenario: restauration sans identité chargée
+- **WHEN** la session est en cours de restauration ou que son identité n'a pas pu être chargée
+- **THEN** le premier contrôle conserve une place et un focus stables, affiche le chargement ou Réessayer avec la cause réessayable ; Connecter BetaSeries n'est pas proposé ; OK sur Réessayer relit le stockage ou le compte avec le jeton conservé, sans code ni QR ; seul un refus explicite du jeton propose Reconnecter
+
+#### Scenario: stockage temporairement indisponible
+- **WHEN** la lecture sécurisée échoue sans perte définitive confirmée
+- **THEN** le message explique que la connexion est conservée et propose de réessayer, sans demander de se reconnecter
+
+

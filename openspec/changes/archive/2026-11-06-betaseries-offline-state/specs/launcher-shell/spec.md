@@ -61,3 +61,9 @@ Une panne du fournisseur connecté ou des intentions locales en attente SHALL av
 #### Scenario: confirmation partielle de la file
 - **WHEN** certaines demandes sont confirmées mais que d'autres intentions ou compléments restent en attente
 - **THEN** l'indicateur reflète le travail restant ; aucune notification répétée ni succès global ne masque ces états, même si une notice individuelle a été fermée
+
+#### Scenario: restauration en échec au démarrage
+- **WHEN** la restauration échoue avant de connaître l'identité du compte et que la session n'est pas confirmée absente
+- **THEN** l'indicateur et le trajet vers son détail restent disponibles ; Réessayer utilise la session conservée selon betaseries-integration et ne lance pas l'association ; les programmes locaux et les apps restent utilisables
+
+
