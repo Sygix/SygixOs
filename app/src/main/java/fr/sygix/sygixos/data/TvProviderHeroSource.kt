@@ -28,6 +28,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
+interface HeroProgramSnapshots {
+    suspend fun read(): Map<String, List<HeroItem>>
+    suspend fun write(table: String, items: List<HeroItem>)
+}
+
 class TvProviderHeroSource(
     private val context: Context,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -39,7 +44,7 @@ class TvProviderHeroSource(
     },
     private val queries: ProviderQueries = ProviderQueries.Shared,
     private val io: CoroutineDispatcher = Dispatchers.IO,
-    private val store: HeroProgramStore? = null,
+    private val store: HeroProgramSnapshots? = null,
 ) : HeroContentProvider {
 
     private val labels = mutableMapOf<String, String?>()

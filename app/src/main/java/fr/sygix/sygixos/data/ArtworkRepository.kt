@@ -54,7 +54,7 @@ internal class ArtworkRepository(
     private val cardWidth: Int = 396,
     private val requestTimeoutMillis: Long = IMAGE_REQUEST_TIMEOUT_MS,
     private val localReader: ImageBytesReader = LocalProgramImageReader(context.contentResolver),
-) : Closeable {
+) : Closeable, HeroProgramSnapshots {
     private val dao get() = database.artwork()
     private class Flight(val job: Deferred<ArtworkImage?>, var subscribers: Int = 0)
     private val pending = mutableMapOf<String, Flight>()
@@ -358,8 +358,19 @@ internal class ArtworkRepository(
         purge()
     }
 
+    override suspend fun read(): Map<String, List<fr.sygix.sygixos.model.HeroItem>> = withContext(io) {
+        initialized.await()
+        dao.heroPrograms().groupBy({ it.tableName }, { it.toItem() })
+    }
+
+    override suspend fun write(table: String, items: List<fr.sygix.sygixos.model.HeroItem>) = withContext(io) {
+        initialized.await()
+        dao.replaceHeroPrograms(table, items.mapIndexed { rank, item -> HeroProgramRow.of(table, rank, item) })
+    }
+
     private suspend fun purge() {
         dao.expirePrograms(clock())
+        dao.expireHeroPrograms(clock())
         dao.removeOrphanAssociations()
         dao.purgeable(clock(), ArtworkAge.RETAIN_MS).forEach { image ->
             dao.deleteImage(image.id)

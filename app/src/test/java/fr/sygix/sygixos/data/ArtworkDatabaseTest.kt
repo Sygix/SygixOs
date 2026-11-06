@@ -58,11 +58,28 @@ class ArtworkDatabaseTest {
         } finally { db.close() }
     }
 
+    @Test fun theHeroProgramTableIsAddedWithoutLosingTheArtworkIndex() = runTest {
+        schemas.createDatabase("upgraded", 1).use { db ->
+            db.execSQL("INSERT INTO tv_programs VALUES ('preview','1','app','identity','full','series',100,200)")
+            db.execSQL("INSERT INTO program_images VALUES ('image','app','content://fixture','content://fixture',1280,720,'hash',100,'valid',170,NULL)")
+        }
+        schemas.runMigrationsAndValidate("upgraded", 2, true, ArtworkDatabase.MIGRATION_1_2).close()
+        val db = ArtworkDatabase.create(context, "upgraded")
+        try {
+            val dao = db.artwork()
+            assertEquals("identity", dao.programs("preview").single().imageFingerprint)
+            assertEquals("hash", dao.images().single().hash)
+            val program = fr.sygix.sygixos.model.HeroItem("preview-1", "Fiction", imageUrl = "content://fixture", sourcePackage = "app", expiresAt = 300)
+            dao.replaceHeroPrograms("preview", listOf(HeroProgramRow.of("preview", 0, program)))
+            assertEquals(listOf(program), dao.heroPrograms().map { it.toItem() })
+        } finally { db.close() }
+    }
+
     @Test fun unavailableMigrationRecreatesTheEntireDisposableIndex() = runTest {
         schemas.createDatabase("missing", 1).use { db ->
             db.execSQL("INSERT INTO program_images VALUES ('image','app','content://fixture','content://fixture',1280,720,'hash',100,'valid',0,NULL)")
             db.execSQL("CREATE TABLE unknown_index_state (value TEXT)")
-            db.version = 2
+            db.version = 3
         }
         val db = ArtworkDatabase.create(context, "missing")
         try {

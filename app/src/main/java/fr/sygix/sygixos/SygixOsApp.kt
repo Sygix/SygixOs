@@ -60,7 +60,7 @@ open class SygixOsApp : Application(), ImageLoaderFactory, fr.sygix.sygixos.data
     val appCatalogRepository: AppCatalogRepository by lazy { AppCatalogRepository(installedAppsSource, launcherPrefs) }
     val tvProviderHeroSource: TvProviderHeroSource by lazy {
         TvProviderHeroSource(this, onSnapshot = { table, items -> programArtwork.submit(table, items.map { it.artwork to it.fullFingerprint }) },
-            store = fr.sygix.sygixos.data.FileHeroProgramStore(noBackupFilesDir.resolve("hero-programs.json")))
+            store = programArtwork)
     }
     val appArtwork: AppArtworkSource by lazy {
         val tile = Dimens.gridTileWidthPx(resources.configuration.screenWidthDp, resources.displayMetrics.density)

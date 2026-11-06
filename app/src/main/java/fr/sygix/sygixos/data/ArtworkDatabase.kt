@@ -18,6 +18,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
+import fr.sygix.sygixos.model.HeroItem
+import fr.sygix.sygixos.model.ProgramKind
 
 @Entity(tableName = "tv_programs", primaryKeys = ["tableName", "providerId"])
 internal data class ArtworkProgram(
@@ -54,6 +56,49 @@ internal data class ArtworkImage(
     foreignKeys = [ForeignKey(entity = ArtworkImage::class, parentColumns = ["id"], childColumns = ["imageId"], onDelete = ForeignKey.CASCADE)])
 internal data class ArtworkAssociation(val imageId: String, val identity: String, val sharedIdentity: String?, val confirmedAt: Long)
 
+@Entity(tableName = "hero_programs", primaryKeys = ["tableName", "id"])
+internal data class HeroProgramRow(
+    val tableName: String,
+    val id: String,
+    val rank: Int,
+    val packageName: String?,
+    val title: String,
+    val videoUrl: String?,
+    val imageUrl: String?,
+    val launchUri: String?,
+    val engagement: Long,
+    val kind: String,
+    val season: String?,
+    val episode: String?,
+    val durationMillis: Long?,
+    val positionMillis: Long?,
+    val posterUrl: String?,
+    val thumbnailUrl: String?,
+    val posterAspectRatio: Int,
+    val expiresAt: Long,
+    val internalProviderId: String?,
+    val contentId: String?,
+    val releaseDate: String?,
+    val episodeArtwork: Boolean,
+    val seriesId: String?,
+) {
+    fun toItem() = HeroItem(
+        id = id, title = title, videoUrl = videoUrl, imageUrl = imageUrl, sourcePackage = packageName, launchUri = launchUri,
+        engagement = engagement, kind = ProgramKind.valueOf(kind), season = season, episode = episode, durationMillis = durationMillis,
+        positionMillis = positionMillis, posterUrl = posterUrl, thumbnailUrl = thumbnailUrl, posterAspectRatio = posterAspectRatio,
+        expiresAt = expiresAt, internalProviderId = internalProviderId, contentId = contentId, releaseDate = releaseDate,
+        episodeArtwork = episodeArtwork, seriesId = seriesId,
+    )
+
+    companion object {
+        fun of(table: String, rank: Int, item: HeroItem) = HeroProgramRow(
+            table, item.id, rank, item.sourcePackage, item.title, item.videoUrl, item.imageUrl, item.launchUri, item.engagement, item.kind.name,
+            item.season, item.episode, item.durationMillis, item.positionMillis, item.posterUrl, item.thumbnailUrl, item.posterAspectRatio,
+            item.expiresAt, item.internalProviderId, item.contentId, item.releaseDate, item.episodeArtwork, item.seriesId,
+        )
+    }
+}
+
 @Dao
 internal abstract class ArtworkDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun program(value: ArtworkProgram)
@@ -83,18 +128,35 @@ internal abstract class ArtworkDao {
     @Query("SELECT * FROM program_images WHERE (fetchedAt > 0 AND (:now < fetchedAt OR :now - fetchedAt >= :retainMs)) OR (retryAt <= :now AND NOT EXISTS (SELECT 1 FROM program_image_links WHERE imageId = program_images.id))")
     abstract suspend fun purgeable(now: Long, retainMs: Long): List<ArtworkImage>
     @Query("DELETE FROM program_images WHERE id=:id") abstract suspend fun deleteImage(id: String)
+    @Query("SELECT * FROM hero_programs ORDER BY tableName, rank") abstract suspend fun heroPrograms(): List<HeroProgramRow>
+    @Query("DELETE FROM hero_programs WHERE tableName=:table") abstract suspend fun clearHeroPrograms(table: String)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) abstract suspend fun insertHeroPrograms(values: List<HeroProgramRow>)
+    @Query("DELETE FROM hero_programs WHERE expiresAt<=:now") abstract suspend fun expireHeroPrograms(now: Long)
+    @Transaction open suspend fun replaceHeroPrograms(table: String, values: List<HeroProgramRow>) {
+        clearHeroPrograms(table)
+        insertHeroPrograms(values)
+    }
     @Transaction open suspend fun confirm(table: String, values: List<Pair<ArtworkProgram, List<ArtworkCandidate>>>) {
         removeAbsent(table, values.map { it.first.providerId })
         values.forEach { (program, candidates) -> program(program); candidates(candidates) }
     }
 }
 
-@Database(entities = [ArtworkProgram::class, ArtworkCandidate::class, ArtworkImage::class, ArtworkAssociation::class], version = 1, exportSchema = true)
+@Database(entities = [ArtworkProgram::class, ArtworkCandidate::class, ArtworkImage::class, ArtworkAssociation::class, HeroProgramRow::class], version = 2, exportSchema = true)
 internal abstract class ArtworkDatabase : RoomDatabase() {
     abstract fun artwork(): ArtworkDao
 
     companion object {
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS hero_programs (tableName TEXT NOT NULL, id TEXT NOT NULL, rank INTEGER NOT NULL, packageName TEXT, title TEXT NOT NULL, " +
+                    "videoUrl TEXT, imageUrl TEXT, launchUri TEXT, engagement INTEGER NOT NULL, kind TEXT NOT NULL, season TEXT, episode TEXT, durationMillis INTEGER, " +
+                    "positionMillis INTEGER, posterUrl TEXT, thumbnailUrl TEXT, posterAspectRatio INTEGER NOT NULL, expiresAt INTEGER NOT NULL, internalProviderId TEXT, " +
+                    "contentId TEXT, releaseDate TEXT, episodeArtwork INTEGER NOT NULL, seriesId TEXT, PRIMARY KEY(tableName, id))")
+            }
+        }
+
         fun create(context: Context, name: String = "artwork.db"): ArtworkDatabase = Room.databaseBuilder(context, ArtworkDatabase::class.java, name)
-            .fallbackToDestructiveMigration(dropAllTables = true).build()
+            .addMigrations(MIGRATION_1_2).fallbackToDestructiveMigration(dropAllTables = true).build()
     }
 }
