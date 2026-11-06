@@ -110,6 +110,15 @@ class TrackingController(
         catch (_: Exception) { mutable.value = state.value.copy(failure = TrackingFailure.STORAGE) }
     } } }
 
+    private val syncHold = MutableStateFlow(false)
+    val syncHeld: Boolean get() = syncHold.value
+
+    fun holdSync() { syncHold.value = true }
+
+    fun releaseSync() { syncHold.value = false }
+
+    suspend fun awaitSync() { syncHold.first { !it } }
+
     internal fun schedule() {
         val current = incarnation ?: return
         try { scheduler?.enqueue(current) }
@@ -247,6 +256,7 @@ class TrackingController(
     }
 
     private suspend fun load(generation: Long, current: String) {
+        awaitSync()
         mutable.value = state.value.copy(loading = true, failure = null)
         val previous = state.value.contents.associateBy { it.identity }
         try {

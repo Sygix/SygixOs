@@ -75,6 +75,10 @@ class TrackingEnrichment(private val controller: TrackingController, private val
 
     fun refresh() {
         job?.cancel()
+        if (controller.syncHeld) job = scope.launch { controller.awaitSync(); identify() } else identify()
+    }
+
+    private fun identify() {
         val current = controller.state.value
         if (current.account == null || current.failure == TrackingFailure.ACCESS) return
         val generation = current.generation

@@ -242,6 +242,13 @@ class HomeViewModel(
 
     init {
         tracking?.let { runtime ->
+            if (startup.value != StartupPhase.Done) {
+                runtime.controller.holdSync()
+                viewModelScope.launch(startupDispatcher) {
+                    try { startup.first { it == StartupPhase.Done } }
+                    finally { runtime.controller.releaseSync() }
+                }
+            }
             runtime.controller.restore()
             viewModelScope.launch { runtime.opened.collect { request ->
                 if (request.origin == fr.sygix.sygixos.tracking.PlaybackOrigin.UP_NEXT) upNext?.opened(fr.sygix.sygixos.tracking.TrackingProjection.card(request.content))

@@ -105,4 +105,30 @@ class TrackingEnrichmentTest {
         assertEquals(1, searches)
         assertEquals(2, details)
     }
+
+    @Test fun identificationWaitsWhileTheAccountSyncIsHeld() = runTest {
+        var searches = 0
+        val api = trackingApi(TrackingTransport { request -> when {
+            request.url.endsWith("/") -> TrackingResponse(200, """{"apiHost":"https://api.betaseries.com","apiKey":"fixture-client"}""")
+            request.url.contains("movies/search") -> { ++searches; TrackingResponse(200, """{"movies":[{"id":42,"title":"Fixture","production_year":2020}],"total":1}""") }
+            request.url.contains("movies/movie") -> TrackingResponse(200, """{"movie":{"id":42,"title":"Fixture","user":{"in_account":true,"status":0}}}""")
+            else -> error("Unexpected identity fixture endpoint")
+        } })
+        val controller = TrackingController(object : WatchTrackingProvider {
+            override suspend fun account(token: String) = TrackingAccount("fixture", "Fixture")
+            override suspend fun snapshot(token: String) = TrackingSnapshot(emptyList())
+            override suspend fun revoke(token: String) {}
+        }, object : TrackingSessionStore {
+            override suspend fun read() = "fixture-token"
+            override suspend fun write(token: String?) {}
+        }, backgroundScope, { testScheduler.currentTime })
+        controller.restore(); runCurrent()
+        controller.holdSync()
+        val enrichment = TrackingEnrichment(controller, BetaSeriesProvider(api) { java.time.LocalDate.of(2026, 1, 1) }, backgroundScope, { testScheduler.currentTime })
+        enrichment.local(listOf(UpNextItem(7, UpNextSourceEntry("fixture.player"), UpNextContentType.MOVIE, "Fixture", year = 2020))); runCurrent()
+        assertEquals(0, searches)
+        controller.releaseSync(); runCurrent()
+        assertEquals(1, searches)
+        assertEquals(AccountMembership.PRESENT, enrichment.items().single().tracking?.membership)
+    }
 }

@@ -78,6 +78,7 @@ class HomeViewModelStartupTest {
         dispatcher: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
         io: CoroutineDispatcher = StandardTestDispatcher(testScheduler),
         artwork: AppArtworkSource = AppArtworkSource(context.packageManager, mainDispatcher.dispatcher),
+        tracking: fr.sygix.sygixos.tracking.TrackingRuntime? = null,
     ) = mainDispatcher.track(HomeViewModel(
         apps = repo,
         hero = HeroRepository(EmptyFeed(), EmptyFeed()),
@@ -94,6 +95,7 @@ class HomeViewModelStartupTest {
         startupClock = { testScheduler.currentTime },
         startupDispatcher = dispatcher,
         io = io,
+        tracking = tracking,
     ))
 
     @Test
@@ -196,5 +198,27 @@ class HomeViewModelStartupTest {
         assertEquals(StartupPhase.Splash, vm.startup.value)
         advanceTimeBy(2)
         assertEquals(StartupPhase.FadingOut, vm.startup.value)
+    }
+
+    @Test
+    fun `the tracking account sync starts only once the splash has faded out`() = runTest {
+        val fixture = fr.sygix.sygixos.tracking.TrackingMovieFixture(
+            kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.test.UnconfinedTestDispatcher(testScheduler))) { testScheduler.currentTime }
+        val vm = viewModel(StartupSession(), tracking = fixture.runtime)
+        repo.refreshApps()
+        vm.state.first { it is HomeState.Ready }
+        runCurrent()
+        vm.onSplashShown()
+        vm.onMascotShown()
+        vm.onHeroVisualReady()
+        advanceTimeBy(1_000)
+        assertEquals(StartupPhase.FadingOut, vm.startup.value)
+        fixture.runtime.enrichment.refresh()
+        runCurrent()
+        assertEquals(emptyList<fr.sygix.sygixos.tracking.TrackingRequest>(), fixture.requests)
+        vm.onSplashFadeFinished()
+        runCurrent()
+        assertTrue(fixture.requests.isNotEmpty())
+        assertTrue(fixture.runtime.controller.state.value.account != null)
     }
 }
