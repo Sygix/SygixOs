@@ -7,10 +7,10 @@ package fr.sygix.sygixos.domain
 
 import fr.sygix.sygixos.model.HeroItem
 
-data class HeroFeed(val items: List<HeroItem>, val fromApps: Boolean, val errors: List<Throwable> = emptyList(), val shelfItems: List<HeroItem>? = null) {
+data class HeroFeed(val items: List<HeroItem>, val fromApps: Boolean, val errors: List<Throwable> = emptyList(), val shelfItems: List<HeroItem>? = null, val read: Boolean = true) {
     val publications: List<HeroItem> by lazy(LazyThreadSafetyMode.PUBLICATION) { (items + shelfItems.orEmpty()).distinctBy { it.id } }
     companion object {
-        val Empty = HeroFeed(emptyList(), fromApps = false)
+        val Empty = HeroFeed(emptyList(), fromApps = false, read = false)
     }
 }
 

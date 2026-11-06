@@ -18,6 +18,7 @@ interface HeroContentProvider {
     } catch (error: Exception) {
         HeroRead(emptyList(), listOf(error))
     }
+    suspend fun cached(): HeroRead? = null
     fun changes(): Flow<Unit> = flowOf(Unit)
 }
 

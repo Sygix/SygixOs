@@ -21,6 +21,15 @@ class HeroRepository(
         return HeroFeed(fallbackItems(), fromApps = false, published.errors, published.shelfItems)
     }
 
+    suspend fun cached(): HeroFeed? = try {
+        programs.cached()?.takeIf { it.items.isNotEmpty() }?.let { HeroFeed(it.items, fromApps = true, shelfItems = it.shelfItems, read = false) }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        android.util.Log.w("HeroPrograms", "cause=cache-unavailable", error)
+        null
+    }
+
     suspend fun fallbackItems(): List<HeroItem> = items(fallback)
 
     fun changes(): Flow<Unit> = programs.changes()
