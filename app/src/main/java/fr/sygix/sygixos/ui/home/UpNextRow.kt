@@ -56,7 +56,6 @@ import fr.sygix.sygixos.domain.UpNextContent
 import fr.sygix.sygixos.domain.UpNextScroll
 import fr.sygix.sygixos.model.*
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -96,13 +95,12 @@ internal fun UpNextRow(
     val follower = remember(state) { ScrollFollower(state) }
     val navigation = LocalFastNavigation.current
     var stepJob by remember { mutableStateOf<Job?>(null) }
+    val latestCards by rememberUpdatedState(cards)
     fun revealDistance(index: Int): Float {
         val layout = state.layoutInfo
-        val anchor = layout.visibleItemsInfo.firstOrNull { it.index == index } ?: layout.visibleItemsInfo.first()
-        val offset = UpNextScroll.offsetOf(index, anchor.index, anchor.offset, anchor.size, layout.mainAxisItemSpacing)
-        val overflow = UpNextScroll.focusOverflow(anchor.size, Dimens.TileFocusScale)
-        val inset = UpNextScroll.endInset(index, cards.size, overflow, layout.afterContentPadding)
-        return UpNextScroll.revealDelta(offset, anchor.size, layout.viewportEndOffset, inset).toFloat()
+        val laid = layout.visibleItemsInfo.map { UpNextScroll.Laid(it.index, it.offset, it.size) }
+        val viewport = UpNextScroll.Viewport(layout.viewportEndOffset, layout.mainAxisItemSpacing, layout.afterContentPadding)
+        return UpNextScroll.revealDistance(index, latestCards.size, laid, viewport, Dimens.TileFocusScale).toFloat()
     }
     suspend fun show(index: Int) {
         if (state.layoutInfo.visibleItemsInfo.isEmpty()) {
@@ -140,10 +138,16 @@ internal fun UpNextRow(
                             val key = cards[next].key
                             stepJob?.cancel()
                             if (focus.focus(key)) return@onPreviewKeyEvent true
-                            scope.launch { show(next) }
+                            val reveal = scope.launch { show(next) }
                             stepJob = scope.launch {
-                                snapshotFlow { state.layoutInfo.visibleItemsInfo.any { it.index == next } }.first { it }
-                                focus.focus(key)
+                                while (!focus.focus(key)) {
+                                    withFrameNanos { }
+                                    if (!reveal.isActive) {
+                                        withFrameNanos { }
+                                        focus.focus(key)
+                                        break
+                                    }
+                                }
                             }
                             true
                         },

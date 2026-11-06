@@ -60,4 +60,14 @@ class UpNextScrollTest {
             assertEquals(0, UpNextScroll.revealDelta(offset, 396, viewportEnd, inset))
         }
     }
+
+    @Test
+    fun `reveal distance is measured from a laid card and is zero once the row is empty`() {
+        val viewport = UpNextScroll.Viewport(end = 1824, spacing = 24, endPadding = 96)
+        assertEquals(0, UpNextScroll.revealDistance(3, 6, emptyList(), viewport, 1.08f))
+        val laid = listOf(UpNextScroll.Laid(0, 96, 396), UpNextScroll.Laid(1, 516, 396))
+        assertEquals(96 + 4 * 420 + 396 + 16 - 1824, UpNextScroll.revealDistance(4, 6, laid, viewport, 1.08f))
+        assertEquals(96 + 5 * 420 + 396 + 96 - 1824, UpNextScroll.revealDistance(5, 6, laid, viewport, 1.08f))
+        assertEquals(-20, UpNextScroll.revealDistance(1, 6, listOf(UpNextScroll.Laid(1, -20, 396)), viewport, 1.08f))
+    }
 }

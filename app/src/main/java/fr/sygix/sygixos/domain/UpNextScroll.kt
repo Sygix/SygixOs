@@ -8,6 +8,17 @@ package fr.sygix.sygixos.domain
 import kotlin.math.ceil
 
 object UpNextScroll {
+    data class Laid(val index: Int, val offset: Int, val size: Int)
+
+    data class Viewport(val end: Int, val spacing: Int, val endPadding: Int)
+
+    fun revealDistance(index: Int, count: Int, laid: List<Laid>, viewport: Viewport, focusScale: Float): Int {
+        val anchor = laid.firstOrNull { it.index == index } ?: laid.firstOrNull() ?: return 0
+        val offset = offsetOf(index, anchor.index, anchor.offset, anchor.size, viewport.spacing)
+        val inset = endInset(index, count, focusOverflow(anchor.size, focusScale), viewport.endPadding)
+        return revealDelta(offset, anchor.size, viewport.end, inset)
+    }
+
     fun neighbor(index: Int, step: Int, count: Int): Int = (index + step).coerceIn(0, (count - 1).coerceAtLeast(0))
 
     fun offsetOf(index: Int, anchorIndex: Int, anchorOffset: Int, itemSize: Int, spacing: Int): Int =
