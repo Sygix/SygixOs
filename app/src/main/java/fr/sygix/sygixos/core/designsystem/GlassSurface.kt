@@ -21,8 +21,6 @@ import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.innerShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
@@ -52,7 +50,6 @@ var SemanticsPropertyReceiver.glassActive by GlassActive
 internal const val GlassMaterialTag = "glass-material"
 
 internal const val GlassBlurPx = 28f
-private const val GlassSaturation = 1.7f
 
 internal fun glassBlurRadius(density: Density): Dp = with(density) { GlassBlurPx.toDp() }
 
@@ -118,12 +115,7 @@ fun GlassSurface(
 private fun frostedStyle(tint: Color, fallback: Color, radius: Dp): HazeBlurStyle = HazeBlurStyle {
     blurRadius(radius)
     noiseFactor(0f)
-    colorEffects(
-        listOf(
-            HazeColorEffect.colorFilter(ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(GlassSaturation) })),
-            HazeColorEffect.tint(tint),
-        ),
-    )
+    colorEffects(listOf(HazeColorEffect.tint(tint)))
     fallbackColorEffect(HazeColorEffect.tint(fallback))
 }
 
