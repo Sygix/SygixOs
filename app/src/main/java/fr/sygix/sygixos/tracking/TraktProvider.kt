@@ -558,11 +558,13 @@ class TraktProvider(private val api: TraktApi, private val wallClock: () -> Long
 
     private fun airedAt(value: String?): Long? {
         if (value.isNullOrBlank()) return null
-        return runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
-            ?: runCatching { OffsetDateTime.parse(value).toInstant().toEpochMilli() }.getOrNull()
-            ?: runCatching { LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli() }.getOrNull()
-            ?: runCatching { LocalDate.parse(value).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull()
+        return parsed { Instant.parse(value).toEpochMilli() }
+            ?: parsed { OffsetDateTime.parse(value).toInstant().toEpochMilli() }
+            ?: parsed { LocalDateTime.parse(value).toInstant(java.time.ZoneOffset.UTC).toEpochMilli() }
+            ?: parsed { LocalDate.parse(value).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() }
     }
+
+    private inline fun parsed(read: () -> Long): Long? = try { read() } catch (_: java.time.format.DateTimeParseException) { null }
 
     private fun JSONObject.traktId(): String = optJSONObject("ids")?.optLong("trakt", -1)?.takeIf { it > 0 }?.toString() ?: throw TrackingException(TrackingFailure.PROTOCOL)
     private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { optJSONObject(it) ?: throw TrackingException(TrackingFailure.PROTOCOL) }
