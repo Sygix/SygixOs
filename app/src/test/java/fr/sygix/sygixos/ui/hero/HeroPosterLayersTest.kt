@@ -41,7 +41,7 @@ import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-private class TransformingImageLoader : ImageLoader {
+internal class TransformingImageLoader : ImageLoader {
     override val defaults = DefaultRequestOptions()
     override val components = ComponentRegistry()
     override val memoryCache: MemoryCache? = null

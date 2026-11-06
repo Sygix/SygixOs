@@ -570,6 +570,7 @@ internal fun LauncherHome(
                                     trackingViewModel::bubbleAction, trackingViewModel::dismissNotice, { heroFocus.tryRequestFocus() }, trackingViewModel::noticeFocused, beside = true)
                             }
                         },
+                        glass = glassBlur,
                         modifier = Modifier.testTag("zone-hero").hazeSource(haze, zIndex = 0f),
                     )
                     CompositionLocalProvider(LocalGlassBackdrop provides backdrop.takeIf { glassBlur }) {

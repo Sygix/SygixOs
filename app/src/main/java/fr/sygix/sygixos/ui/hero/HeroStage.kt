@@ -12,7 +12,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shadow
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
-import fr.sygix.sygixos.core.designsystem.glassRim
+import fr.sygix.sygixos.core.designsystem.glassButton
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -106,6 +106,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.runtime.key
+import fr.sygix.sygixos.core.designsystem.GlassAnchor
 import fr.sygix.sygixos.core.designsystem.GlassBackdrop
 import fr.sygix.sygixos.core.designsystem.glassBackdropOrigin
 import kotlinx.coroutines.coroutineScope
@@ -137,6 +138,7 @@ fun HeroStage(
     generations: Map<String, Long> = emptyMap(),
     visualMotion: Boolean = true,
     openAccessory: @Composable () -> Unit = {},
+    glass: Boolean = true,
 ) {
     var currentId by remember { mutableStateOf<String?>(null) }
     var failedVideos by remember { mutableStateOf(emptySet<String>()) }
@@ -368,6 +370,7 @@ fun HeroStage(
             onOpen = { shown?.let(onOpen) },
             onButtonFocused = { buttonFocused = it },
             accessory = openAccessory,
+            backdrop = backdrop.takeIf { glass },
         )
     }
 }
@@ -534,6 +537,7 @@ private fun HeroOverlay(
     onOpen: () -> Unit,
     onButtonFocused: (Boolean) -> Unit,
     accessory: @Composable () -> Unit,
+    backdrop: GlassBackdrop?,
 ) {
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -553,6 +557,7 @@ private fun HeroOverlay(
                     enabled = focusEnabled,
                     onClick = onOpen,
                     onFocused = onButtonFocused,
+                    backdrop = backdrop,
                 )
             } else Box(Modifier.padding(top = ButtonExtraGap)) { accessory() }
         }
@@ -699,10 +704,12 @@ private fun HeroOpenButton(
     enabled: Boolean,
     onClick: () -> Unit,
     onFocused: (Boolean) -> Unit,
+    backdrop: GlassBackdrop?,
     modifier: Modifier = Modifier,
 ) {
     var focused by remember { mutableStateOf(false) }
     val pill = RoundedCornerShape(percent = 50)
+    val anchor = remember { GlassAnchor() }
     val progress = animateFloatAsState(
         if (focused) 1f else 0f,
         tween(Motion.FOCUS_MS, easing = AppleEasing),
@@ -732,7 +739,7 @@ private fun HeroOpenButton(
                 onFocused(it.isFocused)
             }
             .tvClickable(onClick = onClick)
-            .glassRim(pill) { progress.value }
+            .glassButton(pill, backdrop?.takeIf { it.ready }, anchor) { progress.value }
             .height(Dimens.ButtonHeight)
             .padding(start = ButtonPaddingStart, end = ButtonPaddingEnd),
         contentAlignment = Alignment.CenterStart,

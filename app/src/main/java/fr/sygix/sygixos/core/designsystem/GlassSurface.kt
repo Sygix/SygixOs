@@ -122,13 +122,26 @@ private fun frostedStyle(tint: Color, fallback: Color): HazeBlurStyle = HazeBlur
     fallbackColorEffect(HazeColorEffect.tint(fallback))
 }
 
-fun Modifier.glassRim(shape: Shape, focus: () -> Float = { 0f }): Modifier = this
+internal fun Modifier.glassButton(
+    shape: Shape,
+    backdrop: GlassBackdrop?,
+    anchor: GlassAnchor,
+    focus: () -> Float,
+): Modifier = this
+    .semantics { glassActive = backdrop != null }
+    .then(
+        if (backdrop != null) {
+            Modifier.backdropGlass(backdrop, anchor, shape, SygixColors.GlassTint, SygixColors.ButtonRest)
+        } else {
+            Modifier.background(SygixColors.ButtonRest, shape)
+        },
+    )
     .drawWithCache {
         val outline = shape.createOutline(size, layoutDirection, this)
         val rim = Stroke(Dimens.Hairline.toPx())
         onDrawBehind {
             val p = focus()
-            drawOutline(outline, lerp(SygixColors.ButtonRest, SygixColors.OnDark, p))
+            if (p > 0f) drawOutline(outline, SygixColors.OnDark.copy(alpha = p))
             drawOutline(outline, lerp(SygixColors.ButtonRim, SygixColors.ButtonFocusRim, p), style = rim)
         }
     }

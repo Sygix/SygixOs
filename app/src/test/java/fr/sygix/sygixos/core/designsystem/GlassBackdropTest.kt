@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -92,6 +94,43 @@ class GlassBackdropTest {
         }
         assertTrue(android.graphics.Color.red(inside) < 100)
         assertEquals(Color.Red.toArgb(), pixelAt(100, 100))
+    }
+
+    private fun showButtonOver(backdrop: GlassBackdrop?, focus: Float) {
+        compose.setContent {
+            Box(Modifier.fillMaxSize().background(Color.Red).glassBackdropOrigin(backdrop ?: GlassBackdrop())) {
+                val anchor = remember { GlassAnchor() }
+                Box(Modifier.testTag("button").offset(300.dp, 300.dp).size(200.dp, 40.dp).glassButton(RoundedCornerShape(percent = 50), backdrop, anchor) { focus })
+            }
+        }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun `hero button at rest is frosted with the blurred hero visual under the dock tint`() {
+        val gray = android.graphics.Color.rgb(128, 128, 128)
+        showButtonOver(backdropOf(gray), focus = 0f)
+        compose.onNodeWithTag("button").assert(SemanticsMatcher.expectValue(GlassActive, true))
+        val inside = pixelAt(400, 320)
+        val expected = expectedOver(gray)
+        listOf(android.graphics.Color::red, android.graphics.Color::green, android.graphics.Color::blue).forEach { channel ->
+            assertEquals(channel(expected).toFloat(), channel(inside).toFloat(), 3f)
+        }
+    }
+
+    @Test
+    fun `hero button without a blurred copy keeps its flat translucent tint`() {
+        showButtonOver(null, focus = 0f)
+        compose.onNodeWithTag("button").assert(SemanticsMatcher.expectValue(GlassActive, false))
+        val inside = pixelAt(400, 320)
+        assertTrue(android.graphics.Color.red(inside) > android.graphics.Color.green(inside) + 60)
+        assertTrue(android.graphics.Color.red(inside) < 200)
+    }
+
+    @Test
+    fun `focused hero button is white over the frosted glass`() {
+        showButtonOver(backdropOf(android.graphics.Color.rgb(128, 128, 128)), focus = 1f)
+        assertEquals(android.graphics.Color.WHITE, pixelAt(400, 320))
     }
 
     @Test
