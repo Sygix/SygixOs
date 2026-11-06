@@ -68,7 +68,7 @@ Un contenu publié par une app SHALL s'ouvrir directement dans cette app, sans s
 
 #### Scenario: contenu publié par une app
 - **WHEN** l'utilisateur ouvre une carte ou un programme du héro publié par une app (par exemple Jellyfin), suivi ou non, sans préférence mémorisée
-- **THEN** le contenu s'ouvre directement dans l'app de la source retenue, sinon dans l'unique app qui le publie, sans afficher le sélecteur ; « Ouvrir avec… » reste disponible par appui long
+- **THEN** le contenu s'ouvre directement dans l'app de la source retenue, sinon dans l'unique app qui le publie, sans afficher le sélecteur ni enregistrer de préférence ; « Ouvrir avec… » reste disponible par appui long et seul un choix explicite y devient la préférence
 
 #### Scenario: premier choix
 - **WHEN** l'utilisateur ouvre un contenu apporté par le seul compte, sans préférence
@@ -145,7 +145,7 @@ Un contenu identifié SHALL proposer les actions applicables au fournisseur : aj
 
 #### Scenario: opération en cours ou refusée
 - **WHEN** une mutation charge, échoue, dépasse son délai ou perd son autorisation
-- **THEN** l'action expose son état et empêche un double envoi ; pour vu/non vu durablement enregistré, le changement local reste appliqué avec attente de synchronisation distincte du succès distant ; pour les autres mutations, le contenu garde son état précédent en échec ; réessai ou reconnexion reste accessible et fermer la notice ne supprime pas la demande persistante
+- **THEN** l'action expose son état et empêche un double envoi ; pour vu/non vu durablement enregistré, le changement local reste appliqué avec attente de synchronisation distincte du succès distant ; pour les autres mutations, le contenu garde son état précédent en échec ; réessai ou reconnexion reste accessible et fermer la bulle ne supprime pas la demande persistante
 
 #### Scenario: résultat réseau incertain
 - **WHEN** une réponse est perdue après l'envoi d'une mutation
@@ -168,7 +168,7 @@ Vu/non vu SHALL proposer Annuler dès sa sauvegarde locale et rester non envoyab
 
 #### Scenario: Annuler à la place de la bulle
 - **WHEN** l'utilisateur marque un contenu depuis la bulle « Terminé ? » ou depuis le menu d'une carte
-- **THEN** « Annuler » apparaît sous la carte concernée, ou sous la carte qui la remplace à la même place, pendant la fenêtre ; Bas y mène en un appui ; si la carte quitte la rangée, la bulle reste à cette position de la rangée jusqu'à la fin de la fenêtre
+- **THEN** « Annuler » apparaît sous la carte concernée, ou sous la carte qui la remplace à la même place, pendant la fenêtre ; Bas y mène en un appui ; si la carte quitte la rangée, la bulle reste à cette position de la rangée jusqu'à la fin de la fenêtre ; si la rangée devient vide ou masquée, elle passe à droite du bouton « Ouvrir » du héro pour rester atteignable
 
 
 #### Scenario: annuler un marquage

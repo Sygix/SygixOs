@@ -23,7 +23,7 @@ Les zones, tuiles et contrôles SHALL exposer des testTags stables, sans dépend
 
 #### Scenario: contrôles du suivi
 - **WHEN** un test cible le suivi
-- **THEN** il utilise tracking-settings, tracking-connect, tracking-disconnect, tracking-sync, tracking-country, tracking-country-list, tracking-device, tracking-device-code, tracking-device-qr, tracking-device-retry, tracking-device-close, tracking-status, tracking-status-detail, tracking-status-retry, tracking-status-close, tracking-player-picker, tracking-player-close, tracking-other-app, tracking-episodes, tracking-episodes-close, tracking-episodes-retry, tracking-episode-actions, tracking-episode-open, tracking-episode-seen, tracking-episode-back, tracking-notification, tracking-return-prompt, tracking-undo et les préfixes tracking-player-, tracking-episode-, tracking-country-, tracking-card-, tracking-hero-, tracking-action-<add|seen|archive|remove|episodes|player>, avec identités fictives
+- **THEN** il utilise tracking-settings, tracking-connect, tracking-disconnect, tracking-sync, tracking-country, tracking-country-list, tracking-device, tracking-device-code, tracking-device-qr, tracking-device-retry, tracking-device-close, tracking-status, tracking-status-detail, tracking-status-retry, tracking-status-close, tracking-player-picker, tracking-player-close, tracking-other-app, tracking-episodes, tracking-episodes-close, tracking-episodes-retry, tracking-episode-actions, tracking-episode-open, tracking-episode-seen, tracking-episode-back, tracking-bubble, tracking-bubble-message, tracking-bubble-seen, tracking-bubble-later, tracking-bubble-undo, tracking-bubble-retry et les préfixes tracking-player-, tracking-episode-, tracking-country-, tracking-card-, tracking-hero-, tracking-action-<add|seen|archive|remove|episodes|player>, avec identités fictives
 
 ### Requirement: Couverture dock
 Le dock SHALL être couvert par des tests de rendu et de focus.
@@ -989,7 +989,7 @@ Les états hors ligne du suivi SHALL être testés en Compose TV à la taille pr
 
 #### Scenario: attente sans carte et réglages
 - **WHEN** la dernière carte disparaît alors qu'une demande reste en attente puis que les réglages sont ouverts et refermés
-- **THEN** l'état reste accessible depuis l'engrenage et Synchroniser ; focus initial, bords sans boucle, Retour et restauration suivent leurs contrats ; fermer une notice ou les réglages ne supprime pas la demande
+- **THEN** l'état reste accessible depuis l'engrenage et Synchroniser ; focus initial, bords sans boucle, Retour et restauration suivent leurs contrats ; fermer une bulle ou les réglages ne supprime pas la demande
 
 #### Scenario: reprise et état du stockage
 - **WHEN** le compte est restauré hors ligne, puis que le transport confirme certaines demandes et refuse l'accès ou que le stockage échoue dans d'autres cas
@@ -1035,7 +1035,7 @@ Le sélecteur de fournisseur et les parcours adaptés SHALL être testés en Com
 
 #### Scenario: restauration d'Annuler
 - **WHEN** un marquage encore annulable est restauré après interruption puis annulé ou libéré
-- **THEN** tracking-notification et tracking-undo réapparaissent dans le composant existant sans prendre le focus ; le temps actif restant et ses pauses sont respectés, le focus d'origine reste utilisable et aucun marquage automatique n'est introduit
+- **THEN** la bulle tracking-bubble avec tracking-bubble-undo réapparaît à sa place sans prendre le focus ; le temps actif restant et ses pauses sont respectés, le focus d'origine reste utilisable et aucun marquage automatique n'est introduit
 
 #### Scenario: badges, masquage et langues
 - **WHEN** les deux fournisseurs alimentent séparément les mêmes scénarios de cartes, héro, erreurs, retrait local et réaffichage
