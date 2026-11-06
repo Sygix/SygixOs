@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Arrangement
 import fr.sygix.sygixos.core.designsystem.Badge
 import fr.sygix.sygixos.core.designsystem.BadgePlacement
 import fr.sygix.sygixos.core.designsystem.Dimens
+import fr.sygix.sygixos.core.designsystem.LocalFastNavigation
+import fr.sygix.sygixos.core.designsystem.Motion
 import fr.sygix.sygixos.core.designsystem.SygixColors
 import fr.sygix.sygixos.core.designsystem.TextStyles
 import fr.sygix.sygixos.core.designsystem.rememberPillPaint
@@ -39,6 +41,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -104,15 +109,35 @@ fun SettingsScreen(
     val contentFocus = remember { FocusRequester() }
     val contentListState = remember(categoryIndex) { LazyListState() }
     val category = SettingsCategory.entries[categoryIndex]
-
-    fun enterContent() {
-        if (state.canEnter(SettingsCategory.entries[categoryIndex])) pane = SettingsPane.CONTENT
-    }
+    val navigation = LocalFastNavigation.current
+    var pendingCategory by remember { mutableStateOf<Int?>(null) }
 
     fun selectCategory(index: Int) {
+        pendingCategory = null
         if (index == categoryIndex) return
         categoryIndex = index
         actions.onCategoryEntered(SettingsCategory.entries[index])
+    }
+
+    fun enterContent() {
+        pendingCategory?.let(::selectCategory)
+        if (state.canEnter(SettingsCategory.entries[categoryIndex])) pane = SettingsPane.CONTENT
+    }
+
+    fun stepCategory(delta: Int) {
+        val from = pendingCategory ?: categoryIndex
+        val next = (from + delta).coerceIn(0, SettingsCategory.entries.lastIndex)
+        if (next == from) return
+        categoryFocusers[next].tryRequestFocus()
+        if (navigation.active) pendingCategory = next else selectCategory(next)
+    }
+
+    LaunchedEffect(Unit) {
+        snapshotFlow { pendingCategory }.collectLatest { index ->
+            if (index == null) return@collectLatest
+            delay(Motion.FOCUS_MS.toLong())
+            selectCategory(index)
+        }
     }
 
     val contentAvailable = state.canEnter(category)
@@ -138,8 +163,7 @@ fun SettingsScreen(
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (e.key) {
                     Key.DirectionUp, Key.DirectionDown -> if (pane == SettingsPane.CATEGORIES) {
-                        val delta = if (e.key == Key.DirectionUp) -1 else 1
-                        selectCategory((categoryIndex + delta).coerceIn(0, SettingsCategory.entries.lastIndex))
+                        stepCategory(if (e.key == Key.DirectionUp) -1 else 1)
                         true
                     } else {
                         false
