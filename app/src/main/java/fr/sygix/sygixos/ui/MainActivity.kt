@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
+import fr.sygix.sygixos.core.designsystem.FastNavigationHost
 import fr.sygix.sygixos.core.designsystem.SygixOsTheme
 import fr.sygix.sygixos.data.LauncherSystemIntents
 import fr.sygix.sygixos.ui.home.HomeScreen
@@ -47,7 +48,9 @@ class MainActivity : ComponentActivity() {
         val glassBlur = !intent.getBooleanExtra(EXTRA_NO_GLASS, false)
         setContent {
             SygixOsTheme {
-                HomeScreen(viewModel, glassBlur = glassBlur, launcher = launcher)
+                FastNavigationHost {
+                    HomeScreen(viewModel, glassBlur = glassBlur, launcher = launcher)
+                }
             }
         }
         window.setBackgroundDrawable(null)
