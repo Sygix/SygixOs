@@ -4,7 +4,7 @@
 [![release](https://img.shields.io/github/v/release/Sygix/SygixOs?include_prereleases&sort=semver)](https://github.com/Sygix/SygixOs/releases)
 [![license](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
-A free and open source launcher for Android TV / Google TV, inspired by tvOS 26: dark Liquid Glass, polished focus and animations, the Figtree typeface, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, without a launcher account or a backend. An optional BetaSeries or Trakt account adds shared watch tracking.
+A free and open source launcher for Android TV / Google TV, inspired by tvOS 26: dark frosted glass, polished focus and animations, the Figtree typeface, **no ads**. It showcases the content published by your installed apps (Jellyfin, Netflix, Prime Video…) through the Android TV Provider, without a launcher account or a backend. An optional BetaSeries or Trakt account adds shared watch tracking.
 
 > Independent project, not affiliated with Apple, Google or TCL. Apple TV and tvOS are trademarks of Apple Inc.; Android TV and Google TV are trademarks of Google LLC.
 
@@ -23,7 +23,7 @@ Music: **“Electric Dreams” by Scott Buckley**, released under [CC BY 4.0](ht
 - **À suivre**: a single row combining Watch Next from all your apps, deduplicated, with opened content first and removal per series or movie.
 - **Watch tracking (optional)**: choose BetaSeries or Trakt, connect from the TV with a code and QR, combine aired unwatched episodes and watchlist movies with local programs, choose a shared player and manage watched status from the content menu.
 - **Dock and app grid**: apps detected automatically, 16:9 banners, tvOS-style focus, up to 6 pinned apps, reorderable grid.
-- **Dark glass**: translucent glass with live blur on the dock, capsule, context menu and move-mode banner.
+- **Dark frosted glass**: blurred, darkened glass with a light rim on the dock, capsule, hero button, menus and move-mode banner.
 - **Top Shelf preview**: artwork appears above an app tile after a short hover and pans once.
 - **Clock and settings capsule**: time and settings gear in a small glass capsule at the top right of the hero.
 - **Settings**: choose source apps, hide and restore apps, manage removed content, show and place À suivre, turn off the slow zoom of the hero and Top Shelf visuals (“Mouvement des visuels”) for a still home screen on modest TVs, choose the interface language, version and licenses, check for updates.
@@ -196,7 +196,7 @@ openspec/     current specs (specs/), changes (changes/), deferred follow-ups (b
 
 ## Stack
 
-Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (Liquid Glass) · media3 (ExoPlayer) · Coil · Room · DataStore · JUnit / Robolectric
+Kotlin 2.4 · Jetpack Compose (BOM 2026.09) · Haze 2 (frosted glass blur) · media3 (ExoPlayer) · Coil · Room · DataStore · JUnit / Robolectric
 
 ## License
 

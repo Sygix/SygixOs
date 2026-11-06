@@ -35,6 +35,14 @@ La correspondance d'un contenu local avec le suivi SHALL reposer sur une identit
 - **WHEN** deux sources ont un identifiant externe compatible de même type
 - **THEN** elles désignent la même série, le même épisode ou le même film ; l'identité de série ne suffit pas à identifier un épisode sans ses numéros ou son identifiant
 
+#### Scenario: titre traduit ou alias
+- **WHEN** une app publie un contenu sans identifiant externe sous un titre traduit
+- **THEN** le titre normalisé est comparé strictement au titre, au titre original et aux alias que le fournisseur publie pour ses candidats, puis aux contenus déjà présents dans le compte ; un seul candidat correspondant est retenu, sinon aucun
+
+#### Scenario: échec d'identification
+- **WHEN** aucun candidat unique n'a été trouvé pour un contenu local
+- **THEN** cet échec est mémorisé pour ce contenu seul et réessayé après la même validité de 15 minutes, jamais conservé jusqu'au redémarrage de l'application
+
 #### Scenario: rapprochement sans identifiant
 - **WHEN** une recherche exacte par titre et informations disponibles donne plusieurs candidats plausibles
 - **THEN** aucun candidat n'est retenu automatiquement ; la carte locale reste ouvrable et aucune progression ni statut n'est envoyé au mauvais contenu
@@ -52,10 +60,14 @@ La correspondance d'un contenu local avec le suivi SHALL reposer sur une identit
 - **THEN** les programmes locaux déjà lus sont combinés en mémoire ; aucune nouvelle requête au TV Provider n'est déclenchée, y compris sans compte
 
 ### Requirement: Choix et mémorisation du lecteur
-Le premier lancement d'un contenu suivi SHALL demander son application de lecture, même avec une seule offre connue. Le choix SHALL être commun au héro et à À suivre, persistant par série ou film, et réutilisé tant que l'app est lançable et qu'aucune indisponibilité du contenu n'est établie.
+Un contenu publié par une app SHALL s'ouvrir directement dans cette app, sans sélecteur. Le premier lancement d'un contenu apporté par le seul compte SHALL demander son application de lecture, même avec une seule offre connue. Le choix SHALL être commun au héro et à À suivre, persistant par série ou film, et réutilisé tant que l'app est lançable et qu'aucune indisponibilité du contenu n'est établie.
+
+#### Scenario: contenu publié par une app
+- **WHEN** l'utilisateur ouvre une carte ou un programme du héro publié par une app (par exemple Jellyfin), suivi ou non, sans préférence mémorisée
+- **THEN** le contenu s'ouvre directement dans l'app de la source retenue, sinon dans l'unique app qui le publie, sans afficher le sélecteur ; « Ouvrir avec… » reste disponible par appui long
 
 #### Scenario: premier choix
-- **WHEN** l'utilisateur ouvre un contenu sans préférence
+- **WHEN** l'utilisateur ouvre un contenu apporté par le seul compte, sans préférence
 - **THEN** les applications vidéo reconnues sont proposées dans cet ordre : apps qui publient ce contenu localement, apps installées correspondant aux services confirmés pour le pays, apps installées correspondant aux services mentionnés non confirmés, puis les autres apps vidéo par ordre alphabétique, enfin « Autre application » pour accéder aux autres apps lançables ; la première a le focus ; cet ordre ne prouve ni abonnement ni disponibilité et seules les offres régionales prouvées sont présentées comme confirmées
 
 #### Scenario: préférence partagée
@@ -148,7 +160,12 @@ Un contenu identifié SHALL proposer les actions applicables au fournisseur : aj
 - **THEN** la même fenêtre Annuler existante et la même libération durable avant envoi s'appliquent pour BetaSeries et Trakt ; aucun nouveau marquage automatique ni nouveau panneau n'est introduit
 
 ### Requirement: Annulation non bloquante
-Vu/non vu SHALL proposer Annuler dès sa sauvegarde locale et rester non envoyable jusqu'à la fin de sa fenêtre. L'archivage SHALL garder l'annulation de l'action confirmée et le retrait son envoi différé existant. Annuler un marquage encore retenu SHALL restaurer l'état local précédent sans envoyer cette action. Le temps restant du marquage SHALL survivre à l'interruption du processus.
+Vu/non vu SHALL proposer Annuler dès sa sauvegarde locale et rester non envoyable jusqu'à la fin de sa fenêtre. L'archivage SHALL garder l'annulation de l'action confirmée et le retrait son envoi différé existant. Annuler un marquage encore retenu SHALL restaurer l'état local précédent sans envoyer cette action. Le temps restant SHALL survivre à l'interruption du processus. Annuler SHALL s'afficher dans la bulle de la carte ou du bouton d'origine.
+
+#### Scenario: Annuler à la place de la bulle
+- **WHEN** l'utilisateur marque un contenu depuis la bulle « Terminé ? » ou depuis le menu d'une carte
+- **THEN** « Annuler » apparaît sous la carte concernée, ou sous la carte qui la remplace à la même place, pendant la fenêtre ; Bas y mène en un appui ; si la carte quitte la rangée, la bulle reste à cette position de la rangée jusqu'à la fin de la fenêtre
+
 
 #### Scenario: annuler un marquage
 - **WHEN** l'utilisateur annule un marquage pendant sa fenêtre
@@ -184,7 +201,7 @@ Vu/non vu SHALL proposer Annuler dès sa sauvegarde locale et rester non envoyab
 
 #### Scenario: reprise après interruption
 - **WHEN** le processus ou la TV redémarre avec un marquage retenu par Annuler
-- **THEN** le marquage reste projeté, son temps restant est restauré et la notice Annuler réapparaît au retour de l'accueil sans prendre le focus ; le décompte ne reprend que dans les conditions actives existantes et aucun travail en arrière-plan ne peut contourner cette retenue
+- **THEN** le marquage reste projeté, son temps restant est restauré et Annuler réapparaît dans sa bulle au retour de l'accueil sans prendre le focus ; le décompte ne reprend que dans les conditions actives existantes et aucun travail en arrière-plan ne peut contourner cette retenue
 
 #### Scenario: arrêt brutal sans dernier état exact
 - **WHEN** Android interrompt le processus avant la dernière sauvegarde du décompte
@@ -199,7 +216,16 @@ Vu/non vu SHALL proposer Annuler dès sa sauvegarde locale et rester non envoyab
 - **THEN** la libération et l'annulation sont ordonnées par une seule décision durable ; seul le marquage libéré peut être synchronisé et aucun déclencheur manuel, au premier plan ou en arrière-plan ne peut envoyer une révision encore annulable
 
 ### Requirement: Confirmation manuelle au retour
-Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur ; seul un accord explicite SHALL marquer le contenu demandé. Aucun accès aux notifications ou aux sessions média SHALL être demandé dans P9.
+Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur, dans une bulle attachée à l'origine du lancement (carte d'À suivre ou bouton du héro) ; seul un accord explicite SHALL marquer le contenu demandé. Aucun accès aux notifications ou aux sessions média SHALL être demandé dans P9.
+
+#### Scenario: bulle sous l'origine
+- **WHEN** l'utilisateur revient d'un lecteur lancé depuis une carte d'À suivre
+- **THEN** le focus revient sur la carte d'origine et une bulle « Terminé ? » avec « Vu » et « Pas fini » apparaît juste sous elle ; Bas y mène en un appui, « Vu » marque le contenu demandé, « Pas fini », Haut ou Retour la quittent sans rien changer ; la bulle ne prend jamais le focus d'elle-même et aucune notice n'est affichée en bas à droite
+
+#### Scenario: bulle sous le bouton du héro
+- **WHEN** le lecteur avait été lancé depuis le héro
+- **THEN** la même bulle apparaît sous le bouton « Ouvrir », atteinte par Bas depuis le bouton, avec les mêmes actions
+
 
 #### Scenario: confirmation au retour
 - **WHEN** l'utilisateur revient après un lancement effectif de contenu suivi
@@ -209,9 +235,9 @@ Le suivi SHALL proposer « Terminé ? » après le retour effectif d'un lecteur 
 - **WHEN** un lancement réussit
 - **THEN** le départ est confirmé dès la pause ou l'arrêt du launcher dans les 15 secondes ; le lancement en attente n'est oublié que sur échec explicite du lancement ou après 15 secondes sans quitter le launcher
 
-#### Scenario: notice Annuler encore affichée
-- **WHEN** le retour effectif survient alors qu'une notice Annuler ou d'erreur est encore présente
-- **THEN** « Terminé ? » n'est jamais perdu : une notice de marquage terminé est remplacée par la proposition ; un retrait encore annulable, une opération en cours ou une erreur se terminent d'abord, par échéance, Annuler, succès ou fermeture, puis la proposition s'affiche
+#### Scenario: Annuler encore affiché
+- **WHEN** le retour effectif survient alors qu'une bulle Annuler ou une erreur est encore présente
+- **THEN** « Terminé ? » n'est jamais perdu : une bulle Annuler de marquage est remplacée par la proposition ; un retrait encore annulable, une opération en cours ou une erreur se terminent d'abord, par échéance, Annuler, succès ou fermeture, puis la proposition s'affiche
 
 #### Scenario: compte ou contenu changé
 - **WHEN** un retour concerne une ancienne session ou un lancement qui n'a pas quitté le launcher

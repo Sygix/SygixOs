@@ -81,3 +81,13 @@ Un contrôle release supplémentaire après les premières corrections de revue 
 - L'essai Android authentifié précède l'extraction finale de la frontière de purge, l'ajustement de la notice et les corrections de revue. Ces changements sont couverts par la suite automatisée ; ils ne constituent pas un second essai authentifié du dernier head.
 - Le change `betaseries-session-recovery`, fusionné dans la base, attend lui aussi sa preuve TV avant archivage. Il doit être archivé avant le présent change.
 - Revue indépendante et CI du head courant : consulter la PR #106 ; leurs résultats restent distincts des vérifications d'autrice consignées ici.
+
+## Validation sur la TV de référence (6 novembre 2026)
+
+APK publié v0.6.0-rc.1, TV Google TV sous Android 14, compte BetaSeries réel ; marquages annulés ensuite sur le compte.
+- Wi-Fi coupé : l'accueil reste rempli depuis l'état local (héro et À suivre).
+- Un épisode marqué vu depuis le menu hors ligne : il quitte la rangée, la notice indique la sauvegarde locale en attente.
+- Arrêt forcé de l'application puis retour à l'accueil, toujours hors ligne : contenus et demande en attente restaurés.
+- Réseau rétabli pendant qu'une autre application est au premier plan : la demande est envoyée en quelques minutes ; l'historique du compte montre un seul visionnage (aucun double envoi), puis l'épisode est remis en non vu.
+- Redémarrage complet de la TV : état du compte restauré sans association.
+- Défauts relevés et traités dans v0.6.0 : textes de synchronisation jugés inutiles dans À suivre, durée d'un film affichée en heures, épisode spécial non diffusé proposé comme suivant.

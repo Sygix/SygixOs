@@ -143,8 +143,12 @@ La rangée SHALL conserver les niveaux exact dans une app, série/app, épisode 
 - **WHEN** les titres sont comparés sans identité externe
 - **THEN** l'égalité est stricte après minuscules, retrait des diacritiques, ponctuation et « (année) », puis compactage des espaces, sans rapprochement approximatif
 
-#### Scenario: limite assumée
-- **WHEN** des titres localisés différents ne peuvent pas être associés à une identité externe certaine
+#### Scenario: titre localisé d'une app
+- **WHEN** une app publie une série sous son titre traduit (par exemple « Les Sorcières de Brumeval ») alors que le compte la suit sous son titre original (« Brumeval Witches »)
+- **THEN** l'identité est trouvée par le titre original ou un alias du fournisseur de suivi (« Identité de suivi partagée » de `watch-tracking`) et une seule carte de la série est affichée
+
+#### Scenario: identité incertaine
+- **WHEN** ni le titre, ni le titre original, ni un alias ne désignent un seul contenu du fournisseur
 - **THEN** les cartes restent séparées plutôt que fusionnées à tort ; aucun statut n'est écrit sur une identité incertaine
 
 #### Scenario: série identifiée entre fournisseurs
@@ -187,7 +191,7 @@ Une reprise non vue SHALL primer sur le prochain épisode du compte ; une repris
 - **THEN** le même statut effectif s'applique à la contribution identifiée, sans réapparition due à un ancien résultat distant ; annuler ou marquer non vu recalcule la contribution avec les données disponibles
 
 ### Requirement: Tri et limite
-Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts SygixOs par ouverture décroissante, puis CONTINUE, NEXT/NEW (type absent compris), WATCHLIST ; dans chaque groupe, activité décroissante puis `_ID` croissant. La limite SHALL être 20 items. « En cours » SHALL désigner CONTINUE, la progression servant seulement à la barre.
+Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts SygixOs (ouverture décroissante), puis les contenus d'apps, puis ceux du seul compte. Les contenus d'apps SHALL suivre CONTINUE, NEXT/NEW (type absent inclus), WATCHLIST, puis activité décroissante et `_ID` croissant ; ceux du seul compte, séries et films ensemble, par date de diffusion décroissante. Limite : 20. « En cours » SHALL désigner CONTINUE, la progression servant seulement à la barre.
 
 #### Scenario: ordre des groupes
 - **WHEN** la rangée est affichée et qu'aucun de ses contenus n'a été ouvert depuis SygixOs
@@ -200,6 +204,14 @@ Après exclusion des contenus retirés, le tri stable SHALL placer les ouverts S
 #### Scenario: limite
 - **WHEN** plus de 20 items subsistent après dédoublonnage, exclusion des contenus retirés et tri
 - **THEN** la rangée affiche les 20 premiers selon l'ordre ci-dessus
+
+#### Scenario: contenus d'apps avant ceux du compte
+- **WHEN** une app publie 4 séries en cours et que le compte apporte plus de 20 séries et films qu'aucune app ne publie
+- **THEN** les 4 séries de l'app restent dans la rangée, avant les contenus du seul compte ; une série de l'app identifiée par le suivi garde sa place, son activité et son type publiés
+
+#### Scenario: films et séries du compte
+- **WHEN** le compte apporte des séries à suivre et des films à voir qu'aucune app ne publie
+- **THEN** ils sont triés ensemble par date de diffusion de l'épisode ou de sortie du film affiché, la plus récente d'abord, les dates inconnues en dernier, sans placer tous les films après toutes les séries
 
 #### Scenario: contenus ouverts avant les groupes
 - **WHEN** deux contenus de la rangée ont été ouverts depuis SygixOs, l'un `WATCHLIST` hier, l'autre `NEXT` il y a une heure, et que d'autres contenus `CONTINUE` n'ont jamais été ouverts depuis SygixOs

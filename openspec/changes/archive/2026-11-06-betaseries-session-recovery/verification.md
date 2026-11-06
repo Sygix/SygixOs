@@ -70,3 +70,10 @@ Les contrôles de code, de tests automatisés et de navigation sur émulateur so
 - Commits signés de la branche de PR ; les corrections sont intégrées aux commits concernés par autosquash, sans changement supplémentaire du code testé.
 - Scans des licences, commentaires de code ajoutés et informations privées : aucun écart détecté.
 - CI test et CodeQL déclenchée à la création de la PR ; son état courant reste disponible dans la PR.
+
+## Validation sur la TV de référence (6 novembre 2026)
+
+APK publié v0.6.0-rc.1, TV Google TV sous Android 14, compte BetaSeries réel.
+- Redémarrage complet de la TV : à la reprise, À suivre et le héro montrent de nouveau les contenus du compte, sans nouvelle association.
+- Coupure Wi-Fi puis retour du réseau : la session est conservée et la synchronisation reprend sans association.
+- Association BetaSeries depuis la TV : QR et code affichés en quelques secondes une fois le réseau IPv6 du réseau local corrigé. L'échec observé auparavant venait d'une route IPv6 défaillante du réseau local ; le durcissement du client (repli rapide vers IPv4) est traité dans v0.6.0.

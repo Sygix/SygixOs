@@ -47,6 +47,10 @@ Les réglages SHALL conserver deux volets plein écran, leur fond et leurs pilul
 - **WHEN** haut/bas est pressé à gauche puis droite
 - **THEN** la catégorie active et son contenu changent ; droite atteint le premier contrôle du volet, sauf la règle existante de première ligne d'Applications cachées ; gauche revient à la catégorie sauf panneau ou liste actif
 
+#### Scenario: navigation rapide entre catégories
+- **WHEN** haut/bas est maintenu ou répété sur les catégories
+- **THEN** le focus passe aussitôt d'une catégorie à l'autre au rythme des touches, sans attendre le contenu de droite ; ce contenu suit sans bloquer la navigation et montre la catégorie focusée une fois la rafale terminée ; les pilules suivent « répétition de touche » de « Focus tvOS » (`launcher-shell`)
+
 #### Scenario: retour
 - **WHEN** Retour est pressé
 - **THEN** une liste ou un panneau actif se ferme d'abord avec restauration de son contrôle ; sinon les réglages ferment sur le héro focusé et sa lecture reprend à la position conservée

@@ -22,7 +22,7 @@ Les tests sont écrits avec chaque correction puis exécutés seulement en fin d
 
 - [x] 4.1 Exécuter les régressions et `./gradlew test` après toutes les corrections ; preuve après correction P2 : 1 248 tests, zéro échec/erreur/test ignoré, et assembleRelease réussi. Vérification initiale : 53 tests ciblés et quatre régressions vérifiées avec les comportements défectueux réintroduits ; les deux régressions P2 ont aussi échoué sur le code relu avant la réussite de la suite corrigée. Une première exécution complète initiale avait dépassé son délai avant les relances réussies.
 - [x] 4.2 Vérifier le change avec openspec-verify-change et `openspec validate --all --strict` ; preuve : verification.md relie les cinq exigences au code et aux tests, sans divergence fonctionnelle trouvée ; validation stricte 11/11. La validation sur TV de 4.3 reste explicitement ouverte avant archivage.
-- [ ] 4.3 Construire `assembleRelease` et vérifier sur TV la session conservée après redémarrage et panne/reprise ; preuve : résultat distinct des tests JVM, sans donnée personnelle.
+- [x] 4.3 Construire `assembleRelease` et vérifier sur TV la session conservée après redémarrage et panne/reprise ; preuve : résultat distinct des tests JVM, sans donnée personnelle.
 - [x] 4.4 Relire le diff et les scans licence/confidentialité, créer les commits signés puis la PR ; preuve : scans vides et signatures G vérifiées, PR https://github.com/Sygix/SygixOs/pull/103 ; état de CI du head courant à consulter dans la PR. Les corrections de revue sont intégrées aux commits concernés par autosquash signé.
 
 ## Workflow follow-up

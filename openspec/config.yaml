@@ -6,9 +6,9 @@ context: |
   Keep OpenSpec structural headings and SHALL/MUST keywords in English.
 
   SygixOs : launcher Apple TV-style pour Google TV (TCL, Android 14), remplace le launcher Google (avec pubs).
-  Priorités : 1) design fidèle à tvOS (Liquid Glass, focus, animations) ; 2) zéro bug : états loading/empty/error partout, pas de crash silencieux.
+  Priorités : 1) design fidèle à tvOS (verre givré, focus, animations) ; 2) zéro bug : états loading/empty/error partout, pas de crash silencieux.
 
-  Stack : Kotlin 2.4, Jetpack Compose (BOM 2026.09), Haze 2 (Liquid Glass), Coil, DataStore, media3 (ExoPlayer).
+  Stack : Kotlin 2.4, Jetpack Compose (BOM 2026.09), Haze 2 (flou du verre givré), Coil, DataStore, media3 (ExoPlayer).
   Aucun backend, tout en local. Namespace fr.sygix.sygixos, minSdk 34, compileSdk 37. Langues UI : anglais (repli), français (référence des textes cités par les specs), allemand, espagnol, italien ; la langue suit la TV par défaut et se règle dans Réglages › Langue.
   Dépendances externes : uniquement des libs éprouvées et maintenues.
 
@@ -16,10 +16,10 @@ context: |
   Uniflow : ViewModel -> StateFlow -> Compose, pas d'état dupliqué. Tests JUnit sur la logique métier (fusions, tri, mapping).
 
   Accueil (capability launcher-shell) : paliers plein écran héro -> dock -> grille ; la grille masque le héro.
-  Design system dans core/designsystem : Modifier.tvFocus / tvClickable, Motion.* + AppleEasing, Dimens.*, GlassSurface (verre sombre, ombre portée douce, aucun halo coloré).
+  Design system dans core/designsystem : Modifier.tvFocus / tvClickable, Motion.* + AppleEasing, Dimens.*, GlassSurface (verre givré sombre : flou, bordure claire et reflets, ombre portée douce, ni réfraction ni halo coloré).
   Sources de données TV : TV Provider (WatchNextPrograms / PreviewPrograms), lu sous READ_TV_LISTINGS ; les colonnes réellement remplies dépendent de l'app qui publie.
 
-  Roadmap actuelle : P3 logo et écran de démarrage livrés ; P4 mises à jour intégrées livrées ; P5 remplacement du launcher système et P6 Up Next livrés dans v0.1.0-rc.2 et archivés ; P7 écran d'accueil par défaut (livré et archivé, configuration par l'ADB local ou par autorisations ; suite livrée en v0.3.0-rc.1 et archivée : parcours simplifié et accès par Tsuyu, service compatible Shizuku du même auteur) ; P8 recherche ; P9 suivi BetaSeries livré dans v0.4.0 et archivé ; P10 remappage des boutons de la télécommande, à spécifier. Les archives gardent leur numérotation historique.
+  Roadmap actuelle : P3 logo et écran de démarrage livrés ; P4 mises à jour intégrées livrées ; P5 remplacement du launcher système et P6 Up Next livrés dans v0.1.0-rc.2 et archivés ; P7 écran d'accueil par défaut (livré et archivé, configuration par l'ADB local ou par autorisations ; suite livrée en v0.3.0-rc.1 et archivée : parcours simplifié et accès par Tsuyu, service compatible Shizuku du même auteur) ; P8 recherche ; P9 suivi BetaSeries livré dans v0.4.0 et archivé, puis hors ligne et Trakt livrés dans v0.6.0 et archivés ; P10 remappage des boutons de la télécommande, à spécifier. Les archives gardent leur numérotation historique.
 
   Fluidité jugée uniquement sur assembleRelease, sur la TV réelle (adb).
 

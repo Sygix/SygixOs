@@ -10,7 +10,7 @@ SygixOs : launcher Android TV natif (Kotlin, Jetpack Compose) au design tvOS pou
 - P6 — Rangée Up Next : livrée (v0.1.0-rc.2), archivée avec `jellyfin-tvprovider-only` (`archive/2026-10-11-up-next`, `archive/2026-10-11-jellyfin-tvprovider-only`)
 - P7 — Écran d'accueil par défaut : configuration automatique par l'ADB local de la TV (démarrage du constructeur, écran d'accueil, désactivation de l'accueil d'origine si nécessaire) ou par autorisations ; livré et archivé (`archive/2026-10-17-p7-default-launcher`) ; suite : parcours simplifié, troisième façon par Tsuyu installé depuis la TV, réparation automatique, livrée dans v0.3.0-rc.1 et archivée (`archive/2026-10-18-tsuyu-home-setup`) ; validés sur la TV de référence
 - P8 — Recherche : planifié
-- P9 — Suivi de visionnage BetaSeries : livré (v0.4.0), validé sur la TV de référence et archivé (`archive/2026-10-24-p9-betaseries`)
+- P9 — Suivi de visionnage BetaSeries : livré (v0.4.0), validé sur la TV de référence et archivé (`archive/2026-10-24-p9-betaseries`) ; suite livrée dans v0.6.0 et archivée : session conservée, état hors ligne et fournisseur Trakt (`archive/2026-11-06-betaseries-session-recovery`, `archive/2026-11-06-betaseries-offline-state`, `archive/2026-11-06-trakt-watch-tracking`)
 - P10 — Remappage des boutons de la télécommande : à spécifier
 Les archives historiques (`openspec/changes/archive/`) conservent leur numérotation d'époque : ne pas les renuméroter.
 
@@ -34,7 +34,7 @@ Les archives historiques (`openspec/changes/archive/`) conservent leur numérota
 ## Design (référence : tvOS)
 - Thème sombre uniquement en v1, noir pur, posters plein cadre
 - Focus : zoom ~1.08x, ombre douce, animations 250-400ms courbes Apple, jamais de saut sec
-- Liquid Glass : verre sombre réfractant (Haze 2), ombre portée douce autorisée, aucun halo coloré
+- Verre givré : arrière-plan flouté et assombri (Haze 2 ou copie floutée du visuel), fine bordure claire et reflets haut/bas, ombre portée douce autorisée ; ni réfraction ni halo coloré
 - Grille d'apps auto-détectée (LEANBACK_LAUNCHER), tuiles 16:9 (bannière Android TV)
 
 ## Git & packaging

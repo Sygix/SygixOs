@@ -82,6 +82,14 @@ Le héro SHALL être couvert par des tests de rendu du carrousel et de l'état f
 - **WHEN** aucun HeroItem n'est fourni
 - **THEN** l'écran ne crash pas et le fallback visuel est rendu
 
+#### Scenario: programmes conservés au démarrage
+- **WHEN** des programmes valides sont conservés localement et que la relecture du TV Provider n'a pas encore répondu
+- **THEN** le premier programme conservé est affiché (titre et bouton) sans attendre la relecture ; un programme expiré ou d'une app désinstallée n'apparaît pas
+
+#### Scenario: image en attente sans vidéo
+- **WHEN** le premier programme a une image en attente ou une file d'images occupée
+- **THEN** ses textes sont affichés sur le dégradé, aucun lecteur vidéo n'est créé et la vidéo de secours n'est pas demandée
+
 ### Requirement: Navigation D-pad des trois zones
 La navigation héro, dock et grille, À suivre et titres compris, SHALL rester testée par key events physiques en Compose à taille TV. Les sources du compte SHALL être simulées indépendamment du TV Provider ; menus, propositions et retours de suivi SHALL ne pas changer les trois paliers.
 
@@ -172,6 +180,10 @@ La navigation héro, dock et grille, À suivre et titres compris, SHALL rester t
 #### Scenario: ouverture depuis le héro
 - **WHEN** le test choisit un lecteur depuis le héro puis ouvre la même série depuis À suivre et inversement
 - **THEN** la préférence est commune ; le retour restaure le bon contexte et le signal de lecture vise le contenu demandé, pas un épisode suivant affiché entre-temps
+
+#### Scenario: rafale de touches
+- **WHEN** le test envoie 8 touches droite répétées (`repeatCount` croissant) dans la grille, À suivre puis les catégories des réglages, sans avancer l'horloge d'animation entre elles
+- **THEN** l'élément visé par la dernière touche a le focus, apparaît déjà soulevé ou en pilule, et la position de défilement est déjà celle de sa cible, sans attendre la fin d'une animation
 
 ### Requirement: Épinglage depuis la grille
 L'épinglage depuis la grille SHALL être couvert par le flux complet : appui long, menu contextuel, action d'épinglage.
@@ -877,7 +889,19 @@ Les parcours SHALL être testés en Compose TV avec testTags, key events physiqu
 
 #### Scenario: ajout au compte depuis une carte locale
 - **WHEN** le test ouvre le menu d'un contenu local identifié absent du compte connecté, puis répète sans compte, avec identité ambiguë et avec appartenance inconnue
-- **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement utilise le parcours commun, avec confirmation du premier lecteur si aucune préférence n'existe ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive
+- **THEN** Ajouter au suivi est présent seulement dans le premier cas, sans supprimer sources et retrait local ; avant ajout aucun choix de lecteur n'est persisté ; après ajout confirmé et appartenance relue le prochain lancement ouvre directement l'app source (« Choix et mémorisation du lecteur » de `watch-tracking`) ; annulation ou échec d'ajout garde le parcours local sans appartenance fictive
+
+#### Scenario: bulle Terminé ? sous la carte
+- **WHEN** le test simule le retour d'un lecteur lancé depuis une carte d'À suivre
+- **THEN** la carte d'origine a le focus, la bulle « Terminé ? » est sous elle sans focus ; Bas focalise « Vu », OK marque le contenu et affiche « Annuler » au même endroit ; Haut ou Retour quitte la bulle sans rien marquer ; aucune notice n'existe en bas à droite
+
+#### Scenario: ouverture directe dans l'app source
+- **WHEN** le test ouvre une carte publiée par une app sans préférence mémorisée, puis une carte apportée par le seul compte
+- **THEN** la première lance directement l'app source sans sélecteur ; la seconde affiche le sélecteur
+
+#### Scenario: synchronisation silencieuse
+- **WHEN** un marquage est enregistré hors ligne puis confirmé
+- **THEN** ni l'en-tête d'À suivre ni aucune notice n'affiche de texte de synchronisation ; seul le panneau des réglages de suivi l'indique
 
 ### Requirement: Couverture des langues
 Les langues de l'interface SHALL être couvertes par la task `test` : tests JUnit de la résolution de la langue (langue de la TV, liste de plusieurs langues, repli sur l'anglais, choix explicite), test de complétude qui échoue si une langue manque d'un texte ou n'a pas les mêmes paramètres que l'anglais, et tests Compose TV de la catégorie « Langue ».

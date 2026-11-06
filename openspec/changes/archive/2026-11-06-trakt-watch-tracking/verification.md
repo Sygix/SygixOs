@@ -164,3 +164,12 @@ Deux lectures redondantes sont également corrigées : une identité connue réu
 | Coherence | Une base Room avec migration non destructive, erreurs persistantes distinctes, cache d'identités isolé et interfaces partagées. Spec, design et README précisent le parcours de reconnexion accepté. |
 
 Les deux tâches runtime incomplètes restent des points critiques avant archivage. La réassociation authentifiée après perte réelle de réponse, les états connectés dans l'APK corrigé et les performances matérielles ne sont pas vérifiés lors de ce passage. Les huit défauts ont une correction et des preuves automatisées ; le change n'est toujours pas déclaré prêt pour archivage.
+
+## Validation sur la TV de référence (6 novembre 2026)
+
+APK publié v0.6.0-rc.1, TV Google TV sous Android 14, comptes réels ; toute mutation a été annulée sur le compte.
+- Déconnexion BetaSeries, choix de Trakt dans le sélecteur, Connecter : QR et code Trakt affichés en quelques secondes ; autorisation sur la page officielle ; compte associé puis synchronisé.
+- Programmes locaux identifiés par Trakt et action « Ajouter au suivi » effective (vérifiée puis retirée sur le compte).
+- Retour à BetaSeries : déconnexion Trakt, nouveau choix et nouvelle association, compte synchronisé.
+- Le marquage avec retenue d'Annuler reste couvert par les tests et l'émulateur ; le compte Trakt de test ne contenait aucun contenu suivi.
+- Défaut relevé et traité dans v0.6.0 : après un ajout au suivi, la rangée annonçait une liste de compte incomplète jusqu'à une synchronisation manuelle.

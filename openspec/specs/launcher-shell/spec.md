@@ -57,6 +57,10 @@ Le launcher SHALL animer le focus des tuiles d'apps de la grille et du dock, et 
 - **WHEN** une tuile prend le focus
 - **THEN** elle zoome d'environ 1,08x en montant légèrement, une ombre portée douce apparaît sous elle et un reflet blanc en diagonale éclaire son visuel ; aucun halo, coloré ou non, et aucun liseré ; transition 250-400ms courbe Apple ; en zone grille le panneau Top Shelf reflète l'app focusée
 
+#### Scenario: répétition de touche
+- **WHEN** une flèche est maintenue ou répétée plus vite que la transition de focus, dans la grille, le dock, À suivre, les réglages ou un menu
+- **THEN** la tuile qui reçoit le focus apparaît aussitôt soulevée et celle qui le perd aussitôt posée, sans transition entamée puis interrompue ; le défilement suit le focus sans retard ; la transition de 250-400 ms reprend pour la première pression isolée après la rafale
+
 #### Scenario: rien ne déborde
 - **WHEN** une tuile de la grille ou du dock a le focus
 - **THEN** la tuile agrandie ne recouvre aucune tuile voisine, l'espacement entre tuiles et entre rangées absorbant le zoom, et elle reste entière : ni la rangée, ni la grille, ni le dock ne la coupent
@@ -81,7 +85,7 @@ Le home SHALL afficher À suivre dans la zone grille si son réglage est actif e
 - **THEN** rangée et titre quittent la navigation sans place réservée ; réactiver réaffiche le contenu à sa position sans redémarrage
 
 ### Requirement: Thème
-L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtree (SIL OFL, listée dans À propos). Le relief SHALL venir d'ombres douces et de reflets clairs, jamais d'un halo coloré. Les surfaces verre (dock, capsule, menu, bandeau) SHALL seules être floutées, avec une teinte sombre translucide, une bordure claire et des reflets ; les rayons et coins concentriques SHALL suivre le design system. Les scénarios ci-dessous SHALL préciser les valeurs et couples imbriqués.
+L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtree (SIL OFL, listée dans À propos). Le relief SHALL venir d'ombres douces et de reflets clairs, jamais d'un halo coloré. Seules les surfaces verre (dock, capsule, bouton du héro, menus et panneaux, bandeau) SHALL être floutées, en verre givré sans réfraction ; rayons et coins concentriques SHALL suivre le design system, précisés ci-dessous.
 
 #### Scenario: comportement
 - **WHEN** la capability est utilisée
@@ -91,9 +95,13 @@ L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtre
 - **WHEN** le dock, la capsule heure et réglages (« Capsule heure et réglages » de `settings`), le menu contextuel ou le bandeau du mode déplacement sont affichés
 - **THEN** ils utilisent le matériau verre sombre (arrière-plan flouté selon les deux façons ci-dessus, teinte sombre translucide, fine bordure claire, reflet sur le bord haut, ombre légère) ; le panneau du menu contextuel est nettement plus foncé que le dock et la capsule ; si l'appareil ne supporte pas l'effet, la surface reste sombre et translucide, sans flou et sans crash
 
-#### Scenario: bouton sans flou
-- **WHEN** le bouton d'ouverture du héro est affiché au repos
-- **THEN** il a un fond sombre translucide, un texte blanc et une fine bordure façon verre, sans flou d'arrière-plan ; au focus il a un fond blanc, un texte noir, un léger zoom et une ombre
+#### Scenario: bouton givré
+- **WHEN** le bouton d'ouverture du héro est affiché au repos sur l'image d'un programme
+- **THEN** il est en verre givré comme le dock : la copie floutée du visuel sous sa forme, la teinte sombre translucide, un texte blanc, la bordure claire et les reflets ; au focus il a un fond blanc, un texte noir, un léger zoom et une ombre
+
+#### Scenario: bouton sur une vidéo ou le dégradé
+- **WHEN** le bouton d'ouverture du héro est affiché au repos sur une vidéo, la vidéo de secours ou le dégradé
+- **THEN** il garde la teinte sombre translucide, la bordure et les reflets, sans flou calculé en direct à l'intérieur du héro
 
 #### Scenario: coût du flou
 - **WHEN** une surface verre est affichée
@@ -119,7 +127,7 @@ L'UI SHALL rester sombre sur noir pur, avec posters plein cadre et police Figtre
 - **WHEN** une tuile prend le focus, qu'une pilule de focus s'affiche ou que le dock montre son verre précalculé
 - **THEN** l'ombre et le reflet de la tuile, la pilule et le verre découpé du dock ont les mêmes coins que la surface qu'ils épousent ; aucun angle ne dépasse ni ne laisse apparaître un autre rayon
 
-**Détails.** — Matériau Liquid Glass : Les seules surfaces floutées SHALL être dock, capsule heure/réglages, menu contextuel et bandeau de déplacement. Le verre tvOS 26 SHALL avoir un flou de 28 px saturé à 170 %, teinte rgb 22, 22, 28 à 36 % pour le dock et 38 % pour la capsule, bordure blanche de 1 px à 16 %, reflet haut à 32 %, bas à 6 %, transparence sombre et ombre légère. Cas « surface verre » : quand une surface verre est visible, elle respecte « surfaces verre » et « verre sur un visuel sombre » de « Thème » ; les autres éléments ne floutent pas leur arrière-plan. — Calcul du flou : Sur une image de programme, dock et capsule SHALL utiliser une copie réduite du visuel voilé, floutée et saturée une fois, animée avec son Ken Burns/fondu sans recalcul par frame, sinon le flou direct. Sur vidéo ou dégradé, et pour menu/bandeau, le flou SHALL être direct, à partir d'une image réduite et limité à la zone de la surface. Cas « copie ou calcul direct » : quand le média ou la disponibilité de la copie change, les scénarios « coût du flou », « copie floutée indisponible » et « verre sur un visuel en mouvement » de « Thème » restent applicables. — Rayons des surfaces : Les rayons SHALL être ceux du design system, en dp pour 960 × 540 dp : tuiles grille/dock 14, dock 24, menu 26 et pilules 12, lignes de réglages 14 ; capsule et engrenage en pilule à demi-hauteur. Ombre/reflet de tuile, focus, verre précalculé, bordure et reflets SHALL suivre le rayon de leur surface. Cas « effets concentriques » : quand une surface ou un effet de focus est dessiné, le scénario « effets qui suivent le rayon » de « Thème » s'applique sans halo coloré. — Coins concentriques : Une surface arrondie imbriquée SHALL respecter rayon extérieur = rayon intérieur + plus petite marge : dock/tuile 24 = 14 + 10 ; capsule/engrenage de 36 de haut 18 = 14 + 4 ; menu/pilule 26 = 12 + 14 ; menu/vignette marge 16 et rayon 10 ; ligne/vignette 16:9 marge verticale 10,5 et rayon 3,5. Le QR SHALL avoir un fond blanc arrondi au rayon de sa marge blanche, sans rogner ses modules carrés. Cas « imbrication » : quand une surface arrondie en contient une autre, le scénario « coins concentriques » de « Thème » vérifie ces couples, en retenant la plus petite marge si les axes diffèrent.
+**Détails.** — Matériau verre givré : Les seules surfaces floutées SHALL être dock, capsule heure/réglages, bouton du héro, menus et panneaux en verre, bandeau de déplacement. Le verre givré SHALL avoir un flou de 28 px saturé à 170 %, teinte rgb 22, 22, 28 à 36 % pour le dock et 38 % pour la capsule, bordure blanche de 1 px à 16 %, reflet haut à 32 %, bas à 6 %, transparence sombre et ombre légère. Cas « surface verre » : quand une surface verre est visible, elle respecte « surfaces verre » et « verre sur un visuel sombre » de « Thème » ; les autres éléments ne floutent pas leur arrière-plan. — Calcul du flou : Sur une image de programme, dock et capsule SHALL utiliser une copie réduite du visuel voilé, floutée et saturée une fois, animée avec son Ken Burns/fondu sans recalcul par frame, sinon le flou direct. Sur vidéo ou dégradé, et pour menu/bandeau, le flou SHALL être direct, à partir d'une image réduite et limité à la zone de la surface. Cas « copie ou calcul direct » : quand le média ou la disponibilité de la copie change, les scénarios « coût du flou », « copie floutée indisponible » et « verre sur un visuel en mouvement » de « Thème » restent applicables. — Rayons des surfaces : Les rayons SHALL être ceux du design system, en dp pour 960 × 540 dp : tuiles grille/dock 14, dock 24, menu 26 et pilules 12, lignes de réglages 14 ; capsule et engrenage en pilule à demi-hauteur. Ombre/reflet de tuile, focus, verre précalculé, bordure et reflets SHALL suivre le rayon de leur surface. Cas « effets concentriques » : quand une surface ou un effet de focus est dessiné, le scénario « effets qui suivent le rayon » de « Thème » s'applique sans halo coloré. — Coins concentriques : Une surface arrondie imbriquée SHALL respecter rayon extérieur = rayon intérieur + plus petite marge : dock/tuile 24 = 14 + 10 ; capsule/engrenage de 36 de haut 18 = 14 + 4 ; menu/pilule 26 = 12 + 14 ; menu/vignette marge 16 et rayon 10 ; ligne/vignette 16:9 marge verticale 10,5 et rayon 3,5. Le QR SHALL avoir un fond blanc arrondi au rayon de sa marge blanche, sans rogner ses modules carrés. Cas « imbrication » : quand une surface arrondie en contient une autre, le scénario « coins concentriques » de « Thème » vérifie ces couples, en retenant la plus petite marge si les axes diffèrent.
 
 ### Requirement: Navigation
 Le launcher SHALL être navigable au DPAD uniquement.
@@ -131,14 +139,18 @@ Le launcher SHALL être navigable au DPAD uniquement.
 - **THEN** les exigences listées ci-dessus s'appliquent
 
 ### Requirement: Écran initial du home
-Le home SHALL s'ouvrir sur un héro plein écran sans cadre, avec les programmes locaux et contenus de suivi admissibles, sinon le repli nature, et le dock en overlay bas. Au démarrage à froid, le fondu de l'écran de démarrage SHALL révéler le héro sans attendre une connexion BetaSeries.
+Le home SHALL s'ouvrir sur un héro plein écran sans cadre, avec les programmes locaux et contenus de suivi, d'abord ceux conservés sur la TV puis ceux de la relecture, le repli nature seulement sans aucun programme, et le dock en overlay bas. Au démarrage à froid, le fondu de l'écran de démarrage SHALL révéler le héro sans attendre une connexion BetaSeries.
 
 #### Scenario: état initial
 - **WHEN** le launcher démarre
 - **THEN** le héro occupe tout l'écran sans aperçu du suivant, prend le focus dès le début du fondu de sortie du démarrage et porte le dock semi-transparent en overlay bas
 
+#### Scenario: programmes conservés sur la TV
+- **WHEN** le launcher démarre alors que des programmes encore valides et leurs images vérifiées sont conservés localement depuis la dernière lecture
+- **THEN** le héro les affiche aussitôt, textes et images, sans attendre la relecture du TV Provider ni du compte ; la relecture se fait ensuite en arrière-plan et ne change que les programmes ajoutés, modifiés ou retirés (« Contenu héro TV Provider »), sans recharger les autres
+
 #### Scenario: fallback sans contenu
-- **WHEN** aucune source ne fournit de programme admissible
+- **WHEN** une lecture terminée confirme qu'aucune source ne fournit de programme admissible
 - **THEN** les vidéos nature bouclent, précédées du dégradé sombre qui effectue un passage lent puis reste immobile à sa dernière position tant qu'elles ne jouent pas, sans écran noir ni crash ; une permission TV refusée n'écarte pas les contenus BetaSeries accessibles
 
 ### Requirement: Navigation 3 paliers
@@ -206,7 +218,11 @@ Le D-pad SHALL conserver héro, dock et grille comme trois paliers, avec une seu
 
 #### Scenario: continuité de l'animation
 - **WHEN** haut, bas ou Retour est pressé pendant un défilement
-- **THEN** l'animation repart de sa position courante vers la nouvelle cible sans saut
+- **THEN** l'animation repart de sa position et de sa vitesse courantes vers la nouvelle cible, sans saut ni arrêt intermédiaire
+
+#### Scenario: défilement en rafale
+- **WHEN** une flèche est maintenue dans la grille ou À suivre
+- **THEN** la rangée ou la page atteint chaque nouvelle cible au rythme des touches sans prendre de retard sur le focus, et le panneau Top Shelf ne s'ouvre qu'une fois le focus posé
 
 #### Scenario: cohabitation avec la Top Shelf
 - **WHEN** À suivre a le focus
@@ -440,7 +456,7 @@ Dans la grille, le fond SHALL être un dégradé neutre uni type tvOS, le héro 
 - **THEN** sa lecture est interrompue et ses animations arrêtées conformément à « Préchargement et mémoire » (scénario « économie de ressources ») et « Fond vidéo de secours » ; son lecteur vidéo n'est pas libéré
 
 ### Requirement: Diaporama héro
-Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec un bouton d'ouverture focusable ; en-tête, infos, progression et bouton SHALL correspondre au programme affiché et changer avec son média. Un programme SHALL y entrer quand sa vidéo d'aperçu ou un visuel accepté par la politique du héro est prêt, ou sur son média de secours quand ses images ont échoué ; un programme sans visuel acceptable SHALL en être écarté.
+Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la fois, plein écran et muet, avec un bouton d'ouverture focusable ; en-tête, infos, progression et bouton SHALL correspondre au programme affiché et changer avec son média. Un programme SHALL y entrer dès sa lecture, sur le dégradé tant que son visuel attend ; la vidéo de secours SHALL servir seulement sans image ou après échec de la requête ; des images toutes refusées par la politique du héro SHALL l'écarter.
 
 #### Scenario: défilement automatique
 - **WHEN** plusieurs programmes sont disponibles
@@ -460,7 +476,7 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 
 #### Scenario: métadonnées
 - **WHEN** un programme ouvrable est affiché
-- **THEN** en bas à gauche apparaissent, de haut en bas : l'en-tête (icône et libellé de l'app source), le titre, la ligne d'infos, la barre de progression suivie du temps restant, chacun seulement s'il a quelque chose à montrer, puis un bouton « Ouvrir » (« Reprendre » si progression) qui porte le focus du héro, au style de « Thème » (scénario « bouton sans flou ») ; OK sur ce bouton ouvre le contenu
+- **THEN** en bas à gauche apparaissent, de haut en bas : l'en-tête (icône et libellé de l'app source), le titre, la ligne d'infos, la barre de progression suivie du temps restant, chacun seulement s'il a quelque chose à montrer, puis un bouton « Ouvrir » (« Reprendre » si progression) qui porte le focus du héro, au style de « Thème » (scénarios « bouton givré » et « bouton sur une vidéo ou le dégradé ») ; OK sur ce bouton ouvre le contenu
 
 #### Scenario: lisibilité sur un poster clair
 - **WHEN** le visuel affiché est clair, jusqu'au blanc (pire cas)
@@ -516,7 +532,15 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 
 #### Scenario: visuel lent
 - **WHEN** l'image d'un programme n'est pas encore prête, en attente de son tour ou en cours de récupération
-- **THEN** le défilement et la navigation passent ce programme sans l'attendre ; une seule récupération commune continue et le programme entre dans le diaporama dès que son image est prête, ou avec son repli si la requête échoue
+- **THEN** le défilement et la navigation passent ce programme tant qu'un autre est prêt ; si aucun ne l'est, le héro reste sur le programme courant, ses textes sur le dégradé, sans vidéo de secours ; une seule récupération commune continue et le fondu vers l'image a lieu dès qu'elle est prête, ou vers le repli si la requête échoue
+
+#### Scenario: file d'images occupée
+- **WHEN** la récupération d'une image attend parce que la file de son app ou la file globale est pleine
+- **THEN** ce n'est pas un échec : le programme reste en attente sur le dégradé et n'utilise pas la vidéo de secours
+
+#### Scenario: programme sans image
+- **WHEN** un programme sans vidéo ne publie aucune image
+- **THEN** il est affiché sur la vidéo de secours avec ses propres textes et sa cible d'ouverture (« Repli du programme du héro »)
 
 #### Scenario: programme sans visuel acceptable
 - **WHEN** un programme sans vidéo ne publie que des candidates refusées par la politique du héro (portrait seul, trop petites) ou reconnues comme images génériques
@@ -538,7 +562,7 @@ Le héro SHALL enchaîner automatiquement les programmes publiés, un seul à la
 - **WHEN** l'image du programme et les clips nature sont indisponibles
 - **THEN** le fond neutre local porte les textes et le bouton du programme, sans écran noir ni attente indéfinie ; le chargement de la vidéo de secours ne retarde pas la navigation
 
-**Détails.** — En-tête du héro : L'en-tête SHALL précéder le titre selon la maquette 960 × 540 dp : icône carrée sans masque de 18 dp, coins 4,5 dp, puis libellé par type publié. Pour l'app X : CONTINUE (`WATCH_NEXT_TYPE_CONTINUE`) « Continuer dans X », NEXT « Épisode suivant dans X », NEW « Nouveau dans X », WATCHLIST « À regarder dans X », preview ou type absent/inconnu « X ». Il SHALL ne montrer que les éléments disponibles. Cas « données manquantes de l'en-tête » : quand le nom ou l'icône manque, le type seul ou le libellé sans icône est montré, et sans les deux l'en-tête disparaît ; les scénarios de types et de nom/icône manquants de « Diaporama héro » s'appliquent. — Infos et progression du héro : La ligne sous le titre SHALL réunir seulement saison, épisode et durée publiés, séparés par « · ». La durée SHALL être arrondie à la minute (minimum 1 min), en heures au-delà d'une heure (« 1 h 35 min », « 2 h »). Barre et « Reste X min » SHALL exister seulement avec position et durée connues ; le restant est arrondi à la minute supérieure avec la même écriture des heures. Cas « infos partielles » : quand les données du programme sont partielles, « infos partielles », « progression sans position ou sans durée » et « programme en cours » de « Diaporama héro » s'appliquent sans réserver d'espace aux lignes absentes. — Synchronisation du héro : Titre, en-tête, infos et bouton SHALL correspondre au programme affiché, même sur son média de secours ; « Ouvrir »/« Reprendre » SHALL ouvrir ce programme et changer avec son média, jamais avant. Les textes SHALL rester fixes sans recomposition ni dessin pendant le Ken Burns, sans espace pour les lignes absentes et lisibles sur visuel clair grâce aux voiles. Cas « changement et animation » : quand le média change ou zoome, « changement de programme », « textes avec le visuel », « textes immobiles pendant le Ken Burns » et « lisibilité sur un poster clair » de « Diaporama héro » s'appliquent aussi au média de secours, sans image ou cible d'un autre programme. — Visuel du héro en attente : Un programme dont l'image n'est pas prête SHALL être passé sans attente ni délai propre au héro, sans bloquer navigation ni médias prêts ; à l'échec de la requête, « Repli du programme du héro » SHALL s'appliquer. Une vidéo suivante sans première image après 1 s SHALL rester préparée en pause sans doublon tant qu'une autre n'est pas demandée, et laisser passer le prochain média utilisable ; prête, elle redevient éligible. La première vidéo sans média à remplacer reste exemptée. Cas « préparation lente » : quand le visuel suivant n'est pas prêt, sa récupération commune continue et le programme est passé jusqu'à ce que l'image soit prête ou que la requête échoue ; une vidéo suit son délai de 1 s ; une image préparée n'est pas retenue en bitmap par le héro et est relue depuis le cache à son retour.
+**Détails.** — En-tête du héro : L'en-tête SHALL précéder le titre selon la maquette 960 × 540 dp : icône carrée sans masque de 18 dp, coins 4,5 dp, puis libellé par type publié. Pour l'app X : CONTINUE (`WATCH_NEXT_TYPE_CONTINUE`) « Continuer dans X », NEXT « Épisode suivant dans X », NEW « Nouveau dans X », WATCHLIST « À regarder dans X », preview ou type absent/inconnu « X ». Il SHALL ne montrer que les éléments disponibles. Cas « données manquantes de l'en-tête » : quand le nom ou l'icône manque, le type seul ou le libellé sans icône est montré, et sans les deux l'en-tête disparaît ; les scénarios de types et de nom/icône manquants de « Diaporama héro » s'appliquent. — Infos et progression du héro : La ligne sous le titre SHALL réunir seulement saison, épisode et durée publiés, séparés par « · ». La durée SHALL être arrondie à la minute (minimum 1 min), en heures au-delà d'une heure (« 1 h 35 min », « 2 h »). Barre et « Reste X min » SHALL exister seulement avec position et durée connues ; le restant est arrondi à la minute supérieure avec la même écriture des heures. Cas « infos partielles » : quand les données du programme sont partielles, « infos partielles », « progression sans position ou sans durée » et « programme en cours » de « Diaporama héro » s'appliquent sans réserver d'espace aux lignes absentes. — Synchronisation du héro : Titre, en-tête, infos et bouton SHALL correspondre au programme affiché, même sur son média de secours ; « Ouvrir »/« Reprendre » SHALL ouvrir ce programme et changer avec son média, jamais avant. Les textes SHALL rester fixes sans recomposition ni dessin pendant le Ken Burns, sans espace pour les lignes absentes et lisibles sur visuel clair grâce aux voiles. Cas « changement et animation » : quand le média change ou zoome, « changement de programme », « textes avec le visuel », « textes immobiles pendant le Ken Burns » et « lisibilité sur un poster clair » de « Diaporama héro » s'appliquent aussi au média de secours, sans image ou cible d'un autre programme. — Visuel du héro en attente : Un programme dont l'image n'est pas prête SHALL être passé sans attente ni délai propre au héro, sans bloquer navigation ni médias prêts ; à l'échec de la requête, « Repli du programme du héro » SHALL s'appliquer ; pendant l'attente, aucune vidéo de secours SHALL être lue. Une vidéo suivante sans première image après 1 s SHALL rester préparée en pause sans doublon tant qu'une autre n'est pas demandée, et laisser passer le prochain média utilisable ; prête, elle redevient éligible. La première vidéo sans média à remplacer reste exemptée. Cas « préparation lente » : quand le visuel suivant n'est pas prêt, sa récupération commune continue et le programme est passé jusqu'à ce que l'image soit prête ou que la requête échoue ; une vidéo suit son délai de 1 s ; une image préparée n'est pas retenue en bitmap par le héro et est relue depuis le cache à son retour.
 
 ### Requirement: Fond vidéo de secours
 Le fallback du héro SHALL être une liste de clips nature libres de droits (Pexels, 2K sinon 1080p, mp4 H.264 en https) lus par un unique lecteur, muet : chaque clip jusqu'à sa fin, puis le suivant, la playlist bouclant. Il SHALL pouvoir servir de média de secours d'un programme sans image utilisable sans remplacer l'identité de ce programme ; le clip ne dépend pas du programme affiché.
@@ -716,7 +740,15 @@ Quand l'app focusée disparaît du dock ou de la grille (app cachée, retirée d
 
 #### Scenario: visuel trop lent
 - **WHEN** le catalogue est chargé à 200 ms et le premier visuel du héro n'est toujours pas prêt 2 s après la première image de l'écran de démarrage
-- **THEN** le fondu commence à 2 s ; le héro poursuit son propre chargement et affiche son état de repli tant qu'aucun visuel n'est prêt (« Écran initial du home », scénario « fallback sans contenu »)
+- **THEN** le fondu commence à 2 s ; le héro montre le premier programme, ses textes sur le dégradé, jusqu'à ce que son image soit prête, sans vidéo de secours pendant cette attente (« Diaporama héro », scénario « visuel lent »)
+
+#### Scenario: préchargement sous l'écran de démarrage
+- **WHEN** l'écran de démarrage est affiché
+- **THEN** seul un petit lot utile est préparé : programmes conservés ou relus, image décodée du premier programme du héro et sa copie floutée pour le verre, icônes du dock et de la première rangée ; la vidéo de secours n'est pas préparée, sauf repli global confirmé ; l'écran se termine dès que ce lot est prêt, dans les plafonds de 2 s et 5 s
+
+#### Scenario: travail étalé après le démarrage
+- **WHEN** le fondu vers l'accueil est terminé
+- **THEN** le reste du chargement part par lots après la première image de l'accueil, hors fil principal : images suivantes du héro, puis images visibles d'À suivre, puis vérifications restantes, synchronisation du suivi et affiches du Top Shelf ; la navigation reste fluide pendant ces lots
 
 #### Scenario: plafond global
 - **WHEN** le catalogue n'est toujours pas chargé 5 s après la première image de l'écran de démarrage
@@ -1620,19 +1652,19 @@ Le héro SHALL recevoir tous les contenus à regarder admissibles du fournisseur
 - **THEN** les politiques d'images et replis existants s'appliquent sans prolonger leurs échéances ; les métadonnées persistées ne promettent pas le téléchargement des médias
 
 ### Requirement: Indicateur d'indisponibilité du suivi
-Une panne du fournisseur, de restauration ou des intentions en attente SHALL avoir un indicateur sans vol de focus ni notification répétée, avec cause et Réessayer ou Reconnecter. Le détail SHALL rester accessible sans identité ni carte ; il SHALL distinguer sauvegarde locale et confirmation distante, puis disparaître après résolution, absence de session confirmée ou déconnexion.
+Seule une panne du fournisseur ou de restauration qui demande une action SHALL avoir un indicateur, sans vol de focus ni notification répétée, avec cause et Réessayer ou Reconnecter. La synchronisation (en cours, en attente, confirmée) SHALL rester silencieuse dans l'accueil ; son état détaillé reste dans Réglages › Suivi de visionnage. Le détail SHALL rester accessible sans identité ni carte, puis disparaître après résolution, absence de session confirmée ou déconnexion.
 
 #### Scenario: panne partielle
 - **WHEN** le compte échoue et que les programmes locaux ou le cache du compte restent disponibles
 - **THEN** ils restent utilisables ; l'indicateur ne prend ni carte ni focus, utilise TextStyles.RowSecondary sans dépasser la hauteur du titre, aligné à droite sans suffixe « · Réglages » ; seul le trajet depuis l'engrenage donne accès au détail
 
 #### Scenario: accès sans carte depuis le héro
-- **WHEN** aucune notification de suivi n'est affichée, qu'une panne ou attente est signalée et que le focus est sur l'engrenage
+- **WHEN** une panne est signalée et que le focus est sur l'engrenage
 - **THEN** Droite ouvre le détail (état, Réessayer sinon Reconnecter) ; fermer rend l'engrenage ; ce trajet reste identique quand À suivre est masqué
 
-#### Scenario: synchronisation en cours
-- **WHEN** une synchronisation affiche un statut dans l'en-tête d'À suivre
-- **THEN** ce statut reprend le placement discret à droite et n'agrandit pas l'en-tête ni ne prend la place des cartes ; une intention durable en attente n'est pas présentée comme déjà confirmée sur le fournisseur actif
+#### Scenario: synchronisation silencieuse
+- **WHEN** une synchronisation est en cours, qu'un marquage est enregistré sur la TV en attente d'envoi ou qu'une demande vient d'être confirmée
+- **THEN** ni l'en-tête d'À suivre ni une notice n'affiche de texte comme « En cours… », « En attente de synchronisation » ou « Synchronisé » ; seul le panneau des réglages de suivi distingue sauvegarde locale et confirmation distante
 
 #### Scenario: aucune carte restante
 - **WHEN** la panne sans cache utilisable ou le traitement local des marquages retire les dernières cartes du suivi
@@ -1644,7 +1676,7 @@ Une panne du fournisseur, de restauration ou des intentions en attente SHALL avo
 
 #### Scenario: confirmation partielle de la file
 - **WHEN** certaines demandes sont confirmées mais que d'autres intentions ou compléments restent en attente
-- **THEN** l'indicateur reflète le travail restant ; aucune notification répétée ni succès global ne masque ces états, même si une notice individuelle a été fermée
+- **THEN** l'accueil reste silencieux et les réglages de suivi reflètent le travail restant ; aucun succès global n'y masque ces états
 
 #### Scenario: restauration en échec au démarrage
 - **WHEN** la restauration subit une panne réessayable avant de connaître l'identité du compte et que la session n'est pas confirmée absente

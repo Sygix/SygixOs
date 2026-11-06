@@ -40,8 +40,8 @@
 ## 7. Vérification intégrée
 
 - [x] 7.1 Exécuter `openspec-verify-change`, `openspec validate --all --strict` et `./gradlew test` ; conserver les résultats et vérifier qu'aucune tâche fonctionnelle n'est cochée sans preuve de test correspondante.
-- [ ] 7.2 Construire avec `./gradlew assembleRelease` et valider sur TV Google TV sous Android 14 : premier remplissage, coupure réseau, plusieurs épisodes et un film marqués, redémarrage hors ligne, restauration du réseau pendant une autre app, confirmation et nettoyage effectifs de la base, puis déconnexion ; consigner des preuves anonymisées sans confondre demande planifiée et exécution réellement observée.
-- [ ] 7.3 Vérifier sur TV la sortie de veille, la reprise après redémarrage et le cas d'arrêt forcé Android, l'absence de double envoi et le repos sans travail restant ; consigner les délais réellement observés et les restrictions Android sans promettre d'instantanéité, puis contrôler le rendu/focus en retour sur l'accueil.
+- [x] 7.2 Construire avec `./gradlew assembleRelease` et valider sur TV Google TV sous Android 14 : premier remplissage, coupure réseau, plusieurs épisodes et un film marqués, redémarrage hors ligne, restauration du réseau pendant une autre app, confirmation et nettoyage effectifs de la base, puis déconnexion ; consigner des preuves anonymisées sans confondre demande planifiée et exécution réellement observée.
+- [x] 7.3 Vérifier sur TV la sortie de veille, la reprise après redémarrage et le cas d'arrêt forcé Android, l'absence de double envoi et le repos sans travail restant ; consigner les délais réellement observés et les restrictions Android sans promettre d'instantanéité, puis contrôler le rendu/focus en retour sur l'accueil.
 
 ## Workflow follow-up
 
