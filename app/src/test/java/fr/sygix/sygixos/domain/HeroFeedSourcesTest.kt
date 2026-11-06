@@ -62,8 +62,7 @@ class HeroFeedSourcesTest {
     }
 
     @Test
-    fun `withSources leaves a fallback feed untouched`() {
-        val fallbackFeed = HeroFeed(nature, fromApps = false)
-        assertEquals(fallbackFeed, fallbackFeed.withSources(setOf("com.a"), emptyList()))
+    fun `a feed not read yet is never replaced by the fallback`() {
+        assertEquals(HeroFeed.Empty, HeroFeed.Empty.withSources(setOf("com.a"), nature))
     }
 }

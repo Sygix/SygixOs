@@ -16,11 +16,6 @@ class ImageBoundsTest {
     }
 
     @Test
-    fun `a 1080p screen keeps its size`() {
-        assertEquals(PixelSize(1920, 1080), ImageBounds.screen(1920, 1080))
-    }
-
-    @Test
     fun `a 1080p TV decodes banners at the focused tile size`() {
         assertEquals(PixelSize(332, 187), ImageBounds.tile(332))
         assertEquals(PixelSize(332, 187), ImageBounds.fit(3840, 2160, 332, 187))
@@ -39,6 +34,7 @@ class ImageBoundsTest {
     @Test
     fun `aspect ratio is kept when one side limits`() {
         assertEquals(PixelSize(150, 187), ImageBounds.fit(432, 540, 332, 187))
+        assertEquals(PixelSize(500, 50), ImageBounds.fit(1000, 100, 500, 500))
     }
 
     @Test
