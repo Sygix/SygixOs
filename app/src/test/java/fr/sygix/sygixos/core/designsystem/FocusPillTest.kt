@@ -5,7 +5,10 @@
 
 package fr.sygix.sygixos.core.designsystem
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -33,5 +36,17 @@ class FocusPillTest {
         val unhideAll = pillColors(focus = 0f, rest = SygixColors.PillRest)
         assertEquals(SygixColors.PillRest, unhideAll.container)
         assertEquals(Color.White, unhideAll.content)
+    }
+
+    @Test
+    fun `the pill shadow is built once and only faded by the focus progress`() = runTest {
+        val paint = PillPaint(focused = false, selected = false, rest = Color.Transparent, restContent = SygixColors.OnDark)
+        val shape = RoundedCornerShape(percent = 50)
+        fun shadow() = Modifier.focusPill(paint, shape).foldIn(emptyList<Modifier.Element>()) { elements, element -> elements + element }.first()
+        val rest = shadow()
+        paint.focus.snapTo(0.5f)
+        assertEquals(rest, shadow())
+        paint.focus.snapTo(1f)
+        assertEquals(rest, shadow())
     }
 }

@@ -19,7 +19,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.innerShadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -142,12 +141,9 @@ internal fun Modifier.glassButton(
             drawOutline(outline, lerp(SygixColors.ButtonRim, SygixColors.ButtonFocusRim, p), style = rim)
         }
     }
-    .innerShadow(shape) {
-        radius = 0f
-        color = SygixColors.ButtonHighlight
-        alpha = 1f - focus()
-        offset = Offset(0f, Dimens.Hairline.toPx())
-    }
+    .fadingInnerShadow(shape, ButtonHighlight) { 1f - focus() }
+
+private val ButtonHighlight = Shadow(radius = 0.dp, color = SygixColors.ButtonHighlight, offset = DpOffset(0.dp, Dimens.Hairline))
 
 private fun Modifier.glassHighlight(shape: Shape, top: Color, bottom: Color): Modifier = this
     .innerShadow(shape, Shadow(radius = 0.dp, color = top, offset = DpOffset(0.dp, Dimens.Hairline)))
