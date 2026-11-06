@@ -24,6 +24,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -255,6 +256,38 @@ class SettingsViewModelTest {
         vm.selectLanguage(fr.sygix.sygixos.domain.AppLanguage.GERMAN)
         assertEquals(listOf(true), h.languages.writes)
         assertEquals(fr.sygix.sygixos.domain.AppLanguage.GERMAN, vm.state.await { it.language.selected != null }.language.selected)
+    }
+
+    @Test
+    fun `the last language pick wins even when an earlier write finishes later`() = runTest(mainDispatcher.dispatcher) {
+        val io = ManualDispatcher()
+        val h = SettingsHarness(languages = FakeLanguageGateway(), io = io, track = mainDispatcher::track).also { harnesses += it }
+        val vm = h.viewModel
+        io.drainLastFirst()
+        vm.selectLanguage(fr.sygix.sygixos.domain.AppLanguage.GERMAN)
+        vm.selectLanguage(fr.sygix.sygixos.domain.AppLanguage.ITALIAN)
+        io.drainLastFirst()
+        assertEquals(fr.sygix.sygixos.domain.AppLanguage.ITALIAN, h.languages.state.selected)
+        assertEquals(fr.sygix.sygixos.domain.AppLanguage.ITALIAN, vm.state.await { it.language.selected != null }.language.selected)
+    }
+
+    @Test
+    fun `a system language pick made before the first read is applied`() = runTest(mainDispatcher.dispatcher) {
+        val io = ManualDispatcher()
+        val languages = FakeLanguageGateway(fr.sygix.sygixos.domain.LanguageState(selected = fr.sygix.sygixos.domain.AppLanguage.GERMAN, system = fr.sygix.sygixos.domain.AppLanguage.FRENCH))
+        val h = SettingsHarness(languages = languages, io = io, track = mainDispatcher::track).also { harnesses += it }
+        val vm = h.viewModel
+        vm.selectLanguage(null)
+        io.drainLastFirst()
+        assertEquals(listOf<fr.sygix.sygixos.domain.AppLanguage?>(null), languages.selections)
+        assertNull(languages.state.selected)
+        assertNull(vm.state.await { it.language.system != null }.language.selected)
+    }
+
+    private class ManualDispatcher : kotlinx.coroutines.CoroutineDispatcher() {
+        private val pending = ArrayDeque<Runnable>()
+        override fun dispatch(context: kotlin.coroutines.CoroutineContext, block: Runnable) { pending.addLast(block) }
+        fun drainLastFirst() { while (pending.isNotEmpty()) pending.removeLast().run() }
     }
 
     private class RecordingDispatcher : kotlinx.coroutines.CoroutineDispatcher() {

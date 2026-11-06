@@ -41,6 +41,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 data class SourceRow(val app: TvApp, val enabled: Boolean)
@@ -179,6 +181,9 @@ class SettingsViewModel(
     }
 
     private val language = MutableStateFlow(LanguageState())
+    private val languageAccess = Mutex()
+    private var languagePick = 0L
+    private var languageKnown = false
 
     private val updateMapper = AboutUpdateMapper()
 
@@ -236,7 +241,16 @@ class SettingsViewModel(
     }
 
     private fun refreshLanguage() {
-        viewModelScope.launch { language.value = withContext(io) { languages.current() } }
+        val pick = languagePick
+        viewModelScope.launch {
+            val read = languageAccess.withLock { withContext(io) { languages.current() } }
+            if (pick == languagePick) showLanguage(read)
+        }
+    }
+
+    private fun showLanguage(state: LanguageState) {
+        language.value = state
+        languageKnown = true
     }
 
     fun refreshHiddenRows() {
@@ -286,9 +300,13 @@ class SettingsViewModel(
     }
 
     fun selectLanguage(selected: AppLanguage?) {
-        if (selected == language.value.selected) return
+        if (languageKnown && selected == language.value.selected) return
+        val pick = ++languagePick
         language.update { it.copy(selected = selected) }
-        viewModelScope.launch { language.value = withContext(io) { languages.select(selected); languages.current() } }
+        viewModelScope.launch {
+            val read = languageAccess.withLock { withContext(io) { languages.select(selected); languages.current() } }
+            if (pick == languagePick) showLanguage(read)
+        }
     }
 
     fun restoreUpNext(key: UpNextContentKey) {
